@@ -2,6 +2,12 @@
 
 A Claude Code plugin for test-driven development of web applications using Vitest and Playwright.
 
+## Installation
+
+```bash
+ln -s /.web-app-tdd ~/.claude/plugins/web-app-tdd
+```
+
 ## Features
 
 - **TDD Workflow**: Test-first development patterns adapted for web apps
@@ -9,26 +15,6 @@ A Claude Code plugin for test-driven development of web applications using Vites
 - **Unit & E2E Testing**: Vitest for unit/component tests, Playwright for E2E
 - **Backend Support**: Node.js (Express/Fastify) and separate backends (FastAPI)
 - **Parallel Agents**: Spawn multiple agents to generate tests, analyze coverage, and validate changes simultaneously
-
-## Installation
-
-### Option 1: Symlink to plugins directory
-
-```bash
-ln -s /path/to/web-app-tdd ~/.claude/plugins/web-app-tdd
-```
-
-### Option 2: Copy to plugins directory
-
-```bash
-cp -r /path/to/web-app-tdd ~/.claude/plugins/
-```
-
-### Option 3: Use with --plugin-dir flag
-
-```bash
-claude --plugin-dir /path/to/web-app-tdd
-```
 
 ## Components
 
@@ -41,50 +27,16 @@ Core TDD workflow guidance. Triggers on queries like:
 
 ### Agents
 
-Spawn these agents for parallel task execution:
+| Agent | Purpose |
+|-------|---------|
+| `test-generator` | Generate test files for components (parallelizable) |
+| `coverage-analyzer` | Analyze test coverage gaps |
+| `setup-helper` | Configure testing infrastructure |
+| `test-validator` | Validate code changes have tests (proactive) |
 
-| Agent | Purpose | Example Use |
-|-------|---------|-------------|
-| `test-generator` | Generate test files for components | "Generate tests for Button, Modal, and Form components" |
-| `coverage-analyzer` | Analyze test coverage gaps | "What parts of my codebase don't have tests?" |
-| `setup-helper` | Configure testing infrastructure | "Set up Vitest and Playwright for my project" |
-| `test-validator` | Validate code changes have tests | "Check if my new feature has proper test coverage" |
+## Reference Files
 
-**Parallel execution example:**
-```
-User: "Generate tests for the auth module components"
-Claude: "I'll spawn test-generator agents for LoginForm, SignupForm, and useAuth in parallel."
-```
-
-## Skill Reference Files
-
-The skill includes detailed reference documentation:
-
-- `references/vitest-patterns.md` - Component testing, mocking, fixtures, coverage
-- `references/playwright-e2e.md` - Page objects, auth, visual testing, config
-- `references/backend-testing.md` - API testing, database mocking, MSW
-- `references/project-init.md` - Framework-specific setup templates
-
-## TDD Workflow
-
-The plugin teaches this workflow:
-
-1. **Write a failing test first**
-2. **Run test, watch it fail**
-3. **Implement minimal code to pass**
-4. **Run test, watch it pass**
-5. **Refactor if needed**
-6. **Document and commit together**
-
-## Supported Frameworks
-
-- **Frontend**: React, Vue, Svelte, vanilla JS/TS
-- **Meta-frameworks**: Next.js, Nuxt, SvelteKit
-- **Bundlers**: Vite, webpack
-- **Test runners**: Vitest (recommended), Jest
-- **E2E**: Playwright
-- **Backends**: Express, Fastify, FastAPI (via uv-tdd skill)
-
-## License
-
-Apache 2.0
+- `skills/web-app-tdd/references/vitest-patterns.md` - Component testing, mocking, fixtures
+- `skills/web-app-tdd/references/playwright-e2e.md` - Page objects, auth, visual testing
+- `skills/web-app-tdd/references/backend-testing.md` - API testing, database mocking
+- `skills/web-app-tdd/references/project-init.md` - Framework setup templates
