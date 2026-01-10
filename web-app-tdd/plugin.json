@@ -1,0 +1,17 @@
+{
+  "name": "web-app-tdd",
+  "version": "0.1.0",
+  "description": "TDD workflow for web applications using Vitest and Playwright",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "skills": [
+    "web-app-tdd"
+  ],
+  "agents": [
+    "test-generator",
+    "coverage-analyzer",
+    "setup-helper",
+    "test-validator"
+  ]
+}
