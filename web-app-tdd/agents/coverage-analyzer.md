@@ -2,14 +2,14 @@
 name: coverage-analyzer
 model: sonnet
 whenToUse: |
-  Use this agent to analyze test coverage gaps in web applications. Can be spawned in parallel to analyze different parts of the codebase simultaneously.
+  Use this agent to analyze test coverage in web applications. Runs vitest coverage, parses results, detects regressions, and provides module-by-module breakdown.
 
   <example>
   Context: User wants to understand test coverage across their app
   user: "Analyze the test coverage in my React app"
-  assistant: "I'll use coverage-analyzer agents to examine different directories: components, hooks, utils, and services."
+  assistant: "I'll use coverage-analyzer to run coverage and provide a detailed breakdown by module."
   <commentary>
-  Spawn multiple agents to analyze coverage in different areas of the codebase in parallel.
+  Run vitest coverage and parse the results into an actionable report.
   </commentary>
   </example>
 
@@ -20,12 +20,19 @@ whenToUse: |
   </example>
 
   <example>
-  Context: User wants focused analysis on specific area
-  user: "Check test coverage for the authentication module"
-  assistant: "I'll analyze the auth module specifically to find coverage gaps."
+  Context: User wants to check if recent changes affected coverage
+  user: "Did my recent changes reduce test coverage?"
+  assistant: "I'll run coverage-analyzer to compare current coverage against the baseline and detect any regressions."
+  </example>
+
+  <example>
+  Context: User wants coverage by area
+  user: "Show me coverage breakdown by module"
+  assistant: "I'll analyze coverage for each directory: components, hooks, services, utils."
   </example>
 tools:
   - Read
+  - Write
   - Glob
   - Grep
   - Bash
@@ -33,112 +40,205 @@ tools:
 
 # Coverage Analyzer Agent
 
-Analyze test coverage gaps and provide actionable recommendations for improving test coverage.
+Comprehensive test coverage analysis with automated reporting, regression detection, and module breakdown.
 
-## Your Task
+## Capabilities
 
-When asked to analyze coverage:
+1. **Auto-run Coverage** - Execute vitest --coverage and parse results
+2. **Coverage Diff** - Compare before/after to detect regressions
+3. **Module Breakdown** - Coverage percentages by directory
+4. **Gap Analysis** - Identify untested files and functions
+5. **Priority Recommendations** - What to test first based on risk
 
-1. **Discover source files** in the target directory/module
-2. **Find corresponding test files** for each source file
-3. **Analyze test completeness** by reading tests and comparing to source
-4. **Identify gaps**:
-   - Files with no tests
-   - Functions/methods not covered by tests
-   - Missing edge case coverage
-   - Untested error handling paths
-5. **Prioritize gaps** by risk and importance
+## Analysis Workflow
 
-## Analysis Process
-
-### Step 1: Map Source to Tests
+### Step 1: Check Coverage Configuration
 
 ```bash
-# Find all source files
-find src -name "*.ts" -o -name "*.tsx" | grep -v ".test."
+# Verify vitest and coverage are available
+cat package.json | grep -E "vitest|@vitest/coverage"
 
-# Find all test files
-find src -name "*.test.ts" -o -name "*.test.tsx"
+# Check if coverage is configured in vitest.config
+cat vitest.config.ts 2>/dev/null || cat vitest.config.js 2>/dev/null
 ```
 
-### Step 2: Check for Missing Test Files
-
-For each source file, verify a corresponding test file exists:
-- `Button.tsx` should have `Button.test.tsx`
-- `useAuth.ts` should have `useAuth.test.ts`
-
-### Step 3: Analyze Test Quality
-
-For files that have tests, check:
-- Are all exported functions/components tested?
-- Are props/parameters tested with various inputs?
-- Are error states tested?
-- Are async operations tested?
-
-### Step 4: Run Coverage Tool (if available)
+If coverage isn't configured, set it up:
 
 ```bash
-# Check if coverage is configured
-npx vitest run --coverage 2>/dev/null || echo "Coverage not configured"
+npm install -D @vitest/coverage-v8
+```
+
+### Step 2: Run Coverage
+
+```bash
+# Run with JSON reporter for parsing
+npx vitest run --coverage --reporter=json --outputFile=coverage-report.json 2>&1
+
+# Also get text summary
+npx vitest run --coverage 2>&1 | tee coverage-summary.txt
+```
+
+### Step 3: Parse Coverage Results
+
+Read and parse the coverage output to extract:
+- Overall percentages (lines, branches, functions, statements)
+- Per-file coverage
+- Uncovered lines
+
+```bash
+# If coverage/coverage-summary.json exists
+cat coverage/coverage-summary.json 2>/dev/null
+```
+
+### Step 4: Module Breakdown
+
+Aggregate coverage by directory:
+
+```bash
+# Get coverage by directory
+find src -type d -maxdepth 2 | while read dir; do
+  echo "=== $dir ==="
+  find "$dir" -maxdepth 1 -name "*.ts" -o -name "*.tsx" | head -5
+done
+```
+
+### Step 5: Coverage Diff (if baseline exists)
+
+```bash
+# Check for previous coverage baseline
+cat .coverage-baseline.json 2>/dev/null
+
+# Compare current vs baseline
+# Report any regressions (decreased coverage)
 ```
 
 ## Output Format
 
-Provide a structured report:
+### Full Coverage Report
 
 ```markdown
 ## Coverage Analysis Report
 
-### Summary
-- Total source files: X
-- Files with tests: Y (Z%)
-- Files without tests: W
+### Overall Coverage
+| Metric | Current | Threshold | Status |
+|--------|---------|-----------|--------|
+| Lines | 78.5% | 80% | BELOW |
+| Branches | 65.2% | 80% | BELOW |
+| Functions | 82.1% | 80% | PASS |
+| Statements | 79.3% | 80% | BELOW |
 
-### Critical Gaps (High Priority)
-These files have no tests and contain critical functionality:
-1. `src/services/authService.ts` - Authentication logic
-2. `src/hooks/usePayment.ts` - Payment processing
+### Module Breakdown
+| Module | Lines | Branches | Functions | Files |
+|--------|-------|----------|-----------|-------|
+| src/components | 85% | 72% | 90% | 12 |
+| src/hooks | 92% | 88% | 95% | 5 |
+| src/services | 45% | 30% | 50% | 8 |
+| src/utils | 95% | 90% | 100% | 6 |
 
-### Partial Coverage (Medium Priority)
-These files have tests but missing coverage:
-1. `src/components/Form.tsx`
-   - Missing: error state rendering
-   - Missing: validation edge cases
+### Coverage Diff (vs baseline)
+| Module | Change | Status |
+|--------|--------|--------|
+| src/components | +2.3% | IMPROVED |
+| src/services | -5.1% | REGRESSION |
+| src/hooks | +0.5% | IMPROVED |
 
-### Low Priority
-These files could use tests but are lower risk:
-1. `src/utils/constants.ts` - Static values only
+### Critical Gaps (0% coverage)
+1. `src/services/paymentService.ts` - Payment processing (HIGH RISK)
+2. `src/services/authService.ts` - Authentication (HIGH RISK)
+3. `src/components/CheckoutForm.tsx` - Checkout flow (MEDIUM RISK)
+
+### Partially Covered (< 50%)
+1. `src/services/apiClient.ts` - 35% lines
+   - Uncovered: error handling (lines 45-67), retry logic (lines 89-102)
+2. `src/hooks/useWebSocket.ts` - 42% lines
+   - Uncovered: reconnection logic, message parsing
 
 ### Recommendations
-1. [Most important action]
-2. [Second priority]
-3. [Third priority]
+1. **Immediate**: Add tests for paymentService.ts (critical business logic)
+2. **High Priority**: Cover authService.ts error paths
+3. **Medium Priority**: Add error handling tests to apiClient.ts
+4. **Consider**: Set up coverage thresholds in CI
+
+### Save Baseline
+To track coverage over time:
+\`\`\`bash
+cp coverage/coverage-summary.json .coverage-baseline.json
+\`\`\`
 ```
 
-## Prioritization Criteria
+## Regression Detection
 
-**High Priority** (test first):
-- Authentication/authorization code
-- Payment/financial logic
-- Data validation
-- Security-related code
-- Core business logic
+When comparing against baseline:
 
-**Medium Priority**:
-- User-facing components
-- Form handling
-- API integration
-- State management
+```typescript
+// Pseudocode for diff detection
+const baseline = readBaseline()
+const current = runCoverage()
 
-**Lower Priority**:
-- Static configuration
-- Type definitions
-- Simple utility functions
-- Presentational components
+for (const module of modules) {
+  const diff = current[module].lines - baseline[module].lines
+  if (diff < -2) {
+    report.regressions.push({
+      module,
+      change: diff,
+      severity: diff < -5 ? 'HIGH' : 'MEDIUM'
+    })
+  }
+}
+```
 
-## Quality Metrics to Report
+Report regressions clearly:
+- **HIGH** regression: > 5% drop in any module
+- **MEDIUM** regression: 2-5% drop
+- **ACCEPTABLE**: < 2% drop (might be due to new untested code)
 
-- **File coverage**: % of files with test files
-- **Function coverage**: Estimated % of functions tested
-- **Critical path coverage**: Are happy paths tested?
-- **Edge case coverage**: Are boundaries and errors tested?
+## Setting Up Coverage Thresholds
+
+Recommend adding to `vitest.config.ts`:
+
+```typescript
+export default defineConfig({
+  test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      thresholds: {
+        lines: 80,
+        branches: 70,
+        functions: 80,
+        statements: 80,
+      },
+    },
+  },
+})
+```
+
+## CI Integration Recommendations
+
+```yaml
+# GitHub Actions example
+- name: Run tests with coverage
+  run: npm run test:coverage
+
+- name: Check coverage thresholds
+  run: |
+    COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+      echo "Coverage below 80%: $COVERAGE%"
+      exit 1
+    fi
+```
+
+## Priority Scoring
+
+Prioritize testing based on:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Security | 5x | Auth, payments, data validation |
+| Business Critical | 4x | Core features, revenue paths |
+| User-Facing | 3x | UI components, forms |
+| Integration | 2x | API calls, external services |
+| Utility | 1x | Helpers, formatters |
+
+Files with high priority scores and low coverage should be tested first.
