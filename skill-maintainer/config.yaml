@@ -1,0 +1,38 @@
+sources:
+  anthropic-skills-docs:
+    type: docs
+    urls:
+      - https://code.claude.com/docs/en/skills
+      - https://code.claude.com/docs/en/plugins
+      - https://code.claude.com/docs/en/hooks-guide
+    check_interval: 24h
+
+  agentskills-spec:
+    type: source
+    repo: https://github.com/agentskills/agentskills
+    watched_files:
+      - docs/specification.mdx
+      - skills-ref/src/skills_ref/validator.py
+      - skills-ref/src/skills_ref/parser.py
+    check_interval: 24h
+
+  anthropic-skills-guide:
+    type: docs
+    urls: []
+    hash_file: docs/guides/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+    check_interval: 168h
+
+skills:
+  plugin-toolkit:
+    path: ./plugin-toolkit/skills/plugin-toolkit
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
+
+  skill-maintainer:
+    path: ./skill-maintainer
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
