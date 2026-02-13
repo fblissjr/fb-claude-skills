@@ -1,10 +1,14 @@
 sources:
   anthropic-skills-docs:
     type: docs
-    urls:
+    llms_full_url: https://code.claude.com/docs/llms-full.txt
+    pages:
       - https://code.claude.com/docs/en/skills
       - https://code.claude.com/docs/en/plugins
+      - https://code.claude.com/docs/en/plugins-reference
       - https://code.claude.com/docs/en/hooks-guide
+      - https://code.claude.com/docs/en/hooks
+      - https://code.claude.com/docs/en/sub-agents
     check_interval: 24h
 
   agentskills-spec:
@@ -18,9 +22,21 @@ sources:
 
   anthropic-skills-guide:
     type: docs
-    urls: []
     hash_file: docs/guides/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
     check_interval: 168h
+
+  ext-apps:
+    type: source
+    repo: https://github.com/modelcontextprotocol/ext-apps
+    watched_files:
+      - plugins/mcp-apps/skills/create-mcp-app/SKILL.md
+      - plugins/mcp-apps/skills/migrate-oai-app/SKILL.md
+      - specification/2026-01-26/apps.mdx
+      - docs/patterns.md
+      - docs/overview.md
+      - docs/testing-mcp-apps.md
+      - docs/migrate_from_openai_apps.md
+    check_interval: 24h
 
 skills:
   plugin-toolkit:
@@ -33,6 +49,22 @@ skills:
   skill-maintainer:
     path: ./skill-maintainer
     sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
+
+  create-mcp-app:
+    path: ./mcp-apps/skills/create-mcp-app
+    sources:
+      - ext-apps
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
+
+  migrate-oai-app:
+    path: ./mcp-apps/skills/migrate-oai-app
+    sources:
+      - ext-apps
       - anthropic-skills-docs
       - agentskills-spec
     auto_update: false

@@ -1,0 +1,11 @@
+{
+  "name": "cogapp-markdown",
+  "version": "0.1.0",
+  "description": "Auto-generate markdown sections using cogapp",
+  "author": {
+    "name": "Simon Willison (adapted by Fred Bliss)"
+  },
+  "skills": [
+    "cogapp-markdown"
+  ]
+}

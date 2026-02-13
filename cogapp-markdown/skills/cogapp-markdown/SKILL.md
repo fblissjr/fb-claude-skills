@@ -1,6 +1,9 @@
 ---
 name: cogapp-markdown
 description: Use cogapp to auto-generate sections of markdown documentation by embedding Python code that produces content. Use when a project needs to keep documentation in sync with code, such as embedding CLI --help output in README files, generating tables, or any content that should be derived from the code itself rather than manually maintained.
+metadata:
+  author: Simon Willison (adapted by Fred Bliss)
+  version: 0.1.0
 ---
 
 # cogapp for Markdown Documentation

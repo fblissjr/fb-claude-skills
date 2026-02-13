@@ -1,5 +1,56 @@
 # changelog
 
+## 0.3.1
+
+### added
+- heylook-monitor: MCP App dashboard for heylookitsanllm local LLM server
+  - live monitoring: models, system metrics (RAM/CPU), per-model performance (TPS, latency)
+  - quick inference panel for testing prompts against local models
+  - 4 tools: show_llm_dashboard, poll_status, quick_inference, list_local_models
+  - server-side API proxying (no CSP issues), auto-polling with graceful degradation
+  - follows system-monitor-server reference implementation pattern
+
+### changed
+- web-tdd: restructured as installable plugin (SKILL.md moved to `skills/web-tdd/SKILL.md`, added plugin.json, metadata fields)
+- cogapp-markdown: restructured as installable plugin (SKILL.md moved to `skills/cogapp-markdown/SKILL.md`, added plugin.json, metadata fields)
+- all plugin READMEs: standardized with installation commands, skills table, invocation examples
+- root README.md: added comprehensive installation guide (clone + install, GitHub install, project-scoped, uninstall, usage)
+- CLAUDE.md: added Installation section, updated repo structure to reflect plugin layout, added READMEs convention
+
+## 0.3.0
+
+### added
+- mcp-apps: new skill module for building and migrating MCP Apps (interactive UIs for MCP)
+  - create-mcp-app skill: guides building MCP Apps from scratch (framework selection, tool+resource registration, theming, streaming, testing)
+  - migrate-oai-app skill: step-by-step migration from OpenAI Apps SDK to MCP Apps SDK with API mapping tables and CSP checklist
+  - plugin.json: plugin manifest with both skills
+  - references/: local copies of upstream docs (overview, patterns, testing, specification, migration guide) for offline use
+  - README.md: user-facing documentation
+- skill-maintainer: ext-apps source added to config.yaml for upstream change detection
+  - monitors 7 upstream files (2 skills, 1 spec, 4 docs)
+  - create-mcp-app and migrate-oai-app tracked as managed skills
+- docs/internals/: technical documentation for skill-maintainer system
+  - api_reference.md: function signatures, parameters, return types for all Python scripts
+  - schema.md: formal schemas for state.json and config.yaml
+  - troubleshooting.md: common issues, error messages, recovery procedures
+- docs/README.md: documentation index linking all doc sections
+- CLAUDE.md: added "adding a new skill module" checklist and direct skills-ref validate shortcut
+
+## 0.2.1
+
+### changed
+- docs_monitor.py: rewritten as CDC pipeline (detect -> identify -> classify)
+  - detect: HEAD request comparing Last-Modified header (zero bandwidth if unchanged)
+  - identify: fetch llms-full.txt, split by page, hash each watched page
+  - classify: keyword heuristic on diff text
+  - removed markdownify dependency (no longer needed)
+- config.yaml: sources use llms_full_url + pages instead of individual urls
+- state.json: new format with _watermark (per-source) and _pages (per-page) with last_changed tracking
+- check_freshness.py, apply_updates.py, update_report.py: updated for new state format
+
+### removed
+- .github/workflows/skill-maintenance.yml and validate-skills.yml: local freshness hooks are sufficient; CI adds overhead without value for solo use
+
 ## 0.2.0
 
 ### added
@@ -22,8 +73,12 @@
   - validate-skills.yml: PR validation for skill file changes
 - pyproject.toml: uv-based dependency management with skills-ref integration
 
+### fixed
+- docs_monitor.py: content extraction now extracts main content div instead of capturing raw JS/CSS from Next.js pages
+
 ### changed
 - plugin-toolkit/skills/plugin-toolkit/SKILL.md: added metadata.version field
+- CLAUDE.md: comprehensive get-up-to-speed guide for the repo (Phase 8)
 
 ## 0.1.0
 

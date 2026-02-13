@@ -55,20 +55,24 @@ def load_state(state_path: Path) -> dict:
 
 def get_last_checked(state: dict, source_name: str) -> str | None:
     """Get the most recent check timestamp for a source."""
-    # Check docs state
-    docs = state.get("docs", {}).get(source_name, {})
     timestamps = []
-    for url, url_data in docs.items():
-        if url.startswith("_"):
-            ts = docs.get("_file_last_checked")
-            if ts:
-                timestamps.append(ts)
-        elif isinstance(url_data, dict):
-            ts = url_data.get("last_checked")
-            if ts:
-                timestamps.append(ts)
 
-    # Check sources state
+    # Check docs state (CDC format: _watermark.last_checked, _pages.*.last_checked)
+    docs = state.get("docs", {}).get(source_name, {})
+    watermark = docs.get("_watermark", {})
+    if isinstance(watermark, dict) and watermark.get("last_checked"):
+        timestamps.append(watermark["last_checked"])
+    pages = docs.get("_pages", {})
+    if isinstance(pages, dict):
+        for url, page_data in pages.items():
+            if isinstance(page_data, dict) and page_data.get("last_checked"):
+                timestamps.append(page_data["last_checked"])
+    # Local file timestamp
+    file_ts = docs.get("_file_last_checked")
+    if file_ts:
+        timestamps.append(file_ts)
+
+    # Check sources state (git-based: sources.*.last_checked)
     src = state.get("sources", {}).get(source_name, {})
     if isinstance(src, dict):
         ts = src.get("last_checked")

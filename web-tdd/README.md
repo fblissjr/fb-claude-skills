@@ -1,51 +1,49 @@
+last updated: 2026-02-13
+
 # web-tdd
 
-A Claude skill for test-driven development of web applications.
+TDD workflow for web applications with Vitest (unit/component) and Playwright or Vibium (E2E). Supports React+Node, React+Python, and vanilla JS+Python stacks.
 
-## Installation
+## installation
 
-For Claude Code:
 ```bash
-ln -s /path/to/web-tdd ~/.claude/plugins/web-tdd
+claude plugin add /path/to/fb-claude-skills/web-tdd
 ```
 
-For Claude.ai skills:
-Copy SKILL.md to your skills directory.
+Or from the repo URL:
 
-## What This Replaces
+```bash
+claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin web-tdd
+```
 
-This is a simplified, unified version that replaces:
-- `vibium-tdd` (too many agents, missing spec.md pattern)
-- `web-app-tdd` (Playwright-only, no Python backend support)
+## skills
 
-## Key Differences from Previous Skills
+| Skill | Trigger | What it does |
+|-------|---------|--------------|
+| `web-tdd` | "set up TDD", "add tests to my React app", "create tests for the login flow" | Guides TDD workflow: test setup, failing test, implementation, pass, document, commit |
 
-| Feature | Old Skills | web-tdd |
-|---------|-----------|---------|
-| Agents | 4 agents (coverage-analyzer, setup-helper, test-generator, test-validator) | None - single SKILL.md |
-| Spec tracking | None | spec.md with TODOs |
-| Push control | Implicit "push if remote configured" | Explicit "push manually, always" |
-| Gitignore | Not mentioned | Set up upfront |
-| Python backend | Separate uv-tdd skill | Integrated (pytest + httpx) |
-| E2E choice | Vibium OR Playwright (separate skills) | Both documented, you choose |
+## invocation
 
-## Philosophy
+```
+/web-tdd
+```
 
-Borrowed from `uv-tdd`:
+Or describe what you want naturally -- the skill triggers on test-related keywords.
+
+## what this covers
+
+- **React + Node backend** -- Vitest everywhere (frontend + backend with supertest)
+- **React + Python backend** -- Vitest (frontend) + pytest (backend)
+- **Vanilla JS/HTML + Python** -- Vitest or Jest (frontend) + pytest (backend)
+- **E2E** -- Playwright (full-featured) or Vibium (zero-config, AI-native)
+
+## key philosophy
+
 1. Single source of truth (SKILL.md)
 2. spec.md as living documentation
-3. TDD cycle: test → fail → implement → pass → document → commit
+3. TDD cycle: test first, fail, implement, pass, document, commit
 4. You control all remote operations (no auto-push)
 
-## Usage
+## credits
 
-Trigger phrases:
-- "Help me add tests to my React app"
-- "Set up TDD for my Vite project"
-- "I need to test this feature"
-- "Create tests for the login flow"
-
-The skill covers:
-- React + Node (Vitest everywhere)
-- React + Python (Vitest frontend, pytest backend)
-- E2E with Playwright or Vibium
+Evolved from earlier `vibium-tdd` and `web-app-tdd` skills into a unified, simplified version.

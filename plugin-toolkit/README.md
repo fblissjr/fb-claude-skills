@@ -1,12 +1,36 @@
-# Plugin Toolkit
+last updated: 2026-02-13
+
+# plugin-toolkit
 
 Tools for analyzing, polishing, and managing Claude Code plugins.
 
-## Installation
+## installation
 
-Add to your Claude Code plugins directory or reference in your settings.
+```bash
+claude plugin add /path/to/fb-claude-skills/plugin-toolkit
+```
 
-## Commands
+Or from the repo URL:
+
+```bash
+claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin plugin-toolkit
+```
+
+## skills
+
+| Skill | Trigger | What it does |
+|-------|---------|--------------|
+| `plugin-toolkit` | "analyze plugin", "polish plugin", "add command to plugin" | Analyze plugin structure, add standard utility commands, manage features |
+
+## invocation
+
+```
+/plugin-toolkit:analyze ~/path/to/plugin
+/plugin-toolkit:polish ~/path/to/plugin
+/plugin-toolkit:feature add ~/my-plugin command "review" "Review code for issues"
+```
+
+## commands
 
 | Command | Purpose |
 |---------|---------|
@@ -14,80 +38,20 @@ Add to your Claude Code plugins directory or reference in your settings.
 | `/plugin-toolkit:polish <path>` | Add standard utility commands (help, status, on/off) |
 | `/plugin-toolkit:feature <action> <path>` | Add, remove, or modify plugin features |
 
-## Quick Start
+## components
 
-### Analyze a Plugin
+### agents
 
-```
-/plugin-toolkit:analyze ~/claude/my-plugin
-```
+- **plugin-scanner** -- Explores plugin structure, returns inventory
+- **quality-checker** -- Evaluates against checklist, returns ratings
 
-Creates `analysis/` directory with:
-- `ANALYSIS.md` - Architecture and component inventory
-- `RECOMMENDATIONS.md` - Prioritized improvements
-- `INTEGRATION_WORKFLOWS.md` - Cross-plugin patterns
-- `SKILL_REVIEW.md` - Quality ratings
+### references
 
-### Polish a Plugin
+- **analysis-template.md** -- Structure for analysis documentation
+- **command-template.md** -- Boilerplate for new commands
+- **quality-checklist.md** -- Evaluation criteria
+- **hook-patterns.md** -- Common hook implementations
 
-```
-/plugin-toolkit:polish ~/claude/my-plugin
-```
+## integration with other tools
 
-Adds standard utilities:
-- `/help` - Lists all commands
-- `/status` - Shows current state
-- `/off` / `/on` - Toggle auto-activation
-- `CHANGELOG.md` - Version history
-
-### Manage Features
-
-```
-# Add a command
-/plugin-toolkit:feature add ~/my-plugin command "review" "Review code for issues"
-
-# Remove a command
-/plugin-toolkit:feature remove ~/my-plugin command "deprecated"
-
-# Add a hook
-/plugin-toolkit:feature add ~/my-plugin hook "UserPromptSubmit" "inject.sh"
-```
-
-## Components
-
-### Agents
-
-- **plugin-scanner** - Explores plugin structure, returns inventory
-- **quality-checker** - Evaluates against checklist, returns ratings
-
-### References
-
-- **analysis-template.md** - Structure for analysis documentation
-- **command-template.md** - Boilerplate for new commands
-- **quality-checklist.md** - Evaluation criteria
-- **hook-patterns.md** - Common hook implementations
-
-## Example Workflow
-
-```bash
-# Full plugin review and improvement
-/plugin-toolkit:analyze ~/claude/my-plugin
-/plugin-toolkit:polish ~/claude/my-plugin
-/plugin-toolkit:feature add ~/my-plugin command "custom" "My feature"
-```
-
-## Integration with Other Tools
-
-See **[USE_CASES.md](USE_CASES.md)** for detailed workflows combining plugin-toolkit with:
-
-| Tool | Integration |
-|------|-------------|
-| **codebase-analyzer** | Deep Python analysis before plugin evaluation |
-| **context-fields** | Cognitive constraints during development |
-| **pr-review-toolkit** | Code-level review of plugin changes |
-| **feature-dev** | Architecture planning for new plugins |
-| **hookify** | Auto-activate constraints for plugin work |
-
-## License
-
-MIT
+See [USE_CASES.md](USE_CASES.md) for detailed workflows combining plugin-toolkit with codebase-analyzer, context-fields, pr-review-toolkit, feature-dev, and hookify.

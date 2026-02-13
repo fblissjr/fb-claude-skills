@@ -1,0 +1,11 @@
+{
+  "name": "web-tdd",
+  "version": "0.1.0",
+  "description": "TDD workflow for web applications with Vitest, Playwright, and Vibium",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "skills": [
+    "web-tdd"
+  ]
+}

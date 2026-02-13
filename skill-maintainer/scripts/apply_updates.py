@@ -106,23 +106,25 @@ def get_changes_for_skill(
     skill_sources = skill_config.get("sources", [])
     changes = []
 
-    # Check docs changes
+    # Check docs changes (CDC format: _pages dict with per-page state)
     docs_state = state.get("docs", {})
     for source_name in skill_sources:
-        if source_name in docs_state:
-            for url, url_data in docs_state[source_name].items():
-                if url.startswith("_"):
-                    continue
-                if not isinstance(url_data, dict):
-                    continue
-                if url_data.get("hash"):
-                    changes.append({
-                        "type": "docs",
-                        "source": source_name,
-                        "url": url,
-                        "hash": url_data.get("hash", "")[:12],
-                        "last_checked": url_data.get("last_checked", ""),
-                    })
+        source_data = docs_state.get(source_name, {})
+        pages = source_data.get("_pages", {})
+        if not isinstance(pages, dict):
+            continue
+        for url, page_data in pages.items():
+            if not isinstance(page_data, dict):
+                continue
+            if page_data.get("hash"):
+                changes.append({
+                    "type": "docs",
+                    "source": source_name,
+                    "url": url,
+                    "hash": page_data.get("hash", "")[:12],
+                    "last_checked": page_data.get("last_checked", ""),
+                    "last_changed": page_data.get("last_changed", ""),
+                })
 
     # Check source repo changes
     sources_state = state.get("sources", {})

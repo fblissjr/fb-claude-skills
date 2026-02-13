@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>heylook monitor</title>
+</head>
+<body>
+  <main class="main">
+    <header class="header">
+      <h1 class="title">heylook monitor</h1>
+      <div class="header-controls">
+        <span class="status">
+          <span id="status-indicator" class="status-indicator"></span>
+          <span id="status-text" class="status-text">Connecting...</span>
+        </span>
+      </div>
+    </header>
+
+    <section id="system-section" class="system-section">
+      <h2 class="section-title">System</h2>
+      <div class="metric-row">
+        <div class="metric-label">RAM</div>
+        <div class="bar-container">
+          <div class="bar">
+            <div id="ram-bar-fill" class="bar-fill"></div>
+          </div>
+          <span id="ram-percent" class="metric-value">--%</span>
+        </div>
+      </div>
+      <div id="ram-detail" class="metric-detail"></div>
+      <div class="metric-row">
+        <div class="metric-label">CPU</div>
+        <div class="bar-container">
+          <div class="bar">
+            <div id="cpu-bar-fill" class="bar-fill"></div>
+          </div>
+          <span id="cpu-percent" class="metric-value">--%</span>
+        </div>
+      </div>
+      <div id="gpu-info" class="metric-detail"></div>
+    </section>
+
+    <section id="models-section" class="models-section">
+      <h2 class="section-title">Models</h2>
+      <div id="model-cards" class="model-cards"></div>
+      <div id="no-models" class="empty-state">No models loaded</div>
+    </section>
+
+    <section id="inference-section" class="inference-section">
+      <h2 class="section-title">Quick Inference</h2>
+      <div class="inference-form">
+        <div class="form-row">
+          <select id="inference-model" class="form-select">
+            <option value="">Select model...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <textarea id="inference-prompt" class="form-textarea" rows="2" placeholder="Enter a prompt..."></textarea>
+        </div>
+        <div class="form-row form-actions">
+          <button id="inference-run" class="btn" disabled>Run</button>
+          <span id="inference-status" class="inference-status"></span>
+        </div>
+      </div>
+      <div id="inference-result" class="inference-result" hidden>
+        <div id="inference-response" class="inference-response"></div>
+        <div id="inference-meta" class="inference-meta"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./src/mcp-app.ts"></script>
+</body>
+</html>

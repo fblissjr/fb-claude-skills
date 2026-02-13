@@ -1,0 +1,12 @@
+{
+  "name": "mcp-apps",
+  "version": "0.1.0",
+  "description": "Skills for building and migrating MCP Apps with interactive UIs",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "skills": [
+    "create-mcp-app",
+    "migrate-oai-app"
+  ]
+}

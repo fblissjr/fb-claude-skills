@@ -66,25 +66,26 @@ def generate_unified_report(config: dict, state: dict) -> str:
 
     changed_sources = []
 
-    # Docs changes
+    # Docs changes (CDC format: _pages dict with per-page state)
     docs_state = state.get("docs", {})
     docs_changes = []
-    for source_name, urls in docs_state.items():
-        if not isinstance(urls, dict):
+    for source_name, source_data in docs_state.items():
+        if not isinstance(source_data, dict):
             continue
-        for url, url_data in urls.items():
-            if url.startswith("_"):
+        pages = source_data.get("_pages", {})
+        if not isinstance(pages, dict):
+            continue
+        for url, page_data in pages.items():
+            if not isinstance(page_data, dict):
                 continue
-            if not isinstance(url_data, dict):
-                continue
-            last_checked = url_data.get("last_checked", "")
-            content_hash = url_data.get("hash", "")
+            content_hash = page_data.get("hash", "")
             if content_hash:
                 docs_changes.append({
                     "source": source_name,
                     "url": url,
                     "hash": content_hash[:12],
-                    "last_checked": last_checked,
+                    "last_checked": page_data.get("last_checked", ""),
+                    "last_changed": page_data.get("last_changed", ""),
                 })
                 if source_name not in changed_sources:
                     changed_sources.append(source_name)

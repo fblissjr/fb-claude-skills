@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 """
-Hash-based change detection for documentation URLs.
+CDC-style change detection for documentation sources.
 
-Fetches page content via httpx, converts HTML to markdown via markdownify,
-computes content hash, and compares to stored hashes in state.json.
+Pipeline:
+  1. DETECT  -- HEAD request, compare Last-Modified header (zero bytes if unchanged)
+  2. IDENTIFY -- fetch llms-full.txt (or HTML fallback), split into pages, hash each
+  3. CLASSIFY -- keyword heuristic on diff text (breaking/additive/cosmetic)
+
+Each source carries its own watermark (last_modified, etag, page hashes) in state.json.
 
 Usage:
     uv run python skill-maintainer/scripts/docs_monitor.py
     uv run python skill-maintainer/scripts/docs_monitor.py --source anthropic-skills-docs
-    uv run python skill-maintainer/scripts/docs_monitor.py --config skill-maintainer/config.yaml
 """
 
 import argparse
 import hashlib
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-import markdownify
 import orjson
 import yaml
 
@@ -35,15 +38,21 @@ CHANGE_KEYWORDS_ADDITIVE = [
     "can now", "also",
 ]
 
+# Regex to split llms-full.txt into per-page sections.
+# Each page starts with a markdown heading followed by "Source: <url>".
+_PAGE_SPLIT = re.compile(r"^(?=# .+\nSource: https?://)", re.MULTILINE)
+
+
+# ---------------------------------------------------------------------------
+# State helpers
+# ---------------------------------------------------------------------------
 
 def load_config(config_path: Path) -> dict:
-    """Load and return the config.yaml."""
     with open(config_path) as f:
         return yaml.safe_load(f)
 
 
 def load_state(state_path: Path) -> dict:
-    """Load state.json, returning empty dict if missing or empty."""
     if not state_path.exists():
         return {}
     data = state_path.read_bytes()
@@ -53,178 +62,273 @@ def load_state(state_path: Path) -> dict:
 
 
 def save_state(state_path: Path, state: dict) -> None:
-    """Write state to state.json using orjson."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_bytes(orjson.dumps(state, option=orjson.OPT_INDENT_2))
 
 
-def fetch_and_hash(url: str, timeout: float = 30.0) -> tuple[str, str, str]:
-    """Fetch URL, convert to markdown, return (markdown_content, content_hash, raw_text).
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Layer 1: DETECT -- did the source change at all?
+# ---------------------------------------------------------------------------
+
+def detect_change(
+    bundle_url: str,
+    stored_watermark: dict,
+    timeout: float = 10.0,
+) -> tuple[bool, dict]:
+    """HEAD request to check Last-Modified / ETag.
+
+    Returns (changed: bool, new_watermark: dict).
+    If the server doesn't support conditional headers, returns changed=True
+    so we always fall through to identify.
+    """
+    try:
+        resp = httpx.head(bundle_url, timeout=timeout, follow_redirects=True)
+        resp.raise_for_status()
+    except Exception:
+        # Can't reach server -- assume changed so identify step fetches
+        return True, stored_watermark
+
+    last_modified = resp.headers.get("last-modified", "")
+    etag = resp.headers.get("etag", "")
+
+    new_watermark = {
+        "last_modified": last_modified,
+        "etag": etag,
+        "last_checked": _now_iso(),
+    }
+
+    if not last_modified and not etag:
+        # No caching headers -- can't detect, always fetch
+        return True, new_watermark
+
+    old_lm = stored_watermark.get("last_modified", "")
+    old_etag = stored_watermark.get("etag", "")
+
+    changed = (last_modified != old_lm) or (etag != old_etag)
+    return changed, new_watermark
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: IDENTIFY -- what pages changed?
+# ---------------------------------------------------------------------------
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def _parse_llms_full(text: str) -> dict[str, str]:
+    """Split llms-full.txt into {source_url: page_content}."""
+    pages = {}
+    sections = _PAGE_SPLIT.split(text)
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+        lines = section.split("\n", 2)
+        if len(lines) < 2:
+            continue
+        source_line = lines[1]
+        if not source_line.startswith("Source: "):
+            continue
+        url = source_line[len("Source: "):].strip()
+        content = lines[2].strip() if len(lines) > 2 else ""
+        pages[url] = content
+    return pages
+
+
+def identify_changes(
+    bundle_url: str,
+    watched_pages: list[str],
+    stored_pages: dict,
+    timeout: float = 30.0,
+) -> tuple[list[dict], dict]:
+    """Fetch the bundle, split into pages, compare hashes to stored state.
+
+    Args:
+        bundle_url: URL to llms-full.txt
+        watched_pages: list of page URLs we care about (empty = all)
+        stored_pages: {url: {hash, content_preview, last_changed}} from state
 
     Returns:
-        Tuple of (markdown_content, sha256_hash, raw_text_for_diff)
+        (changes, new_pages_state)
+        changes: list of dicts with source_url, old_hash, new_hash, content
+        new_pages_state: updated page state to store
     """
-    resp = httpx.get(url, timeout=timeout, follow_redirects=True)
+    resp = httpx.get(bundle_url, timeout=timeout, follow_redirects=True)
     resp.raise_for_status()
 
-    content_type = resp.headers.get("content-type", "")
-    if "html" in content_type:
-        md_content = markdownify.markdownify(
-            resp.text,
-            heading_style="ATX",
-            strip=["img", "script", "style", "nav", "footer"],
-        )
+    all_pages = _parse_llms_full(resp.text)
+
+    # Filter to watched pages if specified
+    if watched_pages:
+        pages = {url: content for url, content in all_pages.items()
+                 if url in watched_pages}
     else:
-        md_content = resp.text
+        pages = all_pages
 
-    # Normalize whitespace for stable hashing
-    normalized = "\n".join(
-        line.strip() for line in md_content.splitlines()
-        if line.strip()
-    )
-    content_hash = hashlib.sha256(normalized.encode()).hexdigest()
+    changes = []
+    new_state = {}
+    now = _now_iso()
 
-    return md_content, content_hash, normalized
+    for url, content in pages.items():
+        page_hash = _hash(content)
+        old = stored_pages.get(url, {})
+        old_hash = old.get("hash", "")
+
+        new_state[url] = {
+            "hash": page_hash,
+            "content_preview": content[:3000],
+            "last_checked": now,
+            "last_changed": old.get("last_changed", now) if page_hash == old_hash
+                else now,
+        }
+
+        if page_hash != old_hash:
+            changes.append({
+                "url": url,
+                "old_hash": old_hash,
+                "new_hash": page_hash,
+                "old_content": old.get("content_preview", ""),
+                "new_content": content,
+            })
+
+    return changes, new_state
 
 
-def hash_file(file_path: Path) -> str:
-    """Hash a local file (e.g., PDF) for change detection."""
-    if not file_path.exists():
-        return ""
-    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+# ---------------------------------------------------------------------------
+# Layer 3: CLASSIFY -- breaking / additive / cosmetic
+# ---------------------------------------------------------------------------
 
-
-def classify_changes(old_content: str, new_content: str) -> str:
-    """Classify a change as breaking, additive, or cosmetic.
-
-    Simple heuristic: check the diff text for keywords.
-    """
+def classify_change(old_content: str, new_content: str) -> str:
     if not old_content:
         return "ADDITIVE"
 
-    # Compute a simple line-level diff
     old_lines = set(old_content.splitlines())
     new_lines = set(new_content.splitlines())
-    added_lines = new_lines - old_lines
-    removed_lines = old_lines - new_lines
+    diff_text = " ".join(new_lines - old_lines | old_lines - new_lines).lower()
 
-    diff_text = " ".join(added_lines | removed_lines).lower()
-
-    for keyword in CHANGE_KEYWORDS_BREAKING:
-        if keyword in diff_text:
+    for kw in CHANGE_KEYWORDS_BREAKING:
+        if kw in diff_text:
             return "BREAKING"
-
-    for keyword in CHANGE_KEYWORDS_ADDITIVE:
-        if keyword in diff_text:
+    for kw in CHANGE_KEYWORDS_ADDITIVE:
+        if kw in diff_text:
             return "ADDITIVE"
-
     return "COSMETIC"
 
 
-def check_docs_source(
+def diff_summary(old_content: str, new_content: str) -> str:
+    if not old_content:
+        return "initial capture"
+    old_lines = set(old_content.splitlines())
+    new_lines = set(new_content.splitlines())
+    added = len(new_lines - old_lines)
+    removed = len(old_lines - new_lines)
+    return f"+{added} -{removed} lines"
+
+
+# ---------------------------------------------------------------------------
+# Local file hash (PDF, etc.)
+# ---------------------------------------------------------------------------
+
+def check_local_file(file_path: Path, stored_hash: str) -> dict | None:
+    """Check a local file for changes. Returns change dict or None."""
+    if not file_path.exists():
+        return None
+    new_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+    if new_hash == stored_hash:
+        return None
+    return {
+        "url": f"file://{file_path}",
+        "old_hash": stored_hash,
+        "new_hash": new_hash,
+        "classification": "ADDITIVE",
+        "summary": "local file changed" if stored_hash else "initial capture",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Source-level orchestration
+# ---------------------------------------------------------------------------
+
+def check_source(
     source_name: str,
     source_config: dict,
     state: dict,
 ) -> list[dict]:
-    """Check a docs-type source for changes.
+    """Run the full CDC pipeline for one docs source.
 
-    Returns list of change dicts with keys:
-        source, url, classification, old_hash, new_hash, summary
+    Returns list of classified change dicts.
     """
+    source_state = state.setdefault("docs", {}).setdefault(source_name, {})
     changes = []
-    source_state = state.get("docs", {}).get(source_name, {})
 
-    urls = source_config.get("urls", [])
+    bundle_url = source_config.get("llms_full_url")
+    watched_pages = source_config.get("pages", [])
     hash_file_path = source_config.get("hash_file")
 
-    for url in urls:
-        url_state = source_state.get(url, {})
-        old_hash = url_state.get("hash", "")
-        old_content = url_state.get("normalized_content", "")
+    if bundle_url:
+        # Layer 1: DETECT
+        watermark = source_state.get("_watermark", {})
+        changed, new_watermark = detect_change(bundle_url, watermark)
+        source_state["_watermark"] = new_watermark
 
+        if not changed:
+            print("  no change (Last-Modified match)", file=sys.stderr)
+            source_state["_watermark"]["last_checked"] = _now_iso()
+            return []
+
+        # Layer 2: IDENTIFY
+        stored_pages = source_state.get("_pages", {})
         try:
-            md_content, new_hash, normalized = fetch_and_hash(url)
+            page_changes, new_pages = identify_changes(
+                bundle_url, watched_pages, stored_pages,
+            )
         except Exception as e:
-            changes.append({
+            return [{
                 "source": source_name,
-                "url": url,
+                "url": bundle_url,
                 "classification": "ERROR",
-                "old_hash": old_hash,
-                "new_hash": "",
-                "summary": f"Failed to fetch: {e}",
-            })
-            continue
+                "old_hash": "", "new_hash": "",
+                "summary": f"fetch failed: {e}",
+            }]
 
-        if new_hash != old_hash:
-            classification = classify_changes(old_content, normalized)
-            lines_added = 0
-            lines_removed = 0
-            if old_content:
-                old_set = set(old_content.splitlines())
-                new_set = set(normalized.splitlines())
-                lines_added = len(new_set - old_set)
-                lines_removed = len(old_set - new_set)
+        source_state["_pages"] = new_pages
 
+        # Layer 3: CLASSIFY
+        for pc in page_changes:
+            classification = classify_change(pc["old_content"], pc["new_content"])
             changes.append({
                 "source": source_name,
-                "url": url,
+                "url": pc["url"],
                 "classification": classification,
-                "old_hash": old_hash,
-                "new_hash": new_hash,
-                "summary": f"{lines_added} lines added, {lines_removed} lines removed"
-                if old_hash else "Initial capture",
-                "normalized_content": normalized,
+                "old_hash": pc["old_hash"],
+                "new_hash": pc["new_hash"],
+                "summary": diff_summary(pc["old_content"], pc["new_content"]),
             })
 
-            # Update state
-            if "docs" not in state:
-                state["docs"] = {}
-            if source_name not in state["docs"]:
-                state["docs"][source_name] = {}
-            state["docs"][source_name][url] = {
-                "hash": new_hash,
-                "normalized_content": normalized[:5000],  # Keep truncated for diff
-                "last_checked": datetime.now(timezone.utc).isoformat(),
-            }
-        else:
-            # Update last_checked even when unchanged
-            if "docs" not in state:
-                state["docs"] = {}
-            if source_name not in state["docs"]:
-                state["docs"][source_name] = {}
-            state["docs"][source_name][url] = {
-                **url_state,
-                "last_checked": datetime.now(timezone.utc).isoformat(),
-            }
-
-    # Handle local file hash (e.g., PDF)
+    # Local file hash (PDF, etc.)
     if hash_file_path:
         fpath = Path(hash_file_path)
         old_fhash = source_state.get("_file_hash", "")
-        new_fhash = hash_file(fpath)
-        if new_fhash and new_fhash != old_fhash:
-            changes.append({
-                "source": source_name,
-                "url": f"file://{fpath}",
-                "classification": "ADDITIVE",
-                "old_hash": old_fhash,
-                "new_hash": new_fhash,
-                "summary": "Local file changed" if old_fhash else "Initial capture",
-            })
-            if "docs" not in state:
-                state["docs"] = {}
-            if source_name not in state["docs"]:
-                state["docs"][source_name] = {}
-            state["docs"][source_name]["_file_hash"] = new_fhash
-            state["docs"][source_name]["_file_last_checked"] = (
-                datetime.now(timezone.utc).isoformat()
-            )
+        fc = check_local_file(fpath, old_fhash)
+        if fc:
+            fc["source"] = source_name
+            changes.append(fc)
+            source_state["_file_hash"] = fc["new_hash"]
+            source_state["_file_last_checked"] = _now_iso()
 
     return changes
 
 
+# ---------------------------------------------------------------------------
+# Report
+# ---------------------------------------------------------------------------
+
 def generate_report(all_changes: list[dict]) -> str:
-    """Generate a markdown report from detected changes."""
     lines = [
         "# Documentation Change Report",
         "",
@@ -236,59 +340,41 @@ def generate_report(all_changes: list[dict]) -> str:
         lines.append("No changes detected.")
         return "\n".join(lines)
 
-    # Group by classification
-    breaking = [c for c in all_changes if c["classification"] == "BREAKING"]
-    additive = [c for c in all_changes if c["classification"] == "ADDITIVE"]
-    cosmetic = [c for c in all_changes if c["classification"] == "COSMETIC"]
-    errors = [c for c in all_changes if c["classification"] == "ERROR"]
+    by_class = {}
+    for c in all_changes:
+        by_class.setdefault(c["classification"], []).append(c)
 
-    if breaking:
-        lines.append("## BREAKING Changes")
+    for label in ["BREAKING", "ADDITIVE", "COSMETIC", "ERROR"]:
+        items = by_class.get(label, [])
+        if not items:
+            continue
+        lines.append(f"## {label} Changes")
         lines.append("")
-        for c in breaking:
+        for c in items:
             lines.append(f"- **{c['source']}**: {c['url']}")
             lines.append(f"  - {c['summary']}")
-            lines.append(f"  - Hash: `{c['old_hash'][:12]}` -> `{c['new_hash'][:12]}`")
-        lines.append("")
-
-    if additive:
-        lines.append("## Additive Changes")
-        lines.append("")
-        for c in additive:
-            lines.append(f"- **{c['source']}**: {c['url']}")
-            lines.append(f"  - {c['summary']}")
-        lines.append("")
-
-    if cosmetic:
-        lines.append("## Cosmetic Changes")
-        lines.append("")
-        for c in cosmetic:
-            lines.append(f"- **{c['source']}**: {c['url']}")
-            lines.append(f"  - {c['summary']}")
-        lines.append("")
-
-    if errors:
-        lines.append("## Errors")
-        lines.append("")
-        for c in errors:
-            lines.append(f"- **{c['source']}**: {c['url']}")
-            lines.append(f"  - {c['summary']}")
+            if label == "BREAKING":
+                lines.append(
+                    f"  - hash: `{c['old_hash'][:12]}` -> `{c['new_hash'][:12]}`"
+                )
         lines.append("")
 
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Monitor documentation URLs for changes."
+        description="CDC-style change detection for documentation sources."
     )
     parser.add_argument(
         "--config", type=Path, default=DEFAULT_CONFIG,
-        help="Path to config.yaml",
     )
     parser.add_argument(
         "--state", type=Path, default=DEFAULT_STATE,
-        help="Path to state.json",
     )
     parser.add_argument(
         "--source", type=str, default=None,
@@ -313,23 +399,19 @@ def main():
             continue
 
         print(f"Checking {name}...", file=sys.stderr, flush=True)
-        changes = check_docs_source(name, src_config, state)
+        changes = check_source(name, src_config, state)
         all_changes.extend(changes)
 
         if changes:
             print(
-                f"  {len(changes)} change(s) detected",
-                file=sys.stderr,
+                f"  {len(changes)} change(s) detected", file=sys.stderr,
             )
         else:
-            print("  No changes", file=sys.stderr)
+            print("  no changes", file=sys.stderr)
 
-    # Save updated state
     save_state(args.state, state)
 
-    # Generate and output report
     report = generate_report(all_changes)
-
     if args.output:
         args.output.write_text(report)
         print(f"\nReport written to {args.output}", file=sys.stderr)

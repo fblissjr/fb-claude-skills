@@ -42,6 +42,20 @@ What the skill-maintainer monitors for changes and why.
 - **change impact**: Critical. Breaking changes require immediate skill updates.
 - **detection**: Git-based. Shallow clone, check commits since last run, analyze diffs.
 
+### ext-apps (MCP Apps SDK)
+- **repo**: https://github.com/modelcontextprotocol/ext-apps
+- **watched files**:
+  - `plugins/mcp-apps/skills/create-mcp-app/SKILL.md` - Upstream create skill; changes affect our adapted version
+  - `plugins/mcp-apps/skills/migrate-oai-app/SKILL.md` - Upstream migrate skill; changes affect our adapted version
+  - `specification/2026-01-26/apps.mdx` - The MCP Apps spec (SEP-1865); authoritative reference for both skills
+  - `docs/patterns.md` - Production patterns reference; copied to local references/
+  - `docs/overview.md` - Architecture overview; copied to local references/
+  - `docs/testing-mcp-apps.md` - Testing guide; copied to local references/
+  - `docs/migrate_from_openai_apps.md` - Migration mapping tables; copied to local references/
+- **why**: The MCP Apps SDK is the upstream source for both mcp-apps skills. The skills are near-direct ports of the upstream Claude Code plugin skills, and the local references/ directory contains copies of upstream docs.
+- **change impact**: High. Upstream skill changes should be reviewed and merged. Spec changes may require skill and reference updates. Doc changes should be synced to local references/.
+- **detection**: Git-based. Shallow clone, check commits since last run, analyze diffs.
+
 ## adding new sources
 
 To add a new source, edit `config.yaml` or use `/skill-maintainer add-source`.
