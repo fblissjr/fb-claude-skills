@@ -1,0 +1,1 @@
+- from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
