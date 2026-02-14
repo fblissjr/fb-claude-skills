@@ -5,7 +5,5 @@
   "author": {
     "name": "Simon Willison (adapted by Fred Bliss)"
   },
-  "skills": [
-    "cogapp-markdown"
-  ]
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

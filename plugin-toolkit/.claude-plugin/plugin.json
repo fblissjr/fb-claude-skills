@@ -5,11 +5,5 @@
   "author": {
     "name": "Fred Bliss"
   },
-  "skills": [
-    "plugin-toolkit"
-  ],
-  "agents": [
-    "plugin-scanner",
-    "quality-checker"
-  ]
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

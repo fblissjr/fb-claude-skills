@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # plugin-toolkit
 
@@ -7,13 +7,17 @@ Tools for analyzing, polishing, and managing Claude Code plugins.
 ## installation
 
 ```bash
-claude plugin add /path/to/fb-claude-skills/plugin-toolkit
+# add the marketplace (one time)
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install this plugin
+/plugin install plugin-toolkit@fb-claude-skills
 ```
 
-Or from the repo URL:
+For development/testing without installing:
 
 ```bash
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin plugin-toolkit
+claude --plugin-dir /path/to/fb-claude-skills/plugin-toolkit
 ```
 
 ## skills

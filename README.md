@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # claude-skills
 
@@ -17,35 +17,53 @@ A collection of Claude Code skills and plugins -- some created by me, some from 
 
 ## installation
 
-### install a plugin (recommended)
+### install from GitHub (recommended)
 
-Each plugin directory in this repo can be installed directly into Claude Code:
+This repo is a plugin marketplace. Add it once, then install whichever plugins you want:
 
 ```bash
-# Clone the repo
+# from within Claude Code:
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install individual plugins
+/plugin install mcp-apps@fb-claude-skills
+/plugin install plugin-toolkit@fb-claude-skills
+/plugin install web-tdd@fb-claude-skills
+/plugin install cogapp-markdown@fb-claude-skills
+```
+
+Or from the terminal:
+
+```bash
+claude plugin marketplace add fblissjr/fb-claude-skills
+claude plugin install mcp-apps@fb-claude-skills
+```
+
+### install from local clone
+
+If you prefer to clone first:
+
+```bash
 git clone https://github.com/fblissjr/fb-claude-skills.git
 cd fb-claude-skills
 
-# Install whichever plugins you want
-claude plugin add ./mcp-apps
-claude plugin add ./plugin-toolkit
-claude plugin add ./web-tdd
-claude plugin add ./cogapp-markdown
+# add as a local marketplace
+/plugin marketplace add .
+
+# install whichever plugins you want
+/plugin install mcp-apps@fb-claude-skills
+/plugin install plugin-toolkit@fb-claude-skills
+/plugin install web-tdd@fb-claude-skills
+/plugin install cogapp-markdown@fb-claude-skills
 ```
 
-After installing, skills are available globally in all Claude Code sessions. Verify with:
+### development / testing
+
+To load a plugin temporarily without installing (changes take effect for the current session only):
 
 ```bash
-claude plugin list
-```
-
-### install from GitHub (without cloning)
-
-```bash
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin mcp-apps
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin plugin-toolkit
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin web-tdd
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin cogapp-markdown
+claude --plugin-dir ./mcp-apps
+claude --plugin-dir ./plugin-toolkit --plugin-dir ./web-tdd
 ```
 
 ### project-scoped (skill-maintainer)
@@ -63,24 +81,29 @@ claude
 ### uninstall
 
 ```bash
-claude plugin remove mcp-apps
-claude plugin remove plugin-toolkit
-claude plugin remove web-tdd
-claude plugin remove cogapp-markdown
+claude plugin uninstall mcp-apps@fb-claude-skills
+claude plugin uninstall plugin-toolkit@fb-claude-skills
+claude plugin uninstall web-tdd@fb-claude-skills
+claude plugin uninstall cogapp-markdown@fb-claude-skills
+```
+
+### verify
+
+```bash
+claude plugin list
 ```
 
 ## usage
 
-Once installed, invoke skills as slash commands:
+Once installed, invoke skills as slash commands (plugin skills are namespaced):
 
 ```
-/create-mcp-app              # Build an MCP App from scratch
-/migrate-oai-app             # Migrate from OpenAI Apps SDK to MCP
-/plugin-toolkit:analyze .    # Analyze a plugin's structure
-/plugin-toolkit:polish .     # Add standard utility commands
-/web-tdd                     # Set up TDD for a web project
-/cogapp-markdown             # Auto-generate markdown docs
-/skill-maintainer check      # Check for upstream changes (project-scoped)
+/mcp-apps:create-mcp-app     # Build an MCP App from scratch
+/mcp-apps:migrate-oai-app    # Migrate from OpenAI Apps SDK to MCP
+/plugin-toolkit               # Analyze, polish, and manage plugins
+/web-tdd                      # Set up TDD for a web project
+/cogapp-markdown              # Auto-generate markdown docs
+/skill-maintainer check       # Check for upstream changes (project-scoped)
 ```
 
 Or just describe what you want -- skills trigger on relevant keywords.

@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # skills guide analysis
 
@@ -14,7 +14,7 @@ Gap analysis comparing the Anthropic skills guide recommendations against what e
 | SKILL.md exists (exact case) | PASS | PASS | PASS | PASS |
 | YAML frontmatter with --- | PASS | PASS | PASS | PASS |
 | name matches folder | PASS | PASS | PASS | PASS |
-| No README.md in skill folder | N/A (has README at plugin level, not skill level) | PASS | FAIL (has README.md) | PASS |
+| No README.md in skill folder | N/A (has README at plugin level, not skill level) | PASS | PASS | PASS |
 | SKILL.md under 500 lines | ~214 lines: PASS | ~120 lines: PASS | needs check | needs check |
 
 ### frontmatter quality
@@ -49,13 +49,26 @@ Gap analysis comparing the Anthropic skills guide recommendations against what e
 | Functional tests defined | not yet |
 | Performance baseline captured | not yet |
 
+## plugin structure compliance (v0.4.0)
+
+Per the official Claude Code plugin docs, plugin manifests belong at `.claude-plugin/plugin.json` (not `plugin.json` at root). Multi-plugin repos should expose a `.claude-plugin/marketplace.json` at the repo root.
+
+| Requirement | Status |
+|---|---|
+| Manifests at `.claude-plugin/plugin.json` | PASS (migrated in v0.4.0) |
+| Root `marketplace.json` for distribution | PASS (created in v0.4.0) |
+| No non-standard fields in manifests | PASS (removed `skills`/`agents` arrays, auto-discovery handles these) |
+| `repository` field in manifests | PASS (added in v0.4.0) |
+| Installation docs use correct CLI commands | PASS (fixed in v0.4.0) |
+| config.yaml watches discover-plugins + plugin-marketplaces pages | PASS (added in v0.4.0) |
+
 ## actionable findings for skill-maintainer
 
 ### high priority
 
 1. **Add metadata.version to plugin-toolkit**: The guide recommends `metadata` with `author` and `version`. plugin-toolkit is missing this. The skill-maintainer should detect and suggest adding it.
 
-2. **web-tdd has README.md in skill folder**: The guide explicitly says "Don't include README.md inside your skill folder." The skill-maintainer should flag this as a best practice violation.
+2. ~~**web-tdd has README.md in skill folder**~~: RESOLVED -- README.md removed from skill folder.
 
 3. **No license field on any skill**: For open-source distribution, the guide recommends including `license: MIT` or similar. Should be flagged but not auto-added (requires user decision).
 

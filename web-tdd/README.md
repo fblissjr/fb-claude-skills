@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # web-tdd
 
@@ -7,13 +7,17 @@ TDD workflow for web applications with Vitest (unit/component) and Playwright or
 ## installation
 
 ```bash
-claude plugin add /path/to/fb-claude-skills/web-tdd
+# add the marketplace (one time)
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install this plugin
+/plugin install web-tdd@fb-claude-skills
 ```
 
-Or from the repo URL:
+For development/testing without installing:
 
 ```bash
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin web-tdd
+claude --plugin-dir /path/to/fb-claude-skills/web-tdd
 ```
 
 ## skills

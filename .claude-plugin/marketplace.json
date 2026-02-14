@@ -1,0 +1,35 @@
+{
+  "name": "fb-claude-skills",
+  "owner": {
+    "name": "Fred Bliss"
+  },
+  "metadata": {
+    "description": "A collection of Claude Code plugins and skills"
+  },
+  "plugins": [
+    {
+      "name": "mcp-apps",
+      "source": "./mcp-apps",
+      "description": "Skills for building and migrating MCP Apps with interactive UIs",
+      "version": "0.1.0"
+    },
+    {
+      "name": "plugin-toolkit",
+      "source": "./plugin-toolkit",
+      "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
+      "version": "0.1.0"
+    },
+    {
+      "name": "web-tdd",
+      "source": "./web-tdd",
+      "description": "TDD workflow for web applications with Vitest, Playwright, and Vibium",
+      "version": "0.1.0"
+    },
+    {
+      "name": "cogapp-markdown",
+      "source": "./cogapp-markdown",
+      "description": "Auto-generate markdown sections using cogapp",
+      "version": "0.1.0"
+    }
+  ]
+}

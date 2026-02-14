@@ -5,8 +5,5 @@
   "author": {
     "name": "Fred Bliss"
   },
-  "skills": [
-    "create-mcp-app",
-    "migrate-oai-app"
-  ]
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

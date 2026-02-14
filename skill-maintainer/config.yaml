@@ -6,6 +6,8 @@ sources:
       - https://code.claude.com/docs/en/skills
       - https://code.claude.com/docs/en/plugins
       - https://code.claude.com/docs/en/plugins-reference
+      - https://code.claude.com/docs/en/discover-plugins
+      - https://code.claude.com/docs/en/plugin-marketplaces
       - https://code.claude.com/docs/en/hooks-guide
       - https://code.claude.com/docs/en/hooks
       - https://code.claude.com/docs/en/sub-agents

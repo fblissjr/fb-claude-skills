@@ -6,19 +6,25 @@ Self-updating skills system for Claude Code. Skills rot as best practices evolve
 
 ```
 fb-claude-skills/
+  .claude-plugin/
+    marketplace.json         # Root marketplace catalog (lists all installable plugins)
   mcp-apps/                  # Plugin: MCP Apps creation and migration
-    plugin.json
+    .claude-plugin/
+      plugin.json
     skills/                  # create-mcp-app, migrate-oai-app
     references/              # Upstream docs (offline copies)
   plugin-toolkit/            # Plugin: plugin analysis and management
-    plugin.json
+    .claude-plugin/
+      plugin.json
     skills/plugin-toolkit/   # The skill itself (SKILL.md + references/)
     agents/                  # plugin-scanner, quality-checker
   web-tdd/                   # Plugin: TDD workflow for web apps
-    plugin.json
+    .claude-plugin/
+      plugin.json
     skills/web-tdd/          # SKILL.md
   cogapp-markdown/           # Plugin: auto-generate markdown sections
-    plugin.json
+    .claude-plugin/
+      plugin.json
     skills/cogapp-markdown/  # SKILL.md
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
     SKILL.md                 # Orchestrator with 4 commands: check, update, status, add-source
@@ -42,18 +48,20 @@ fb-claude-skills/
 
 ### Installable plugins
 
-Four plugins can be installed globally into any Claude Code session:
+This repo is a plugin marketplace. Add it and install plugins:
 
 ```bash
-claude plugin add ./mcp-apps
-claude plugin add ./plugin-toolkit
-claude plugin add ./web-tdd
-claude plugin add ./cogapp-markdown
+# from GitHub
+/plugin marketplace add fblissjr/fb-claude-skills
+/plugin install mcp-apps@fb-claude-skills
+/plugin install plugin-toolkit@fb-claude-skills
+/plugin install web-tdd@fb-claude-skills
+/plugin install cogapp-markdown@fb-claude-skills
 ```
 
-After installing, skills are available as slash commands (e.g., `/create-mcp-app`, `/web-tdd`).
+After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/web-tdd`).
 
-To remove: `claude plugin remove <name>`
+To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 ### Project-scoped skill (skill-maintainer)
 
@@ -150,7 +158,8 @@ uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
 Required structure:
 ```
 module-name/
-  plugin.json              # name, version, description, author, skills[]
+  .claude-plugin/
+    plugin.json            # name, version, description, author, repository
   README.md                # last updated date, installation, skill table, invocation
   skills/
     skill-name/
@@ -158,13 +167,16 @@ module-name/
   references/              # optional: supporting docs loaded on demand
 ```
 
+Skills and agents in default directories (`skills/`, `agents/`) are auto-discovered. Do not list them in plugin.json -- only use component path fields for non-default locations.
+
 After creating:
 1. `uv run skills-ref validate module-name/skills/skill-name/SKILL.md` -- validate each skill
-2. Add skills to `skill-maintainer/config.yaml` under both `sources:` and `skills:`
-3. Add to `skill-maintainer/references/monitored_sources.md` if watching upstream
-4. Bump version in both `pyproject.toml` and `CHANGELOG.md` (must stay in sync)
-5. Update root `README.md` skills table and installation section
-6. Append session to `internal/log/log_YYYY-MM-DD.md`
+2. Add plugin entry to root `.claude-plugin/marketplace.json` (name, source path, description, version)
+3. Add skills to `skill-maintainer/config.yaml` under both `sources:` and `skills:`
+4. Add to `skill-maintainer/references/monitored_sources.md` if watching upstream
+5. Bump version in both `pyproject.toml` and `CHANGELOG.md` (must stay in sync)
+6. Update root `README.md` skills table and installation section
+7. Append session to `internal/log/log_YYYY-MM-DD.md`
 
 - **Package manager**: Always `uv`. No pip.
 - **JSON**: `orjson` for all serialization/deserialization.

@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # cogapp-markdown
 
@@ -7,13 +7,17 @@ Auto-generate sections of markdown documentation by embedding Python code that p
 ## installation
 
 ```bash
-claude plugin add /path/to/fb-claude-skills/cogapp-markdown
+# add the marketplace (one time)
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install this plugin
+/plugin install cogapp-markdown@fb-claude-skills
 ```
 
-Or from the repo URL:
+For development/testing without installing:
 
 ```bash
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin cogapp-markdown
+claude --plugin-dir /path/to/fb-claude-skills/cogapp-markdown
 ```
 
 ## skills

@@ -1,5 +1,17 @@
 # changelog
 
+## 0.4.0
+
+### changed
+- migrated all plugins to canonical `.claude-plugin/plugin.json` manifest location (was `plugin.json` at root)
+- removed non-standard `skills` and `agents` array fields from plugin manifests (auto-discovery handles these)
+- added `repository` field to all plugin manifests
+- created root `.claude-plugin/marketplace.json` making this repo a proper plugin marketplace
+- rewrote README.md installation section with correct CLI commands (`install`/`uninstall`, not `add`/`remove`)
+- README.md now documents the marketplace-based install flow (`/plugin marketplace add fblissjr/fb-claude-skills`)
+- README.md usage section updated with correct namespaced skill invocations
+- updated CLAUDE.md repo structure and installation sections to match new layout
+
 ## 0.3.1
 
 ### added

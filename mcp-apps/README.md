@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # mcp-apps
 
@@ -9,13 +9,17 @@ MCP Apps (SEP-1865, stable 2026-01-26) is an extension to the Model Context Prot
 ## installation
 
 ```bash
-claude plugin add /path/to/fb-claude-skills/mcp-apps
+# add the marketplace (one time)
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install this plugin
+/plugin install mcp-apps@fb-claude-skills
 ```
 
-Or from the repo URL:
+For development/testing without installing:
 
 ```bash
-claude plugin add https://github.com/fblissjr/fb-claude-skills --plugin mcp-apps
+claude --plugin-dir /path/to/fb-claude-skills/mcp-apps
 ```
 
 ## skills
