@@ -2,7 +2,7 @@
 """
 Produce a unified SKILLS_UPDATE.md-style report combining docs and source changes.
 
-Reads state.json for recent check results and generates an actionable report
+Reads from DuckDB store for recent changes and generates an actionable report
 mapping changes to affected skills.
 
 Usage:
@@ -15,26 +15,18 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import orjson
 import yaml
+
+from store import Store
 
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
-DEFAULT_STATE = Path("skill-maintainer/state/state.json")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 
 
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
-
-
-def load_state(state_path: Path) -> dict:
-    if not state_path.exists():
-        return {}
-    data = state_path.read_bytes()
-    if not data or data.strip() == b"{}":
-        return {}
-    return orjson.loads(data)
 
 
 def find_affected_skills(
@@ -55,8 +47,8 @@ def find_affected_skills(
     return affected
 
 
-def generate_unified_report(config: dict, state: dict) -> str:
-    """Generate a unified report combining all monitoring data."""
+def generate_unified_report(config: dict, store: Store) -> str:
+    """Generate a unified report combining all monitoring data from DuckDB."""
     lines = [
         "# Skills Update Report",
         "",
@@ -64,51 +56,10 @@ def generate_unified_report(config: dict, state: dict) -> str:
         "",
     ]
 
-    changed_sources = []
+    # Get recent changes from DuckDB
+    recent_changes = store.get_recent_changes(days=30)
 
-    # Docs changes (CDC format: _pages dict with per-page state)
-    docs_state = state.get("docs", {})
-    docs_changes = []
-    for source_name, source_data in docs_state.items():
-        if not isinstance(source_data, dict):
-            continue
-        pages = source_data.get("_pages", {})
-        if not isinstance(pages, dict):
-            continue
-        for url, page_data in pages.items():
-            if not isinstance(page_data, dict):
-                continue
-            content_hash = page_data.get("hash", "")
-            if content_hash:
-                docs_changes.append({
-                    "source": source_name,
-                    "url": url,
-                    "hash": content_hash[:12],
-                    "last_checked": page_data.get("last_checked", ""),
-                    "last_changed": page_data.get("last_changed", ""),
-                })
-                if source_name not in changed_sources:
-                    changed_sources.append(source_name)
-
-    # Source repo changes
-    sources_state = state.get("sources", {})
-    source_changes = []
-    for source_name, src_data in sources_state.items():
-        if not isinstance(src_data, dict):
-            continue
-        commits = src_data.get("commits_since_last", 0)
-        if commits > 0:
-            source_changes.append({
-                "source": source_name,
-                "commits": commits,
-                "last_commit": src_data.get("last_commit", ""),
-                "last_checked": src_data.get("last_checked", ""),
-            })
-            if source_name not in changed_sources:
-                changed_sources.append(source_name)
-
-    # Report sections
-    if not docs_changes and not source_changes:
+    if not recent_changes:
         lines.append("No changes detected. All monitored sources are current.")
         lines.append("")
         lines.append("Run the monitors to check for updates:")
@@ -118,8 +69,20 @@ def generate_unified_report(config: dict, state: dict) -> str:
         lines.append("```")
         return "\n".join(lines)
 
+    # Separate docs changes and source changes
+    docs_changes = []
+    source_changes = []
+    changed_sources = set()
+
+    for change in recent_changes:
+        changed_sources.add(change["source_name"])
+        if change["page_url"]:
+            docs_changes.append(change)
+        elif change["commit_hash"]:
+            source_changes.append(change)
+
     # Affected skills
-    affected = find_affected_skills(config, changed_sources)
+    affected = find_affected_skills(config, list(changed_sources))
     if affected:
         lines.append("## Affected Skills")
         lines.append("")
@@ -139,9 +102,10 @@ def generate_unified_report(config: dict, state: dict) -> str:
         lines.append("## Documentation Changes")
         lines.append("")
         for dc in docs_changes:
-            lines.append(f"- **{dc['source']}**: `{dc['url']}`")
-            lines.append(f"  - Hash: `{dc['hash']}`")
-            lines.append(f"  - Last checked: {dc['last_checked']}")
+            lines.append(f"- [{dc['classification']}] **{dc['source_name']}**: `{dc['page_url']}`")
+            lines.append(f"  - {dc['summary']}")
+            lines.append(f"  - Hash: `{dc['new_hash'][:12]}`")
+            lines.append(f"  - Detected: {dc['detected_at']}")
         lines.append("")
 
     # Source changes detail
@@ -149,9 +113,11 @@ def generate_unified_report(config: dict, state: dict) -> str:
         lines.append("## Source Repository Changes")
         lines.append("")
         for sc in source_changes:
-            lines.append(f"- **{sc['source']}**: {sc['commits']} new commits")
-            lines.append(f"  - Latest: `{sc['last_commit']}`")
-            lines.append(f"  - Last checked: {sc['last_checked']}")
+            count = sc["commit_count"] or 0
+            lines.append(f"- [{sc['classification']}] **{sc['source_name']}**: {count} new commits")
+            lines.append(f"  - Latest: `{sc['commit_hash']}`")
+            lines.append(f"  - {sc['summary']}")
+            lines.append(f"  - Detected: {sc['detected_at']}")
         lines.append("")
 
     # Suggested actions
@@ -180,7 +146,7 @@ def main():
         "--config", type=Path, default=DEFAULT_CONFIG,
     )
     parser.add_argument(
-        "--state", type=Path, default=DEFAULT_STATE,
+        "--db", type=Path, default=DEFAULT_DB,
     )
     parser.add_argument(
         "--output", type=Path, default=None,
@@ -189,9 +155,9 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    state = load_state(args.state)
 
-    report = generate_unified_report(config, state)
+    with Store(db_path=args.db, config_path=args.config) as store:
+        report = generate_unified_report(config, store)
 
     if args.output:
         args.output.write_text(report)

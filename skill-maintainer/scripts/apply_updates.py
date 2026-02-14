@@ -5,6 +5,9 @@ Apply detected changes to skills: the key differentiator from mlx-skills.
 Reads change reports from monitors, classifies changes, and applies updates
 with validation. Supports multiple modes: report-only, apply-local, create-pr.
 
+State is stored in DuckDB via the Store class. Backward-compatible state.json
+is exported after each run.
+
 Usage:
     uv run python skill-maintainer/scripts/apply_updates.py --skill plugin-toolkit
     uv run python skill-maintainer/scripts/apply_updates.py --skill plugin-toolkit --mode report-only
@@ -18,31 +21,19 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import orjson
 import yaml
+
+from store import Store
 
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 DEFAULT_STATE = Path("skill-maintainer/state/state.json")
 
 
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
-
-
-def load_state(state_path: Path) -> dict:
-    if not state_path.exists():
-        return {}
-    data = state_path.read_bytes()
-    if not data or data.strip() == b"{}":
-        return {}
-    return orjson.loads(data)
-
-
-def save_state(state_path: Path, state: dict) -> None:
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_bytes(orjson.dumps(state, option=orjson.OPT_INDENT_2))
 
 
 def validate_skill(skill_path: Path) -> tuple[bool, list[str]]:
@@ -68,10 +59,7 @@ def validate_skill(skill_path: Path) -> tuple[bool, list[str]]:
 
 
 def backup_skill(skill_path: Path) -> Path:
-    """Create a backup of the skill directory before modifications.
-
-    Returns the backup path.
-    """
+    """Create a backup of the skill directory before modifications."""
     backup_path = skill_path.parent / f"{skill_path.name}.backup"
     if backup_path.exists():
         shutil.rmtree(backup_path)
@@ -96,48 +84,40 @@ def cleanup_backup(backup_path: Path) -> None:
 def get_changes_for_skill(
     skill_name: str,
     config: dict,
-    state: dict,
+    store: Store,
 ) -> list[dict]:
-    """Extract pending changes relevant to a specific skill."""
+    """Extract pending changes relevant to a specific skill from DuckDB."""
     skill_config = config.get("skills", {}).get(skill_name, {})
     if not skill_config:
         return []
 
-    skill_sources = skill_config.get("sources", [])
     changes = []
 
-    # Check docs changes (CDC format: _pages dict with per-page state)
-    docs_state = state.get("docs", {})
-    for source_name in skill_sources:
-        source_data = docs_state.get(source_name, {})
-        pages = source_data.get("_pages", {})
-        if not isinstance(pages, dict):
-            continue
-        for url, page_data in pages.items():
-            if not isinstance(page_data, dict):
-                continue
-            if page_data.get("hash"):
+    # Get recent changes from the store for sources this skill depends on
+    skill_sources = skill_config.get("sources", [])
+    recent = store.get_recent_changes(days=30)
+
+    for change in recent:
+        if change["source_name"] in skill_sources:
+            if change["page_url"]:
                 changes.append({
                     "type": "docs",
-                    "source": source_name,
-                    "url": url,
-                    "hash": page_data.get("hash", "")[:12],
-                    "last_checked": page_data.get("last_checked", ""),
-                    "last_changed": page_data.get("last_changed", ""),
+                    "source": change["source_name"],
+                    "url": change["page_url"],
+                    "hash": change["new_hash"][:12] if change["new_hash"] else "",
+                    "classification": change["classification"],
+                    "summary": change["summary"],
+                    "detected_at": change["detected_at"],
                 })
-
-    # Check source repo changes
-    sources_state = state.get("sources", {})
-    for source_name in skill_sources:
-        if source_name in sources_state:
-            src_data = sources_state[source_name]
-            if isinstance(src_data, dict) and src_data.get("commits_since_last", 0) > 0:
+            elif change["commit_hash"]:
                 changes.append({
                     "type": "source",
-                    "source": source_name,
-                    "commits": src_data.get("commits_since_last", 0),
-                    "last_commit": src_data.get("last_commit", ""),
-                    "last_checked": src_data.get("last_checked", ""),
+                    "source": change["source_name"],
+                    "commits": change["commit_count"] or 0,
+                    "last_commit": change["commit_hash"],
+                    "classification": change["classification"],
+                    "summary": change["summary"],
+                    "detected_at": change["detected_at"],
                 })
 
     return changes
@@ -148,11 +128,7 @@ def generate_update_context(
     skill_path: Path,
     changes: list[dict],
 ) -> str:
-    """Generate context for Claude-assisted skill updates.
-
-    This produces a structured prompt that describes what changed and
-    what the skill currently looks like, so Claude can suggest updates.
-    """
+    """Generate context for Claude-assisted skill updates."""
     skill_md = skill_path / "SKILL.md"
     current_content = skill_md.read_text() if skill_md.exists() else "(missing)"
 
@@ -171,12 +147,12 @@ def generate_update_context(
     for change in changes:
         if change["type"] == "docs":
             lines.append(
-                f"- Documentation change in **{change['source']}**: "
+                f"- [{change['classification']}] Documentation change in **{change['source']}**: "
                 f"`{change['url']}` (hash: `{change['hash']}`)"
             )
         elif change["type"] == "source":
             lines.append(
-                f"- Source code change in **{change['source']}**: "
+                f"- [{change['classification']}] Source code change in **{change['source']}**: "
                 f"{change['commits']} new commits (latest: `{change['last_commit']}`)"
             )
 
@@ -197,6 +173,7 @@ def apply_report_only(
     skill_name: str,
     skill_path: Path,
     changes: list[dict],
+    store: Store,
 ) -> str:
     """Generate report without making changes."""
     lines = [
@@ -216,15 +193,15 @@ def apply_report_only(
 
     for change in changes:
         if change["type"] == "docs":
-            lines.append(f"### Docs: {change['source']}")
+            lines.append(f"### [{change['classification']}] Docs: {change['source']}")
             lines.append(f"- URL: `{change['url']}`")
             lines.append(f"- Hash: `{change['hash']}`")
-            lines.append(f"- Last checked: {change['last_checked']}")
+            lines.append(f"- Detected: {change['detected_at']}")
         elif change["type"] == "source":
-            lines.append(f"### Source: {change['source']}")
+            lines.append(f"### [{change['classification']}] Source: {change['source']}")
             lines.append(f"- Commits: {change['commits']}")
             lines.append(f"- Latest: `{change['last_commit']}`")
-            lines.append(f"- Last checked: {change['last_checked']}")
+            lines.append(f"- Detected: {change['detected_at']}")
         lines.append("")
 
     # Validation status
@@ -238,6 +215,11 @@ def apply_report_only(
         for err in errors:
             lines.append(f"  - {err}")
     lines.append("")
+
+    # Record validation
+    store.record_validation(
+        skill_name, is_valid, errors=errors, trigger_type="report-only",
+    )
 
     # Update context for Claude
     lines.append("## Update Context (for Claude-assisted editing)")
@@ -253,18 +235,9 @@ def apply_local(
     skill_name: str,
     skill_path: Path,
     changes: list[dict],
-    state: dict,
-    state_path: Path,
+    store: Store,
 ) -> str:
-    """Apply changes locally, validate, leave for user to review.
-
-    This is the default mode. It:
-    1. Creates a backup
-    2. Generates update context
-    3. Validates the skill (pre-check)
-    4. Records the update attempt in state
-    5. Does NOT auto-edit files (that's for Claude to do interactively)
-    """
+    """Apply changes locally, validate, leave for user to review."""
     lines = [
         f"# Local Update: {skill_name}",
         "",
@@ -288,6 +261,11 @@ def apply_local(
             lines.append(f"  - {err}")
     lines.append("")
 
+    # Record validation
+    store.record_validation(
+        skill_name, is_valid, errors=errors, trigger_type="pre-update",
+    )
+
     # Create backup
     backup_path = backup_skill(skill_path)
     lines.append(f"Backup created at: `{backup_path}`")
@@ -300,16 +278,14 @@ def apply_local(
     lines.append(context)
     lines.append("")
 
-    # Record update attempt in state
-    if "updates" not in state:
-        state["updates"] = {}
-    state["updates"][skill_name] = {
-        "last_attempt": datetime.now(timezone.utc).isoformat(),
-        "changes_count": len(changes),
-        "backup_path": str(backup_path),
-        "status": "pending_review",
-    }
-    save_state(state_path, state)
+    # Record update attempt in Store
+    store.record_update_attempt(
+        skill_name,
+        mode="apply-local",
+        status="pending_review",
+        changes_applied=len(changes),
+        backup_path=str(backup_path),
+    )
 
     lines.extend([
         "## Next Steps",
@@ -342,7 +318,11 @@ def main():
         "--config", type=Path, default=DEFAULT_CONFIG,
     )
     parser.add_argument(
+        "--db", type=Path, default=DEFAULT_DB,
+    )
+    parser.add_argument(
         "--state", type=Path, default=DEFAULT_STATE,
+        help="Path to export backward-compatible state.json",
     )
     parser.add_argument(
         "--output", type=Path, default=None,
@@ -350,7 +330,6 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    state = load_state(args.state)
 
     skill_config = config.get("skills", {}).get(args.skill)
     if not skill_config:
@@ -368,23 +347,21 @@ def main():
         )
         sys.exit(1)
 
-    changes = get_changes_for_skill(args.skill, config, state)
+    with Store(db_path=args.db, config_path=args.config) as store:
+        changes = get_changes_for_skill(args.skill, config, store)
 
-    if args.mode == "report-only":
-        report = apply_report_only(args.skill, skill_path, changes)
-    elif args.mode == "apply-local":
-        report = apply_local(
-            args.skill, skill_path, changes, state, args.state,
-        )
-    elif args.mode == "create-pr":
-        # For CI: same as apply-local but would create branch + PR
-        # Keeping it simple for now - outputs the context for CI to use
-        report = apply_local(
-            args.skill, skill_path, changes, state, args.state,
-        )
-        report += "\n\n(create-pr mode: CI should create branch and PR from this)\n"
-    else:
-        report = f"Unknown mode: {args.mode}"
+        if args.mode == "report-only":
+            report = apply_report_only(args.skill, skill_path, changes, store)
+        elif args.mode == "apply-local":
+            report = apply_local(args.skill, skill_path, changes, store)
+        elif args.mode == "create-pr":
+            report = apply_local(args.skill, skill_path, changes, store)
+            report += "\n\n(create-pr mode: CI should create branch and PR from this)\n"
+        else:
+            report = f"Unknown mode: {args.mode}"
+
+        # Export backward-compatible state.json
+        store.export_state_json_file(args.state)
 
     if args.output:
         args.output.write_text(report)

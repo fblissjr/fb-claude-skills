@@ -111,6 +111,19 @@ Once installed, invoke skills as slash commands (plugin skills are namespaced):
 
 Or just describe what you want -- skills trigger on relevant keywords.
 
+## design philosophy
+
+The system is built around one principle: **selection under constraint**. Given more possibilities than you can evaluate, select the subset that matters, process it, combine results. This appears at every level -- from attention selecting which tokens matter, to frontmatter routing selecting which skills load, to CDC hash comparison selecting which pages to fetch.
+
+Every subsystem implements five invariant operations: **decompose, route, prune, synthesize, verify**. The CDC pipeline decomposes pages by delimiter, routes via hash comparison, prunes unchanged pages, synthesizes a classified report, and verifies via keyword heuristic. Skill loading follows the same pattern: decompose into layers, route via frontmatter, prune unneeded references, synthesize into working context, verify against spec.
+
+Three repos form a database-like component stack:
+- **[star-schema-llm-context](https://github.com/fblissjr/star-schema-llm-context)** -- storage engine (dimensional modeling primitives, key generation, DuckDB connection management)
+- **fb-claude-skills** (this repo) -- stored procedures (skills as view definitions, CDC business logic, DuckDB star schema)
+- **ccutils** -- client application (session analytics, dashboards, hook integration)
+
+See [docs/analysis/abstraction_analogies.md](docs/analysis/abstraction_analogies.md) for the full treatment.
+
 ## skill-maintainer
 
 This repo includes a self-updating system that monitors upstream docs and source repos for changes that affect skills. See [skill-maintainer/](skill-maintainer/) and [docs/](docs/) for details.

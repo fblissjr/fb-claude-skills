@@ -7,7 +7,8 @@ Pipeline:
   2. IDENTIFY -- fetch llms-full.txt (or HTML fallback), split into pages, hash each
   3. CLASSIFY -- keyword heuristic on diff text (breaking/additive/cosmetic)
 
-Each source carries its own watermark (last_modified, etag, page hashes) in state.json.
+State is stored in DuckDB via the Store class. Backward-compatible state.json
+is exported after each run.
 
 Usage:
     uv run python skill-maintainer/scripts/docs_monitor.py
@@ -22,11 +23,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
-import orjson
 import yaml
+
+from store import Store
 
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 DEFAULT_STATE = Path("skill-maintainer/state/state.json")
 
 CHANGE_KEYWORDS_BREAKING = [
@@ -41,29 +44,6 @@ CHANGE_KEYWORDS_ADDITIVE = [
 # Regex to split llms-full.txt into per-page sections.
 # Each page starts with a markdown heading followed by "Source: <url>".
 _PAGE_SPLIT = re.compile(r"^(?=# .+\nSource: https?://)", re.MULTILINE)
-
-
-# ---------------------------------------------------------------------------
-# State helpers
-# ---------------------------------------------------------------------------
-
-def load_config(config_path: Path) -> dict:
-    with open(config_path) as f:
-        return yaml.safe_load(f)
-
-
-def load_state(state_path: Path) -> dict:
-    if not state_path.exists():
-        return {}
-    data = state_path.read_bytes()
-    if not data or data.strip() == b"{}":
-        return {}
-    return orjson.loads(data)
-
-
-def save_state(state_path: Path, state: dict) -> None:
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_bytes(orjson.dumps(state, option=orjson.OPT_INDENT_2))
 
 
 def _now_iso() -> str:
@@ -145,18 +125,16 @@ def identify_changes(
     watched_pages: list[str],
     stored_pages: dict,
     timeout: float = 30.0,
-) -> tuple[list[dict], dict]:
+) -> list[dict]:
     """Fetch the bundle, split into pages, compare hashes to stored state.
 
     Args:
         bundle_url: URL to llms-full.txt
         watched_pages: list of page URLs we care about (empty = all)
-        stored_pages: {url: {hash, content_preview, last_changed}} from state
+        stored_pages: {url: {hash, content_preview, last_changed}} from Store
 
     Returns:
-        (changes, new_pages_state)
-        changes: list of dicts with source_url, old_hash, new_hash, content
-        new_pages_state: updated page state to store
+        list of change dicts with url, old_hash, new_hash, old_content, new_content, content_preview
     """
     resp = httpx.get(bundle_url, timeout=timeout, follow_redirects=True)
     resp.raise_for_status()
@@ -171,21 +149,10 @@ def identify_changes(
         pages = all_pages
 
     changes = []
-    new_state = {}
-    now = _now_iso()
-
     for url, content in pages.items():
         page_hash = _hash(content)
         old = stored_pages.get(url, {})
         old_hash = old.get("hash", "")
-
-        new_state[url] = {
-            "hash": page_hash,
-            "content_preview": content[:3000],
-            "last_checked": now,
-            "last_changed": old.get("last_changed", now) if page_hash == old_hash
-                else now,
-        }
 
         if page_hash != old_hash:
             changes.append({
@@ -194,9 +161,10 @@ def identify_changes(
                 "new_hash": page_hash,
                 "old_content": old.get("content_preview", ""),
                 "new_content": content,
+                "content_preview": content[:3000],
             })
 
-    return changes, new_state
+    return changes
 
 
 # ---------------------------------------------------------------------------
@@ -251,43 +219,52 @@ def check_local_file(file_path: Path, stored_hash: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Source-level orchestration
+# Source-level orchestration (using Store)
 # ---------------------------------------------------------------------------
 
 def check_source(
     source_name: str,
     source_config: dict,
-    state: dict,
+    store: Store,
 ) -> list[dict]:
     """Run the full CDC pipeline for one docs source.
 
     Returns list of classified change dicts.
     """
-    source_state = state.setdefault("docs", {}).setdefault(source_name, {})
     changes = []
-
     bundle_url = source_config.get("llms_full_url")
     watched_pages = source_config.get("pages", [])
     hash_file_path = source_config.get("hash_file")
 
     if bundle_url:
         # Layer 1: DETECT
-        watermark = source_state.get("_watermark", {})
-        changed, new_watermark = detect_change(bundle_url, watermark)
-        source_state["_watermark"] = new_watermark
+        stored_wm = store.get_latest_watermark(source_name) or {}
+        changed, new_watermark = detect_change(bundle_url, stored_wm)
+
+        # Record watermark check
+        store.record_watermark_check(
+            source_name,
+            last_modified=new_watermark.get("last_modified", ""),
+            etag=new_watermark.get("etag", ""),
+            changed=changed,
+        )
 
         if not changed:
             print("  no change (Last-Modified match)", file=sys.stderr)
-            source_state["_watermark"]["last_checked"] = _now_iso()
             return []
 
         # Layer 2: IDENTIFY
-        stored_pages = source_state.get("_pages", {})
+        stored_pages = store.get_all_page_hashes(source_name)
         try:
-            page_changes, new_pages = identify_changes(
+            page_changes = identify_changes(
                 bundle_url, watched_pages, stored_pages,
             )
         except Exception as e:
+            store.record_change(
+                source_name,
+                classification="ERROR",
+                summary=f"fetch failed: {e}",
+            )
             return [{
                 "source": source_name,
                 "url": bundle_url,
@@ -296,30 +273,46 @@ def check_source(
                 "summary": f"fetch failed: {e}",
             }]
 
-        source_state["_pages"] = new_pages
-
-        # Layer 3: CLASSIFY
+        # Layer 3: CLASSIFY + record
         for pc in page_changes:
             classification = classify_change(pc["old_content"], pc["new_content"])
+            summary = diff_summary(pc["old_content"], pc["new_content"])
+
+            store.record_change(
+                source_name,
+                classification=classification,
+                old_hash=pc["old_hash"],
+                new_hash=pc["new_hash"],
+                summary=summary,
+                content_preview=pc["content_preview"],
+                page_url=pc["url"],
+            )
+
             changes.append({
                 "source": source_name,
                 "url": pc["url"],
                 "classification": classification,
                 "old_hash": pc["old_hash"],
                 "new_hash": pc["new_hash"],
-                "summary": diff_summary(pc["old_content"], pc["new_content"]),
+                "summary": summary,
             })
 
     # Local file hash (PDF, etc.)
     if hash_file_path:
         fpath = Path(hash_file_path)
-        old_fhash = source_state.get("_file_hash", "")
+        fh = store.get_file_hash(source_name)
+        old_fhash = fh["hash"] if fh else ""
         fc = check_local_file(fpath, old_fhash)
         if fc:
             fc["source"] = source_name
             changes.append(fc)
-            source_state["_file_hash"] = fc["new_hash"]
-            source_state["_file_last_checked"] = _now_iso()
+            store.record_change(
+                source_name,
+                classification=fc["classification"],
+                old_hash=fc["old_hash"],
+                new_hash=fc["new_hash"],
+                summary=fc["summary"],
+            )
 
     return changes
 
@@ -366,6 +359,11 @@ def generate_report(all_changes: list[dict]) -> str:
 # CLI
 # ---------------------------------------------------------------------------
 
+def load_config(config_path: Path) -> dict:
+    with open(config_path) as f:
+        return yaml.safe_load(f)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="CDC-style change detection for documentation sources."
@@ -374,7 +372,11 @@ def main():
         "--config", type=Path, default=DEFAULT_CONFIG,
     )
     parser.add_argument(
+        "--db", type=Path, default=DEFAULT_DB,
+    )
+    parser.add_argument(
         "--state", type=Path, default=DEFAULT_STATE,
+        help="Path to export backward-compatible state.json",
     )
     parser.add_argument(
         "--source", type=str, default=None,
@@ -387,29 +389,30 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    state = load_state(args.state)
 
-    all_changes = []
-    sources = config.get("sources", {})
+    with Store(db_path=args.db, config_path=args.config) as store:
+        all_changes = []
+        sources = config.get("sources", {})
 
-    for name, src_config in sources.items():
-        if src_config.get("type") != "docs":
-            continue
-        if args.source and name != args.source:
-            continue
+        for name, src_config in sources.items():
+            if src_config.get("type") != "docs":
+                continue
+            if args.source and name != args.source:
+                continue
 
-        print(f"Checking {name}...", file=sys.stderr, flush=True)
-        changes = check_source(name, src_config, state)
-        all_changes.extend(changes)
+            print(f"Checking {name}...", file=sys.stderr, flush=True)
+            changes = check_source(name, src_config, store)
+            all_changes.extend(changes)
 
-        if changes:
-            print(
-                f"  {len(changes)} change(s) detected", file=sys.stderr,
-            )
-        else:
-            print("  no changes", file=sys.stderr)
+            if changes:
+                print(
+                    f"  {len(changes)} change(s) detected", file=sys.stderr,
+                )
+            else:
+                print("  no changes", file=sys.stderr)
 
-    save_state(args.state, state)
+        # Export backward-compatible state.json
+        store.export_state_json_file(args.state)
 
     report = generate_report(all_changes)
     if args.output:

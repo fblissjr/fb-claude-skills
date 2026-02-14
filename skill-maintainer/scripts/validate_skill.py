@@ -3,6 +3,7 @@
 Validate a skill against the Agent Skills spec and best practices.
 
 Wraps the skills-ref validator and adds additional checks from best_practices.md.
+Records validation results in DuckDB for trend tracking.
 
 Usage:
     uv run python skill-maintainer/scripts/validate_skill.py ./skill-maintainer
@@ -20,8 +21,11 @@ import yaml
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skills_ref.validator import validate
 
+from store import Store
+
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 
 # Additional checks beyond what skills-ref validates
 SKILL_MD_MAX_LINES = 500
@@ -150,6 +154,20 @@ def validate_single(skill_path: Path, verbose: bool = False) -> tuple[bool, list
     return len(errors) == 0, errors, warnings
 
 
+def _skill_name_from_config(skill_path: Path, config: dict) -> str | None:
+    """Find the skill name in config that matches this path."""
+    skill_path_str = str(skill_path)
+    for name, skill_config in config.get("skills", {}).items():
+        config_path = skill_config.get("path", "")
+        # Normalize both paths for comparison
+        if Path(config_path).resolve() == Path(skill_path_str).resolve():
+            return name
+        # Also try without resolve for relative paths
+        if config_path.lstrip("./") in skill_path_str:
+            return name
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Validate skills against spec and best practices."
@@ -166,6 +184,9 @@ def main():
         "--config", type=Path, default=DEFAULT_CONFIG,
     )
     parser.add_argument(
+        "--db", type=Path, default=DEFAULT_DB,
+    )
+    parser.add_argument(
         "--verbose", "-v", action="store_true",
     )
     args = parser.parse_args()
@@ -175,31 +196,50 @@ def main():
         skills = config.get("skills", {})
         all_valid = True
 
-        for name, skill_config in skills.items():
-            path = Path(skill_config["path"])
-            print(f"Validating {name} ({path})...", file=sys.stderr)
-            is_valid, errors, warnings = validate_single(path, args.verbose)
+        with Store(db_path=args.db, config_path=args.config) as store:
+            for name, skill_config in skills.items():
+                path = Path(skill_config["path"])
+                print(f"Validating {name} ({path})...", file=sys.stderr)
+                is_valid, errors, warnings = validate_single(path, args.verbose)
 
-            if is_valid:
-                status = "PASS"
-                if warnings:
-                    status += f" ({len(warnings)} warnings)"
-                print(f"  {status}")
-            else:
-                status = f"FAIL ({len(errors)} errors)"
-                if warnings:
-                    status += f" ({len(warnings)} warnings)"
-                print(f"  {status}")
-                all_valid = False
+                # Record in DuckDB
+                store.record_validation(
+                    name, is_valid,
+                    errors=errors, warnings=warnings,
+                    trigger_type="manual",
+                )
 
-                if not args.verbose:
-                    for e in errors:
-                        print(f"    - {e}")
+                if is_valid:
+                    status = "PASS"
+                    if warnings:
+                        status += f" ({len(warnings)} warnings)"
+                    print(f"  {status}")
+                else:
+                    status = f"FAIL ({len(errors)} errors)"
+                    if warnings:
+                        status += f" ({len(warnings)} warnings)"
+                    print(f"  {status}")
+                    all_valid = False
+
+                    if not args.verbose:
+                        for e in errors:
+                            print(f"    - {e}")
 
         sys.exit(0 if all_valid else 1)
 
     elif args.skill_path:
         is_valid, errors, warnings = validate_single(args.skill_path, True)
+
+        # Try to record in DuckDB if we can find the skill name
+        config = load_config(args.config)
+        skill_name = _skill_name_from_config(args.skill_path, config)
+        if skill_name:
+            with Store(db_path=args.db, config_path=args.config) as store:
+                store.record_validation(
+                    skill_name, is_valid,
+                    errors=errors, warnings=warnings,
+                    trigger_type="manual",
+                )
 
         if is_valid:
             print(f"Valid skill: {args.skill_path}")

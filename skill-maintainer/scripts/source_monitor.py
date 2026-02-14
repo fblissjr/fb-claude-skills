@@ -5,6 +5,9 @@ Git-based upstream code change detection.
 Generalized from mlx-skills check_updates.py. Monitors configured git repos
 for changes to watched files, extracts API changes, and detects breaking changes.
 
+State is stored in DuckDB via the Store class. Backward-compatible state.json
+is exported after each run.
+
 Usage:
     uv run python skill-maintainer/scripts/source_monitor.py
     uv run python skill-maintainer/scripts/source_monitor.py --source agentskills-spec
@@ -21,11 +24,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import orjson
 import yaml
+
+from store import Store
 
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 DEFAULT_STATE = Path("skill-maintainer/state/state.json")
 
 DEPRECATION_KEYWORDS = [
@@ -37,20 +42,6 @@ DEPRECATION_KEYWORDS = [
 def load_config(config_path: Path) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
-
-
-def load_state(state_path: Path) -> dict:
-    if not state_path.exists():
-        return {}
-    data = state_path.read_bytes()
-    if not data or data.strip() == b"{}":
-        return {}
-    return orjson.loads(data)
-
-
-def save_state(state_path: Path, state: dict) -> None:
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_bytes(orjson.dumps(state, option=orjson.OPT_INDENT_2))
 
 
 def run_git(repo_path: Path, *args: str, timeout: int = 30) -> Optional[str]:
@@ -181,7 +172,7 @@ def analyze_watched_files(
 def check_source(
     source_name: str,
     source_config: dict,
-    state: dict,
+    store: Store,
     since: str,
 ) -> dict:
     """Check a source-type repo for changes.
@@ -232,14 +223,16 @@ def check_source(
         else:
             classification = "NONE"
 
-        # Update state
-        if "sources" not in state:
-            state["sources"] = {}
-        state["sources"][source_name] = {
-            "last_checked": datetime.now(timezone.utc).isoformat(),
-            "last_commit": commits[0]["hash"] if commits else "",
-            "commits_since_last": len(commits),
-        }
+        # Record in Store
+        if commits:
+            store.record_change(
+                source_name,
+                classification=classification,
+                summary=f"{len(commits)} commits, {len(changed_files)} files changed",
+                commit_hash=commits[0]["hash"] if commits else "",
+                commit_count=len(commits),
+                record_source="source_monitor",
+            )
 
         return {
             "source": source_name,
@@ -330,8 +323,11 @@ def main():
         help="Path to config.yaml",
     )
     parser.add_argument(
+        "--db", type=Path, default=DEFAULT_DB,
+    )
+    parser.add_argument(
         "--state", type=Path, default=DEFAULT_STATE,
-        help="Path to state.json",
+        help="Path to export backward-compatible state.json",
     )
     parser.add_argument(
         "--source", type=str, default=None,
@@ -348,22 +344,23 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    state = load_state(args.state)
 
-    results = []
-    sources = config.get("sources", {})
+    with Store(db_path=args.db, config_path=args.config) as store:
+        results = []
+        sources = config.get("sources", {})
 
-    for name, src_config in sources.items():
-        if src_config.get("type") != "source":
-            continue
-        if args.source and name != args.source:
-            continue
+        for name, src_config in sources.items():
+            if src_config.get("type") != "source":
+                continue
+            if args.source and name != args.source:
+                continue
 
-        print(f"Checking {name}...", file=sys.stderr, flush=True)
-        result = check_source(name, src_config, state, args.since)
-        results.append(result)
+            print(f"Checking {name}...", file=sys.stderr, flush=True)
+            result = check_source(name, src_config, store, args.since)
+            results.append(result)
 
-    save_state(args.state, state)
+        # Export backward-compatible state.json
+        store.export_state_json_file(args.state)
 
     report = generate_report(results)
 

@@ -2,8 +2,8 @@
 """
 Lightweight staleness check for skill freshness.
 
-Reads state.json, checks last_updated timestamps, warns if stale.
-Designed to be fast (<100ms) - just reads a JSON file.
+Reads from DuckDB store, checks last_checked timestamps, warns if stale.
+Designed to be fast -- just reads a few DB rows.
 Never blocks skill invocation.
 
 Usage:
@@ -17,12 +17,13 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-import orjson
 import yaml
+
+from store import Store
 
 
 DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
-DEFAULT_STATE = Path("skill-maintainer/state/state.json")
+DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
 DEFAULT_THRESHOLD_DAYS = 7
 
 
@@ -44,40 +45,29 @@ def load_config(config_path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def load_state(state_path: Path) -> dict:
-    if not state_path.exists():
-        return {}
-    data = state_path.read_bytes()
-    if not data or data.strip() == b"{}":
-        return {}
-    return orjson.loads(data)
-
-
-def get_last_checked(state: dict, source_name: str) -> str | None:
-    """Get the most recent check timestamp for a source."""
+def get_last_checked_for_source(store: Store, source_name: str) -> str | None:
+    """Get the most recent check timestamp for a source from DuckDB."""
     timestamps = []
 
-    # Check docs state (CDC format: _watermark.last_checked, _pages.*.last_checked)
-    docs = state.get("docs", {}).get(source_name, {})
-    watermark = docs.get("_watermark", {})
-    if isinstance(watermark, dict) and watermark.get("last_checked"):
-        timestamps.append(watermark["last_checked"])
-    pages = docs.get("_pages", {})
-    if isinstance(pages, dict):
-        for url, page_data in pages.items():
-            if isinstance(page_data, dict) and page_data.get("last_checked"):
-                timestamps.append(page_data["last_checked"])
-    # Local file timestamp
-    file_ts = docs.get("_file_last_checked")
-    if file_ts:
-        timestamps.append(file_ts)
+    # Check watermark (docs sources)
+    wm_ts = store.get_latest_watermark_checked_at(source_name)
+    if wm_ts:
+        timestamps.append(wm_ts)
 
-    # Check sources state (git-based: sources.*.last_checked)
-    src = state.get("sources", {}).get(source_name, {})
-    if isinstance(src, dict):
-        ts = src.get("last_checked")
-        if ts:
-            timestamps.append(ts)
+    # Check page timestamps
+    page_ts = store.get_latest_page_checked_at(source_name)
+    if page_ts:
+        timestamps.append(page_ts)
+
+    # Check file hash timestamp
+    fh = store.get_file_hash(source_name)
+    if fh and fh.get("last_checked"):
+        timestamps.append(fh["last_checked"])
+
+    # Check source repo timestamp
+    src = store.get_latest_source_check(source_name)
+    if src and src.get("last_checked"):
+        timestamps.append(src["last_checked"])
 
     if not timestamps:
         return None
@@ -87,7 +77,7 @@ def get_last_checked(state: dict, source_name: str) -> str | None:
 def check_skill_freshness(
     skill_name: str,
     config: dict,
-    state: dict,
+    store: Store,
     threshold: timedelta,
 ) -> dict:
     """Check freshness of a single skill.
@@ -110,9 +100,12 @@ def check_skill_freshness(
 
     source_status = []
     for source_name in skill_sources:
-        last_checked = get_last_checked(state, source_name)
+        last_checked = get_last_checked_for_source(store, source_name)
         if last_checked:
             ts = datetime.fromisoformat(last_checked)
+            # Ensure timezone-aware for comparison
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
             if oldest_check is None or ts < oldest_check:
                 oldest_check = ts
             age = now - ts
@@ -174,7 +167,7 @@ def main():
         "--config", type=Path, default=DEFAULT_CONFIG,
     )
     parser.add_argument(
-        "--state", type=Path, default=DEFAULT_STATE,
+        "--db", type=Path, default=DEFAULT_DB,
     )
     parser.add_argument(
         "--threshold", default=f"{DEFAULT_THRESHOLD_DAYS}d",
@@ -187,7 +180,6 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    state = load_state(args.state)
     threshold = parse_threshold(args.threshold)
 
     skills_to_check = []
@@ -196,20 +188,19 @@ def main():
     else:
         skills_to_check = list(config.get("skills", {}).keys())
 
-    any_stale = False
-    for skill_name in skills_to_check:
-        result = check_skill_freshness(skill_name, config, state, threshold)
+    with Store(db_path=args.db, config_path=args.config) as store:
+        for skill_name in skills_to_check:
+            result = check_skill_freshness(skill_name, config, store, threshold)
 
-        if result["is_stale"]:
-            any_stale = True
-            if result.get("message"):
-                print(result["message"], file=sys.stderr)
-        elif not args.quiet:
-            checked = result.get("staleness_days", "?")
-            print(
-                f"{skill_name}: OK (last checked {checked} days ago)",
-                file=sys.stderr,
-            )
+            if result["is_stale"]:
+                if result.get("message"):
+                    print(result["message"], file=sys.stderr)
+            elif not args.quiet:
+                checked = result.get("staleness_days", "?")
+                print(
+                    f"{skill_name}: OK (last checked {checked} days ago)",
+                    file=sys.stderr,
+                )
 
     # Exit 0 always - this is a warning tool, not a gate
     sys.exit(0)

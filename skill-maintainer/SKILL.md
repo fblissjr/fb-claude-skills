@@ -1,14 +1,14 @@
 ---
 name: skill-maintainer
-description: Monitors upstream documentation, specifications, and source code for changes that affect Claude Code skills. Use when user says "check for skill updates", "are my skills current", "update skills", or wants to monitor Anthropic docs and Agent Skills spec for changes. Provides commands to check, update, and track skill freshness.
+description: Monitors upstream documentation, specifications, and source code for changes that affect Claude Code skills. Use when user says "check for skill updates", "are my skills current", "update skills", "token budget", "skill history", or wants to monitor Anthropic docs and Agent Skills spec for changes. Provides commands to check, update, track freshness, measure budgets, and query change history.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 # Skill Maintainer
 
-Detect when best practices, source code, or data sources change, and produce updated skill content or a PR for review. Validates all updates against the Agent Skills spec before applying.
+Detect when best practices, source code, or data sources change, and produce updated skill content or a PR for review. Validates all updates against the Agent Skills spec before applying. All state is stored in DuckDB for temporal queryability and audit trails.
 
 ## Commands
 
@@ -17,6 +17,9 @@ Detect when best practices, source code, or data sources change, and produce upd
 | `/skill-maintainer check` | Run all monitors, produce change report |
 | `/skill-maintainer update <skill-name>` | Apply detected changes to a specific skill |
 | `/skill-maintainer status` | Show freshness status of all tracked skills |
+| `/skill-maintainer budget` | Measure token budgets for all tracked skills |
+| `/skill-maintainer history` | Query change history with temporal filters |
+| `/skill-maintainer journal` | Query session activity log |
 | `/skill-maintainer add-source <url-or-repo>` | Add a new monitored source |
 
 ---
@@ -43,8 +46,8 @@ Run all configured monitors and produce a structured change report.
    - Impact classification (breaking / additive / cosmetic)
    - Which skills are affected
    - Suggested actions for each affected skill
-5. Write report to stdout and optionally to `state/last_report.md`
-6. Update `state/state.json` with check timestamps and content hashes
+5. Record all changes in DuckDB (fact_watermark_check, fact_change)
+6. Export backward-compatible `state/state.json`
 
 ### Running the monitors
 
@@ -78,12 +81,13 @@ Apply detected changes to a specific skill.
 
 ### Process
 
-1. Read the latest change report from state
+1. Query DuckDB for recent changes affecting the skill's sources
 2. Classify changes by type (frontmatter, best practice, API/spec, breaking)
 3. For automated patches: apply directly, validate with skills-ref
 4. For complex changes: generate update context for Claude-assisted editing
 5. Always validate after any update: `uv run skills-ref validate <skill-path>`
-6. Never auto-commit; user reviews diff and commits manually
+6. Record validation result and update attempt in DuckDB
+7. Never auto-commit; user reviews diff and commits manually
 
 ### Running the update pipeline
 
@@ -107,7 +111,7 @@ Show freshness status of all tracked skills.
 
 ### Output
 
-Reads `state/state.json` and shows:
+Reads from DuckDB and shows:
 - Last check time for each source
 - Last update time for each skill
 - Staleness warning if any skill exceeds threshold (default 7 days)
@@ -118,6 +122,89 @@ Reads `state/state.json` and shows:
 ```bash
 uv run python skill-maintainer/scripts/check_freshness.py
 uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
+```
+
+---
+
+## /skill-maintainer budget
+
+Measure token budgets for all tracked skills.
+
+### Usage
+
+```
+/skill-maintainer budget
+/skill-maintainer budget --skill plugin-toolkit
+```
+
+### Output
+
+Walks all tracked skills, measures each file (SKILL.md, references/, agents/), and reports:
+- Token count per file (estimated at 1 token ~ 4 chars)
+- Budget status: OK (<4000 tokens), OVER (4000-8000), CRITICAL (>8000)
+- Breakdown by file type (skill_md, reference, agent, script)
+
+### Running the measurement
+
+```bash
+uv run python skill-maintainer/scripts/measure_content.py
+uv run python skill-maintainer/scripts/measure_content.py --skill plugin-toolkit
+```
+
+---
+
+## /skill-maintainer history
+
+Query change history with temporal filters.
+
+### Usage
+
+```
+/skill-maintainer history
+/skill-maintainer history --days 90
+/skill-maintainer history --classification BREAKING
+```
+
+### Output
+
+Shows all recorded changes from DuckDB with:
+- Timestamp, source name, page URL or commit hash
+- Classification (BREAKING, ADDITIVE, COSMETIC)
+- Summary of what changed
+
+### Running the query
+
+```bash
+uv run python skill-maintainer/scripts/store.py --history 30
+uv run python skill-maintainer/scripts/store.py --history 90 --classification BREAKING
+```
+
+---
+
+## /skill-maintainer journal
+
+Query session activity log.
+
+### Usage
+
+```
+/skill-maintainer journal
+/skill-maintainer journal --days 7
+```
+
+### How it works
+
+Events are logged to a JSONL buffer file for performance (no DuckDB writes during hooks).
+Batch ingest moves events from JSONL into DuckDB for queryability.
+
+### Running the journal
+
+```bash
+# Ingest buffered events into DuckDB
+uv run python skill-maintainer/scripts/journal.py ingest
+
+# Query recent activity
+uv run python skill-maintainer/scripts/journal.py query --days 7
 ```
 
 ---
@@ -148,4 +235,5 @@ Add a new monitored source to config.yaml.
 - **[references/best_practices.md](references/best_practices.md)** - Machine-parseable best practices from official docs
 - **[references/monitored_sources.md](references/monitored_sources.md)** - What we monitor and why
 - **[references/update_patterns.md](references/update_patterns.md)** - Patterns for applying different change types
-- **State directory** (`state/`) - Versioned state: timestamps, content hashes, versions
+- **State directory** (`state/`) - DuckDB store + backward-compatible state.json
+- **[docs/internals/duckdb_schema.md](../docs/internals/duckdb_schema.md)** - DuckDB schema documentation

@@ -1,5 +1,67 @@
 # changelog
 
+## 0.6.0
+
+### changed
+- **store.py**: complete rewrite from OLTP to Kimball dimensional model
+  - MD5 hash surrogate keys on all dimensions (replaced integer PKs and MAX(id)+1 pattern)
+  - SCD Type 2 on all dimension tables (effective_from/to, is_current, hash_diff for change detection)
+  - no PRIMARY KEY constraints on dimensions (SCD Type 2 requires multiple rows per entity)
+  - no primary keys on fact tables (dropped all 6 sequences; grain = composite dimension keys + timestamp)
+  - no FK constraints (join by convention, validate at application layer)
+  - metadata columns on all tables: record_source, session_id, inserted_at
+  - meta_schema_version table for schema evolution tracking
+  - meta_load_log table for operational visibility (script execution tracking)
+  - merged fact_session into fact_session_event (session boundaries are events with event_type='session_start'/'session_end')
+  - all views updated to filter is_current = TRUE and join on hash_key
+  - automatic v1 -> v2 schema migration (detects old schema, drops and recreates)
+- **migrate_state.py**: added --force flag for clean schema recreation, integrated with meta_load_log
+- **source_monitor.py**: explicit record_source='source_monitor' on change records
+- **journal.py**: rewritten for merged session/event model (no more fact_session table)
+- duckdb_schema.md: complete rewrite reflecting v2 Kimball schema
+
+### added
+- `docs/analysis/abstraction_analogies.md`: unified framework document -- selection under constraint, five invariant operations (decompose/route/prune/synthesize/verify), database analogy for skills, DAG hierarchy model
+- CLAUDE.md: selection-under-constraint design principle, dimensional model section, three-repo architecture
+- README.md: design philosophy section
+- star-schema-llm-context design docs: library_design.md and abstraction_analogies.md (canonical home)
+
+### fixed
+- SCD Type 2 bug: removed PRIMARY KEY from dimension tables that would cause constraint violations when closing old rows and opening new ones (hash_key must appear in multiple rows for SCD Type 2)
+
+## 0.5.0
+
+### added
+- DuckDB-backed relational store (`store.py`) replacing flat `state.json` overwrite pattern
+  - star schema: dimension tables (dim_source, dim_skill, dim_page, skill_source_dep) + append-only fact tables (fact_watermark_check, fact_change, fact_validation, fact_update_attempt, fact_content_measurement, fact_session, fact_session_event)
+  - pre-built views: v_latest_watermark, v_latest_page_hash, v_skill_freshness, v_skill_budget, v_latest_source_check
+  - WAL mode for concurrent access from hooks
+  - backward-compatible state.json export via `Store.export_state_json()`
+- `migrate_state.py`: one-time migration from state.json into DuckDB with round-trip verification
+- `measure_content.py`: token budget tracker for all tracked skills
+  - walks skill directories, classifies files, measures line/word/char/token counts
+  - budget thresholds: 4000 tokens (warn), 8000 tokens (critical)
+  - records measurements in fact_content_measurement for historical tracking
+- `journal.py`: session activity logger with three modes
+  - append: fast JSONL buffer for hooks (no DuckDB access, <50ms)
+  - ingest: batch import JSONL into DuckDB
+  - query: show recent session activity with filters
+- `/skill-maintainer budget` command for token budget measurement
+- `/skill-maintainer history` command for temporal change queries
+- `/skill-maintainer journal` command for session activity queries
+- `docs/internals/duckdb_schema.md`: full schema documentation
+- `docs/analysis/data_centric_agent_state_research.md`: strategic research on star schema patterns for LLM agent systems (10 use cases analyzed)
+- `duckdb>=1.0` dependency
+
+### changed
+- `docs_monitor.py`: migrated from load_state/save_state to Store class
+- `source_monitor.py`: migrated from load_state/save_state to Store class
+- `check_freshness.py`: migrated from JSON traversal to DuckDB v_skill_freshness view
+- `apply_updates.py`: records update attempts and validations in DuckDB
+- `validate_skill.py`: records validation results in fact_validation table
+- `update_report.py`: reads changes from DuckDB instead of state dict
+- skill-maintainer SKILL.md version bumped to 0.2.0 with new commands documented
+
 ## 0.4.0
 
 ### changed
