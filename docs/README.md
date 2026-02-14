@@ -1,4 +1,4 @@
-last updated: 2026-02-13
+last updated: 2026-02-14
 
 # documentation index
 
@@ -27,5 +27,15 @@ Research and design documentation created during initial development.
 | Directory | Description |
 |-----------|-------------|
 | [blogs/](blogs/) | Captured blog posts (Anthropic complete guide to building skills) |
-| [claude-docs/](claude-docs/) | Captured Claude Code official docs (skills page) |
+| [claude-docs/](claude-docs/) | Captured Claude Code official docs (plugins, skills, marketplace, reference) |
 | [guides/](guides/) | PDF guide source (The Complete Guide to Building Skills for Claude) |
+
+### claude-docs contents
+
+| Document | Source |
+|----------|--------|
+| [claude_docs_plugins.md](claude-docs/claude_docs_plugins.md) | Plugins quickstart, structure, migration |
+| [claude_docs_skills.md](claude-docs/claude_docs_skills.md) | Skills frontmatter, substitutions, invocation, advanced patterns |
+| [claude_docs_plugin_reference.md](claude-docs/claude_docs_plugin_reference.md) | CLI commands, manifest schema, directory structure, debugging |
+| [claude_docs_discover_plugins.md](claude-docs/claude_docs_discover_plugins.md) | Marketplace management, plugin install/uninstall, scope options |
+| [claude_docs_plugin_marketplaces.md](claude-docs/claude_docs_plugin_marketplaces.md) | Marketplace schema, plugin sources, distribution |

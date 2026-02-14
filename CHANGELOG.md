@@ -11,6 +11,12 @@
 - README.md now documents the marketplace-based install flow (`/plugin marketplace add fblissjr/fb-claude-skills`)
 - README.md usage section updated with correct namespaced skill invocations
 - updated CLAUDE.md repo structure and installation sections to match new layout
+- replaced docs/claude-docs/ HTML scrapes with clean markdown from live site (3 replaced, 2 new)
+- added docs/claude-docs/claude_docs_discover_plugins.md and claude_docs_plugin_marketplaces.md
+- updated docs/README.md with claude-docs contents table
+- added discover-plugins and plugin-marketplaces to skill-maintainer config.yaml watched pages
+- updated docs/analysis/skills_guide_analysis.md with v0.4.0 compliance section
+- added skill-maintainer/README.md (was the only module without one)
 
 ## 0.3.1
 
