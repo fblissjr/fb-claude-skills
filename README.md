@@ -2,18 +2,21 @@ last updated: 2026-02-14
 
 # claude-skills
 
-A collection of Claude Code skills and plugins -- some created by me, some from others, some remixed from both.
+A random collection of utility / experimental / research / etc Claude Code skills and plugins -- some created by me, some from others, some remixed from both.
 
 ## skills
 
-| Plugin | Skills | Description |
-|--------|--------|-------------|
+| Plugin | Skills | Description | Notes       |
+|--------|--------|-------------|-------------|
 | [mcp-apps](mcp-apps/) | `create-mcp-app`, `migrate-oai-app` | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
 | [plugin-toolkit](plugin-toolkit/) | `plugin-toolkit` | Analyze, polish, and manage Claude Code plugins |
 | [web-tdd](web-tdd/) | `web-tdd` | TDD workflow for web applications (Vitest, Playwright, Vibium) |
-| [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp |
+| [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 | [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
-| [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server |
+| [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
+
+### More fully built out skills:
+- [mlx-skills](https://github.com/fblissjr/mlx-skills) - a fork of [awni](https://github.com/awni/mlx-skills)'s Apple MLX skills that tries to get more granular and more modular
 
 ## installation
 
