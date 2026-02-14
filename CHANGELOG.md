@@ -21,6 +21,7 @@
 - duckdb_schema.md: complete rewrite reflecting v2 Kimball schema
 
 ### added
+- `v_skill_budget_trend` view and `--budget-trend` CLI flag: token budget trend over time per skill (meta-cognition: "am I getting fatter?")
 - `docs/analysis/abstraction_analogies.md`: unified framework document -- selection under constraint, five invariant operations (decompose/route/prune/synthesize/verify), database analogy for skills, DAG hierarchy model
 - CLAUDE.md: selection-under-constraint design principle, dimensional model section, three-repo architecture
 - README.md: design philosophy section

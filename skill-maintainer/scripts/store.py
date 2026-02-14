@@ -1270,6 +1270,10 @@ def main():
         help="Show token budget data",
     )
     parser.add_argument(
+        "--budget-trend", action="store_true",
+        help="Show token budget trend over time (meta-cognition: is a skill growing?)",
+    )
+    parser.add_argument(
         "--db", type=Path, default=DEFAULT_DB,
         help=f"Database path (default: {DEFAULT_DB})",
     )
@@ -1305,6 +1309,20 @@ def main():
                 over = " [OVER BUDGET]" if d["over_budget"] else ""
                 print(f"  {name}: {total} tokens (skill_md={d['skill_md_tokens']}, "
                       f"refs={d['reference_tokens']}){over}")
+        elif args.budget_trend:
+            data = store.get_skill_budget_trend()
+            if not data:
+                print("No budget measurements found. Run measure_content.py first.")
+            else:
+                current_skill = None
+                for d in data:
+                    if d["skill_name"] != current_skill:
+                        current_skill = d["skill_name"]
+                        print(f"\n  {current_skill}:")
+                    date = d["measured_date"][:10] if d["measured_date"] else "?"
+                    total = d["total_tokens"]
+                    files = d["file_count"]
+                    print(f"    {date}: {total} tokens ({files} files)")
         else:
             store.print_stats()
 

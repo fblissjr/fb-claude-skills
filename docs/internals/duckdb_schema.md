@@ -308,6 +308,25 @@ WHERE s.is_current = TRUE
 GROUP BY s.skill_name;
 ```
 
+### v_skill_budget_trend
+
+Token budget trend over time per skill. Enables meta-cognition: "is a skill getting fatter over time?" With daily measurements, shows growth/shrinkage trends.
+
+```sql
+SELECT
+    s.skill_name,
+    DATE_TRUNC('day', m.measured_at) AS measured_date,
+    SUM(m.estimated_tokens) AS total_tokens,
+    SUM(CASE WHEN m.file_type = 'skill_md' THEN m.estimated_tokens ELSE 0 END) AS skill_md_tokens,
+    SUM(CASE WHEN m.file_type = 'reference' THEN m.estimated_tokens ELSE 0 END) AS reference_tokens,
+    COUNT(DISTINCT m.file_path) AS file_count
+FROM dim_skill s
+JOIN fact_content_measurement m ON m.skill_key = s.hash_key
+WHERE s.is_current = TRUE
+GROUP BY s.skill_name, DATE_TRUNC('day', m.measured_at)
+ORDER BY s.skill_name, measured_date;
+```
+
 ### v_latest_source_check
 
 Latest source monitoring check per source.
