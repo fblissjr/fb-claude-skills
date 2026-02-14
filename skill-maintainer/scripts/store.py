@@ -363,7 +363,7 @@ class Store:
         # Drop views first (depend on tables)
         for view in [
             "v_latest_watermark", "v_latest_page_hash", "v_skill_freshness",
-            "v_skill_budget", "v_latest_source_check",
+            "v_skill_budget", "v_skill_budget_trend", "v_latest_source_check",
         ]:
             self.con.execute(f"DROP VIEW IF EXISTS {view}")
 
@@ -860,6 +860,28 @@ class Store:
                 "reference_tokens": row[2],
                 "total_tokens": row[3],
                 "over_budget": row[4],
+            })
+        return results
+
+    def get_skill_budget_trend(self, skill_name: str | None = None) -> list[dict]:
+        """Get token budget trend over time. Enables meta-cognition: is a skill growing?"""
+        if skill_name:
+            rows = self.con.execute(
+                "SELECT * FROM v_skill_budget_trend WHERE skill_name = ?",
+                [skill_name],
+            ).fetchall()
+        else:
+            rows = self.con.execute("SELECT * FROM v_skill_budget_trend").fetchall()
+
+        results = []
+        for row in rows:
+            results.append({
+                "skill_name": row[0],
+                "measured_date": row[1].isoformat() if row[1] else None,
+                "total_tokens": row[2],
+                "skill_md_tokens": row[3],
+                "reference_tokens": row[4],
+                "file_count": row[5],
             })
         return results
 
