@@ -1,0 +1,9 @@
+{
+  "name": "dimensional-modeling",
+  "version": "0.1.0",
+  "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

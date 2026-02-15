@@ -1,5 +1,19 @@
 # changelog
 
+## 0.7.0
+
+### added
+- **dimensional-modeling**: new installable plugin for Kimball-style star schema design
+  - SKILL.md: router skill teaching dimensional modeling patterns for DuckDB agent state
+  - references: schema_patterns.md, query_patterns.md, key_generation.md, anti_patterns.md, dag_execution.md
+  - covers: SCD Type 2 dimensions, hash surrogate keys, fact table design, analytical views, agent execution DAG
+- star-schema-llm-context: repo cleanup
+  - deleted ~3950 lines of dead knowledge graph code (graph_algorithms.py, mcp_server.py, schema.sql, db_manager.py, setup.py, requirements.txt, Makefile, ARCHITECTURE.md, config.yaml)
+  - rewrote README.md with clear vision statement (pattern library, not code library)
+  - rewrote CLAUDE.md to reflect current state
+  - added pyproject.toml
+  - replaced speculative expansion roadmap (embeddings, graph DB) with DAG execution model and automation patterns
+
 ## 0.6.0
 
 ### changed

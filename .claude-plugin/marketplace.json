@@ -30,6 +30,12 @@
       "source": "./cogapp-markdown",
       "description": "Auto-generate markdown sections using cogapp",
       "version": "0.1.0"
+    },
+    {
+      "name": "dimensional-modeling",
+      "source": "./dimensional-modeling",
+      "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
+      "version": "0.1.0"
     }
   ]
 }

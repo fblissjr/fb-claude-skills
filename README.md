@@ -12,6 +12,7 @@ A random collection of utility / experimental / research / etc Claude Code skill
 | [plugin-toolkit](plugin-toolkit/) | `plugin-toolkit` | Analyze, polish, and manage Claude Code plugins |
 | [web-tdd](web-tdd/) | `web-tdd` | TDD workflow for web applications (Vitest, Playwright, Vibium) |
 | [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
+| [dimensional-modeling](dimensional-modeling/) | `dimensional-modeling` | Kimball-style dimensional modeling for DuckDB star schemas in agent systems |
 | [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
 | [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
 
@@ -33,6 +34,7 @@ This repo is a plugin marketplace. Add it once, then install whichever plugins y
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
+/plugin install dimensional-modeling@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -58,6 +60,7 @@ cd fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
+/plugin install dimensional-modeling@fb-claude-skills
 ```
 
 ### development / testing
@@ -106,6 +109,7 @@ Once installed, invoke skills as slash commands (plugin skills are namespaced):
 /plugin-toolkit               # Analyze, polish, and manage plugins
 /web-tdd                      # Set up TDD for a web project
 /cogapp-markdown              # Auto-generate markdown docs
+/dimensional-modeling         # Design star schemas for agent state
 /skill-maintainer check       # Check for upstream changes (project-scoped)
 ```
 
