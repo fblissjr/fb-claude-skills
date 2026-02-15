@@ -36,6 +36,12 @@
       "source": "./dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
       "version": "0.1.0"
+    },
+    {
+      "name": "tui-design",
+      "source": "./tui-design",
+      "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
+      "version": "0.1.0"
     }
   ]
 }

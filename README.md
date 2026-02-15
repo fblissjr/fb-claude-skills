@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-02-15
 
 # claude-skills
 
@@ -13,6 +13,7 @@ A random collection of utility / experimental / research / etc Claude Code skill
 | [web-tdd](web-tdd/) | `web-tdd` | TDD workflow for web applications (Vitest, Playwright, Vibium) |
 | [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 | [dimensional-modeling](dimensional-modeling/) | `dimensional-modeling` | Kimball-style dimensional modeling for DuckDB star schemas in agent systems |
+| [tui-design](tui-design/) | `tui-design` | Terminal UI design principles for Rich, Questionary, and Click |
 | [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
 | [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
 
@@ -35,6 +36,7 @@ This repo is a plugin marketplace. Add it once, then install whichever plugins y
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -61,6 +63,7 @@ cd fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
 ```
 
 ### development / testing
@@ -110,6 +113,7 @@ Once installed, invoke skills as slash commands (plugin skills are namespaced):
 /web-tdd                      # Set up TDD for a web project
 /cogapp-markdown              # Auto-generate markdown docs
 /dimensional-modeling         # Design star schemas for agent state
+/tui-design                   # Terminal UI design principles
 /skill-maintainer check       # Check for upstream changes (project-scoped)
 ```
 

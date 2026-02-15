@@ -70,3 +70,10 @@ skills:
       - anthropic-skills-docs
       - agentskills-spec
     auto_update: false
+
+  tui-design:
+    path: ./tui-design/skills/tui-design
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false

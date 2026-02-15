@@ -1,5 +1,14 @@
 # changelog
 
+## 0.8.0
+
+### added
+- **tui-design**: new installable plugin for terminal UI design
+  - SKILL.md: 5 principles (semantic color, responsive layout, right component, visual hierarchy, progressive density)
+  - references: rich_patterns.md, questionary_patterns.md, anti_patterns.md, layout_recipes.md
+  - covers: Rich component selection, Questionary interactive prompts, 9 anti-patterns with before/after, 4 complete layout recipes
+  - 16-color safe palette with semantic meanings, pipe-safe output patterns
+
 ## 0.7.0
 
 ### added

@@ -26,6 +26,10 @@ fb-claude-skills/
     .claude-plugin/
       plugin.json
     skills/cogapp-markdown/  # SKILL.md
+  tui-design/                # Plugin: terminal UI design principles
+    .claude-plugin/
+      plugin.json
+    skills/tui-design/       # SKILL.md + references/
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
     SKILL.md                 # Orchestrator with 4 commands: check, update, status, add-source
     config.yaml              # Source registry: what docs/repos to monitor, which skills they affect
@@ -57,6 +61,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/web-tdd`).
