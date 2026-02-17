@@ -1,83 +1,156 @@
-# mece-decomposer
+last updated: 2026-02-15
 
-last updated: 2026-02-17
+# claude-skills
 
-A Claude Code skill that decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution.
+A random collection of utility / experimental / research / etc Claude Code skills and plugins -- some created by me, some from others, some remixed from both.
 
-## Problem
+## skills
 
-Business SMEs have tacit knowledge about processes that is stuck in their heads as assumptions. When building agentic workflows with Claude Agent SDK, the hardest part is defining "what good looks like" -- and SMEs can't articulate that without decomposing the process into granular components first.
+| Plugin | Skills | Description | Notes       |
+|--------|--------|-------------|-------------|
+| [mcp-apps](mcp-apps/) | `create-mcp-app`, `migrate-oai-app` | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
+| [plugin-toolkit](plugin-toolkit/) | `plugin-toolkit` | Analyze, polish, and manage Claude Code plugins |
+| [web-tdd](web-tdd/) | `web-tdd` | TDD workflow for web applications (Vitest, Playwright, Vibium) |
+| [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
+| [dimensional-modeling](dimensional-modeling/) | `dimensional-modeling` | Kimball-style dimensional modeling for DuckDB star schemas in agent systems |
+| [tui-design](tui-design/) | `tui-design` | Terminal UI design principles for Rich, Questionary, and Click |
+| [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
+| [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
 
-## What It Does
+### More fully built out skills:
+- [mlx-skills](https://github.com/fblissjr/mlx-skills) - a fork of [awni](https://github.com/awni/mlx-skills)'s Apple MLX skills that tries to get more granular and more modular
 
-Takes any input -- a goal, a process description, an SOP, a live conversation with an SME -- and produces:
+## installation
 
-1. **Human-readable tree** for validation and communication
-2. **Structured JSON** that maps directly to Agent SDK primitives (`Agent`, `Runner`, hooks, handoffs)
+### install from GitHub (recommended)
 
-The decomposition itself becomes the shared contract between humans and agents.
-
-### Example Output (Human-Readable)
-
-```
-Invoice Approval Workflow (sequential)
-+-- Invoice Receipt and Logging (sequential)
-|   +-- [tool] Extract Invoice Data (~10s, OCR/parse)
-|   +-- [agent] Validate Invoice Completeness (~1m, haiku)
-|   +-- [agent] Match to Purchase Order (~2m, sonnet)
-+-- Review and Approval (conditional)
-|   condition: invoice_amount threshold
-|   +-- Standard Approval (sequential)        [amount < $5000]
-|   |   +-- [agent] Auto-Approve Check (~30s, haiku)
-|   |   +-- [human] Manager Sign-Off (~4h, webhook)
-|   +-- Escalated Approval (sequential)       [amount >= $5000]
-|       +-- [human] Director Review (~8h, webhook)
-|       +-- [human] VP Sign-Off (~24h, webhook)
-+-- Payment Processing (sequential)
-    +-- [agent] Generate Payment Instructions (~1m, sonnet)
-    +-- [external] Submit to Payment System (~30s, rest_api)
-    +-- [agent] Send Confirmation (~30s, haiku)
-```
-
-## Commands
-
-| Command | Purpose |
-|---------|---------|
-| `decompose` | Break down a goal, process, or workflow into MECE components with SDK mapping |
-| `interview` | Extract process knowledge from an SME through structured conversation |
-| `validate` | Check an existing decomposition for MECE compliance and structural integrity |
-| `export` | Generate Agent SDK code scaffolding from a validated decomposition |
-
-## Skill Structure
-
-```
-skills/mece-decomposer/mece-decomposer/
-+-- SKILL.md                                    # Core skill definition (~300 lines)
-+-- references/
-|   +-- decomposition_methodology.md            # 8-step decomposition procedure
-|   +-- sme_interview_protocol.md               # 5-phase conversational extraction
-|   +-- validation_heuristics.md                # ME/CE scoring rubrics
-|   +-- agent_sdk_mapping.md                    # Tree -> Agent SDK mapping rules
-|   +-- output_schema.md                        # Full JSON schema specification
-+-- scripts/
-    +-- validate_mece.py                        # Deterministic structural validator
-```
-
-## Validation Script
-
-Structural validation of decomposition JSON output:
+This repo is a plugin marketplace. Add it once, then install whichever plugins you want:
 
 ```bash
-uv run skills/mece-decomposer/mece-decomposer/scripts/validate_mece.py <decomposition.json>
+# from within Claude Code:
+/plugin marketplace add fblissjr/fb-claude-skills
+
+# install individual plugins
+/plugin install mcp-apps@fb-claude-skills
+/plugin install plugin-toolkit@fb-claude-skills
+/plugin install web-tdd@fb-claude-skills
+/plugin install cogapp-markdown@fb-claude-skills
+/plugin install dimensional-modeling@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
 ```
 
-Checks schema compliance, hierarchical ID consistency, dependency validity, fan-out limits, atomicity completeness, and cross-checks declared summary stats against computed values.
+Or from the terminal:
 
-## Dependencies
+```bash
+claude plugin marketplace add fblissjr/fb-claude-skills
+claude plugin install mcp-apps@fb-claude-skills
+```
 
-- `orjson` -- JSON serialization for the validation script
-- `pyyaml` -- YAML parsing for skill packaging
+### install from local clone
 
-## Credits
+If you prefer to clone first:
 
-Idea genesis from [Ron Zika](https://www.linkedin.com/in/ronzika/).
+```bash
+git clone https://github.com/fblissjr/fb-claude-skills.git
+cd fb-claude-skills
+
+# add as a local marketplace
+/plugin marketplace add .
+
+# install whichever plugins you want
+/plugin install mcp-apps@fb-claude-skills
+/plugin install plugin-toolkit@fb-claude-skills
+/plugin install web-tdd@fb-claude-skills
+/plugin install cogapp-markdown@fb-claude-skills
+/plugin install dimensional-modeling@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
+```
+
+### development / testing
+
+To load a plugin temporarily without installing (changes take effect for the current session only):
+
+```bash
+claude --plugin-dir ./mcp-apps
+claude --plugin-dir ./plugin-toolkit --plugin-dir ./web-tdd
+```
+
+### project-scoped (skill-maintainer)
+
+skill-maintainer is designed to run from within this repo since it depends on `config.yaml`, `state/`, and `scripts/` in the repo. It is not installable as a global plugin.
+
+To use it, run Claude Code from the repo root:
+
+```bash
+cd fb-claude-skills
+claude
+# Then: /skill-maintainer check
+```
+
+### uninstall
+
+```bash
+claude plugin uninstall mcp-apps@fb-claude-skills
+claude plugin uninstall plugin-toolkit@fb-claude-skills
+claude plugin uninstall web-tdd@fb-claude-skills
+claude plugin uninstall cogapp-markdown@fb-claude-skills
+```
+
+### verify
+
+```bash
+claude plugin list
+```
+
+## usage
+
+Once installed, invoke skills as slash commands (plugin skills are namespaced):
+
+```
+/mcp-apps:create-mcp-app     # Build an MCP App from scratch
+/mcp-apps:migrate-oai-app    # Migrate from OpenAI Apps SDK to MCP
+/plugin-toolkit               # Analyze, polish, and manage plugins
+/web-tdd                      # Set up TDD for a web project
+/cogapp-markdown              # Auto-generate markdown docs
+/dimensional-modeling         # Design star schemas for agent state
+/tui-design                   # Terminal UI design principles
+/skill-maintainer check       # Check for upstream changes (project-scoped)
+```
+
+Or just describe what you want -- skills trigger on relevant keywords.
+
+## design philosophy
+
+The system is built around one principle: **selection under constraint**. Given more possibilities than you can evaluate, select the subset that matters, process it, combine results. This appears at every level -- from attention selecting which tokens matter, to frontmatter routing selecting which skills load, to CDC hash comparison selecting which pages to fetch.
+
+Every subsystem implements five invariant operations: **decompose, route, prune, synthesize, verify**. The CDC pipeline decomposes pages by delimiter, routes via hash comparison, prunes unchanged pages, synthesizes a classified report, and verifies via keyword heuristic. Skill loading follows the same pattern: decompose into layers, route via frontmatter, prune unneeded references, synthesize into working context, verify against spec.
+
+Three repos form a database-like component stack:
+- **[star-schema-llm-context](https://github.com/fblissjr/star-schema-llm-context)** -- storage engine (dimensional modeling primitives, key generation, DuckDB connection management)
+- **fb-claude-skills** (this repo) -- stored procedures (skills as view definitions, CDC business logic, DuckDB star schema)
+- **ccutils** -- client application (session analytics, dashboards, hook integration)
+
+See [docs/analysis/abstraction_analogies.md](docs/analysis/abstraction_analogies.md) for the full treatment.
+
+## skill-maintainer
+
+This repo includes a self-updating system that monitors upstream docs and source repos for changes that affect skills. See [skill-maintainer/](skill-maintainer/) and [docs/](docs/) for details.
+
+```bash
+# Check for upstream changes
+uv run python skill-maintainer/scripts/docs_monitor.py
+uv run python skill-maintainer/scripts/source_monitor.py
+
+# Generate report and apply updates
+uv run python skill-maintainer/scripts/update_report.py
+uv run python skill-maintainer/scripts/apply_updates.py --skill <name>
+```
+
+## more skills
+
+- [mlx-skills](https://github.com/fblissjr/mlx-skills) -- a fork of [awni](https://github.com/awni/mlx-skills)'s Apple MLX skills with more granular and modular structure
+
+## credits
+
+- [simonw](https://github.com/simonw) -- cogapp-markdown
+- [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps) -- mcp-apps upstream
