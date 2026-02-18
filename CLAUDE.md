@@ -30,10 +30,13 @@ fb-claude-skills/
     .claude-plugin/
       plugin.json
     skills/tui-design/       # SKILL.md + references/
-  mece-decomposer/           # Plugin: MECE decomposition for Agent SDK workflows
+  mece-decomposer/           # Plugin: MECE decomposition for Agent SDK workflows + MCP App
     .claude-plugin/
       plugin.json
+    .mcp.json                # MCP server auto-configuration (stdio)
+    commands/                # Slash commands: decompose, interview, validate, export
     skills/mece-decomposer/  # SKILL.md + references/ + scripts/
+    mcp-app/                 # MCP App: interactive tree visualizer (React + bundled server)
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
     SKILL.md                 # Orchestrator with 4 commands: check, update, status, add-source
     config.yaml              # Source registry: what docs/repos to monitor, which skills they affect

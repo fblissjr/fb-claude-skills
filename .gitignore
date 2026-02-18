@@ -209,6 +209,10 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# MCP App dist (committed so plugin works without build step)
+!mece-decomposer/mcp-app/dist/
+!heylook-monitor/mcp-app/dist/
+
 # DuckDB files (reconstructible from state.json + config.yaml)
 *.duckdb
 *.duckdb.wal

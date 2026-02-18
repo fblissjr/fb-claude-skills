@@ -1,3 +1,5 @@
 node_modules/
-dist/
 *.tsbuildinfo
+
+# dist/ is committed so the plugin works without a build step.
+# Only the bundled server (index.cjs) and the UI (mcp-app.html) are needed at runtime.

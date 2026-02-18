@@ -1,7 +1,7 @@
 {
   "name": "mece-decomposer",
   "version": "0.2.0",
-  "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components",
+  "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer",
   "author": {
     "name": "Fred Bliss"
   },

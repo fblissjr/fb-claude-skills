@@ -21,6 +21,7 @@ export default function MeceTreeApp({
   toolInputs,
   toolInputsPartial,
   toolResult,
+  hostContext,
   callServerTool,
 }: ViewProps) {
   const [decomposition, setDecomposition] = useState<Decomposition | null>(
@@ -160,8 +161,18 @@ export default function MeceTreeApp({
     );
   }
 
+  const safeArea = hostContext?.safeAreaInsets;
+
   return (
-    <div className="mece-app">
+    <div
+      className="mece-app"
+      style={safeArea ? {
+        paddingTop: safeArea.top,
+        paddingRight: safeArea.right,
+        paddingBottom: safeArea.bottom,
+        paddingLeft: safeArea.left,
+      } : undefined}
+    >
       {/* Header */}
       <div className="mece-header">
         <h2>{activeDecomposition.metadata.scope}</h2>

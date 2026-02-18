@@ -1,160 +1,192 @@
-last updated: 2026-02-17
+last updated: 2026-02-18
 
-# claude-skills
+# fb-claude-skills
 
-A random collection of utility / experimental / research / etc Claude Code skills and plugins -- some created by me, some from others, some remixed from both.
+A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plugin marketplace in Claude Code, Cowork, and Claude Desktop.
 
-## skills
+## plugins
 
-| Plugin | Skills | Description | Notes       |
-|--------|--------|-------------|-------------|
-| [mcp-apps](mcp-apps/) | `create-mcp-app`, `migrate-oai-app` | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
-| [plugin-toolkit](plugin-toolkit/) | `plugin-toolkit` | Analyze, polish, and manage Claude Code plugins |
-| [web-tdd](web-tdd/) | `web-tdd` | TDD workflow for web applications (Vitest, Playwright, Vibium) |
-| [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
-| [dimensional-modeling](dimensional-modeling/) | `dimensional-modeling` | Kimball-style dimensional modeling for DuckDB star schemas in agent systems |
-| [tui-design](tui-design/) | `tui-design` | Terminal UI design principles for Rich, Questionary, and Click |
-| [mece-decomposer](mece-decomposer/) | `mece-decomposer` | MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components |
-| [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
-| [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [mece-decomposer](mece-decomposer/) | Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer |
+| [mcp-apps](mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
+| [plugin-toolkit](plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
+| [web-tdd](web-tdd/) | Skill | TDD workflow for web applications (Vitest, Playwright, Vibium) |
+| [tui-design](tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
+| [cogapp-markdown](cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
+| [dimensional-modeling](dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
 
-### More fully built out skills:
-- [mlx-skills](https://github.com/fblissjr/mlx-skills) - a fork of [awni](https://github.com/awni/mlx-skills)'s Apple MLX skills that tries to get more granular and more modular
+### project-scoped (not installable)
+
+| Module | Description |
+|--------|-------------|
+| [skill-maintainer](skill-maintainer/) | Automated skill maintenance and upstream change monitoring |
+| [heylook-monitor](heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
 
 ## installation
 
-### install from GitHub (recommended)
-
-This repo is a plugin marketplace. Add it once, then install whichever plugins you want:
+### from GitHub (recommended)
 
 ```bash
-# from within Claude Code:
+# Add the marketplace (once)
 /plugin marketplace add fblissjr/fb-claude-skills
 
-# install individual plugins
+# Install individual plugins
+/plugin install mece-decomposer@fb-claude-skills
 /plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
+/plugin install tui-design@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
-/plugin install tui-design@fb-claude-skills
-/plugin install mece-decomposer@fb-claude-skills
 ```
 
 Or from the terminal:
 
 ```bash
 claude plugin marketplace add fblissjr/fb-claude-skills
-claude plugin install mcp-apps@fb-claude-skills
+claude plugin install mece-decomposer@fb-claude-skills
 ```
 
-### install from local clone
-
-If you prefer to clone first:
+### from local clone
 
 ```bash
 git clone https://github.com/fblissjr/fb-claude-skills.git
 cd fb-claude-skills
-
-# add as a local marketplace
 /plugin marketplace add .
-
-# install whichever plugins you want
-/plugin install mcp-apps@fb-claude-skills
-/plugin install plugin-toolkit@fb-claude-skills
-/plugin install web-tdd@fb-claude-skills
-/plugin install cogapp-markdown@fb-claude-skills
-/plugin install dimensional-modeling@fb-claude-skills
-/plugin install tui-design@fb-claude-skills
 /plugin install mece-decomposer@fb-claude-skills
 ```
 
-### development / testing
-
-To load a plugin temporarily without installing (changes take effect for the current session only):
+### temporary loading (development)
 
 ```bash
-claude --plugin-dir ./mcp-apps
-claude --plugin-dir ./plugin-toolkit --plugin-dir ./web-tdd
-```
-
-### project-scoped (skill-maintainer)
-
-skill-maintainer is designed to run from within this repo since it depends on `config.yaml`, `state/`, and `scripts/` in the repo. It is not installable as a global plugin.
-
-To use it, run Claude Code from the repo root:
-
-```bash
-cd fb-claude-skills
-claude
-# Then: /skill-maintainer check
+claude --plugin-dir ./mece-decomposer
 ```
 
 ### uninstall
 
 ```bash
-claude plugin uninstall mcp-apps@fb-claude-skills
-claude plugin uninstall plugin-toolkit@fb-claude-skills
-claude plugin uninstall web-tdd@fb-claude-skills
-claude plugin uninstall cogapp-markdown@fb-claude-skills
+claude plugin uninstall mece-decomposer@fb-claude-skills
+claude plugin list  # verify
 ```
 
-### verify
+## where things work
 
-```bash
-claude plugin list
-```
+> **New to MCP?** See [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) for a field guide to the full MCP ecosystem -- protocols, transports, tools, apps, connectors, and how they all relate.
+
+Plugins from this repo work across multiple Claude surfaces, but capabilities differ by surface:
+
+| Surface | Skills | Commands | MCP App UI | Transport |
+|---------|--------|----------|------------|-----------|
+| **Claude Code** (terminal) | yes | yes (namespaced) | text fallback | stdio |
+| **Claude Desktop** | yes | yes | text fallback | stdio |
+| **Cowork** (in Claude Desktop) | yes | yes | yes (interactive) | stdio |
+| **Claude.ai** (web) | -- | -- | yes (if hosted) | Streamable HTTP |
+
+**Key points:**
+- **Skills and commands** work in Claude Code, Claude Desktop, and Cowork via stdio transport. This is what `.mcp.json` configures with `--stdio`.
+- **MCP App interactive UIs** (like the MECE tree visualizer) render in Cowork and Claude.ai. On CLI/Desktop surfaces, the tools return text summaries instead.
+- **Claude.ai requires HTTP transport.** The web interface can't spawn local processes, so it needs a hosted server using Streamable HTTP (not stdio). See [Claude.ai deployment](#deploying-mcp-apps-to-claudeai) below.
 
 ## usage
 
-Once installed, invoke skills as slash commands (plugin skills are namespaced):
+### slash commands
+
+Once installed, invoke as namespaced slash commands:
 
 ```
-/mcp-apps:create-mcp-app     # Build an MCP App from scratch
-/mcp-apps:migrate-oai-app    # Migrate from OpenAI Apps SDK to MCP
-/plugin-toolkit               # Analyze, polish, and manage plugins
-/web-tdd                      # Set up TDD for a web project
-/cogapp-markdown              # Auto-generate markdown docs
-/dimensional-modeling         # Design star schemas for agent state
-/tui-design                   # Terminal UI design principles
-/mece-decomposer              # MECE decomposition for Agent SDK workflows
-/skill-maintainer check       # Check for upstream changes (project-scoped)
+/mece-decomposer:decompose    # Break down a goal into MECE components
+/mece-decomposer:interview    # Extract process knowledge from an SME
+/mece-decomposer:validate     # Check MECE compliance and scores
+/mece-decomposer:export       # Generate Agent SDK Python scaffolding
+
+/mcp-apps:create-mcp-app      # Build an MCP App from scratch
+/mcp-apps:migrate-oai-app     # Migrate from OpenAI Apps SDK
+
+/plugin-toolkit                # Analyze and manage plugins
+/web-tdd                       # Set up TDD for a web project
+/tui-design                    # Terminal UI design guidance
+/cogapp-markdown               # Auto-generate markdown docs
+/dimensional-modeling          # Star schema design patterns
 ```
 
-Or just describe what you want -- skills trigger on relevant keywords.
+### keyword activation
 
-## design philosophy
+Skills also trigger automatically on relevant keywords. Say "decompose this process" or "interview me about this workflow" and the mece-decomposer skill loads.
 
-The system is built around one principle: **selection under constraint**. Given more possibilities than you can evaluate, select the subset that matters, process it, combine results. This appears at every level -- from attention selecting which tokens matter, to frontmatter routing selecting which skills load, to CDC hash comparison selecting which pages to fetch.
+### MCP App tools
 
-Every subsystem implements five invariant operations: **decompose, route, prune, synthesize, verify**. The CDC pipeline decomposes pages by delimiter, routes via hash comparison, prunes unchanged pages, synthesizes a classified report, and verifies via keyword heuristic. Skill loading follows the same pattern: decompose into layers, route via frontmatter, prune unneeded references, synthesize into working context, verify against spec.
+Plugins with MCP Apps expose tools that the model calls automatically during conversations:
 
-Three repos form a database-like component stack:
-- **[star-schema-llm-context](https://github.com/fblissjr/star-schema-llm-context)** -- storage engine (dimensional modeling primitives, key generation, DuckDB connection management)
-- **fb-claude-skills** (this repo) -- stored procedures (skills as view definitions, CDC business logic, DuckDB star schema)
-- **ccutils** -- client application (session analytics, dashboards, hook integration)
+| MCP Tool | Plugin | What it does |
+|----------|--------|-------------|
+| `mece-decompose` | mece-decomposer | Render decomposition as interactive tree |
+| `mece-validate` | mece-decomposer | Validate and display score gauges + issues |
+| `mece-refine-node` | mece-decomposer | Edit nodes from the UI (app-only) |
+| `mece-export-sdk` | mece-decomposer | Preview generated Agent SDK code |
 
-See [docs/analysis/abstraction_analogies.md](docs/analysis/abstraction_analogies.md) for the full treatment.
+On Cowork, these render as interactive React UIs. On CLI, they return text.
+
+## MCP Apps
+
+### what are MCP Apps?
+
+MCP Apps are interactive UIs served by MCP servers. They pair a tool (server logic) with a resource (bundled HTML/React) so that when the model calls the tool, a rich UI renders in the host.
+
+The mece-decomposer plugin includes an MCP App that visualizes decomposition trees with collapsible nodes, score gauges, validation panels, and code export preview.
+
+### how they work
+
+1. Model calls an MCP tool (e.g., `mece-decompose`)
+2. Server processes the request, returns text (fallback) + structured data (for UI)
+3. Host fetches the UI resource (`ui://mece/mcp-app.html`)
+4. Host renders the HTML in a sandboxed iframe
+5. Host sends tool data to the iframe via MCP messaging
+6. UI renders interactively -- user can click nodes, run validation, export code
+
+### deploying MCP Apps to Claude.ai
+
+The plugins in this repo use stdio transport (local process). To use MCP Apps on Claude.ai (web):
+
+1. Run the server as an HTTP service (not stdio):
+   ```bash
+   cd mece-decomposer/mcp-app
+   npm install
+   node dist/index.cjs  # starts Streamable HTTP on port 3001
+   ```
+2. Host the server somewhere network-accessible
+3. Register as an MCP connector in Claude.ai settings
+
+The server's `main.ts` supports both transports: `--stdio` for local, HTTP for remote.
 
 ## skill-maintainer
 
-This repo includes a self-updating system that monitors upstream docs and source repos for changes that affect skills. See [skill-maintainer/](skill-maintainer/) and [docs/](docs/) for details.
+This repo includes a self-updating system that monitors upstream docs and source repos for changes. It runs from within this repo (not installable as a plugin).
 
 ```bash
-# Check for upstream changes
-uv run python skill-maintainer/scripts/docs_monitor.py
-uv run python skill-maintainer/scripts/source_monitor.py
-
-# Generate report and apply updates
-uv run python skill-maintainer/scripts/update_report.py
-uv run python skill-maintainer/scripts/apply_updates.py --skill <name>
+cd fb-claude-skills
+claude
+# /skill-maintainer check
 ```
 
-## more skills
+Or run scripts directly:
 
-- [mlx-skills](https://github.com/fblissjr/mlx-skills) -- a fork of [awni](https://github.com/awni/mlx-skills)'s Apple MLX skills with more granular and modular structure
+```bash
+uv run python skill-maintainer/scripts/docs_monitor.py      # check doc changes
+uv run python skill-maintainer/scripts/source_monitor.py     # check source changes
+uv run python skill-maintainer/scripts/update_report.py      # generate report
+uv run python skill-maintainer/scripts/apply_updates.py --skill <name>  # apply
+uv run python skill-maintainer/scripts/check_freshness.py    # check staleness
+```
+
+## documentation
+
+- [docs/](docs/) -- developer documentation index (internals, analysis, captured upstream docs)
+- Each plugin has its own README with detailed usage
 
 ## credits
 
-- [simonw](https://github.com/simonw) -- cogapp-markdown
-- [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps) -- mcp-apps upstream
+- Concept for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
+- cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
+- MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
+- More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
