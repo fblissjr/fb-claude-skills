@@ -1,6 +1,9 @@
 ---
 name: mece-decomposer
-description: Decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution. Bridges tacit knowledge to executable agents.
+description: Decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components with dual output -- human-readable tree for SME validation and structured JSON mapping to Claude Agent SDK primitives. Use when user says "decompose", "break down this process", "MECE analysis", "interview me about a workflow", "map process to agents", "validate decomposition", or "export to Agent SDK". Covers process decomposition, SME knowledge extraction, and agentic workflow design.
+metadata:
+  author: Fred Bliss
+  version: 0.1.0
 ---
 
 # MECE Decomposer
@@ -33,7 +36,7 @@ Takes a process, goal, or workflow description and produces a complete MECE deco
 
 ### Usage
 
-The user provides a description of what to decompose. This can range from a single sentence to a detailed specification.
+The user provides a description of what to decompose. This can range from a single sentence to a detailed specification, or structured data from any workflow/process tool.
 
 > "Decompose our customer onboarding process from sign-up to first value delivery"
 
@@ -41,25 +44,29 @@ The user provides a description of what to decompose. This can range from a sing
 
 > "MECE decompose: quarterly financial close process"
 
+> "Here's a JSON export from our workflow tool -- decompose this into MECE components" (user provides context about the format and what the relationships mean)
+
 ### Process
 
 Follow the methodology in `references/decomposition_methodology.md`. In summary:
 
-1. **Define scope** -- establish boundary, trigger, and completion criteria. If the input is ambiguous, ask clarifying questions before proceeding. Do not guess at scope boundaries.
+1. **Interpret input** -- if the user provides structured data (JSON, XML, YAML, CSV, or any export from a workflow/process tool), do not assume you understand the schema. Ask the user what the data represents, what the key fields mean, and how entities relate to each other. Build understanding iteratively: present your interpretation of the structure back to the user, let them correct it, and repeat until you both agree on the semantics. Only then proceed to decomposition. For free-text inputs, skip this step.
 
-2. **Select dimension** -- score candidate dimensions (temporal, functional, stakeholder, state, input-output) using the 4-criteria rubric. Document the winner and rationale.
+2. **Define scope** -- establish boundary, trigger, and completion criteria. If the input is ambiguous, ask clarifying questions before proceeding. Do not guess at scope boundaries.
 
-3. **First-level cut** -- produce 3-7 L1 components. Apply full MECE validation (see `references/validation_heuristics.md`).
+3. **Select dimension** -- score candidate dimensions (temporal, functional, stakeholder, state, input-output) using the 4-criteria rubric. Document the winner and rationale.
 
-4. **Recursive descent** -- decompose each L1 component. Choose dimension per branch (may differ from L1). Decrease validation rigor with depth per the depth-adaptive schedule.
+4. **First-level cut** -- produce 3-7 L1 components. Apply full MECE validation (see `references/validation_heuristics.md`).
 
-5. **Atomicity testing** -- at each leaf, apply the co-occurrence heuristic and supporting tests. Classify atoms by execution type (agent/human/tool/external).
+5. **Recursive descent** -- decompose each L1 component. Choose dimension per branch (may differ from L1). Decrease validation rigor with depth per the depth-adaptive schedule.
 
-6. **Cross-branch dependency scan** -- identify data, sequencing, resource, and approval dependencies between branches.
+6. **Atomicity testing** -- at each leaf, apply the co-occurrence heuristic and supporting tests. Classify atoms by execution type (agent/human/tool/external).
 
-7. **SDK mapping** -- map atoms to Agent SDK primitives per `references/agent_sdk_mapping.md`. Assign model tiers.
+7. **Cross-branch dependency scan** -- identify data, sequencing, resource, and approval dependencies between branches.
 
-8. **Validation sweep** -- run final structural checks. Compute ME/CE scores.
+8. **SDK mapping** -- map atoms to Agent SDK primitives per `references/agent_sdk_mapping.md`. Assign model tiers.
+
+9. **Validation sweep** -- run final structural checks. Compute ME/CE scores.
 
 ### Output
 
@@ -89,7 +96,7 @@ Full JSON conforming to the schema in `references/output_schema.md`. This is the
 To validate the JSON structurally, run:
 
 ```bash
-uv run scripts/validate_mece.py <output.json>
+uv run mece-decomposer/skills/mece-decomposer/scripts/validate_mece.py <output.json>
 ```
 
 ---
@@ -149,7 +156,7 @@ Two validation layers:
 **1. Structural validation** (deterministic, via script)
 
 ```bash
-uv run scripts/validate_mece.py <decomposition.json>
+uv run mece-decomposer/skills/mece-decomposer/scripts/validate_mece.py <decomposition.json>
 ```
 
 Checks:
@@ -334,6 +341,19 @@ Improve Customer Retention (parallel)
 
 ---
 
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Structured data misinterpreted | Assumed wrong semantics for fields/relationships in imported data | Present interpretation back to user before decomposing -- iterate until they confirm you understand the schema |
+| Scope too broad | Input describes an entire business, not a process | Ask clarifying questions to narrow to a single process with clear start/end |
+| MECE validation fails (ME) | Overlapping responsibilities between sibling nodes | Redefine boundaries at that level -- use a different decomposition dimension |
+| MECE validation fails (CE) | Missing steps or scenarios | Run negation test and scenario enumeration from `references/validation_heuristics.md` |
+| Tree too deep (>5 levels) | Over-decomposition -- splitting atoms that should stay together | Apply co-occurrence test: if sub-steps always execute together, merge them |
+| Export produces thin scaffolding | Decomposition not validated first | Run `validate` command before `export` -- validation failures should be fixed first |
+
+---
+
 ## Composability
 
 ### Inputs This Skill Accepts
@@ -341,6 +361,7 @@ Improve Customer Retention (parallel)
 | Input Type | Description | Example |
 |-----------|-------------|---------|
 | Verbal description | Free-text process/goal description | "Our hiring process from req to start date" |
+| Structured data export | JSON, XML, YAML, CSV from any workflow/process tool -- user provides context about format and relationships, Claude interprets iteratively | "Here's our n8n workflow JSON -- the nodes are steps and edges are data flows" |
 | SOP / documentation | Existing written procedures | "Here's our runbook for incident response" |
 | Flowcharts / diagrams | Visual process representations | "I have a Mermaid diagram of our approval flow" |
 | Existing decomposition | JSON from a previous decomposition | "Validate and refine this tree" |

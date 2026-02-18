@@ -1,5 +1,19 @@
 # changelog
 
+## 0.9.0
+
+### added
+- **mece-decomposer**: new installable plugin for MECE decomposition of goals, tasks, and workflows
+  - SKILL.md: 4 commands (decompose, interview, validate, export)
+  - references: decomposition_methodology.md, sme_interview_protocol.md, validation_heuristics.md, agent_sdk_mapping.md, output_schema.md
+  - scripts: validate_mece.py for deterministic structural validation of decomposition JSON
+  - dual output: human-readable tree for SME validation + structured JSON mapping to Agent SDK primitives
+  - covers: MECE scoring rubrics, depth-adaptive rigor, atomicity criteria, cross-branch dependency scanning
+
+### fixed
+- restored root pyproject.toml (was accidentally overwritten by mece-decomposer-specific one)
+- restructured mece-decomposer to standard plugin layout (skills/mece-decomposer/)
+
 ## 0.8.0
 
 ### added

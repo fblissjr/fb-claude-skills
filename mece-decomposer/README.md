@@ -39,6 +39,21 @@ Invoice Approval Workflow (sequential)
     +-- [agent] Send Confirmation (~30s, haiku)
 ```
 
+## Installation
+
+```bash
+# from within Claude Code:
+/plugin marketplace add fblissjr/fb-claude-skills
+/plugin install mece-decomposer@fb-claude-skills
+```
+
+Or from the terminal:
+
+```bash
+claude plugin marketplace add fblissjr/fb-claude-skills
+claude plugin install mece-decomposer@fb-claude-skills
+```
+
 ## Commands
 
 | Command | Purpose |
@@ -51,16 +66,21 @@ Invoice Approval Workflow (sequential)
 ## Skill Structure
 
 ```
-skills/mece-decomposer/mece-decomposer/
-+-- SKILL.md                                    # Core skill definition (~300 lines)
-+-- references/
-|   +-- decomposition_methodology.md            # 8-step decomposition procedure
-|   +-- sme_interview_protocol.md               # 5-phase conversational extraction
-|   +-- validation_heuristics.md                # ME/CE scoring rubrics
-|   +-- agent_sdk_mapping.md                    # Tree -> Agent SDK mapping rules
-|   +-- output_schema.md                        # Full JSON schema specification
-+-- scripts/
-    +-- validate_mece.py                        # Deterministic structural validator
+mece-decomposer/
++-- .claude-plugin/
+|   +-- plugin.json
++-- README.md
++-- skills/
+    +-- mece-decomposer/
+        +-- SKILL.md                                    # Core skill definition
+        +-- references/
+        |   +-- decomposition_methodology.md            # 8-step decomposition procedure
+        |   +-- sme_interview_protocol.md               # 5-phase conversational extraction
+        |   +-- validation_heuristics.md                # ME/CE scoring rubrics
+        |   +-- agent_sdk_mapping.md                    # Tree -> Agent SDK mapping rules
+        |   +-- output_schema.md                        # Full JSON schema specification
+        +-- scripts/
+            +-- validate_mece.py                        # Deterministic structural validator
 ```
 
 ## Validation Script
@@ -68,7 +88,7 @@ skills/mece-decomposer/mece-decomposer/
 Structural validation of decomposition JSON output:
 
 ```bash
-uv run skills/mece-decomposer/mece-decomposer/scripts/validate_mece.py <decomposition.json>
+uv run mece-decomposer/skills/mece-decomposer/scripts/validate_mece.py <decomposition.json>
 ```
 
 Checks schema compliance, hierarchical ID consistency, dependency validity, fan-out limits, atomicity completeness, and cross-checks declared summary stats against computed values.
@@ -76,7 +96,6 @@ Checks schema compliance, hierarchical ID consistency, dependency validity, fan-
 ## Dependencies
 
 - `orjson` -- JSON serialization for the validation script
-- `pyyaml` -- YAML parsing for skill packaging
 
 ## Credits
 

@@ -30,6 +30,10 @@ fb-claude-skills/
     .claude-plugin/
       plugin.json
     skills/tui-design/       # SKILL.md + references/
+  mece-decomposer/           # Plugin: MECE decomposition for Agent SDK workflows
+    .claude-plugin/
+      plugin.json
+    skills/mece-decomposer/  # SKILL.md + references/ + scripts/
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
     SKILL.md                 # Orchestrator with 4 commands: check, update, status, add-source
     config.yaml              # Source registry: what docs/repos to monitor, which skills they affect
@@ -62,6 +66,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
+/plugin install mece-decomposer@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/web-tdd`).
@@ -208,6 +213,14 @@ module-name/
 ```
 
 Skills and agents in default directories (`skills/`, `agents/`) are auto-discovered. Do not list them in plugin.json -- only use component path fields for non-default locations.
+
+### Skill description rules
+
+- **Trigger phrases required**: descriptions must include natural language phrases users would say (e.g., "decompose", "break down this process"). Without them, Claude won't auto-load the skill.
+- **1024-char limit**: keep descriptions under 1024 characters.
+- **Script paths**: all `uv run` paths in SKILL.md must be relative to project root, not the skill directory (e.g., `uv run module/skills/skill-name/scripts/foo.py`).
+- **500-line limit**: if SKILL.md exceeds 500 lines, extract verbose sections (examples, directory structures, common patterns) to `references/` and add a one-line pointer.
+- **Best practices sources**: `docs/claude-docs/claude_code_docs_skills.md` and `docs/analysis/claude_skills_best_practices_guide_full_report.md`.
 
 After creating:
 1. `uv run skills-ref validate module-name/skills/skill-name/SKILL.md` -- validate each skill

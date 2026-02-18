@@ -42,6 +42,12 @@
       "source": "./tui-design",
       "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
       "version": "0.1.0"
+    },
+    {
+      "name": "mece-decomposer",
+      "source": "./mece-decomposer",
+      "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components",
+      "version": "0.1.0"
     }
   ]
 }

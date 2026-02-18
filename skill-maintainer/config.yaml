@@ -77,3 +77,10 @@ skills:
       - anthropic-skills-docs
       - agentskills-spec
     auto_update: false
+
+  mece-decomposer:
+    path: ./mece-decomposer/skills/mece-decomposer
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false

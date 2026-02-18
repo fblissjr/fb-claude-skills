@@ -1,4 +1,4 @@
-last updated: 2026-02-15
+last updated: 2026-02-17
 
 # claude-skills
 
@@ -14,6 +14,7 @@ A random collection of utility / experimental / research / etc Claude Code skill
 | [cogapp-markdown](cogapp-markdown/) | `cogapp-markdown` | Auto-generate markdown sections using cogapp | from [simonw skills repo](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 | [dimensional-modeling](dimensional-modeling/) | `dimensional-modeling` | Kimball-style dimensional modeling for DuckDB star schemas in agent systems |
 | [tui-design](tui-design/) | `tui-design` | Terminal UI design principles for Rich, Questionary, and Click |
+| [mece-decomposer](mece-decomposer/) | `mece-decomposer` | MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components |
 | [skill-maintainer](skill-maintainer/) | `skill-maintainer` | Automated skill maintenance and upstream change monitoring |
 | [heylook-monitor](heylook-monitor/) | MCP App | Live dashboard for heylookitsanllm local LLM server | based on my local LLM inference repo at [https://github.com/fblissjr/heylookitsanllm](https://github.com/fblissjr/heylookitsanllm)
 
@@ -37,6 +38,7 @@ This repo is a plugin marketplace. Add it once, then install whichever plugins y
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
+/plugin install mece-decomposer@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -64,6 +66,7 @@ cd fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
+/plugin install mece-decomposer@fb-claude-skills
 ```
 
 ### development / testing
@@ -114,6 +117,7 @@ Once installed, invoke skills as slash commands (plugin skills are namespaced):
 /cogapp-markdown              # Auto-generate markdown docs
 /dimensional-modeling         # Design star schemas for agent state
 /tui-design                   # Terminal UI design principles
+/mece-decomposer              # MECE decomposition for Agent SDK workflows
 /skill-maintainer check       # Check for upstream changes (project-scoped)
 ```
 
