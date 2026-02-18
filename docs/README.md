@@ -1,41 +1,58 @@
-last updated: 2026-02-14
+last updated: 2026-02-18
 
-# documentation index
+# documentation
 
-## internals
-
-Technical documentation for the skill-maintainer system.
+## guides
 
 | Document | Description |
 |----------|-------------|
-| [api_reference.md](internals/api_reference.md) | Function signatures, parameters, return types, and side effects for all Python scripts |
+| [mcp-ecosystem.md](mcp-ecosystem.md) | Field guide to the full MCP ecosystem: protocol, tools, resources, apps, connectors, extensions, and how they relate |
+
+See also the root [README.md](../README.md) for plugin installation, surface compatibility, and usage instructions.
+
+## docs for contributors and developers
+
+### skill-maintainer internals
+
+Technical documentation for the automated skill maintenance system.
+
+| Document | Description |
+|----------|-------------|
+| [api_reference.md](internals/api_reference.md) | Function signatures, parameters, return types for all Python scripts |
 | [schema.md](internals/schema.md) | Formal schemas for state.json and config.yaml |
+| [duckdb_schema.md](internals/duckdb_schema.md) | DuckDB star schema tables, views, and dimensional model |
 | [troubleshooting.md](internals/troubleshooting.md) | Common issues, error messages, and recovery procedures |
 
-## analysis
+### analysis and research
 
-Research and design documentation created during initial development.
+Design documents created during development. Useful for understanding architectural decisions.
 
 | Document | Description |
 |----------|-------------|
-| [skills_guide_structured.md](analysis/skills_guide_structured.md) | Full structured extraction from the 30-page Anthropic skills guide PDF |
-| [skills_guide_analysis.md](analysis/skills_guide_analysis.md) | Gap analysis comparing guide recommendations against repo skills |
-| [self_updating_system_design.md](analysis/self_updating_system_design.md) | Cross-reference of all source materials with architecture decisions |
+| [skills_guide_structured.md](analysis/skills_guide_structured.md) | Structured extraction from Anthropic's 30-page skills guide PDF |
+| [claude_skills_best_practices_guide_full_report.md](analysis/claude_skills_best_practices_guide_full_report.md) | Best practices guide for building Claude skills |
+| [skills_guide_analysis.md](analysis/skills_guide_analysis.md) | Gap analysis: guide recommendations vs this repo's skills |
+| [self_updating_system_design.md](analysis/self_updating_system_design.md) | Source materials inventory and change detection strategy |
+| [abstraction_analogies.md](analysis/abstraction_analogies.md) | Skills as database constructs (view definitions + stored procedures) |
+| [duckdb_dimensional_model_strategy.md](analysis/duckdb_dimensional_model_strategy.md) | DuckDB star schema strategy for agent state |
+| [data_centric_agent_state_research.md](analysis/data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
 
-## captured external docs
+### captured external documentation
+
+Offline copies of upstream docs for reference and CDC comparison.
 
 | Directory | Description |
 |-----------|-------------|
-| [blogs/](blogs/) | Captured blog posts (Anthropic complete guide to building skills) |
-| [claude-docs/](claude-docs/) | Captured Claude Code official docs (plugins, skills, marketplace, reference) |
-| [guides/](guides/) | PDF guide source (The Complete Guide to Building Skills for Claude) |
+| [blogs/](blogs/) | Anthropic blog: "Complete guide to building skills for Claude" |
+| [claude-docs/](claude-docs/) | Claude Code official docs (plugins, skills, marketplace, reference) |
 
-### claude-docs contents
+#### claude-docs contents
 
 | Document | Source |
 |----------|--------|
 | [claude_docs_plugins.md](claude-docs/claude_docs_plugins.md) | Plugins quickstart, structure, migration |
-| [claude_docs_skills.md](claude-docs/claude_docs_skills.md) | Skills frontmatter, substitutions, invocation, advanced patterns |
-| [claude_docs_plugin_reference.md](claude-docs/claude_docs_plugin_reference.md) | CLI commands, manifest schema, directory structure, debugging |
-| [claude_docs_discover_plugins.md](claude-docs/claude_docs_discover_plugins.md) | Marketplace management, plugin install/uninstall, scope options |
+| [claude_docs_skills.md](claude-docs/claude_docs_skills.md) | Skills frontmatter, substitutions, invocation |
+| [claude_docs_plugin_reference.md](claude-docs/claude_docs_plugin_reference.md) | CLI commands, manifest schema, directory structure |
+| [claude_docs_discover_plugins.md](claude-docs/claude_docs_discover_plugins.md) | Marketplace management, plugin install/uninstall |
 | [claude_docs_plugin_marketplaces.md](claude-docs/claude_docs_plugin_marketplaces.md) | Marketplace schema, plugin sources, distribution |
+| [claude_code_docs_skills.md](claude-docs/claude_code_docs_skills.md) | Extended skills documentation from Claude Code site |

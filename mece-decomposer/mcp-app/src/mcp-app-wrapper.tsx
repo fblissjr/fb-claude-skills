@@ -70,15 +70,26 @@ function McpAppWrapper() {
       app.ontoolresult = (params) => {
         setToolResult(params as CallToolResult);
       };
+      // Tool cancelled by host
+      app.ontoolcancelled = (params) => {
+        console.info("Tool call cancelled:", params.reason);
+      };
       // Host context changes (theme, dimensions, etc.)
       app.onhostcontextchanged = (params) => {
         setHostContext((prev) => ({ ...prev, ...params }));
       };
+      // Cleanup on teardown
+      app.onteardown = async () => {
+        return {};
+      };
+      // Error handler
+      app.onerror = console.error;
     },
   });
 
   // Apply host styling (theme, CSS variables, fonts)
-  useHostStyles(app);
+  // Pass initial context so styles apply immediately on connect
+  useHostStyles(app, app?.getHostContext());
 
   // Get initial host context after connection
   useEffect(() => {

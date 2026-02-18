@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mece-decomposer": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-app/dist/index.cjs", "--stdio"],
+      "env": {}
+    }
+  }
+}
