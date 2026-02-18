@@ -1,6 +1,6 @@
 # mece-decomposer
 
-last updated: 2026-02-17
+last updated: 2026-02-18
 
 A Claude Code skill that decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution.
 
@@ -70,6 +70,16 @@ mece-decomposer/
 +-- .claude-plugin/
 |   +-- plugin.json
 +-- README.md
++-- mcp-app/                                            # MCP App server + React UI
+|   +-- package.json
+|   +-- server.ts                                       # 4 tools + resource registration
+|   +-- main.ts                                         # HTTP/stdio entry point
+|   +-- src/
+|       +-- mcp-app-wrapper.tsx                         # MCP App lifecycle (useApp)
+|       +-- mece-tree-app.tsx                           # Main app: tree + sidebar panels
+|       +-- components/                                 # TreeView, NodeDetail, ValidationPanel, etc.
+|       +-- hooks/                                      # useStreamingTree, useTreeState
+|       +-- utils/                                      # score-colors, sdk-codegen
 +-- skills/
     +-- mece-decomposer/
         +-- SKILL.md                                    # Core skill definition
@@ -81,6 +91,43 @@ mece-decomposer/
         |   +-- output_schema.md                        # Full JSON schema specification
         +-- scripts/
             +-- validate_mece.py                        # Deterministic structural validator
+```
+
+## MCP App
+
+An interactive tree visualization companion that renders decompositions inside Claude's conversation UI (Claude.ai / Cowork). Provides 4 MCP tools:
+
+| Tool | Visibility | Purpose |
+|------|-----------|---------|
+| `mece-decompose` | model + app | Render decomposition JSON as an interactive tree |
+| `mece-validate` | model + app | Run structural validation, show score gauges and issues |
+| `mece-refine-node` | app-only | Edit nodes interactively from the UI |
+| `mece-export-sdk` | model + app | Generate Agent SDK Python scaffolding from tree |
+
+### Running the MCP App Server
+
+```bash
+cd mece-decomposer/mcp-app
+npm install && npm run build
+npm run serve          # http://localhost:3001/mcp
+```
+
+For development with hot reload:
+
+```bash
+npm run dev
+```
+
+### Testing with basic-host
+
+```bash
+# In one terminal:
+cd mece-decomposer/mcp-app && npm run serve
+
+# In another:
+cd coderef/ext-apps/examples/basic-host
+SERVERS='["http://localhost:3001/mcp"]' npm start
+# Open http://localhost:8080, select mece-decompose, paste JSON
 ```
 
 ## Validation Script
@@ -96,6 +143,7 @@ Checks schema compliance, hierarchical ID consistency, dependency validity, fan-
 ## Dependencies
 
 - `orjson` -- JSON serialization for the validation script
+- MCP App: `@modelcontextprotocol/ext-apps`, `@modelcontextprotocol/sdk`, `react`, `zod` (see `mcp-app/package.json`)
 
 ## Credits
 

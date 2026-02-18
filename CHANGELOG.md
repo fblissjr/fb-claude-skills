@@ -1,5 +1,18 @@
 # changelog
 
+## 0.10.0
+
+### added
+- **mece-decomposer MCP App**: interactive tree visualization companion for MECE decompositions
+  - 4 MCP tools: mece-decompose (tree render), mece-validate (structural validation), mece-refine-node (app-only editing), mece-export-sdk (Agent SDK code generation)
+  - React UI with recursive tree view, expand/collapse, node selection, dependency badges
+  - streaming support via useStreamingTree hook (progressive tree building as Claude generates)
+  - sidebar panels: metadata, node detail (editable), validation report with score gauges, export preview with copy
+  - SDK code generation: walks tree recursively, emits Agent() for agent atoms, orchestration functions for branches
+  - follows ext-apps SDK patterns (basic-server-react structure, threejs-server wrapper pattern)
+  - validation tool spawns validate_mece.py via subprocess with graceful fallback if uv unavailable
+  - co-located at mece-decomposer/mcp-app/
+
 ## 0.9.0
 
 ### added
