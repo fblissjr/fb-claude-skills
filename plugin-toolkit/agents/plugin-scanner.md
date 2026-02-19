@@ -1,3 +1,12 @@
+---
+name: plugin-scanner
+description: Explores any Claude Code plugin and returns a structured inventory of commands, traits, hooks, skills, agents, and configuration. Use when analyzing plugin structure, generating analysis docs, or checking what a plugin contains.
+when-to-use: code-exploration
+metadata:
+  author: Fred Bliss
+  version: 0.1.0
+---
+
 # Plugin Scanner Agent
 
 Explores any Claude Code plugin and returns a structured inventory.

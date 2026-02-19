@@ -1,3 +1,12 @@
+---
+name: quality-checker
+description: Evaluates a Claude Code plugin against the quality checklist and returns structured ratings for metadata completeness, command coverage, hook implementation, documentation quality, and maintenance burden.
+when-to-use: code-review
+metadata:
+  author: Fred Bliss
+  version: 0.1.0
+---
+
 # Quality Checker Agent
 
 Evaluates a Claude Code plugin against quality criteria.

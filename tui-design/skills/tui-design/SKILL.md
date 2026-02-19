@@ -4,6 +4,7 @@ description: Design functional, readable terminal UIs with proper visual hierarc
 metadata:
   author: Fred Bliss
   version: 0.1.0
+allowed-tools: "Bash(python *)"
 ---
 
 # Terminal UI Design

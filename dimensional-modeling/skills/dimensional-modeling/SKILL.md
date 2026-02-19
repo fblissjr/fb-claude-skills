@@ -1,9 +1,10 @@
 ---
 name: dimensional-modeling
-description: Design and implement Kimball-style star schemas in DuckDB for LLM agent state persistence. Use when user needs to track agent execution, model operational data, design fact/dimension tables, implement SCD Type 2, generate surrogate keys, or build analytical views. Also triggers on "star schema", "dimensional model", "DuckDB schema", "fact table", "dimension table", "SCD Type 2", "surrogate keys", "data warehouse for agents".
+description: Design and implement Kimball-style star schemas in DuckDB for LLM agent state persistence. Use when user needs to track agent execution, model operational data, design fact/dimension tables, implement SCD Type 2, generate surrogate keys, or build analytical views. Also triggers on "star schema", "dimensional model", "DuckDB schema", "fact table", "dimension table", "SCD Type 2", "surrogate keys", "data warehouse for agents", "design a schema for", "help me track agent state", "store execution data in DuckDB", "I need to persist agent history", or "how do I model".
 metadata:
   author: Fred Bliss
   version: 0.1.0
+allowed-tools: "Read"
 ---
 
 # Dimensional Modeling for Agent Systems
@@ -48,6 +49,8 @@ The grain is the most atomic level of data captured in the fact table. State it 
 - Too coarse = you lose detail you can't recover
 - Too fine = you waste storage on noise
 - When in doubt, go finer -- you can always aggregate up
+
+When choosing between grain levels, use ultrathink to reason through the trade-offs before committing.
 
 ### Step 3: Identify the Dimensions
 
@@ -155,7 +158,7 @@ See [references/anti_patterns.md](references/anti_patterns.md) for mistakes to a
 
 ## Reference Implementation
 
-Working proof: [fb-claude-skills/skill-maintainer/scripts/store.py](https://github.com/fblissjr/fb-claude-skills/blob/main/skill-maintainer/scripts/store.py) implements the full Kimball schema (v0.6.0) with 3 dimensions, 6 fact tables, analytical views, and automatic schema migration.
+Working proof: `skill-maintainer/scripts/store.py` -- the full Kimball schema (v0.6.0) with 3 dimensions, 6 fact tables, analytical views, and automatic schema migration.
 
 ## References
 

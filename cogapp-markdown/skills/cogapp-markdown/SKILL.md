@@ -1,9 +1,10 @@
 ---
 name: cogapp-markdown
-description: Use cogapp to auto-generate sections of markdown documentation by embedding Python code that produces content. Use when a project needs to keep documentation in sync with code, such as embedding CLI --help output in README files, generating tables, or any content that should be derived from the code itself rather than manually maintained.
+description: Auto-generate and keep markdown documentation in sync with code using cogapp. Use when user says "keep docs in sync", "regenerate readme", "embed --help output", "run cog -r", "documentation is out of date", "sync CLI help into README", or when documentation should be derived from code rather than maintained by hand.
 metadata:
   author: Simon Willison (adapted by Fred Bliss)
   version: 0.1.0
+allowed-tools: "Bash(uv run *)"
 ---
 
 # cogapp for Markdown Documentation
@@ -13,7 +14,7 @@ Use [cogapp](https://github.com/nedbat/cog) to auto-generate sections of markdow
 ## Install
 
 ```bash
-pip install cogapp
+uv add --dev cogapp
 ```
 
 Or add `"cogapp"` to your `[dependency-groups]` dev dependencies in `pyproject.toml`.

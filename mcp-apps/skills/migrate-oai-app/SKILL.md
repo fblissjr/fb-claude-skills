@@ -4,6 +4,7 @@ description: This skill should be used when the user asks to "migrate from OpenA
 metadata:
   author: MCP Apps (adapted by Fred Bliss)
   version: 0.1.0
+allowed-tools: "Bash(npm *)"
 ---
 
 # Migrate OpenAI App to MCP

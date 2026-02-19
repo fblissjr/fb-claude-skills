@@ -4,6 +4,7 @@ description: Monitors upstream documentation, specifications, and source code fo
 metadata:
   author: Fred Bliss
   version: 0.2.0
+allowed-tools: "Bash(uv run *)"
 ---
 
 # Skill Maintainer
@@ -88,6 +89,8 @@ Apply detected changes to a specific skill.
 5. Always validate after any update: `uv run skills-ref validate <skill-path>`
 6. Record validation result and update attempt in DuckDB
 7. Never auto-commit; user reviews diff and commits manually
+
+When classifying changes as breaking vs. additive and generating update recommendations, use ultrathink.
 
 ### Running the update pipeline
 
@@ -196,6 +199,8 @@ Query session activity log.
 
 Events are logged to a JSONL buffer file for performance (no DuckDB writes during hooks).
 Batch ingest moves events from JSONL into DuckDB for queryability.
+
+Skills and commands can tag their session using `${CLAUDE_SESSION_ID}` in log writes, which the journal ingest script uses to correlate activity back to the originating skill invocation.
 
 ### Running the journal
 

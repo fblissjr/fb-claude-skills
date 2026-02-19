@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.2.0
   mcp-server: mece-decomposer
+allowed-tools: "Bash(uv run *)"
 ---
 
 # MECE Decomposer -- Domain Knowledge
@@ -38,7 +39,7 @@ Score candidates using the 4-criteria rubric:
 | State | Workflows driven by entity state transitions |
 | Input-Output | Data transformation pipelines |
 
-Choose the dimension that produces the most natural, non-overlapping cut. Different branches may use different dimensions.
+Choose the dimension that produces the most natural, non-overlapping cut. Different branches may use different dimensions. When selecting the decomposition dimension and validating MECE boundaries, use ultrathink.
 
 ### Atomicity Criteria
 
@@ -115,6 +116,15 @@ This plugin includes an MCP App server that provides interactive tree visualizat
 On surfaces with MCP App support (Claude Desktop, Cowork, Claude.ai), these display a React UI. On CLI surfaces, they return text summaries.
 
 The MCP server starts automatically when this plugin is installed. The bundled server at `mcp-app/dist/index.cjs` is self-contained (no `node_modules` needed).
+
+## Surface Compatibility
+
+This plugin uses a **stdio** MCP server (auto-started by Claude Code). Consequences:
+
+- **CLI, Desktop, VS Code**: All 4 MCP tools available. Text fallback returned on tool calls.
+- **Cowork**: Full MCP App UI (interactive React tree). Preferred surface for interactive decomposition.
+- **Claude.ai**: MCP App UI not available (requires HTTP transport). Text fallback only.
+- **Agent SDK (headless)**: All tools callable programmatically. Text fallback returned.
 
 ## Output Schema
 

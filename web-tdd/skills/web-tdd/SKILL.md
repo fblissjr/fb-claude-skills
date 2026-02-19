@@ -1,9 +1,10 @@
 ---
 name: web-tdd
-description: TDD workflow for web applications with Vitest (unit/component) and Playwright or Vibium (E2E). Supports React+Node, React+Python, and vanilla JS+Python stacks. Use when building web apps, adding tests to existing projects, or implementing features with test-driven development.
+description: TDD workflow for web applications with Vitest (unit/component) and Playwright or Vibium (E2E). Supports React+Node, React+Python, and vanilla JS+Python stacks. Use when building web apps, adding tests to existing projects, or implementing features with test-driven development. Also triggers on "write tests for", "add Playwright", "test first", "red-green-refactor", "add test coverage", or "scaffold tests".
 metadata:
   author: Fred Bliss
   version: 0.1.0
+allowed-tools: "Bash(npm *), Bash(npx *), Bash(uv run *)"
 ---
 
 # web-tdd skill
