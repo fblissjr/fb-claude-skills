@@ -12,15 +12,57 @@ This is a reference implementation demonstrating the Python-native MCP App patte
 |-------|---------|-------------|
 | skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard of all tracked skills |
 
-## installation
+## loading the MCP server
 
-This plugin is project-scoped and not installable from the marketplace. It runs automatically when this repo is open in Claude Code via `.mcp.json`.
+The `.mcp.json` is in the `skill-dashboard/` subdirectory, so it does not auto-load. You need to connect it explicitly depending on your surface.
 
-To load it manually:
+### Claude Code (CLI)
 
 ```bash
 claude --mcp-config skill-dashboard/.mcp.json
 ```
+
+Or add to a root-level `.mcp.json` in this repo:
+
+```json
+{
+  "mcpServers": {
+    "skill-dashboard": {
+      "command": "uv",
+      "args": ["run", "python", "skill-dashboard/server.py"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+Claude Code renders text only -- no visual UI panel.
+
+### Claude Desktop / Cowork
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "skill-dashboard": {
+      "command": "uv",
+      "args": ["run", "python", "skill-dashboard/server.py"],
+      "cwd": "/Users/fredbliss/claude/fb-claude-skills"
+    }
+  }
+}
+```
+
+Note: use an absolute path for `cwd` -- `${workspaceFolder}` is Claude Code-only.
+
+Restart Claude Desktop after adding. The server will be available in both Desktop and Cowork.
+
+### Cowork UI rendering
+
+Cowork renders MCP App UIs. Whether the rawHtml format from the mcp-ui SDK renders as an interactive panel (vs falling back to text) depends on whether Cowork recognizes the `ui://` URI scheme from this SDK. The ext-apps SDK is the officially documented approach; mcp-ui is a compatible but separate implementation.
+
+**To verify:** after connecting the server in Claude Desktop, open Cowork and say "show skill dashboard". If a visual panel appears, rawHtml is supported. If you get a text response, the server is working but Cowork is not rendering the resource format.
 
 ## invocation
 
