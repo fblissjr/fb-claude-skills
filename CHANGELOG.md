@@ -1,5 +1,36 @@
 # changelog
 
+## 0.11.3
+
+### added
+- `skill-dashboard`: new project-scoped Python MCP App plugin
+  - pure Python server (FastMCP + mcp-ui rawHtml) -- no Node.js or build step
+  - reads skill registry from `skill-maintainer/config.yaml`, SKILL.md frontmatter for versions
+  - queries DuckDB store for freshness and token budget data; falls back to file mtime scan
+  - self-contained HTML dashboard (Tailwind CDN + Alpine.js CDN) with color-coded status, budget bars, and filter buttons
+  - reference implementation for the Python-native MCP App pattern
+  - `mcp-ui-server` editable dependency added to `pyproject.toml`
+- `.claude/rules/general.md`: always-loaded general conventions (package manager, JSON, logs, READMEs)
+- `.claude/rules/skills.md`: path-scoped to `**/SKILL.md` -- trigger phrases, 1024-char limit, script paths, 500-line limit
+- `.claude/rules/plugins.md`: path-scoped to `**/.claude-plugin/**`, `**/plugin.json` -- new plugin checklist, auto-discovery, required fields
+
+### changed
+- `skill-maintainer/config.yaml`: added `https://code.claude.com/docs/en/memory` to `anthropic-skills-docs` watched pages
+- `CLAUDE.md`: removed Conventions section (~28 lines); replaced with one-liner pointing to `.claude/rules/`; fixed domain report count (14 -> 15)
+
+## 0.11.2
+
+### added
+- `docs/analysis/memory_and_rules_system.md`: domain report covering the six-level memory hierarchy, auto memory storage and behavior, CLAUDE.md import syntax, `.claude/rules/` modular path-scoped rules, glob patterns, organization-level management, and how this repo uses memory
+- `docs/reports/claude_ecosystem_synthesis.md`: new section 2.5 (Memory and Rules System) with hierarchy table, auto memory details, import syntax, rules comparison table
+- `docs/reports/claude_ecosystem_synthesis.md`: memory & rules row added to Component Maturity Assessment (section 4)
+- `docs/reports/claude_ecosystem_synthesis.md`: memory mentions added to Solo (CLAUDE.local.md, auto memory) and Team (.claude/rules/) building strategies (section 5), and Enterprise (managed policy CLAUDE.md) tier (section 5)
+- `docs/reports/claude_ecosystem_synthesis.md`: auto memory and project memory rows added to This Repo as Reference (section 10)
+- `docs/reports/claude_ecosystem_synthesis.md`: memory report added to Report Index (section 11)
+
+### changed
+- `skill-maintainer/SKILL.md`: added disambiguation note in journal section distinguishing DuckDB session journal from Claude's built-in auto memory system
+
 ## 0.11.1
 
 ### fixed

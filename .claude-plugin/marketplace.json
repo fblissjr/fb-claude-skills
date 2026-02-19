@@ -48,6 +48,12 @@
       "source": "./mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer",
       "version": "0.2.0"
+    },
+    {
+      "name": "skill-dashboard",
+      "source": "./skill-dashboard",
+      "description": "Python-native MCP App skill dashboard: health status, token budgets, and freshness for all tracked skills",
+      "version": "0.1.0"
     }
   ]
 }

@@ -188,6 +188,12 @@ uv run python skill-maintainer/scripts/store.py --history 90 --classification BR
 
 Query session activity log.
 
+Note: this is distinct from Claude's built-in auto memory system. The journal here is a
+DuckDB-backed structured event log of skill-maintainer activity (monitor runs, validations,
+update attempts). Claude's auto memory (`~/.claude/projects/.../memory/MEMORY.md`) is a
+separate system where Claude writes free-form notes across sessions. Both coexist; they
+serve different purposes.
+
 ### Usage
 
 ```

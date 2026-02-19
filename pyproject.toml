@@ -10,6 +10,7 @@ dependencies = [
     "pyyaml>=6.0",
     "duckdb>=1.0",
     "skills-ref",
+    "mcp-ui-server",
 ]
 
 [project.optional-dependencies]
@@ -27,3 +28,4 @@ packages = ["skill-maintainer/scripts"]
 
 [tool.uv.sources]
 skills-ref = { path = "coderef/agentskills/skills-ref", editable = true }
+mcp-ui-server = { path = "coderef/mcp-ui/sdks/python/server", editable = true }

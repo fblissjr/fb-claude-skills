@@ -6,6 +6,11 @@ __pycache__/
 coderef/
 internal/
 
+# Claude Code author-side files (not for distribution)
+.claude/rules/
+.claude/worktrees/
+.claude/settings.local.json
+
 # C extensions
 *.so
 

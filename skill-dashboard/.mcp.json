@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "skill-dashboard": {
+      "command": "uv",
+      "args": ["run", "python", "skill-dashboard/server.py"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

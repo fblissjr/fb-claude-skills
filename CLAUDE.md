@@ -35,6 +35,11 @@ fb-claude-skills/
     skills/mece-decomposer/  # SKILL.md + references/ + scripts/
     mcp-app/                 # MCP App: interactive tree visualizer (React + bundled server)
   heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
+  skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
+    .mcp.json                # MCP server auto-configuration (stdio)
+    skills/skill-dashboard/  # SKILL.md
+    server.py                # FastMCP + mcp-ui server
+    templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
     SKILL.md                 # Orchestrator: check, update, status, add-source
     config.yaml              # Source registry
@@ -42,7 +47,7 @@ fb-claude-skills/
     references/              # Best practices, monitored sources
     state/                   # Versioned state: watermarks, page hashes, timestamps
   docs/
-    analysis/                # 14 domain reports (skills, plugins, MCP, hooks, agents, etc.)
+    analysis/                # 15 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
     internals/               # API reference, schemas, troubleshooting
     claude-docs/             # Captured Claude Code official docs
@@ -78,7 +83,7 @@ To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 ### Project-scoped modules
 
-skill-maintainer and heylook-monitor run from within this repo only. They depend on local files and cannot be installed as global plugins.
+skill-maintainer, heylook-monitor, and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation.
 
 ## Plugin development
 
@@ -220,32 +225,7 @@ uv run python skill-maintainer/scripts/validate_skill.py --all # validate all sk
 
 ## Conventions
 
-### Skill description rules
-
-- **Trigger phrases required**: descriptions must include natural language phrases users would say. Without them, Claude won't auto-load the skill.
-- **1024-char limit**: keep descriptions under 1024 characters.
-- **Script paths**: all `uv run` paths in SKILL.md must be relative to project root.
-- **500-line limit**: extract verbose sections to `references/` and add a one-line pointer.
-
-### After creating a new plugin
-
-1. `uv run skills-ref validate module-name/skills/skill-name/SKILL.md`
-2. Add plugin entry to root `.claude-plugin/marketplace.json`
-3. Add skills to `skill-maintainer/config.yaml` under both `sources:` and `skills:`
-4. Add to `skill-maintainer/references/monitored_sources.md` if watching upstream
-5. Bump version in both `pyproject.toml` and `CHANGELOG.md`
-6. Update root `README.md` plugins table and installation section
-7. Append session to `internal/log/log_YYYY-MM-DD.md`
-
-### General conventions
-
-- **Package manager**: Always `uv`. No pip.
-- **JSON**: `orjson` for all serialization/deserialization.
-- **Skills standard**: All skills follow the [Agent Skills](https://agentskills.io) spec.
-- **State in repo**: `skill-maintainer/state/` is versioned and portable, not in `~/.claude/`.
-- **Non-destructive**: Always validate before writing, create backups, never auto-commit.
-- **Logs**: Session logs go in `internal/log/log_YYYY-MM-DD.md`.
-- **READMEs**: Every plugin README includes: last updated date, installation commands, skills table, invocation examples.
+Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are author-side only -- they do not distribute with marketplace plugin installs.
 
 ## Dependencies
 
@@ -254,3 +234,4 @@ Managed via `pyproject.toml` with uv:
 - `httpx` - HTTP client for CDC detect/identify layers
 - `pyyaml` - config parsing
 - `skills-ref` - Agent Skills validator (editable install from `coderef/agentskills/skills-ref`)
+- `mcp-ui-server` - MCP UI SDK Python server (editable install from `coderef/mcp-ui/sdks/python/server`)

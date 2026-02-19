@@ -2,12 +2,12 @@ last updated: 2026-02-19
 
 # Claude Extension Ecosystem Synthesis
 
-A unified view of the Claude Code extension architecture, drawn from 14 analysis
+A unified view of the Claude Code extension architecture, drawn from 15 analysis
 reports covering skills, plugins, hooks, MCP servers, MCP Apps, subagents, agent
-teams, marketplaces, cross-surface compatibility, and the maintenance systems that
-keep them all current. This document ties together findings across every domain
-and provides architectural guidance for building, distributing, and maintaining
-Claude extensions.
+teams, marketplaces, cross-surface compatibility, the memory and rules system, and
+the maintenance systems that keep them all current. This document ties together
+findings across every domain and provides architectural guidance for building,
+distributing, and maintaining Claude extensions.
 
 ---
 
@@ -15,6 +15,7 @@ Claude extensions.
 
 1. [Executive Summary](#1-executive-summary)
 2. [The Extension Model](#2-the-extension-model)
+   - [2.5 Memory and Rules System](#25-memory-and-rules-system)
 3. [Architecture Decision Tree](#3-architecture-decision-tree)
 4. [Component Maturity Assessment](#4-component-maturity-assessment)
 5. [Building Strategies](#5-building-strategies)
@@ -56,6 +57,12 @@ capabilities:
 - **LSP Servers** -- Language Server Protocol integrations providing code
   intelligence (completions, diagnostics, hover info) to Claude's editing
   capabilities.
+
+- **Memory & Rules** -- CLAUDE.md files and `.claude/rules/*.md` files that
+  load instructions unconditionally into context. Six levels: managed policy
+  (org), project, project-local, user, auto memory (Claude-written notes), and
+  path-scoped rules. Independent of the plugin system -- these load at session
+  start based on filesystem location, regardless of plugin installation.
 
 These six components are packaged into **plugins** -- self-contained directories
 with a `.claude-plugin/plugin.json` manifest. Plugins are distributed through
@@ -157,6 +164,110 @@ server (`.mcp.json`), and an MCP App (React tree visualizer).
 
 ---
 
+## 2.5 Memory and Rules System
+
+Memory and rules are distinct from the six plugin-packaged components. They load
+unconditionally at session start based on filesystem location -- no plugin installation
+required, no description matching needed.
+
+### The Six-Level Hierarchy
+
+| Level | Location | Shared With | Priority |
+|-------|----------|-------------|----------|
+| Managed policy | OS system directory (MDM-deployed) | All users in org | Broadest |
+| Project memory | `./CLAUDE.md` or `./.claude/CLAUDE.md` | Team via source control | |
+| Project rules | `./.claude/rules/*.md` | Team via source control | |
+| User memory | `~/.claude/CLAUDE.md` | Just you, all projects | |
+| Project memory (local) | `./CLAUDE.local.md` (auto-gitignored) | Just you, current project | |
+| Auto memory | `~/.claude/projects/<project>/memory/` | Just you, per project | Most specific |
+
+More specific instructions take precedence over broader ones.
+
+### Auto Memory
+
+Auto memory is Claude's self-maintained knowledge base. Unlike CLAUDE.md files (written by
+humans for Claude), auto memory contains notes Claude writes for itself based on session
+discoveries.
+
+Storage: `~/.claude/projects/<project>/memory/`, derived from the git repository root. All
+subdirectories of a repo share one auto memory directory. Worktrees get separate directories.
+
+Structure:
+```
+~/.claude/projects/<project>/memory/
+├── MEMORY.md          # Index -- first 200 lines loaded into every session
+├── debugging.md       # Detailed debugging patterns (loaded on demand)
+├── patterns.md        # Architectural patterns (loaded on demand)
+└── ...                # Other topic files created as needed
+```
+
+Key behaviors:
+- `MEMORY.md` first 200 lines load into every session's system prompt.
+- Topic files load on demand via Claude's file tools when needed.
+- Control with `CLAUDE_CODE_DISABLE_AUTO_MEMORY=0` (force on) or `=1` (force off).
+- `/memory` command opens the file selector during a session.
+
+What Claude saves: project build commands, debugging insights, key file paths, architecture
+decisions, user preferences, and patterns that would otherwise require re-explanation.
+
+### CLAUDE.md Imports
+
+CLAUDE.md files can import additional files with `@path/to/import` syntax:
+
+```
+See @README for project overview.
+
+# Instructions
+- git workflow @docs/git-instructions.md
+- personal preferences @~/.claude/my-project.md
+```
+
+Rules: relative and absolute paths supported; relative paths resolve from the importing file
+(not cwd); max depth 5 hops; imports not evaluated inside code spans or blocks; one-time
+approval dialog per project on first use.
+
+### Modular Rules with `.claude/rules/`
+
+The `.claude/rules/` directory allows teams to maintain focused rule files instead of one
+large CLAUDE.md. All `.md` files are auto-discovered recursively.
+
+Path-scoped rules with YAML frontmatter:
+```markdown
+---
+paths:
+  - "src/api/**/*.ts"
+  - "src/**/*.{ts,tsx}"
+---
+
+# API Rules
+- All endpoints must include input validation
+```
+
+Rules without `paths` frontmatter apply unconditionally. Glob patterns supported: `**/*.ts`,
+`src/**/*`, `*.md`, brace expansion. Subdirectory organization supported. Symlinks supported
+and resolved (circular symlinks handled gracefully).
+
+User-level rules at `~/.claude/rules/` apply across all projects (lower priority than project
+rules).
+
+### Memory vs Skills vs Hooks
+
+| Dimension | Memory / Rules | Skills | Hooks |
+|-----------|---------------|--------|-------|
+| Loading | Unconditional | Description-match | Event-triggered |
+| Guarantee | Loaded (not guaranteed followed) | Probabilistic | Deterministic |
+| Path-scoping | Yes (`rules/` frontmatter) | No | Yes (matcher) |
+| Org-level | Yes (managed policy) | No | No |
+| Plugin system | Independent | Core component | Core component |
+| Who writes | Humans / Claude | Skill authors | Automation authors |
+
+Use memory to set baseline context and org-wide standards. Use skills for domain expertise.
+Use hooks for enforcement where compliance must be guaranteed.
+
+See [memory_and_rules_system.md](../analysis/memory_and_rules_system.md) for full details.
+
+---
+
 ## 3. Architecture Decision Tree
 
 ### "I want to..." Decision Guide
@@ -202,6 +313,7 @@ Most real-world extensions combine multiple component types:
 | **Marketplaces** | Stable | Medium | Low | Solid | Five source types (relative, GitHub, git URL, npm, pip). npm and pip "not yet fully implemented." |
 | **Agent Teams** | Experimental | Low | Very Low | Unstable | Multi-session coordination. `TeammateIdle` and `TaskCompleted` hook events exist. Limited documentation. |
 | **LSP Servers** | Stable | Low | Very Low | Solid | Configuration via `.lsp.json`. Only supported on CLI and VS Code. Minimal public documentation. |
+| **Memory & Rules** | Stable | High | High | Solid | Core mechanism. Six-level hierarchy. Path-scoped rules (`.claude/rules/`) are a lightweight alternative to plugin hooks for conditional instruction loading. Auto memory is in gradual rollout. |
 
 Key observations:
 
@@ -224,6 +336,10 @@ For individual developers building personal extensions:
 - Add **hooks** for enforcement. If there are rules you always forget
   (formatting, naming conventions, commit message style), a hook guarantees
   compliance without relying on memory.
+- Use **CLAUDE.local.md** for private project preferences (sandbox URLs, local
+  test data, personal flags) that should not be committed. It is auto-gitignored.
+- Use **auto memory** to avoid re-explaining project architecture every session.
+  Tell Claude directly: "remember that we use pnpm, not npm" to save specific facts.
 - Keep skills **project-scoped** (`.claude/skills/`) until they prove useful
   across projects. Then promote to user-scoped (`~/.claude/skills/`) or
   package as a plugin.
@@ -245,6 +361,9 @@ For teams sharing extensions across projects and developers:
   and documentation generation are natural delegation targets.
 - Use **hooks for team standards.** Pre-commit validation, license checking,
   and architecture constraint enforcement.
+- Use **`.claude/rules/`** for modular team standards. Each file covers one
+  topic (testing conventions, API design, security requirements). Scope rules
+  to specific file types using `paths:` frontmatter instead of bloating CLAUDE.md.
 - Establish a **maintenance cadence.** Upstream docs change. APIs evolve.
   Without monitoring, skills rot within months.
 
@@ -254,6 +373,9 @@ For organizations managing Claude at scale:
 
 - **Managed settings** define organization-wide configuration. Allowlists,
   deny rules, permission modes, and default models are set centrally.
+- **Managed policy CLAUDE.md** deployed via MDM/Group Policy/Ansible enforces
+  org-wide coding standards, security policies, and compliance requirements
+  without requiring individual developer configuration.
 - **Private marketplaces** distribute vetted plugins across the organization.
   GitHub Enterprise or internal git hosting serves as the distribution layer.
 - **MCP servers** provide controlled access to internal APIs, databases, and
@@ -520,6 +642,8 @@ implementations in this repository.
 | Self-referential maintenance | skill-maintainer monitors its own upstream sources and maintains itself | `skill-maintainer/config.yaml` (self-entry) |
 | Selection under constraint | Decompose, route, prune, synthesize, verify -- applied at every system level | `docs/analysis/abstraction_analogies.md` |
 | Database analogy | Skills as view definitions + stored procedures; context window as temp table | `docs/analysis/abstraction_analogies.md` |
+| Auto memory | Claude maintains MEMORY.md with project patterns, key file paths, conventions, and gotchas for cross-session persistence | `~/.claude/projects/.../memory/MEMORY.md` |
+| Project memory | CLAUDE.md at project root with full architecture, conventions, and documentation index | `CLAUDE.md` |
 
 ### Three-Repo Architecture
 
@@ -571,6 +695,7 @@ in this repository.
 | Subagents and Agent Teams | [subagents_and_agent_teams.md](../analysis/subagents_and_agent_teams.md) | Built-in agents, custom agent creation, tool control, model selection, persistent memory, hooks integration, and experimental agent teams. |
 | Cross-Surface Compatibility | [cross_surface_compatibility.md](../analysis/cross_surface_compatibility.md) | Six surfaces (CLI, Desktop, Cowork, Claude.ai, SDK, VS Code), feature compatibility matrix, transport requirements, and design principles for maximum reach. |
 | MCP Protocol and Servers | [mcp_protocol_and_servers.md](../analysis/mcp_protocol_and_servers.md) | JSON-RPC 2.0 wire format, three primitives, transport mechanisms, authentication (OAuth 2.1), SDK implementations, testing infrastructure, and registry ecosystem. |
+| Memory and Rules System | [memory_and_rules_system.md](../analysis/memory_and_rules_system.md) | Six-level memory hierarchy, auto memory storage and behavior, CLAUDE.md import syntax, `.claude/rules/` modular path-scoped rules, organization-level management, and how this repo uses memory. |
 
 ### Synthesis
 

@@ -15,6 +15,7 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 | [tui-design](tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
 | [cogapp-markdown](cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
+| [skill-dashboard](skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
 
 ### project-scoped (not installable)
 
@@ -22,6 +23,7 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 |--------|-------------|
 | [skill-maintainer](skill-maintainer/) | Automated skill maintenance and upstream change monitoring |
 | [heylook-monitor](heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
+| [skill-dashboard](skill-dashboard/) | Python-native MCP App skill dashboard (reference implementation) |
 
 ## installation
 
@@ -219,7 +221,7 @@ In-depth analysis covering the full Claude extension ecosystem:
 
 ## credits
 
-- Concept for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
+- Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
 - cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 - MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
