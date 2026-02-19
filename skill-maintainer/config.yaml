@@ -84,3 +84,24 @@ skills:
       - anthropic-skills-docs
       - agentskills-spec
     auto_update: false
+
+  web-tdd:
+    path: ./web-tdd/skills/web-tdd
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
+
+  cogapp-markdown:
+    path: ./cogapp-markdown/skills/cogapp-markdown
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
+
+  dimensional-modeling:
+    path: ./dimensional-modeling/skills/dimensional-modeling
+    sources:
+      - anthropic-skills-docs
+      - agentskills-spec
+    auto_update: false
