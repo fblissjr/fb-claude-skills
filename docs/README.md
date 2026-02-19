@@ -43,16 +43,5 @@ Offline copies of upstream docs for reference and CDC comparison.
 
 | Directory | Description |
 |-----------|-------------|
-| [blogs/](blogs/) | Anthropic blog: "Complete guide to building skills for Claude" |
-| [claude-docs/](claude-docs/) | Claude Code official docs (plugins, skills, marketplace, reference) |
-
-#### claude-docs contents
-
-| Document | Source |
-|----------|--------|
-| [claude_docs_plugins.md](claude-docs/claude_docs_plugins.md) | Plugins quickstart, structure, migration |
-| [claude_docs_skills.md](claude-docs/claude_docs_skills.md) | Skills frontmatter, substitutions, invocation |
-| [claude_docs_plugin_reference.md](claude-docs/claude_docs_plugin_reference.md) | CLI commands, manifest schema, directory structure |
-| [claude_docs_discover_plugins.md](claude-docs/claude_docs_discover_plugins.md) | Marketplace management, plugin install/uninstall |
-| [claude_docs_plugin_marketplaces.md](claude-docs/claude_docs_plugin_marketplaces.md) | Marketplace schema, plugin sources, distribution |
-| [claude_code_docs_skills.md](claude-docs/claude_code_docs_skills.md) | Extended skills documentation from Claude Code site |
+| [claude-docs/](claude-docs/) | Claude official docs (plugins, skills, marketplace, reference) |
+| [agentskills/](agentskills/) | Skills specs, reference docs and examples of Skills |

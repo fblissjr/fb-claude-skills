@@ -26,15 +26,24 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
-// Works both from source (server.ts) and compiled (dist/server.js)
-const DIST_DIR = import.meta.filename.endsWith(".ts")
+// Detect source vs compiled context
+const IS_SOURCE = import.meta.filename.endsWith(".ts");
+
+// Works both from source (server.ts in mcp-app/) and compiled (dist/index.cjs)
+const DIST_DIR = IS_SOURCE
   ? path.join(import.meta.dirname, "dist")
   : import.meta.dirname;
 
-// Path to the validate_mece.py script (relative to this repo)
-const VALIDATE_SCRIPT = path.resolve(
-  import.meta.dirname,
-  "..",
+// Plugin root: mece-decomposer/
+// From source: mcp-app/ -> ../ -> mece-decomposer/
+// From dist:   mcp-app/dist/ -> ../../ -> mece-decomposer/
+const PLUGIN_ROOT = IS_SOURCE
+  ? path.resolve(import.meta.dirname, "..")
+  : path.resolve(import.meta.dirname, "..", "..");
+
+// Path to the validate_mece.py script
+const VALIDATE_SCRIPT = path.join(
+  PLUGIN_ROOT,
   "skills",
   "mece-decomposer",
   "scripts",

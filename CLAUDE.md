@@ -1,6 +1,6 @@
 # fb-claude-skills
 
-Self-updating skills system for Claude Code. Skills rot as best practices evolve, upstream APIs change, and external data sources drift. This repo closes the loop: detect changes, produce updated content, validate against the Agent Skills spec, and let the user review before committing.
+Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes a self-updating maintenance system that detects upstream changes, validates against the Agent Skills spec, and produces diffs for human review.
 
 ## Repo structure
 
@@ -9,49 +9,49 @@ fb-claude-skills/
   .claude-plugin/
     marketplace.json         # Root marketplace catalog (lists all installable plugins)
   mcp-apps/                  # Plugin: MCP Apps creation and migration
-    .claude-plugin/
-      plugin.json
+    .claude-plugin/plugin.json
     skills/                  # create-mcp-app, migrate-oai-app
     references/              # Upstream docs (offline copies)
   plugin-toolkit/            # Plugin: plugin analysis and management
-    .claude-plugin/
-      plugin.json
-    skills/plugin-toolkit/   # The skill itself (SKILL.md + references/)
+    .claude-plugin/plugin.json
+    skills/plugin-toolkit/   # SKILL.md + references/
     agents/                  # plugin-scanner, quality-checker
   web-tdd/                   # Plugin: TDD workflow for web apps
-    .claude-plugin/
-      plugin.json
+    .claude-plugin/plugin.json
     skills/web-tdd/          # SKILL.md
   cogapp-markdown/           # Plugin: auto-generate markdown sections
-    .claude-plugin/
-      plugin.json
+    .claude-plugin/plugin.json
     skills/cogapp-markdown/  # SKILL.md
   tui-design/                # Plugin: terminal UI design principles
-    .claude-plugin/
-      plugin.json
+    .claude-plugin/plugin.json
     skills/tui-design/       # SKILL.md + references/
-  mece-decomposer/           # Plugin: MECE decomposition for Agent SDK workflows + MCP App
-    .claude-plugin/
-      plugin.json
+  dimensional-modeling/      # Plugin: Kimball star schema patterns
+    .claude-plugin/plugin.json
+    skills/dimensional-modeling/  # SKILL.md + references/
+  mece-decomposer/           # Plugin: MECE decomposition + MCP App
+    .claude-plugin/plugin.json
     .mcp.json                # MCP server auto-configuration (stdio)
     commands/                # Slash commands: decompose, interview, validate, export
     skills/mece-decomposer/  # SKILL.md + references/ + scripts/
     mcp-app/                 # MCP App: interactive tree visualizer (React + bundled server)
+  heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
   skill-maintainer/          # Project-scoped: maintains other skills (and itself)
-    SKILL.md                 # Orchestrator with 4 commands: check, update, status, add-source
-    config.yaml              # Source registry: what docs/repos to monitor, which skills they affect
+    SKILL.md                 # Orchestrator: check, update, status, add-source
+    config.yaml              # Source registry
     scripts/                 # Python automation (all run via uv run)
-    references/              # Best practices, monitored sources, update patterns
+    references/              # Best practices, monitored sources
     state/                   # Versioned state: watermarks, page hashes, timestamps
   docs/
-    analysis/                # Structured extraction from Anthropic skills guide, gap analysis, system design
+    analysis/                # 14 domain reports (skills, plugins, MCP, hooks, agents, etc.)
+    reports/                 # Synthesis reports
     internals/               # API reference, schemas, troubleshooting
-    blogs/                   # Captured blog posts
-    claude-docs/             # Captured Claude Code official docs (skills page)
+    claude-docs/             # Captured Claude Code official docs
     guides/                  # PDF guide source
   coderef/
-    agentskills/             # Symlink -> ~/claude/agentskills (Agent Skills spec + skills-ref validator)
-    ext-apps/                # External apps reference
+    agentskills/             # Symlink -> ~/claude/agentskills (Agent Skills spec + skills-ref)
+    ext-apps/                # MCP Apps SDK reference
+    mcp/                     # MCP protocol spec, SDKs, inspector, registry, servers
+    mcp-ui/                  # MCP UI SDK reference
   internal/log/              # Session logs (log_YYYY-MM-DD.md)
 ```
 
@@ -62,13 +62,13 @@ fb-claude-skills/
 This repo is a plugin marketplace. Add it and install plugins:
 
 ```bash
-# from GitHub
 /plugin marketplace add fblissjr/fb-claude-skills
 /plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
+/plugin install dimensional-modeling@fb-claude-skills
 /plugin install mece-decomposer@fb-claude-skills
 ```
 
@@ -76,9 +76,36 @@ After installing, skills are available as namespaced slash commands (e.g., `/mcp
 
 To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
-### Project-scoped skill (skill-maintainer)
+### Project-scoped modules
 
-skill-maintainer runs from within this repo. It depends on `config.yaml`, `state/`, and `scripts/` in the repo tree, so it cannot be installed as a global plugin. It is discoverable when Claude Code is run from the repo root.
+skill-maintainer and heylook-monitor run from within this repo only. They depend on local files and cannot be installed as global plugins.
+
+## Plugin development
+
+Plugins bundle five component types: skills, agents, hooks, MCP servers, and LSP servers. Components in default directories (`skills/`, `agents/`) are auto-discovered -- do not list them in plugin.json.
+
+Required structure:
+```
+plugin-name/
+  .claude-plugin/
+    plugin.json            # name, version, description, author, repository
+  README.md                # last updated date, installation, skills table
+  skills/
+    skill-name/
+      SKILL.md             # frontmatter: name, description, metadata.author/version
+  agents/                  # optional: agent .md files
+  references/              # optional: supporting docs loaded on demand
+```
+
+For full plugin architecture, schemas, and patterns, see `docs/analysis/plugin_system_architecture.md`.
+
+## MCP development
+
+MCP servers expose tools, resources, and prompts to Claude Code and other MCP clients. MCP Apps add interactive UIs rendered in hosts that support them (Cowork, Claude.ai).
+
+- Protocol fundamentals: `docs/analysis/mcp_protocol_and_servers.md`
+- Building UIs: `docs/analysis/mcp_apps_and_ui_development.md`
+- Cross-surface compatibility: `docs/analysis/cross_surface_compatibility.md`
 
 ## Key patterns
 
@@ -87,106 +114,62 @@ skill-maintainer runs from within this repo. It depends on `config.yaml`, `state
 Three-layer pipeline in `docs_monitor.py`:
 
 1. **DETECT** -- HEAD request on `llms-full.txt`, compare `Last-Modified` header. Zero bytes if unchanged.
-2. **IDENTIFY** -- fetch `llms-full.txt` (Mintlify's clean markdown export), split by `Source:` delimiters, hash each watched page, compare to stored hashes.
+2. **IDENTIFY** -- fetch `llms-full.txt`, split by `Source:` delimiters, hash each watched page, compare to stored hashes.
 3. **CLASSIFY** -- keyword heuristic on diff text (breaking/additive/cosmetic).
-
-Sources expose `llms_full_url` in config.yaml. Each source tracks a watermark (Last-Modified/ETag) and per-page hashes with `last_checked` and `last_changed` timestamps independently.
 
 ### Source CDC
 
-Git-based monitoring of upstream repos. `source_monitor.py` shallow-clones configured repos, checks commits since last run, extracts Python APIs via AST, scans commit messages for deprecation keywords.
+Git-based monitoring via `source_monitor.py`. Shallow-clones configured repos, checks commits since last run, extracts Python APIs via AST, scans for deprecation keywords.
 
 ### Closed-loop updates
 
-detect -> classify -> apply -> validate -> user reviews diff. `apply_updates.py` supports three modes: `report-only`, `apply-local` (default), and `create-pr`. Always validates with skills-ref before any write. Creates backups. Never auto-commits.
-
-### Freshness hooks
-
-`check_freshness.py` reads state.json timestamps and warns if a skill hasn't been checked in N days. Runs in <100ms. Never blocks skill invocation.
+detect -> classify -> apply -> validate -> user reviews diff. `apply_updates.py` supports three modes: `report-only`, `apply-local` (default), and `create-pr`. Always validates with skills-ref before any write.
 
 ### Progressive disclosure
 
-SKILL.md stays under 500 lines with the heavy logic in `scripts/`. References in `references/` provide detailed documentation loaded on demand. Three levels: frontmatter (always loaded) -> SKILL.md body (loaded when relevant) -> linked files (on demand).
-
-### Self-referential maintenance
-
-skill-maintainer monitors and maintains itself. Its own sources (Anthropic docs, Agent Skills spec) are tracked in config.yaml.
+SKILL.md stays under 500 lines. Heavy logic in `scripts/`, detailed docs in `references/`. Three levels: frontmatter (always loaded) -> SKILL.md body (loaded when relevant) -> linked files (on demand).
 
 ### Selection under constraint (design principle)
 
-The unifying principle across all subsystems: **given more possibilities than you can evaluate, select the subset that matters, process it, combine results.** This appears at every level:
+The unifying principle: **given more possibilities than you can evaluate, select the subset that matters, process it, combine results.** Every system implements five invariant operations: **decompose, route, prune, synthesize, verify**.
 
-- **Token level**: attention selects which context tokens influence the output
-- **Skill level**: frontmatter routing selects which skills load
-- **Reference level**: progressive disclosure selects which references load
-- **Agent level**: task decomposition selects which subagents to spawn
-- **CDC level**: hash comparison selects which pages to fetch and classify
-- **Schema level**: views select which dimension rows are current (`is_current = TRUE`)
-
-Every system that processes more possibilities than it can evaluate implements five invariant operations: **decompose, route, prune, synthesize, verify**. This appears in database query planning, sparse MoE transformers, agent hierarchies, and the CDC pipeline in this repo.
-
-Skills are **view definitions + stored procedures**, not documentation. A skill defines a projection (what slice of reality to show) and controls the execution graph. The architecture is an **external query planner** -- it optimizes LLM I/O by selecting what context to load.
+Skills are **view definitions + stored procedures**, not documentation. A skill defines a projection (what context to show) and controls the execution graph. The architecture is an **external query planner** for LLM I/O.
 
 Three repos form a database-like component stack:
-- **star-schema-llm-context/** -- storage engine / kernel (I/O, schema, key generation)
-- **fb-claude-skills/** -- stored procedures / system catalog (business logic, skills)
-- **ccutils/** and consumers -- client applications (orchestration, dashboards)
+- **star-schema-llm-context/** -- storage engine / kernel
+- **fb-claude-skills/** -- stored procedures / system catalog
+- **ccutils/** -- client applications
 
 See `docs/analysis/abstraction_analogies.md` for the full treatment.
 
 ### Dimensional model (DuckDB store)
 
-skill-maintainer uses a Kimball-style dimensional model in DuckDB (`store.py`). Key patterns:
+skill-maintainer uses a Kimball-style dimensional model in DuckDB (`store.py`):
 
 - **MD5 hash surrogate keys** on all dimensions (deterministic, no sequences)
-- **SCD Type 2** on dimension tables (effective_from/to, is_current, hash_diff) -- no PRIMARY KEY constraints on dimensions since SCD Type 2 requires multiple rows per entity
+- **SCD Type 2** on dimension tables (effective_from/to, is_current, hash_diff) -- no PRIMARY KEY constraints
 - **No PKs on fact tables** (grain = composite dimension keys + timestamp)
 - **Metadata columns** on all tables (record_source, session_id, inserted_at)
-- **Meta tables** for schema versioning and load logging
-- **Session boundaries as events** (fact_session_event with event_type='session_start'/'session_end'), not a separate table
+- **Session boundaries as events** in fact_session_event, not a separate table
 
 See `docs/internals/duckdb_schema.md` for the full schema.
 
 ## How to keep things fresh
 
-Check for documentation changes:
 ```bash
-uv run python skill-maintainer/scripts/docs_monitor.py
-```
-
-Check for upstream code changes:
-```bash
-uv run python skill-maintainer/scripts/source_monitor.py
-```
-
-Generate unified report of all changes:
-```bash
-uv run python skill-maintainer/scripts/update_report.py
-```
-
-Apply detected changes to a skill (default: local apply + validate):
-```bash
-uv run python skill-maintainer/scripts/apply_updates.py --skill plugin-toolkit
-uv run python skill-maintainer/scripts/apply_updates.py --skill plugin-toolkit --mode report-only
-```
-
-Validate any skill against the spec + best practices:
-```bash
-uv run skills-ref validate path/to/SKILL.md           # quick spec validation only
-uv run python skill-maintainer/scripts/validate_skill.py ./skill-maintainer
-uv run python skill-maintainer/scripts/validate_skill.py --all
-```
-
-Check staleness of tracked skills:
-```bash
-uv run python skill-maintainer/scripts/check_freshness.py
-uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
+uv run python skill-maintainer/scripts/docs_monitor.py       # check doc changes
+uv run python skill-maintainer/scripts/source_monitor.py      # check source changes
+uv run python skill-maintainer/scripts/update_report.py       # generate unified report
+uv run python skill-maintainer/scripts/apply_updates.py --skill <name>  # apply changes
+uv run python skill-maintainer/scripts/check_freshness.py     # check staleness
+uv run skills-ref validate path/to/SKILL.md                   # validate a skill
+uv run python skill-maintainer/scripts/validate_skill.py --all # validate all skills
 ```
 
 ## Configuration
 
 **Source registry**: `skill-maintainer/config.yaml`
-- `sources`: each has a `type` (docs or source), detection method (`llms_full_url` for docs, `repo` for git), and list of watched pages/files
+- `sources`: each has a `type` (docs or source), detection method, and list of watched pages/files
 - `skills`: tracked skills with paths, source dependencies, and auto_update flag
 
 **State**: `skill-maintainer/state/state.json`
@@ -194,45 +177,67 @@ uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
 - `docs.{source}._pages.{url}` -- per-page hash, content_preview, last_checked, last_changed
 - `sources.{source}` -- last_commit, commits_since_last, last_checked
 
+## Documentation index
+
+### Domain reports (`docs/analysis/`)
+
+| Report | Topic |
+|--------|-------|
+| `plugin_system_architecture.md` | Plugin anatomy, schema, components, auto-discovery, audit |
+| `marketplace_distribution_patterns.md` | Marketplace schema, source types, monorepo, enterprise distribution |
+| `mcp_protocol_and_servers.md` | MCP protocol, primitives, transports, SDKs, registry |
+| `mcp_apps_and_ui_development.md` | MCP Apps SDK, UI linkage, React hooks, framework templates |
+| `hooks_system_patterns.md` | Hook events, types, matchers, security, automation patterns |
+| `subagents_and_agent_teams.md` | Custom agents, tool control, teams, delegation patterns |
+| `cross_surface_compatibility.md` | Surface matrix, transports, permissions, headless mode |
+| `claude_skills_best_practices_guide_full_report.md` | Skills best practices from Anthropic guide |
+| `skills_guide_structured.md` | Structured extraction for CDC |
+| `skills_guide_analysis.md` | Gap analysis vs repo |
+| `self_updating_system_design.md` | CDC architecture decisions |
+| `abstraction_analogies.md` | Unifying design principle |
+| `duckdb_dimensional_model_strategy.md` | DuckDB star schema strategy |
+| `data_centric_agent_state_research.md` | Agent state research |
+
+### Synthesis (`docs/reports/`)
+
+| Report | Topic |
+|--------|-------|
+| `claude_ecosystem_synthesis.md` | Full ecosystem overview, decision tree, maturity assessment |
+
+### Internals (`docs/internals/`)
+
+| Report | Topic |
+|--------|-------|
+| `duckdb_schema.md` | Full DuckDB schema documentation |
+| `api_reference.md` | Script function signatures and parameters |
+| `schema.md` | state.json and config.yaml schemas |
+| `troubleshooting.md` | Common issues and recovery |
+
 ## Cross-repo references
 
-- **agentskills** (`coderef/agentskills/` -> `~/claude/agentskills`): Agent Skills open standard. Provides `skills-ref` validator used for all skill validation.
-- **mlx-skills** (`~/claude/mlx-skills`): Semi-automated skill maintenance for MLX-related skills. `source_monitor.py` was generalized from its `scripts/check_updates.py`.
+- **agentskills** (`coderef/agentskills/` -> `~/claude/agentskills`): Agent Skills open standard and `skills-ref` validator.
+- **mlx-skills** (`~/claude/mlx-skills`): Semi-automated skill maintenance for MLX-related skills.
 
 ## Conventions
 
-### Adding a new skill module
-
-Required structure:
-```
-module-name/
-  .claude-plugin/
-    plugin.json            # name, version, description, author, repository
-  README.md                # last updated date, installation, skill table, invocation
-  skills/
-    skill-name/
-      SKILL.md             # frontmatter: name, description, metadata.author, metadata.version
-  references/              # optional: supporting docs loaded on demand
-```
-
-Skills and agents in default directories (`skills/`, `agents/`) are auto-discovered. Do not list them in plugin.json -- only use component path fields for non-default locations.
-
 ### Skill description rules
 
-- **Trigger phrases required**: descriptions must include natural language phrases users would say (e.g., "decompose", "break down this process"). Without them, Claude won't auto-load the skill.
+- **Trigger phrases required**: descriptions must include natural language phrases users would say. Without them, Claude won't auto-load the skill.
 - **1024-char limit**: keep descriptions under 1024 characters.
-- **Script paths**: all `uv run` paths in SKILL.md must be relative to project root, not the skill directory (e.g., `uv run module/skills/skill-name/scripts/foo.py`).
-- **500-line limit**: if SKILL.md exceeds 500 lines, extract verbose sections (examples, directory structures, common patterns) to `references/` and add a one-line pointer.
-- **Best practices sources**: `docs/claude-docs/claude_code_docs_skills.md` and `docs/analysis/claude_skills_best_practices_guide_full_report.md`.
+- **Script paths**: all `uv run` paths in SKILL.md must be relative to project root.
+- **500-line limit**: extract verbose sections to `references/` and add a one-line pointer.
 
-After creating:
-1. `uv run skills-ref validate module-name/skills/skill-name/SKILL.md` -- validate each skill
-2. Add plugin entry to root `.claude-plugin/marketplace.json` (name, source path, description, version)
+### After creating a new plugin
+
+1. `uv run skills-ref validate module-name/skills/skill-name/SKILL.md`
+2. Add plugin entry to root `.claude-plugin/marketplace.json`
 3. Add skills to `skill-maintainer/config.yaml` under both `sources:` and `skills:`
 4. Add to `skill-maintainer/references/monitored_sources.md` if watching upstream
-5. Bump version in both `pyproject.toml` and `CHANGELOG.md` (must stay in sync)
-6. Update root `README.md` skills table and installation section
+5. Bump version in both `pyproject.toml` and `CHANGELOG.md`
+6. Update root `README.md` plugins table and installation section
 7. Append session to `internal/log/log_YYYY-MM-DD.md`
+
+### General conventions
 
 - **Package manager**: Always `uv`. No pip.
 - **JSON**: `orjson` for all serialization/deserialization.

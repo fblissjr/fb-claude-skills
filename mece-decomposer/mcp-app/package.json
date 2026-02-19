@@ -7,6 +7,7 @@
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
   "scripts": {
+    "prebuild": "rm -rf dist",
     "build": "tsc --noEmit && cross-env INPUT=mcp-app.html vite build && tsc -p tsconfig.server.json && node build-server.mjs",
     "watch": "cross-env INPUT=mcp-app.html vite build --watch",
     "serve": "tsx --watch main.ts",
