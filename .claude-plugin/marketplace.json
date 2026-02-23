@@ -54,6 +54,12 @@
       "source": "./skill-dashboard",
       "description": "Python-native MCP App skill dashboard: health status, token budgets, and freshness for all tracked skills",
       "version": "0.1.0"
+    },
+    {
+      "name": "env-forge",
+      "source": "./env-forge",
+      "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog",
+      "version": "0.1.0"
     }
   ]
 }

@@ -34,6 +34,11 @@ fb-claude-skills/
     commands/                # Slash commands: decompose, interview, validate, export
     skills/mece-decomposer/  # SKILL.md + references/ + scripts/
     mcp-app/                 # MCP App: interactive tree visualizer (React + bundled server)
+  env-forge/                 # Plugin: database-backed MCP tool environment generator
+    .claude-plugin/plugin.json
+    commands/                # Slash commands: browse, forge, launch, verify
+    skills/env-forge/        # SKILL.md + references/
+    scripts/                 # catalog.py, materialize.py, validate_env.py
   heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
   skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
     .mcp.json                # MCP server auto-configuration (stdio)
@@ -75,6 +80,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install tui-design@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install mece-decomposer@fb-claude-skills
+/plugin install env-forge@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/web-tdd`).
@@ -136,7 +142,7 @@ SKILL.md stays under 500 lines. Heavy logic in `scripts/`, detailed docs in `ref
 
 ### Selection under constraint (design principle)
 
-The unifying principle: **given more possibilities than you can evaluate, select the subset that matters, process it, combine results.** Every system implements five invariant operations: **decompose, route, prune, synthesize, verify**.
+The unifying principle, using data analogies: **given more possibilities than you can evaluate, select the subset that matters, process it, combine results.** Every system implements five invariant operations: **decompose, route, prune, synthesize, verify**.
 
 Skills are **view definitions + stored procedures**, not documentation. A skill defines a projection (what context to show) and controls the execution graph. The architecture is an **external query planner** for LLM I/O.
 

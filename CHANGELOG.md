@@ -1,5 +1,17 @@
 # changelog
 
+## 0.12.0
+
+### added
+- **env-forge**: new installable plugin for generating database-backed MCP tool environments
+  - SKILL.md: task-first environment design methodology extracted from AWM synthesis pipeline
+  - 2 commands (browse, forge) + 2 Phase 2 stubs (launch, verify)
+  - references: schema_patterns.md, api_design_rules.md, verification_patterns.md, fastapi_mcp_template.md, catalog_index.md
+  - scripts: catalog.py (search/browse AWM-1K on HF), materialize.py (fetch and write environment), validate_env.py (structural validation)
+  - two modes: browse 1000 pre-generated environments from AWM-1K catalog, or forge new ones from scenario descriptions
+  - covers: SQLite schema synthesis, RESTful API design, FastAPI+MCP server generation, DB state verification, self-correction patterns
+  - fetches data from Snowflake/AgentWorldModel-1K on HF at runtime (no large files in repo)
+
 ## 0.11.3
 
 ### added

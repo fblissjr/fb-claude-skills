@@ -11,6 +11,7 @@ dependencies = [
     "duckdb>=1.0",
     "skills-ref",
     "mcp-ui-server",
+    "huggingface-hub>=1.4.1",
 ]
 
 [project.optional-dependencies]

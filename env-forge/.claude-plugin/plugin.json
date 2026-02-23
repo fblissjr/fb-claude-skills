@@ -1,0 +1,9 @@
+{
+  "name": "env-forge",
+  "version": "0.1.0",
+  "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}
