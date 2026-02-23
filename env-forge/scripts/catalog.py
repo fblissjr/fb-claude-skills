@@ -15,54 +15,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
+import re
 import sys
-from pathlib import Path
 
-import orjson
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-REPO_ID = "Snowflake/AgentWorldModel-1K"
-CACHE_DIR = Path(".env-forge/cache")
-SCENARIO_FILE = "gen_scenario.jsonl"
-TASKS_FILE = "gen_tasks.jsonl"
-DB_FILE = "gen_db.jsonl"
-SPEC_FILE = "gen_spec.jsonl"
-
-
-def ensure_cache_dir() -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def download_file(filename: str, refresh: bool = False) -> Path:
-    """Download a JSONL file from HF, caching locally."""
-    cached = CACHE_DIR / filename
-    if cached.exists() and not refresh:
-        return cached
-
-    try:
-        from huggingface_hub import hf_hub_download
-    except ImportError:
-        print("Error: huggingface_hub not installed. Run: uv add huggingface_hub", file=sys.stderr)
-        sys.exit(1)
-
-    ensure_cache_dir()
-    path = hf_hub_download(
-        repo_id=REPO_ID,
-        filename=filename,
-        repo_type="dataset",
-        local_dir=str(CACHE_DIR),
-    )
-    return Path(path)
-
-
-def load_jsonl(path: Path) -> list[dict]:
-    """Load a JSONL file into a list of dicts."""
-    records = []
-    with open(path, "rb") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                records.append(orjson.loads(line))
-    return records
+from shared import DB_FILE, SCENARIO_FILE, SPEC_FILE, TASKS_FILE, download_file, load_jsonl
 
 
 def load_scenarios(refresh: bool = False) -> list[dict]:
@@ -80,8 +39,6 @@ def load_tasks(refresh: bool = False) -> dict[str, list[str]]:
 
 def extract_categories(scenarios: list[dict]) -> dict[str, list[dict]]:
     """Group scenarios by inferred category prefix."""
-    import re
-
     categories: dict[str, list[dict]] = {}
     for s in scenarios:
         name = s["name"]

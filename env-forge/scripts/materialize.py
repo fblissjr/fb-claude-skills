@@ -12,51 +12,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import shutil
 import sqlite3
 import sys
 from pathlib import Path
 
 import orjson
 
-REPO_ID = "Snowflake/AgentWorldModel-1K"
-CACHE_DIR = Path(".env-forge/cache")
-DEFAULT_OUTPUT_BASE = Path(".env-forge/environments")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-JSONL_FILES = [
-    "gen_scenario.jsonl",
-    "gen_tasks.jsonl",
-    "gen_db.jsonl",
-    "gen_sample.jsonl",
-    "gen_spec.jsonl",
-    "gen_envs.jsonl",
-    "gen_verifier.jsonl",
-]
-
-
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def download_file(filename: str) -> Path:
-    """Download a JSONL file from HF, caching locally."""
-    cached = CACHE_DIR / filename
-    if cached.exists():
-        return cached
-
-    try:
-        from huggingface_hub import hf_hub_download
-    except ImportError:
-        print("Error: huggingface_hub not installed. Run: uv add huggingface_hub", file=sys.stderr)
-        sys.exit(1)
-
-    ensure_dir(CACHE_DIR)
-    path = hf_hub_download(
-        repo_id=REPO_ID,
-        filename=filename,
-        repo_type="dataset",
-        local_dir=str(CACHE_DIR),
-    )
-    return Path(path)
+from shared import ALL_JSONL_FILES, DEFAULT_OUTPUT_BASE, download_file, ensure_dir
 
 
 def find_record(path: Path, scenario: str, key: str = "scenario") -> dict | None:
@@ -89,6 +54,61 @@ def find_all_records(path: Path, scenario: str, key: str = "scenario") -> list[d
     return results
 
 
+def check_syntax(code: str, filename: str) -> None:
+    """Compile-check generated Python code. Prints WARNING on error, never blocks."""
+    try:
+        compile(code, filename, "exec")
+    except SyntaxError as e:
+        print(f"  WARNING: {filename} has syntax error at line {e.lineno}: {e.msg}")
+        print(f"           File will still be written but may not run.")
+
+
+def assemble_verifiers(scenario_name: str, verifier_recs: list[dict]) -> str:
+    """Assemble verifier records into a single module with deduplicated imports."""
+    seen_imports: set[str] = set()
+    function_blocks: list[str] = []
+
+    for vrec in sorted(verifier_recs, key=lambda r: r.get("task_idx", 0)):
+        idx = vrec.get("task_idx", 0)
+        task = vrec.get("task", "")
+        code = vrec.get("verification", {}).get("code", "")
+        if not code:
+            continue
+
+        # Separate import lines from function code
+        imports = []
+        body_lines = []
+        for line in code.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("import ", "from ")):
+                if stripped not in seen_imports:
+                    seen_imports.add(stripped)
+                    imports.append(stripped)
+            else:
+                body_lines.append(line)
+
+        block = f"# Task {idx}: {task[:80]}\n" + "\n".join(body_lines)
+        function_blocks.append(block)
+
+    # Assemble module
+    lines = [
+        f'"""Task verification functions for {scenario_name}."""',
+        "",
+    ]
+    if seen_imports:
+        for imp in sorted(seen_imports):
+            lines.append(imp)
+        lines.append("")
+
+    for block in function_blocks:
+        lines.append(block)
+        lines.append("")
+
+    module_code = "\n".join(lines)
+    check_syntax(module_code, f"{scenario_name}/verifiers.py")
+    return module_code
+
+
 def materialize(scenario_name: str, output_base: Path) -> Path:
     """Materialize a scenario into a runnable environment directory."""
     output_dir = output_base / scenario_name
@@ -97,9 +117,9 @@ def materialize(scenario_name: str, output_base: Path) -> Path:
         print("Delete it first to re-materialize.")
         sys.exit(1)
 
-    print(f"Downloading dataset files from {REPO_ID}...")
+    print(f"Downloading dataset files from Snowflake/AgentWorldModel-1K...")
     paths = {}
-    for f in JSONL_FILES:
+    for f in ALL_JSONL_FILES:
         print(f"  {f}...", end=" ", flush=True)
         paths[f] = download_file(f)
         print("ok")
@@ -190,6 +210,7 @@ def materialize(scenario_name: str, output_base: Path) -> Path:
 
     # --- Write server.py ---
     if server_code:
+        check_syntax(server_code, f"{scenario_name}/server.py")
         (output_dir / "server.py").write_text(server_code)
         print("  server.py")
     else:
@@ -197,21 +218,8 @@ def materialize(scenario_name: str, output_base: Path) -> Path:
 
     # --- Write verifiers.py ---
     if verifier_recs:
-        verifier_lines = [
-            '"""Task verification functions for ' + scenario_name + '."""',
-            "",
-            "import sqlite3",
-            "",
-        ]
-        for vrec in sorted(verifier_recs, key=lambda r: r.get("task_idx", 0)):
-            idx = vrec.get("task_idx", 0)
-            task = vrec.get("task", "")
-            code = vrec.get("verification", {}).get("code", "")
-            if code:
-                verifier_lines.append(f"# Task {idx}: {task[:80]}")
-                verifier_lines.append(code)
-                verifier_lines.append("")
-        (output_dir / "verifiers.py").write_text("\n".join(verifier_lines))
+        verifier_module = assemble_verifiers(scenario_name, verifier_recs)
+        (output_dir / "verifiers.py").write_text(verifier_module)
         print(f"  verifiers.py ({len(verifier_recs)} verifiers)")
     else:
         print("  verifiers.py -- MISSING (no verifier code in dataset)")
@@ -273,8 +281,6 @@ build-backend = "hatchling.build"
         print(f"  {errors} insert(s) failed (likely FK constraint issues)")
 
     # Copy to initial.db as backup
-    import shutil
-
     shutil.copy2(str(db_path), str(output_dir / "db" / "initial.db"))
     print("  Copied to initial.db (backup)")
 

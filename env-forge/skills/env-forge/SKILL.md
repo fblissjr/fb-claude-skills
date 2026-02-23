@@ -9,7 +9,7 @@ allowed-tools: "Bash(uv run *), Bash(mkdir *), Bash(sqlite3 *), Read, Write, Glo
 
 # env-forge -- Environment Design Methodology
 
-Generate self-contained, database-backed tool environments exposed via MCP. Each environment is a complete FastAPI + SQLite stack with typed endpoints, seed data, and task verification functions.
+Claude Code interface for the [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline from Snowflake Labs. Generates self-contained, database-backed tool environments exposed via MCP. Each environment is a complete FastAPI + SQLite stack with typed endpoints, seed data, and task verification functions. The synthesis methodology, output format, and task-first design principle are from AWM.
 
 Two modes:
 - **Browse**: Pick from 1000 pre-generated environments across 28 domains (AWM-1K catalog)

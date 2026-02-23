@@ -1,5 +1,16 @@
 # changelog
 
+## 0.12.1
+
+### changed
+- **env-forge**: extracted `scripts/shared.py` module from duplicated code in catalog.py and materialize.py (constants, download_file, load_jsonl, ensure_dir)
+- **env-forge**: materialize.py now compile-checks generated server.py and verifiers.py before writing (WARNING on error, never blocks)
+- **env-forge**: verifier assembly deduplicates imports across verifier records instead of raw code concatenation
+- **env-forge**: forge.md adds new step 2 "Reference from Catalog" (search AWM-1K for structural exemplar before generating from scratch)
+- **env-forge**: README.md expanded with Quick Start, Status (Phase 1 vs 2), and Patterns sections
+- `docs/README.md`: expanded to authoritative documentation index (16 analysis reports, synthesis, internals, 18 captured claude-docs)
+- `CLAUDE.md`: replaced 36-line documentation index with pointer to docs/README.md; added catalog-as-exemplar pattern and huggingface-hub dependency; fixed domain report count (15 -> 16); net ~20 lines removed
+
 ## 0.12.0
 
 ### added

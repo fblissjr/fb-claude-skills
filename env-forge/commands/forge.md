@@ -39,7 +39,22 @@ Write the scenario to `.env-forge/environments/<name>/scenario.json`:
 }
 ```
 
-### 2. Task Generation
+### 2. Reference from Catalog
+
+Before generating from scratch, search the AWM-1K catalog for a structurally similar domain:
+
+```bash
+uv run python env-forge/scripts/catalog.py --search "<domain keywords>"
+```
+
+If a close match exists, review its structure with `--details`:
+- Task list (coverage patterns, complexity mix)
+- Table structure (entity relationships, column conventions)
+- Endpoint design (REST patterns, operation naming)
+
+Use the closest match as a structural reference -- adapt its patterns to the new domain, don't copy verbatim. If no match is close enough, proceed from scratch.
+
+### 3. Task Generation
 
 Generate 10 realistic, diverse tasks following the task-first methodology from the **env-forge** skill. Each task is a single sentence with all parameters included.
 
@@ -52,7 +67,7 @@ Coverage requirements:
 
 Present tasks to user for review. Allow additions, removals, or modifications. Update `scenario.json` with finalized task list.
 
-### 3. Schema Generation
+### 4. Schema Generation
 
 Design SQLite tables to support ALL tasks. Follow patterns in `references/schema_patterns.md`:
 - Proper PKs, FKs, indexes, constraints
@@ -64,7 +79,7 @@ Design SQLite tables to support ALL tasks. Follow patterns in `references/schema
 Write DDL to `.env-forge/environments/<name>/schema.sql`.
 Present table list and relationships to user for review.
 
-### 4. Seed Data Generation
+### 5. Seed Data Generation
 
 Generate INSERT statements that make every task executable. Follow coverage rules in `references/schema_patterns.md`:
 - User_id=1 first
@@ -74,7 +89,7 @@ Generate INSERT statements that make every task executable. Follow coverage rule
 
 Write to `.env-forge/environments/<name>/seed_data.sql`.
 
-### 5. API Specification
+### 6. API Specification
 
 Design RESTful endpoints for all tasks. Follow `references/api_design_rules.md`:
 - Atomic endpoints (one operation each)
@@ -85,7 +100,7 @@ Design RESTful endpoints for all tasks. Follow `references/api_design_rules.md`:
 Write to `.env-forge/environments/<name>/api_spec.json`.
 Present endpoint list to user for review.
 
-### 6. Server Code Generation
+### 7. Server Code Generation
 
 Generate complete, executable FastAPI application. Follow `references/fastapi_mcp_template.md`:
 - SQLAlchemy ORM models matching schema
@@ -95,7 +110,7 @@ Generate complete, executable FastAPI application. Follow `references/fastapi_mc
 
 Write to `.env-forge/environments/<name>/server.py`.
 
-### 7. Verification Functions
+### 8. Verification Functions
 
 Generate verification functions for each task. Follow `references/verification_patterns.md`:
 - Modification-based for CRUD tasks
@@ -104,7 +119,7 @@ Generate verification functions for each task. Follow `references/verification_p
 
 Write to `.env-forge/environments/<name>/verifiers.py`.
 
-### 8. Database Creation
+### 9. Database Creation
 
 Create and seed the SQLite databases:
 
@@ -115,7 +130,7 @@ sqlite3 .env-forge/environments/<name>/db/current.db < .env-forge/environments/<
 cp .env-forge/environments/<name>/db/current.db .env-forge/environments/<name>/db/initial.db
 ```
 
-### 9. Dependency File
+### 10. Dependency File
 
 Write `pyproject.toml` for the environment:
 
@@ -137,7 +152,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 ```
 
-### 10. Validation
+### 11. Validation
 
 Run structural validation:
 
@@ -145,7 +160,7 @@ Run structural validation:
 uv run python env-forge/scripts/validate_env.py .env-forge/environments/<name>/
 ```
 
-### 11. Report
+### 12. Report
 
 Display:
 - Environment path

@@ -41,6 +41,7 @@ fb-claude-skills/
     scripts/                 # catalog.py, materialize.py, validate_env.py
   heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
   skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
+    .claude-plugin/plugin.json
     .mcp.json                # MCP server auto-configuration (stdio)
     skills/skill-dashboard/  # SKILL.md
     server.py                # FastMCP + mcp-ui server
@@ -52,7 +53,7 @@ fb-claude-skills/
     references/              # Best practices, monitored sources
     state/                   # Versioned state: watermarks, page hashes, timestamps
   docs/
-    analysis/                # 15 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
+    analysis/                # 16 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
     internals/               # API reference, schemas, troubleshooting
     claude-docs/             # Captured Claude Code official docs
@@ -165,6 +166,10 @@ skill-maintainer uses a Kimball-style dimensional model in DuckDB (`store.py`):
 
 See `docs/internals/duckdb_schema.md` for the full schema.
 
+### Catalog as exemplar
+
+When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `env-forge/commands/forge.md` step 2.
+
 ## How to keep things fresh
 
 ```bash
@@ -190,39 +195,7 @@ uv run python skill-maintainer/scripts/validate_skill.py --all # validate all sk
 
 ## Documentation index
 
-### Domain reports (`docs/analysis/`)
-
-| Report | Topic |
-|--------|-------|
-| `plugin_system_architecture.md` | Plugin anatomy, schema, components, auto-discovery, audit |
-| `marketplace_distribution_patterns.md` | Marketplace schema, source types, monorepo, enterprise distribution |
-| `mcp_protocol_and_servers.md` | MCP protocol, primitives, transports, SDKs, registry |
-| `mcp_apps_and_ui_development.md` | MCP Apps SDK, UI linkage, React hooks, framework templates |
-| `hooks_system_patterns.md` | Hook events, types, matchers, security, automation patterns |
-| `subagents_and_agent_teams.md` | Custom agents, tool control, teams, delegation patterns |
-| `cross_surface_compatibility.md` | Surface matrix, transports, permissions, headless mode |
-| `claude_skills_best_practices_guide_full_report.md` | Skills best practices from Anthropic guide |
-| `skills_guide_structured.md` | Structured extraction for CDC |
-| `skills_guide_analysis.md` | Gap analysis vs repo |
-| `self_updating_system_design.md` | CDC architecture decisions |
-| `abstraction_analogies.md` | Unifying design principle |
-| `duckdb_dimensional_model_strategy.md` | DuckDB star schema strategy |
-| `data_centric_agent_state_research.md` | Agent state research |
-
-### Synthesis (`docs/reports/`)
-
-| Report | Topic |
-|--------|-------|
-| `claude_ecosystem_synthesis.md` | Full ecosystem overview, decision tree, maturity assessment |
-
-### Internals (`docs/internals/`)
-
-| Report | Topic |
-|--------|-------|
-| `duckdb_schema.md` | Full DuckDB schema documentation |
-| `api_reference.md` | Script function signatures and parameters |
-| `schema.md` | state.json and config.yaml schemas |
-| `troubleshooting.md` | Common issues and recovery |
+See [docs/README.md](docs/README.md) for the full documentation index (16 domain reports, synthesis, internals, captured docs).
 
 ## Cross-repo references
 
@@ -237,7 +210,9 @@ Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are au
 
 Managed via `pyproject.toml` with uv:
 - `orjson` - fast JSON
+- `duckdb` - dimensional store for skill-maintainer state
 - `httpx` - HTTP client for CDC detect/identify layers
 - `pyyaml` - config parsing
+- `huggingface-hub` - HF dataset access for env-forge catalog
 - `skills-ref` - Agent Skills validator (editable install from `coderef/agentskills/skills-ref`)
 - `mcp-ui-server` - MCP UI SDK Python server (editable install from `coderef/mcp-ui/sdks/python/server`)

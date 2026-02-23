@@ -1,10 +1,12 @@
-last updated: 2026-02-19
+last updated: 2026-02-23
 
 # fb-claude-skills
 
 A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plugin marketplace in Claude Code, Cowork, and Claude Desktop.
 
 ## plugins
+
+Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (web-tdd, tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
 
 | Plugin | Type | Description |
 |--------|------|-------------|
@@ -15,6 +17,7 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 | [tui-design](tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
 | [cogapp-markdown](cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
+| [env-forge](env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [skill-dashboard](skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
 
 ### project-scoped (not installable)
@@ -41,6 +44,7 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 /plugin install tui-design@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
+/plugin install env-forge@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -110,6 +114,9 @@ Once installed, invoke as namespaced slash commands:
 /tui-design                    # Terminal UI design guidance
 /cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
+
+/env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
+/env-forge:forge               # Generate a new environment from a description
 ```
 
 ### keyword activation
@@ -183,44 +190,17 @@ uv run python skill-maintainer/scripts/check_freshness.py    # check staleness
 
 ## documentation
 
-### domain reports
+See [docs/README.md](docs/README.md) for the full documentation index: 16 domain reports, ecosystem synthesis, internals reference, and 18 captured upstream docs.
 
-In-depth analysis covering the full Claude extension ecosystem:
-
-| Report | Topic |
-|--------|-------|
-| [Plugin System Architecture](docs/analysis/plugin_system_architecture.md) | Plugin anatomy, schema, components, auto-discovery, implementation audit |
-| [Marketplace Distribution](docs/analysis/marketplace_distribution_patterns.md) | Marketplace schema, source types, monorepo patterns, enterprise distribution |
-| [MCP Protocol and Servers](docs/analysis/mcp_protocol_and_servers.md) | MCP protocol, primitives, transports, SDKs, registry, security |
-| [MCP Apps and UI Development](docs/analysis/mcp_apps_and_ui_development.md) | MCP Apps SDK, UI linkage, React hooks, framework templates, bundling |
-| [Hooks System Patterns](docs/analysis/hooks_system_patterns.md) | Hook events, types, matchers, security patterns, automation |
-| [Subagents and Agent Teams](docs/analysis/subagents_and_agent_teams.md) | Custom agents, tool control, model selection, teams, delegation |
-| [Cross-Surface Compatibility](docs/analysis/cross_surface_compatibility.md) | Surface matrix, transports, permissions, headless, sandboxing |
-
-### existing analysis
-
-| Report | Topic |
-|--------|-------|
-| [Skills Best Practices](docs/analysis/claude_skills_best_practices_guide_full_report.md) | Comprehensive skills guide from Anthropic documentation |
-| [Self-Updating System Design](docs/analysis/self_updating_system_design.md) | CDC architecture decisions and cross-reference analysis |
-| [Abstraction Analogies](docs/analysis/abstraction_analogies.md) | Unifying design principle: selection under constraint |
-| [DuckDB Dimensional Model](docs/analysis/duckdb_dimensional_model_strategy.md) | Star schema strategy for agent state |
-| [Data-Centric Agent State](docs/analysis/data_centric_agent_state_research.md) | Research on star schema patterns for LLM agents |
-
-### synthesis
-
-| Report | Topic |
-|--------|-------|
-| [Claude Ecosystem Synthesis](docs/reports/claude_ecosystem_synthesis.md) | Full ecosystem overview, decision tree, maturity assessment, building strategies |
-
-### internals
-
-- [docs/](docs/) -- developer documentation index
+Highlights:
+- [Claude Ecosystem Synthesis](docs/reports/claude_ecosystem_synthesis.md) -- full ecosystem overview, decision tree, maturity assessment
+- [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
 - [docs/internals/](docs/internals/) -- API reference, DuckDB schema, troubleshooting
 - Each plugin has its own README with detailed usage
 
 ## credits
 
+- env-forge synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
 - Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
 - cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 - MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
