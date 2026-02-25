@@ -2,207 +2,122 @@
 """
 Lightweight staleness check for skill freshness.
 
-Reads from DuckDB store, checks last_checked timestamps, warns if stale.
-Designed to be fast -- just reads a few DB rows.
-Never blocks skill invocation.
+Reads last_verified from SKILL.md frontmatter, warns if stale.
+No DuckDB dependency.
 
 Usage:
     uv run python skill-maintainer/scripts/check_freshness.py
     uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
-    uv run python skill-maintainer/scripts/check_freshness.py --threshold 14d
+    uv run python skill-maintainer/scripts/check_freshness.py --threshold 14
 """
 
 import argparse
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import date
 from pathlib import Path
 
-import yaml
+from skills_ref.parser import find_skill_md, parse_frontmatter
 
-from store import Store
-
-
-DEFAULT_CONFIG = Path("skill-maintainer/config.yaml")
-DEFAULT_DB = Path("skill-maintainer/state/skill_store.duckdb")
-DEFAULT_THRESHOLD_DAYS = 7
+DEFAULT_THRESHOLD_DAYS = 30
+SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
 
 
-def parse_threshold(threshold_str: str) -> timedelta:
-    """Parse a threshold string like '7d', '24h', '168h' into a timedelta."""
-    s = threshold_str.strip().lower()
-    if s.endswith("d"):
-        return timedelta(days=int(s[:-1]))
-    elif s.endswith("h"):
-        return timedelta(hours=int(s[:-1]))
-    else:
-        return timedelta(days=int(s))
+def discover_skills(root: Path) -> list[Path]:
+    """Find all SKILL.md files, return their parent directories."""
+    results = []
+    for skill_md in sorted(root.rglob("SKILL.md")):
+        if any(skip in skill_md.parts for skip in SKIP_DIRS):
+            continue
+        if ".backup" in str(skill_md):
+            continue
+        results.append(skill_md.parent)
+    return results
 
 
-def load_config(config_path: Path) -> dict:
-    if not config_path.exists():
-        return {}
-    with open(config_path) as f:
-        return yaml.safe_load(f) or {}
-
-
-def get_last_checked_for_source(store: Store, source_name: str) -> str | None:
-    """Get the most recent check timestamp for a source from DuckDB."""
-    timestamps = []
-
-    # Check watermark (docs sources)
-    wm_ts = store.get_latest_watermark_checked_at(source_name)
-    if wm_ts:
-        timestamps.append(wm_ts)
-
-    # Check page timestamps
-    page_ts = store.get_latest_page_checked_at(source_name)
-    if page_ts:
-        timestamps.append(page_ts)
-
-    # Check file hash timestamp
-    fh = store.get_file_hash(source_name)
-    if fh and fh.get("last_checked"):
-        timestamps.append(fh["last_checked"])
-
-    # Check source repo timestamp
-    src = store.get_latest_source_check(source_name)
-    if src and src.get("last_checked"):
-        timestamps.append(src["last_checked"])
-
-    if not timestamps:
+def get_last_verified(skill_dir: Path) -> str | None:
+    """Read last_verified from SKILL.md frontmatter."""
+    skill_md = find_skill_md(skill_dir)
+    if skill_md is None:
         return None
-    return max(timestamps)
+
+    try:
+        content = skill_md.read_text()
+        metadata, _ = parse_frontmatter(content)
+    except Exception:
+        return None
+
+    meta = metadata.get("metadata", {})
+    if isinstance(meta, dict):
+        lv = meta.get("last_verified")
+        return str(lv) if lv else None
+    return None
 
 
-def check_skill_freshness(
-    skill_name: str,
-    config: dict,
-    store: Store,
-    threshold: timedelta,
-) -> dict:
-    """Check freshness of a single skill.
+def check_skill(skill_dir: Path, threshold_days: int) -> dict:
+    """Check freshness of a single skill."""
+    name = skill_dir.name
+    lv = get_last_verified(skill_dir)
 
-    Returns dict with: name, is_stale, last_checked, staleness_days, sources
-    """
-    skill_config = config.get("skills", {}).get(skill_name, {})
-    if not skill_config:
+    if lv is None:
         return {
-            "name": skill_name,
+            "name": name,
             "is_stale": True,
-            "last_checked": None,
-            "staleness_days": None,
-            "message": f"Skill '{skill_name}' not found in config",
+            "last_verified": None,
+            "days_ago": None,
+            "message": f"{name}: no last_verified date in metadata",
         }
 
-    skill_sources = skill_config.get("sources", [])
-    now = datetime.now(timezone.utc)
-    oldest_check = None
-
-    source_status = []
-    for source_name in skill_sources:
-        last_checked = get_last_checked_for_source(store, source_name)
-        if last_checked:
-            ts = datetime.fromisoformat(last_checked)
-            # Ensure timezone-aware for comparison
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if oldest_check is None or ts < oldest_check:
-                oldest_check = ts
-            age = now - ts
-            source_status.append({
-                "source": source_name,
-                "last_checked": last_checked,
-                "age_days": age.days,
-                "is_stale": age > threshold,
-            })
-        else:
-            source_status.append({
-                "source": source_name,
-                "last_checked": None,
-                "age_days": None,
-                "is_stale": True,
-            })
-
-    if oldest_check is None:
+    try:
+        lv_date = date.fromisoformat(lv)
+    except ValueError:
         return {
-            "name": skill_name,
+            "name": name,
             "is_stale": True,
-            "last_checked": None,
-            "staleness_days": None,
-            "sources": source_status,
-            "message": f"skill-maintainer: {skill_name} has never been checked. "
-                       "Run `/skill-maintainer check` to capture initial state.",
+            "last_verified": lv,
+            "days_ago": None,
+            "message": f"{name}: invalid last_verified date: {lv}",
         }
 
-    age = now - oldest_check
-    is_stale = age > threshold
+    days_ago = (date.today() - lv_date).days
+    is_stale = days_ago > threshold_days
 
     message = None
     if is_stale:
-        message = (
-            f"skill-maintainer: {skill_name} was last checked "
-            f"{age.days} days ago. Run `/skill-maintainer check` "
-            "to see what changed."
-        )
+        message = f"{name}: last verified {days_ago} days ago ({lv}). Consider reviewing."
 
     return {
-        "name": skill_name,
+        "name": name,
         "is_stale": is_stale,
-        "last_checked": oldest_check.isoformat(),
-        "staleness_days": age.days,
-        "sources": source_status,
+        "last_verified": lv,
+        "days_ago": days_ago,
         "message": message,
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Check freshness of tracked skills."
-    )
-    parser.add_argument(
-        "skill", nargs="?", default=None,
-        help="Skill name to check (default: all tracked skills)",
-    )
-    parser.add_argument(
-        "--config", type=Path, default=DEFAULT_CONFIG,
-    )
-    parser.add_argument(
-        "--db", type=Path, default=DEFAULT_DB,
-    )
-    parser.add_argument(
-        "--threshold", default=f"{DEFAULT_THRESHOLD_DAYS}d",
-        help=f"Staleness threshold (default: {DEFAULT_THRESHOLD_DAYS}d)",
-    )
-    parser.add_argument(
-        "--quiet", "-q", action="store_true",
-        help="Only output warnings for stale skills",
-    )
+    parser = argparse.ArgumentParser(description="Check freshness of skills.")
+    parser.add_argument("skill", nargs="?", default=None, help="Skill directory name to check")
+    parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD_DAYS, help="Staleness threshold in days")
+    parser.add_argument("--quiet", "-q", action="store_true", help="Only output stale skills")
     args = parser.parse_args()
 
-    config = load_config(args.config)
-    threshold = parse_threshold(args.threshold)
+    skills = discover_skills(Path("."))
 
-    skills_to_check = []
     if args.skill:
-        skills_to_check = [args.skill]
-    else:
-        skills_to_check = list(config.get("skills", {}).keys())
+        skills = [s for s in skills if s.name == args.skill]
+        if not skills:
+            print(f"Skill '{args.skill}' not found", file=sys.stderr)
+            sys.exit(1)
 
-    with Store(db_path=args.db, config_path=args.config) as store:
-        for skill_name in skills_to_check:
-            result = check_skill_freshness(skill_name, config, store, threshold)
+    for skill_dir in skills:
+        result = check_skill(skill_dir, args.threshold)
 
-            if result["is_stale"]:
-                if result.get("message"):
-                    print(result["message"], file=sys.stderr)
-            elif not args.quiet:
-                checked = result.get("staleness_days", "?")
-                print(
-                    f"{skill_name}: OK (last checked {checked} days ago)",
-                    file=sys.stderr,
-                )
+        if result["is_stale"]:
+            if result.get("message"):
+                print(result["message"], file=sys.stderr)
+        elif not args.quiet:
+            print(f"{result['name']}: OK (verified {result['days_ago']} days ago)", file=sys.stderr)
 
-    # Exit 0 always - this is a warning tool, not a gate
     sys.exit(0)
 
 

@@ -1,5 +1,22 @@
 # changelog
 
+## 0.13.0
+
+### changed
+- **skill-maintainer**: replaced pipeline-driven model with property-driven maintenance
+  - removed: SKILL.md (no longer a skill), DuckDB store (store.py, migrate_state.py), CDC pipeline (docs_monitor.py, source_monitor.py, update_report.py, apply_updates.py), journal system (journal.py), config.yaml, state.json
+  - added: pre-commit git hook (validates staged SKILL.md files with skills-ref)
+  - added: PostToolUse Claude Code hook (checks last_verified age when any skill is invoked)
+  - added: quality_report.py (unified CLI: validation, token budget, last_verified, description quality)
+  - added: check_upstream.py (on-demand upstream doc change detection via llms-full.txt hashing)
+  - added: query_log.py (query append-only changes.jsonl audit log)
+  - simplified: validate_skill.py, measure_content.py, check_freshness.py (removed DuckDB deps, auto-discover skills)
+  - added `.claude/settings.json` with PostToolUse hook config
+  - added `.claude/hooks/check-skill-freshness.sh`
+- all 10 SKILL.md files: added `metadata.last_verified: 2026-02-25` to frontmatter
+- `pyproject.toml`: removed `duckdb` dependency
+- `CLAUDE.md`: removed DuckDB/CDC/pipeline docs, updated maintenance section with hook/CLI model
+
 ## 0.12.1
 
 ### changed

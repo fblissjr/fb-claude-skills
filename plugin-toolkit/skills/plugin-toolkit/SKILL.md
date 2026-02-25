@@ -4,6 +4,7 @@ description: Analyze, polish, and manage Claude Code plugins. Use when user want
 metadata:
   author: Fred Bliss
   version: 0.1.0
+  last_verified: 2026-02-25
 allowed-tools: "Read, Glob, Grep"
 ---
 

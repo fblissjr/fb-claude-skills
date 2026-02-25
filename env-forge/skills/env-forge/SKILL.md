@@ -4,6 +4,7 @@ description: Generate database-backed MCP tool environments from scenario descri
 metadata:
   author: Fred Bliss
   version: 0.1.0
+  last_verified: 2026-02-25
 allowed-tools: "Bash(uv run *), Bash(mkdir *), Bash(sqlite3 *), Read, Write, Glob, Grep, Edit"
 ---
 

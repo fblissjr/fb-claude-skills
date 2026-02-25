@@ -4,6 +4,7 @@ description: TDD workflow for web applications with Vitest (unit/component) and 
 metadata:
   author: Fred Bliss
   version: 0.1.0
+  last_verified: 2026-02-25
 allowed-tools: "Bash(npm *), Bash(npx *), Bash(uv run *)"
 ---
 

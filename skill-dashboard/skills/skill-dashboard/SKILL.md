@@ -5,15 +5,16 @@ description: >
   "show skill dashboard", "skill status", "show me skill health", "what skills are stale",
   "check skill freshness", "skill budget overview", or "show dashboard". Renders an HTML
   dashboard with color-coded freshness, token budget status, and last-checked timestamps
-  for every skill tracked in config.yaml.
+  for every skill in the project.
 metadata:
   author: fblissjr
-  version: 0.1.0
+  version: 0.2.0
+  last_verified: 2026-02-25
 ---
 
 # skill-dashboard
 
-Python-native MCP App skill dashboard for the fb-claude-skills project. Reads config.yaml and SKILL.md files, queries the DuckDB store if available, and renders a self-contained HTML dashboard.
+Python-native MCP App skill dashboard for the fb-claude-skills project. Auto-discovers skills by walking SKILL.md files, reads `last_verified` from frontmatter, estimates token budgets, and renders a self-contained HTML dashboard.
 
 ## Invocation
 
@@ -27,26 +28,22 @@ Or trigger via natural language: "show skill dashboard", "skill status", "which 
 
 | Column | Source | Notes |
 |--------|--------|-------|
-| Skill name | config.yaml | linked to SKILL.md |
+| Skill name | SKILL.md frontmatter | auto-discovered |
 | Version | SKILL.md frontmatter | parsed at runtime |
-| Status | DuckDB v_skill_freshness | fallback: file mtime |
-| Last checked | DuckDB | freshness watermark |
-| Token budget | DuckDB v_skill_budget | warn >4k, crit >8k |
-| Sources | config.yaml | upstream dependencies |
+| Status | metadata.last_verified | fresh/stale/critical |
+| Last verified | SKILL.md frontmatter | YYYY-MM-DD date |
+| Token budget | file size estimate | warn >4k, crit >8k |
 
 ## Color coding
 
-- green: checked within 7 days, budget OK
-- amber: checked 7-14 days ago or budget >4k tokens
-- red: checked >14 days ago, SKILL.md missing, or budget >8k tokens
+- green: verified within 14 days, budget OK
+- amber: verified 14-30 days ago or budget >4k tokens
+- red: verified >30 days ago, SKILL.md missing, or budget >8k tokens
 
 ## Server
 
 Runs as a local stdio MCP server via `.mcp.json`. Start/stop is managed by Claude Code automatically when this plugin is loaded.
 
 The server reads from:
-1. `skill-maintainer/config.yaml` -- skill registry
-2. `*/skills/*/SKILL.md` -- skill frontmatter (version, description)
-3. DuckDB store at `skill-maintainer/state/skill_maintainer.duckdb` (if present)
-
-If DuckDB is not available, freshness falls back to file modification time.
+1. `**/SKILL.md` -- auto-discovered skill files (frontmatter for version, last_verified)
+2. Skill directories -- file size scan for token budget estimation

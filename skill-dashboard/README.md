@@ -1,8 +1,8 @@
-last updated: 2026-02-19
+last updated: 2026-02-25
 
 # skill-dashboard
 
-Project-scoped MCP App that renders a live HTML dashboard of all tracked skills. Shows health status, token budgets, freshness, and source dependencies.
+Project-scoped MCP App that renders a live HTML dashboard of all skills in the project. Shows health status, token budgets, freshness, and version info.
 
 This is a reference implementation demonstrating the Python-native MCP App pattern using the mcp-ui SDK (rawHtml approach) -- no Node.js or build step required.
 
@@ -10,7 +10,7 @@ This is a reference implementation demonstrating the Python-native MCP App patte
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard of all tracked skills |
+| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard of all skills |
 
 ## loading the MCP server
 
@@ -74,25 +74,16 @@ Or natural language: "show skill dashboard", "skill status", "which skills are s
 
 ## what it shows
 
-- All skills from `skill-maintainer/config.yaml`
-- Status (fresh / stale / critical) -- color-coded
+- All skills auto-discovered from `**/SKILL.md` files
+- Status (fresh / stale / critical) based on `metadata.last_verified` -- color-coded
 - Version from SKILL.md frontmatter
-- Last checked timestamp (from DuckDB if available, file mtime fallback)
-- Token budget bar (from DuckDB v_skill_budget, requires `measure_content.py`)
-- Source dependencies
+- Last verified date from SKILL.md frontmatter
+- Token budget estimated from file sizes in skill directory
 
 ## data sources
 
-1. `skill-maintainer/config.yaml` -- skill registry (always available)
-2. `*/skills/*/SKILL.md` -- version from frontmatter (file scan)
-3. `skill-maintainer/state/skill_maintainer.duckdb` -- freshness + budget (if available)
-
-To populate DuckDB data:
-
-```bash
-uv run python skill-maintainer/scripts/docs_monitor.py   # populate freshness
-uv run python skill-maintainer/scripts/measure_content.py # populate token budgets
-```
+1. `**/SKILL.md` -- auto-discovered skill files (frontmatter for name, version, last_verified)
+2. Skill directories -- file size scan for token budget estimation
 
 ## Python MCP App pattern
 

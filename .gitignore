@@ -221,12 +221,9 @@ __marimo__/
 *.duckdb
 *.duckdb.wal
 
-# Skill maintainer transient files (state.json is versioned)
-skill-maintainer/state/*.md
-skill-maintainer/state/journal.jsonl
-skill-maintainer/state/docs_report.md
-skill-maintainer/state/source_report.md
-skill-maintainer/state/last_report.md
+# Skill maintainer auto-generated state
+skill-maintainer/state/upstream_hashes.json
+skill-maintainer/state/changes.jsonl
 *.backup/
 
 # Internal logs (separate repo)

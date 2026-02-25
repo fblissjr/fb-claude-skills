@@ -1,6 +1,6 @@
 # fb-claude-skills
 
-Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes a self-updating maintenance system that detects upstream changes, validates against the Agent Skills spec, and produces diffs for human review.
+Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes property-driven maintenance via git hooks, Claude Code hooks, and on-demand CLI tools.
 
 ## Repo structure
 
@@ -46,12 +46,10 @@ fb-claude-skills/
     skills/skill-dashboard/  # SKILL.md
     server.py                # FastMCP + mcp-ui server
     templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
-  skill-maintainer/          # Project-scoped: maintains other skills (and itself)
-    SKILL.md                 # Orchestrator: check, update, status, add-source
-    config.yaml              # Source registry
-    scripts/                 # Python automation (all run via uv run)
-    references/              # Best practices, monitored sources
-    state/                   # Versioned state: watermarks, page hashes, timestamps
+  skill-maintainer/          # Project-scoped: maintenance tooling (not a skill)
+    scripts/                 # quality_report, check_upstream, check_freshness, validate_skill, measure_content, query_log
+    references/              # Best practices
+    state/                   # upstream_hashes.json, changes.jsonl (auto-generated)
   docs/
     analysis/                # 16 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
@@ -90,7 +88,7 @@ To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 ### Project-scoped modules
 
-skill-maintainer, heylook-monitor, and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation.
+heylook-monitor and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation. skill-maintainer is project-scoped tooling (scripts + hooks), not a skill.
 
 ## Plugin development
 
@@ -121,22 +119,6 @@ MCP servers expose tools, resources, and prompts to Claude Code and other MCP cl
 
 ## Key patterns
 
-### Docs CDC (Change Data Capture)
-
-Three-layer pipeline in `docs_monitor.py`:
-
-1. **DETECT** -- HEAD request on `llms-full.txt`, compare `Last-Modified` header. Zero bytes if unchanged.
-2. **IDENTIFY** -- fetch `llms-full.txt`, split by `Source:` delimiters, hash each watched page, compare to stored hashes.
-3. **CLASSIFY** -- keyword heuristic on diff text (breaking/additive/cosmetic).
-
-### Source CDC
-
-Git-based monitoring via `source_monitor.py`. Shallow-clones configured repos, checks commits since last run, extracts Python APIs via AST, scans for deprecation keywords.
-
-### Closed-loop updates
-
-detect -> classify -> apply -> validate -> user reviews diff. `apply_updates.py` supports three modes: `report-only`, `apply-local` (default), and `create-pr`. Always validates with skills-ref before any write.
-
 ### Progressive disclosure
 
 SKILL.md stays under 500 lines. Heavy logic in `scripts/`, detailed docs in `references/`. Three levels: frontmatter (always loaded) -> SKILL.md body (loaded when relevant) -> linked files (on demand).
@@ -154,44 +136,34 @@ Three repos form a database-like component stack:
 
 See `docs/analysis/abstraction_analogies.md` for the full treatment.
 
-### Dimensional model (DuckDB store)
-
-skill-maintainer uses a Kimball-style dimensional model in DuckDB (`store.py`):
-
-- **MD5 hash surrogate keys** on all dimensions (deterministic, no sequences)
-- **SCD Type 2** on dimension tables (effective_from/to, is_current, hash_diff) -- no PRIMARY KEY constraints
-- **No PKs on fact tables** (grain = composite dimension keys + timestamp)
-- **Metadata columns** on all tables (record_source, session_id, inserted_at)
-- **Session boundaries as events** in fact_session_event, not a separate table
-
-See `docs/internals/duckdb_schema.md` for the full schema.
-
 ### Catalog as exemplar
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `env-forge/commands/forge.md` step 2.
 
 ## How to keep things fresh
 
+| Concern | Mechanism | Trigger |
+|---------|-----------|---------|
+| Spec compliance | Pre-commit git hook | Automatic on commit |
+| Staleness awareness | PostToolUse hook on Skill tool | Automatic when any skill is used |
+| Quality/budget/freshness | `uv run python skill-maintainer/scripts/quality_report.py` | On demand |
+| Upstream change detection | `uv run python skill-maintainer/scripts/check_upstream.py` | On demand |
+| Change history | `uv run python skill-maintainer/scripts/query_log.py` | On demand |
+
+Other useful commands:
+
 ```bash
-uv run python skill-maintainer/scripts/docs_monitor.py       # check doc changes
-uv run python skill-maintainer/scripts/source_monitor.py      # check source changes
-uv run python skill-maintainer/scripts/update_report.py       # generate unified report
-uv run python skill-maintainer/scripts/apply_updates.py --skill <name>  # apply changes
-uv run python skill-maintainer/scripts/check_freshness.py     # check staleness
-uv run skills-ref validate path/to/SKILL.md                   # validate a skill
-uv run python skill-maintainer/scripts/validate_skill.py --all # validate all skills
+uv run python skill-maintainer/scripts/validate_skill.py --all    # validate all skills
+uv run python skill-maintainer/scripts/measure_content.py          # token budget report
+uv run python skill-maintainer/scripts/check_freshness.py          # staleness check
+uv run skills-ref validate path/to/SKILL.md                        # validate a single skill
 ```
 
-## Configuration
+## State
 
-**Source registry**: `skill-maintainer/config.yaml`
-- `sources`: each has a `type` (docs or source), detection method, and list of watched pages/files
-- `skills`: tracked skills with paths, source dependencies, and auto_update flag
-
-**State**: `skill-maintainer/state/state.json`
-- `docs.{source}._watermark` -- Last-Modified/ETag for the detect layer
-- `docs.{source}._pages.{url}` -- per-page hash, content_preview, last_checked, last_changed
-- `sources.{source}` -- last_commit, commits_since_last, last_checked
+- `skill-maintainer/state/upstream_hashes.json` -- page content hashes for upstream detection (auto-generated)
+- `skill-maintainer/state/changes.jsonl` -- append-only audit log of quality reports and upstream checks
+- `metadata.last_verified` in each SKILL.md frontmatter -- date the skill was last reviewed
 
 ## Documentation index
 
@@ -210,8 +182,7 @@ Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are au
 
 Managed via `pyproject.toml` with uv:
 - `orjson` - fast JSON
-- `duckdb` - dimensional store for skill-maintainer state
-- `httpx` - HTTP client for CDC detect/identify layers
+- `httpx` - HTTP client for upstream change detection
 - `pyyaml` - config parsing
 - `huggingface-hub` - HF dataset access for env-forge catalog
 - `skills-ref` - Agent Skills validator (editable install from `coderef/agentskills/skills-ref`)

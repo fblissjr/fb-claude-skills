@@ -4,6 +4,7 @@ description: Design and implement Kimball-style star schemas in DuckDB for LLM a
 metadata:
   author: Fred Bliss
   version: 0.1.0
+  last_verified: 2026-02-25
 allowed-tools: "Read"
 ---
 
