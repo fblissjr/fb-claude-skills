@@ -16,9 +16,6 @@ fb-claude-skills/
     .claude-plugin/plugin.json
     skills/plugin-toolkit/   # SKILL.md + references/
     agents/                  # plugin-scanner, quality-checker
-  web-tdd/                   # Plugin: TDD workflow for web apps
-    .claude-plugin/plugin.json
-    skills/web-tdd/          # SKILL.md
   cogapp-markdown/           # Plugin: auto-generate markdown sections
     .claude-plugin/plugin.json
     skills/cogapp-markdown/  # SKILL.md
@@ -74,7 +71,6 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin marketplace add fblissjr/fb-claude-skills
 /plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
-/plugin install web-tdd@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
@@ -82,7 +78,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install env-forge@fb-claude-skills
 ```
 
-After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/web-tdd`).
+After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/mece-decomposer:decompose`).
 
 To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
@@ -180,7 +176,9 @@ Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are au
 
 ## Dependencies
 
-Managed via `pyproject.toml` with uv:
+JavaScript/TypeScript projects use `bun` instead of `npm` or `yarn`.
+
+Python managed via `pyproject.toml` with uv:
 - `orjson` - fast JSON
 - `httpx` - HTTP client for upstream change detection
 - `pyyaml` - config parsing

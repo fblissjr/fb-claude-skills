@@ -19,13 +19,7 @@
       "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
       "version": "0.1.0"
     },
-    {
-      "name": "web-tdd",
-      "source": "./web-tdd",
-      "description": "TDD workflow for web applications with Vitest, Playwright, and Vibium",
-      "version": "0.1.0"
-    },
-    {
+{
       "name": "cogapp-markdown",
       "source": "./cogapp-markdown",
       "description": "Auto-generate markdown sections using cogapp",

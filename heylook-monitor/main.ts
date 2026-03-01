@@ -1,6 +1,6 @@
 /**
  * Entry point for running the MCP server.
- * Run with: npx heylook-monitor
+ * Run with: bunx heylook-monitor
  * Or: node dist/index.js [--stdio]
  */
 

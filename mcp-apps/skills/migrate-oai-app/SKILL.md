@@ -5,7 +5,7 @@ metadata:
   author: MCP Apps (adapted by Fred Bliss)
   version: 0.1.0
   last_verified: 2026-02-25
-allowed-tools: "Bash(npm *)"
+allowed-tools: "Bash(bun *), Bash(bunx *)"
 ---
 
 # Migrate OpenAI App to MCP
@@ -16,7 +16,7 @@ Migrate existing OpenAI Apps SDK applications to the MCP Apps SDK (`@modelcontex
 
 ## Best Practices
 
-- Use your package manager to add dependencies (e.g., `npm install`, `pnpm add`, `yarn add`) instead of manually writing version numbers. This lets the package manager resolve the latest compatible versions. Never specify version numbers from memory.
+- Use your package manager to add dependencies (e.g., `bun add`) instead of manually writing version numbers. This lets the package manager resolve the latest compatible versions. Never specify version numbers from memory.
 - Preemptively add a final todo item with this exact wording: "Re-read the 'Before Finishing' checklist in this skill and address each checkbox individually, stating what you did for each one, before marking this todo complete."
 
 ## Getting Reference Code
@@ -24,7 +24,7 @@ Migrate existing OpenAI Apps SDK applications to the MCP Apps SDK (`@modelcontex
 Clone the SDK repository for complete migration documentation and working examples:
 
 ```bash
-git clone --branch "v$(npm view @modelcontextprotocol/ext-apps version)" --depth 1 https://github.com/modelcontextprotocol/ext-apps.git /tmp/mcp-ext-apps
+git clone --branch "v$(bunx npm view @modelcontextprotocol/ext-apps version)" --depth 1 https://github.com/modelcontextprotocol/ext-apps.git /tmp/mcp-ext-apps
 ```
 
 ### Migration Reference Guide
@@ -157,12 +157,12 @@ Test the migrated app with the basic-host example:
 
 ```bash
 # Terminal 1: Build and run your server
-npm run build && npm run serve
+bun run build && bun run serve
 
 # Terminal 2: Run basic-host (from cloned repo)
 cd /tmp/mcp-ext-apps/examples/basic-host
-npm install
-SERVERS='["http://localhost:3001/mcp"]' npm run start
+bun install
+SERVERS='["http://localhost:3001/mcp"]' bun run start
 # Open http://localhost:8080
 ```
 

@@ -44,14 +44,14 @@ The MCP server proxies all API calls to heylookitsanllm. The UI never hits local
 
 ```bash
 cd heylook-monitor
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ### run (HTTP transport)
 
 ```bash
-npm run serve
+bun run serve
 # MCP server listening on http://localhost:3001/mcp
 ```
 
@@ -63,7 +63,7 @@ Add to Claude Desktop settings (`~/.claude/settings.json` or via UI):
 {
   "mcpServers": {
     "heylook-monitor": {
-      "command": "npx",
+      "command": "bunx",
       "args": ["tsx", "/path/to/heylook-monitor/main.ts", "--stdio"],
       "env": {
         "HEYLOOK_URL": "http://localhost:8080"
@@ -79,7 +79,7 @@ Then ask Claude: "show me the LLM server dashboard"
 
 ```bash
 cd coderef/ext-apps/examples/basic-host
-SERVERS='["http://localhost:3001/mcp"]' npm start
+SERVERS='["http://localhost:3001/mcp"]' bun run start
 ```
 
 Open http://localhost:8080, select heylook-monitor, call `show_llm_dashboard`.
@@ -94,8 +94,8 @@ Open http://localhost:8080, select heylook-monitor, call `show_llm_dashboard`.
 ## development
 
 ```bash
-npm run dev    # concurrent vite watch + HTTP server
-npm run watch  # vite watch only
+bun run dev    # concurrent vite watch + HTTP server
+bun run watch  # vite watch only
 ```
 
 ## dashboard features

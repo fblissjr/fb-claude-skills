@@ -6,14 +6,13 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 
 ## plugins
 
-Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (web-tdd, tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
+Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
 
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [mece-decomposer](mece-decomposer/) | Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer |
 | [mcp-apps](mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
 | [plugin-toolkit](plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [web-tdd](web-tdd/) | Skill | TDD workflow for web applications (Vitest, Playwright, Vibium) |
 | [tui-design](tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
 | [cogapp-markdown](cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
@@ -40,7 +39,6 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
-/plugin install web-tdd@fb-claude-skills
 /plugin install tui-design@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
@@ -110,7 +108,6 @@ Once installed, invoke as namespaced slash commands:
 /mcp-apps:migrate-oai-app     # Migrate from OpenAI Apps SDK
 
 /plugin-toolkit                # Analyze and manage plugins
-/web-tdd                       # Set up TDD for a web project
 /tui-design                    # Terminal UI design guidance
 /cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
@@ -160,7 +157,7 @@ The plugins in this repo use stdio transport (local process). To use MCP Apps on
 1. Run the server as an HTTP service (not stdio):
    ```bash
    cd mece-decomposer/mcp-app
-   npm install
+   bun install
    node dist/index.cjs  # starts Streamable HTTP on port 3001
    ```
 2. Host the server somewhere network-accessible

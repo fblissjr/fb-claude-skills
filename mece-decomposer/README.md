@@ -41,14 +41,14 @@ If you want to modify the MCP App:
 
 ```bash
 cd mece-decomposer/mcp-app
-npm install
-npm run dev     # hot reload for UI + server
+bun install
+bun run dev     # hot reload for UI + server
 ```
 
 To rebuild the production bundle:
 
 ```bash
-npm run build   # outputs dist/index.cjs (self-contained) + dist/mcp-app.html
+bun run build   # outputs dist/index.cjs (self-contained) + dist/mcp-app.html
 ```
 
 ## Commands

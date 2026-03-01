@@ -5,7 +5,7 @@ metadata:
   author: MCP Apps (adapted by Fred Bliss)
   version: 0.1.0
   last_verified: 2026-02-25
-allowed-tools: "Bash(npm *), Bash(git *)"
+allowed-tools: "Bash(bun *), Bash(bunx *), Bash(git *)"
 ---
 
 # Create MCP App
@@ -53,7 +53,7 @@ Host calls tool -> Server returns result -> Host renders resource UI -> UI recei
 Clone the SDK repository for working examples and API documentation:
 
 ```bash
-git clone --branch "v$(npm view @modelcontextprotocol/ext-apps version)" --depth 1 https://github.com/modelcontextprotocol/ext-apps.git /tmp/mcp-ext-apps
+git clone --branch "v$(bunx npm view @modelcontextprotocol/ext-apps version)" --depth 1 https://github.com/modelcontextprotocol/ext-apps.git /tmp/mcp-ext-apps
 ```
 
 ### Framework Templates
@@ -107,20 +107,20 @@ Read JSDoc documentation directly from `/tmp/mcp-ext-apps/src/`:
 
 ### Adding Dependencies
 
-Use `npm install` to add dependencies rather than manually writing version numbers:
+Use `bun add` to add dependencies rather than manually writing version numbers:
 
 ```bash
-npm install @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk zod
+bun add @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk zod
 ```
 
-This lets npm resolve the latest compatible versions. Never specify version numbers from memory.
+This lets bun resolve the latest compatible versions. Never specify version numbers from memory.
 
 ### TypeScript Server Execution
 
 Use `tsx` as a devDependency for running TypeScript server files:
 
 ```bash
-npm install -D tsx
+bun add -D tsx
 ```
 
 ```json
@@ -326,12 +326,12 @@ Test MCP Apps locally with the basic-host example:
 
 ```bash
 # Terminal 1: Build and run your server
-npm run build && npm run serve
+bun run build && bun run serve
 
 # Terminal 2: Run basic-host (from cloned repo)
 cd /tmp/mcp-ext-apps/examples/basic-host
-npm install
-SERVERS='["http://localhost:3001/mcp"]' npm run start
+bun install
+SERVERS='["http://localhost:3001/mcp"]' bun run start
 # Open http://localhost:8080
 ```
 

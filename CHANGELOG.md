@@ -1,5 +1,14 @@
 # changelog
 
+## 0.14.0
+
+### removed
+- **web-tdd**: removed plugin (generic TDD workflow that duplicates Claude's built-in knowledge; stack preferences belong in CLAUDE.md)
+
+### changed
+- migrated all JS/TS tooling references from npm/npx to bun/bunx across package.json scripts, SKILL.md files, READMEs, and settings
+- replaced package-lock.json with bun.lockb in heylook-monitor and mece-decomposer/mcp-app
+
 ## 0.13.0
 
 ### changed
