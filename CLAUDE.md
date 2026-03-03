@@ -6,6 +6,7 @@ Plugin marketplace and extension system for Claude Code. Bundles skills, agents,
 
 ```
 fb-claude-skills/
+  .mcp.json                  # Root MCP server config (skill-dashboard auto-starts)
   .claude-plugin/
     marketplace.json         # Root marketplace catalog (lists all installable plugins)
   mcp-apps/                  # Plugin: MCP Apps creation and migration
@@ -42,12 +43,11 @@ fb-claude-skills/
   heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
   skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
     .claude-plugin/plugin.json
-    .mcp.json                # MCP server auto-configuration (stdio)
     skills/skill-dashboard/  # SKILL.md
-    server.py                # FastMCP + mcp-ui server
+    server.py                # FastMCP + mcp-ui server (imports run_tests.py from skill-maintainer)
     templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
   skill-maintainer/          # Project-scoped: maintenance tooling (not a skill)
-    scripts/                 # quality_report, check_upstream, pull_sources, check_freshness, validate_skill, measure_content, query_log
+    scripts/                 # shared, run_tests, quality_report, check_upstream, pull_sources, check_freshness, validate_skill, measure_content, query_log
     references/              # Best practices
     state/                   # upstream_hashes.json, changes.jsonl (auto-generated)
   docs/
@@ -144,11 +144,16 @@ Skills are retrieval. High precision is the constraint, high recall is the goal.
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `env-forge/commands/forge.md` step 2.
 
+### Cross-member imports
+
+`skill-dashboard/server.py` imports from `skill-maintainer/scripts/` via `sys.path.insert`. This is necessary because both are `package = false` uv workspace members. `shared.py` in `skill-maintainer/scripts/` is the canonical home for reusable functions (discovery, token measurement, description quality checks). Budget threshold constants (`TOKEN_BUDGET_WARN`, `TOKEN_BUDGET_CRITICAL`) live in `shared.py` and are injected into downstream consumers (dashboard HTML) -- never hardcode them.
+
 ## How to keep things fresh
 
 | Concern | Mechanism | Trigger |
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
+| Red/green tests | `uv run python skill-maintainer/scripts/run_tests.py` | On demand |
 | Full maintenance pass | `/maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
 | Quality/budget/freshness | `uv run python skill-maintainer/scripts/quality_report.py` | On demand |
 | Upstream change detection | `uv run python skill-maintainer/scripts/check_upstream.py` | On demand |
@@ -192,7 +197,7 @@ Python managed as a **uv workspace**. The root `pyproject.toml` coordinates four
 |--------|-----------------|
 | `skill-maintainer` | orjson, httpx, skills-ref (PyPI) |
 | `env-forge` | orjson, huggingface-hub |
-| `skill-dashboard` | orjson, pyyaml, mcp, mcp-ui-server (git) |
+| `skill-dashboard` | orjson, mcp, mcp-ui-server (git) |
 | `mece-decomposer` | orjson |
 
 Setup: `uv sync --all-packages` installs all member deps into a shared venv. Existing `uv run` commands work unchanged.

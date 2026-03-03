@@ -35,3 +35,41 @@ def discover_plugins(root: Path) -> list[Path]:
             continue
         results.append(plugin_dir)
     return results
+
+
+def measure_tokens(skill_dir: Path) -> int:
+    """Estimate total tokens for all text files in a skill directory."""
+    total_chars = 0
+    skip = SKIP_DIRS | {"state"}
+    for f in skill_dir.rglob("*"):
+        if f.is_dir() or f.name.startswith("."):
+            continue
+        if any(s in f.parts for s in skip):
+            continue
+        if f.suffix in (".md", ".py", ".yaml", ".yml", ".json", ".txt", ".sh", ".toml"):
+            try:
+                total_chars += len(f.read_text())
+            except (OSError, UnicodeDecodeError):
+                pass
+    return total_chars // 4
+
+
+def check_description_quality(description: str) -> list[str]:
+    """Check description for WHAT verb + WHEN trigger."""
+    issues = []
+    if not description:
+        return ["no description"]
+    desc_lower = description.lower()
+    has_what = any(w in desc_lower for w in [
+        "use when", "use for", "handles", "manages", "creates",
+        "generates", "monitors", "validates", "analyzes", "design",
+    ])
+    has_when = any(w in desc_lower for w in [
+        "use when", "when user", "when the", "if user",
+        "trigger", "mention", "says",
+    ])
+    if not has_what:
+        issues.append("missing WHAT verb")
+    if not has_when:
+        issues.append("missing WHEN trigger")
+    return issues

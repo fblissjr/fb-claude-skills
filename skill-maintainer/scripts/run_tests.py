@@ -29,8 +29,10 @@ from shared import (
     STALE_DAYS,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
+    check_description_quality,
     discover_plugins,
     discover_skills,
+    measure_tokens,
 )
 
 PLUGIN_REQUIRED_FIELDS = ("name", "version", "description", "author", "repository")
@@ -59,44 +61,6 @@ class Result:
 # ---------------------------------------------------------------------------
 # Skill tests
 # ---------------------------------------------------------------------------
-
-
-def measure_tokens(skill_dir: Path) -> int:
-    """Estimate total tokens for all text files in a skill directory."""
-    total_chars = 0
-    skip = {"__pycache__", ".backup", "node_modules", "state"}
-    for f in skill_dir.rglob("*"):
-        if f.is_dir() or f.name.startswith("."):
-            continue
-        if any(s in f.parts for s in skip):
-            continue
-        if f.suffix in (".md", ".py", ".yaml", ".yml", ".json", ".txt", ".sh", ".toml"):
-            try:
-                total_chars += len(f.read_text())
-            except (OSError, UnicodeDecodeError):
-                pass
-    return total_chars // 4
-
-
-def check_description_quality(description: str) -> list[str]:
-    """Check description for WHAT verb + WHEN trigger."""
-    issues = []
-    if not description:
-        return ["no description"]
-    desc_lower = description.lower()
-    has_what = any(w in desc_lower for w in [
-        "use when", "use for", "handles", "manages", "creates",
-        "generates", "monitors", "validates", "analyzes", "design",
-    ])
-    has_when = any(w in desc_lower for w in [
-        "use when", "when user", "when the", "if user",
-        "trigger", "mention", "says",
-    ])
-    if not has_what:
-        issues.append("missing WHAT verb")
-    if not has_when:
-        issues.append("missing WHEN trigger")
-    return issues
 
 
 def test_skills(root: Path) -> list[Result]:
@@ -325,7 +289,8 @@ def test_repo_hygiene(root: Path) -> list[Result]:
     # 5. best_practices.md freshness
     bp_path = root / BEST_PRACTICES_PATH
     if bp_path.exists():
-        first_line = bp_path.read_text().splitlines()[0] if bp_path.read_text() else ""
+        content = bp_path.read_text()
+        first_line = content.splitlines()[0] if content else ""
         bp_date = None
         if first_line.startswith("last updated:"):
             try:

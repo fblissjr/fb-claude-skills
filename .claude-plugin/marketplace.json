@@ -46,8 +46,8 @@
     {
       "name": "skill-dashboard",
       "source": "./skill-dashboard",
-      "description": "Python-native MCP App skill dashboard: health status, token budgets, and freshness for all tracked skills",
-      "version": "0.1.0"
+      "description": "Python-native MCP App dashboard: skills, plugins, and repo hygiene with pass/fail indicators",
+      "version": "0.3.0"
     },
     {
       "name": "env-forge",

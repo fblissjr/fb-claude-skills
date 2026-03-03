@@ -1,5 +1,16 @@
 # changelog
 
+## 0.16.0
+
+### changed
+- **skill-dashboard**: rewritten to show full run_tests.py dataset (was: 5 columns from file scan; now: skills + plugins + repo hygiene pass/fail)
+  - server.py imports test_skills/test_plugins/test_repo_hygiene from run_tests.py (no more duplicated discovery/measurement code)
+  - HTML template: skills table with spec, description quality, freshness, budget, body size; plugins table with manifest/marketplace/README checks; repo hygiene section
+  - dropped pyyaml dependency (no longer parses frontmatter directly)
+  - bumped to v0.3.0
+- **skill-dashboard**: moved `.mcp.json` from `skill-dashboard/` to project root so Claude Code auto-discovers the MCP server
+- **skill-maintainer**: consolidated `measure_tokens()` and `check_description_quality()` into `shared.py` (was duplicated in run_tests.py and quality_report.py)
+
 ## 0.15.1
 
 ### added

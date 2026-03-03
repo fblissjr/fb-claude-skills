@@ -21,160 +21,183 @@
       <p class="text-gray-500 text-xs mt-0.5">fb-claude-skills &bull; <span x-text="meta.generated_at"></span></p>
     </div>
     <div class="flex gap-2 text-xs">
-      <span class="px-2 py-1 rounded bg-gray-800 text-gray-300" x-text="skills.length + ' skills'"></span>
-      <span class="px-2 py-1 rounded bg-green-900 text-green-300" x-text="counts.fresh + ' fresh'"></span>
-      <span class="px-2 py-1 rounded bg-amber-900 text-amber-300" x-text="counts.stale + ' stale'"></span>
-      <span class="px-2 py-1 rounded bg-red-900 text-red-300" x-text="counts.critical + ' critical'"></span>
+      <span class="px-2 py-1 rounded bg-green-900 text-green-300" x-text="summary.passed + ' passed'"></span>
+      <span class="px-2 py-1 rounded bg-red-900 text-red-300" x-text="summary.failed + ' failed'"></span>
+      <span class="px-2 py-1 rounded bg-gray-800 text-gray-300" x-text="summary.total + ' total'"></span>
     </div>
   </div>
 
-  <!-- Filter bar -->
-  <div class="flex gap-2 mb-4 text-xs">
-    <button @click="filter = 'all'"
-      :class="filter === 'all' ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'"
-      class="px-3 py-1.5 rounded transition-colors">all</button>
-    <button @click="filter = 'fresh'"
-      :class="filter === 'fresh' ? 'bg-green-800 text-green-200' : 'bg-gray-900 text-gray-400 hover:text-white'"
-      class="px-3 py-1.5 rounded transition-colors">fresh</button>
-    <button @click="filter = 'stale'"
-      :class="filter === 'stale' ? 'bg-amber-800 text-amber-200' : 'bg-gray-900 text-gray-400 hover:text-white'"
-      class="px-3 py-1.5 rounded transition-colors">stale</button>
-    <button @click="filter = 'critical'"
-      :class="filter === 'critical' ? 'bg-red-800 text-red-200' : 'bg-gray-900 text-gray-400 hover:text-white'"
-      class="px-3 py-1.5 rounded transition-colors">critical</button>
-  </div>
-
-  <!-- Skills table -->
-  <div class="rounded-lg border border-gray-800 overflow-hidden">
+  <!-- Skills section -->
+  <h2 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Skills</h2>
+  <div class="rounded-lg border border-gray-800 overflow-hidden mb-6">
     <table class="w-full">
       <thead>
         <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wide">
           <th class="px-4 py-3 text-left">skill</th>
-          <th class="px-4 py-3 text-left">version</th>
-          <th class="px-4 py-3 text-left">status</th>
-          <th class="px-4 py-3 text-left">last checked</th>
-          <th class="px-4 py-3 text-left">budget</th>
-          <th class="px-4 py-3 text-left">sources</th>
+          <th class="px-3 py-3 text-center">spec</th>
+          <th class="px-3 py-3 text-center">description</th>
+          <th class="px-3 py-3 text-left">freshness</th>
+          <th class="px-3 py-3 text-left">budget</th>
+          <th class="px-3 py-3 text-left">body</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-800">
-        <template x-for="skill in filtered" :key="skill.name">
+        <template x-for="skill in skills" :key="skill.name">
           <tr class="hover:bg-gray-900 transition-colors">
-            <!-- Skill name -->
+            <!-- Name -->
             <td class="px-4 py-3">
-              <div class="flex items-center gap-2">
-                <span :class="statusDot(skill.status)" class="w-2 h-2 rounded-full flex-shrink-0"></span>
-                <span class="text-white font-medium" x-text="skill.name"></span>
-              </div>
-              <div class="text-gray-500 text-xs mt-0.5 ml-4" x-text="skill.path"></div>
+              <span class="text-white font-medium" x-text="skill.name"></span>
             </td>
-            <!-- Version -->
-            <td class="px-4 py-3 text-gray-400" x-text="skill.version || '—'"></td>
-            <!-- Status -->
-            <td class="px-4 py-3">
-              <span :class="statusBadge(skill.status)" class="px-2 py-0.5 rounded text-xs font-medium" x-text="skill.status"></span>
+            <!-- Spec compliance -->
+            <td class="px-3 py-3 text-center">
+              <span :class="checkDot(skill, 'spec compliance')" class="inline-block w-2 h-2 rounded-full"
+                    :title="checkDetail(skill, 'spec compliance')"></span>
             </td>
-            <!-- Last checked -->
-            <td class="px-4 py-3 text-gray-400 text-xs" x-text="skill.last_checked || '—'"></td>
+            <!-- Description quality -->
+            <td class="px-3 py-3 text-center">
+              <span :class="checkDot(skill, 'description quality')" class="inline-block w-2 h-2 rounded-full"
+                    :title="checkDetail(skill, 'description quality')"></span>
+            </td>
+            <!-- Freshness -->
+            <td class="px-3 py-3">
+              <template x-if="skill.checks['staleness']">
+                <span :class="skill.checks['staleness'].passed ? 'text-green-400' : 'text-red-400'"
+                      class="text-xs" x-text="skill.checks['staleness'].detail"></span>
+              </template>
+            </td>
             <!-- Token budget -->
-            <td class="px-4 py-3">
-              <template x-if="skill.token_count !== null">
+            <td class="px-3 py-3">
+              <template x-if="skill.checks['token budget']">
                 <div>
                   <div class="flex items-center gap-2">
-                    <span :class="budgetColor(skill.token_count)" class="text-xs font-medium" x-text="formatTokens(skill.token_count)"></span>
-                    <span class="text-gray-600 text-xs" x-text="skill.token_count > 0 ? '/ 8k' : ''"></span>
+                    <span :class="skill.checks['token budget'].passed ? 'text-green-400' : 'text-red-400'"
+                          class="text-xs font-medium" x-text="formatTokenDetail(skill.checks['token budget'].detail)"></span>
                   </div>
-                  <div class="mt-1 h-1 rounded bg-gray-800 w-20" x-show="skill.token_count > 0">
-                    <div :class="budgetBar(skill.token_count)"
+                  <div class="mt-1 h-1 rounded bg-gray-800 w-16">
+                    <div :class="budgetBar(skill.checks['token budget'])"
                          class="h-1 rounded transition-all"
-                         :style="'width:' + Math.min(100, Math.round(skill.token_count / 8000 * 100)) + '%'">
+                         :style="'width:' + budgetPct(skill.checks['token budget'].detail) + '%'">
                     </div>
                   </div>
                 </div>
               </template>
-              <span x-if="skill.token_count === null" class="text-gray-600 text-xs">—</span>
             </td>
-            <!-- Sources -->
-            <td class="px-4 py-3">
-              <div class="flex flex-wrap gap-1">
-                <template x-for="src in skill.sources" :key="src">
-                  <span class="px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 text-xs" x-text="src"></span>
-                </template>
-              </div>
+            <!-- Body size -->
+            <td class="px-3 py-3">
+              <template x-if="skill.checks['body size']">
+                <span :class="skill.checks['body size'].passed ? 'text-gray-400' : 'text-red-400'"
+                      class="text-xs" x-text="skill.checks['body size'].detail"></span>
+              </template>
             </td>
           </tr>
         </template>
-        <!-- Empty state -->
-        <tr x-show="filtered.length === 0">
-          <td colspan="6" class="px-4 py-8 text-center text-gray-600">no skills match filter</td>
+        <tr x-show="skills.length === 0">
+          <td colspan="6" class="px-4 py-8 text-center text-gray-600">no skills found</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- Footer -->
-  <div class="mt-4 text-xs text-gray-600">
-    <span x-show="meta.duckdb_available">data source: duckdb store</span>
-    <span x-show="!meta.duckdb_available">data source: file scan (run measure_content.py for budget data)</span>
+  <!-- Plugins section -->
+  <h2 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Plugins</h2>
+  <div class="rounded-lg border border-gray-800 overflow-hidden mb-6">
+    <table class="w-full">
+      <thead>
+        <tr class="bg-gray-900 text-gray-400 text-xs uppercase tracking-wide">
+          <th class="px-4 py-3 text-left">plugin</th>
+          <th class="px-3 py-3 text-center">manifest</th>
+          <th class="px-3 py-3 text-center">marketplace</th>
+          <th class="px-3 py-3 text-center">readme</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        <template x-for="plugin in plugins" :key="plugin.name">
+          <tr class="hover:bg-gray-900 transition-colors">
+            <td class="px-4 py-3">
+              <span class="text-white font-medium" x-text="plugin.name"></span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span :class="checkDot(plugin, 'manifest fields')" class="inline-block w-2 h-2 rounded-full"
+                    :title="checkDetail(plugin, 'manifest fields')"></span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span :class="checkDot(plugin, 'marketplace listing')" class="inline-block w-2 h-2 rounded-full"
+                    :title="checkDetail(plugin, 'marketplace listing')"></span>
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span :class="checkDot(plugin, 'README exists')" class="inline-block w-2 h-2 rounded-full"
+                    :title="checkDetail(plugin, 'README exists')"></span>
+            </td>
+          </tr>
+        </template>
+        <tr x-show="plugins.length === 0">
+          <td colspan="4" class="px-4 py-8 text-center text-gray-600">no plugins found</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
+
+  <!-- Repo hygiene section -->
+  <h2 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Repo Hygiene</h2>
+  <div class="rounded-lg border border-gray-800 overflow-hidden mb-4">
+    <div class="divide-y divide-gray-800">
+      <template x-for="item in repo" :key="item.check">
+        <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-900 transition-colors">
+          <span :class="item.passed ? 'bg-green-400' : 'bg-red-400'" class="w-2 h-2 rounded-full flex-shrink-0"></span>
+          <span class="text-gray-300 text-xs" x-text="item.check"></span>
+          <span x-show="item.detail" class="text-gray-600 text-xs ml-auto" x-text="item.detail"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// Skill data injected by server
-const SKILL_DATA = __SKILL_DATA__;
+// Dashboard data injected by server
+const DASHBOARD_DATA = __DASHBOARD_DATA__;
 
 function dashboard() {
   return {
-    skills: SKILL_DATA.skills,
-    meta: SKILL_DATA.meta,
-    filter: 'all',
+    skills: DASHBOARD_DATA.skills,
+    plugins: DASHBOARD_DATA.plugins,
+    repo: DASHBOARD_DATA.repo,
+    summary: DASHBOARD_DATA.summary,
+    meta: DASHBOARD_DATA.meta,
 
-    get filtered() {
-      if (this.filter === 'all') return this.skills;
-      return this.skills.filter(s => s.status === this.filter);
+    checkDot(entity, checkName) {
+      const c = entity.checks[checkName];
+      if (!c) return 'bg-gray-500';
+      return c.passed ? 'bg-green-400' : 'bg-red-400';
     },
 
-    get counts() {
-      return {
-        fresh: this.skills.filter(s => s.status === 'fresh').length,
-        stale: this.skills.filter(s => s.status === 'stale').length,
-        critical: this.skills.filter(s => s.status === 'critical').length,
-      };
+    checkDetail(entity, checkName) {
+      const c = entity.checks[checkName];
+      if (!c) return '';
+      return c.passed ? 'OK' : (c.detail || 'FAIL');
     },
 
-    statusDot(status) {
-      return {
-        'bg-green-400': status === 'fresh',
-        'bg-amber-400': status === 'stale',
-        'bg-red-400': status === 'critical',
-        'bg-gray-500': !['fresh', 'stale', 'critical'].includes(status),
-      };
+    formatTokenDetail(detail) {
+      if (!detail) return '';
+      const num = parseInt(detail.replace(/,/g, ''));
+      if (isNaN(num)) return detail;
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+      return String(num);
     },
 
-    statusBadge(status) {
-      return {
-        'bg-green-900 text-green-300': status === 'fresh',
-        'bg-amber-900 text-amber-300': status === 'stale',
-        'bg-red-900 text-red-300': status === 'critical',
-        'bg-gray-800 text-gray-400': !['fresh', 'stale', 'critical'].includes(status),
-      };
+    budgetPct(detail) {
+      if (!detail) return 0;
+      const num = parseInt(detail.replace(/,/g, ''));
+      if (isNaN(num)) return 0;
+      return Math.min(100, Math.round(num / this.meta.budget_critical * 100));
     },
 
-    budgetColor(tokens) {
-      if (tokens > 8000) return 'text-red-400';
-      if (tokens > 4000) return 'text-amber-400';
-      return 'text-green-400';
-    },
-
-    budgetBar(tokens) {
-      if (tokens > 8000) return 'bg-red-500';
-      if (tokens > 4000) return 'bg-amber-500';
+    budgetBar(check) {
+      if (!check) return 'bg-gray-500';
+      const num = parseInt(check.detail.replace(/,/g, ''));
+      if (num > this.meta.budget_critical) return 'bg-red-500';
+      if (num > this.meta.budget_warn) return 'bg-amber-500';
       return 'bg-green-500';
-    },
-
-    formatTokens(n) {
-      if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-      return String(n);
     },
   };
 }

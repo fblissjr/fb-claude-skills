@@ -25,54 +25,10 @@ from shared import (
     STALE_DAYS,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
+    check_description_quality,
     discover_skills,
+    measure_tokens,
 )
-
-
-def measure_tokens(skill_dir: Path) -> int:
-    """Estimate total tokens for all text files in a skill directory."""
-    total_chars = 0
-    skip = {"__pycache__", ".backup", "node_modules", "state"}
-    for f in skill_dir.rglob("*"):
-        if f.is_dir():
-            continue
-        if f.name.startswith("."):
-            continue
-        if any(s in f.parts for s in skip):
-            continue
-        if f.suffix in (".md", ".py", ".yaml", ".yml", ".json", ".txt", ".sh", ".toml"):
-            try:
-                total_chars += len(f.read_text())
-            except (OSError, UnicodeDecodeError):
-                pass
-    return total_chars // 4
-
-
-def check_description_quality(description: str) -> list[str]:
-    """Check description for WHAT + WHEN pattern."""
-    issues = []
-    if not description:
-        issues.append("no description")
-        return issues
-
-    desc_lower = description.lower()
-    has_what = any(w in desc_lower for w in [
-        "use when", "use for", "handles", "manages", "creates",
-        "generates", "monitors", "validates", "analyzes", "design",
-    ])
-    has_when = any(w in desc_lower for w in [
-        "use when", "when user", "when the", "if user",
-        "trigger", "mention", "says",
-    ])
-
-    if not has_what:
-        issues.append("missing WHAT verb")
-    if not has_when:
-        issues.append("missing WHEN trigger")
-    if "<" in description or ">" in description:
-        issues.append("angle brackets in description")
-
-    return issues
 
 
 def analyze_skill(skill_dir: Path) -> dict:

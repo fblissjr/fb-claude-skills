@@ -1016,13 +1016,12 @@ wheels = [
 
 [[package]]
 name = "skill-dashboard"
-version = "0.1.0"
+version = "0.3.0"
 source = { virtual = "skill-dashboard" }
 dependencies = [
     { name = "mcp" },
     { name = "mcp-ui-server" },
     { name = "orjson" },
-    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -1030,7 +1029,6 @@ requires-dist = [
     { name = "mcp", specifier = ">=1.0.0" },
     { name = "mcp-ui-server", git = "https://github.com/idosal/mcp-ui?subdirectory=sdks%2Fpython%2Fserver" },
     { name = "orjson", specifier = ">=3.10" },
-    { name = "pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]

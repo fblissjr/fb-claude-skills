@@ -1,8 +1,8 @@
-last updated: 2026-02-25
+last updated: 2026-03-03
 
 # skill-dashboard
 
-Project-scoped MCP App that renders a live HTML dashboard of all skills in the project. Shows health status, token budgets, freshness, and version info.
+Project-scoped MCP App that renders a live HTML dashboard of the entire skill ecosystem. Runs the full `run_tests.py` suite and shows pass/fail results for skills, plugins, and repo hygiene.
 
 This is a reference implementation demonstrating the Python-native MCP App pattern using the mcp-ui SDK (rawHtml approach) -- no Node.js or build step required.
 
@@ -10,33 +10,11 @@ This is a reference implementation demonstrating the Python-native MCP App patte
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard of all skills |
+| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard with pass/fail indicators |
 
 ## loading the MCP server
 
-The `.mcp.json` is in the `skill-dashboard/` subdirectory, so it does not auto-load. You need to connect it explicitly depending on your surface.
-
-### Claude Code (CLI)
-
-```bash
-claude --mcp-config skill-dashboard/.mcp.json
-```
-
-Or add to a root-level `.mcp.json` in this repo:
-
-```json
-{
-  "mcpServers": {
-    "skill-dashboard": {
-      "command": "uv",
-      "args": ["run", "python", "skill-dashboard/server.py"],
-      "cwd": "${workspaceFolder}"
-    }
-  }
-}
-```
-
-Claude Code renders text only -- no visual UI panel.
+The root `.mcp.json` auto-loads the server when Claude Code opens this project. No manual configuration needed.
 
 ### Claude Desktop / Cowork
 
@@ -56,13 +34,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Note: use an absolute path for `cwd` -- `${workspaceFolder}` is Claude Code-only.
 
-Restart Claude Desktop after adding. The server will be available in both Desktop and Cowork.
-
 ### Cowork UI rendering
 
 Cowork renders MCP App UIs. Whether the rawHtml format from the mcp-ui SDK renders as an interactive panel (vs falling back to text) depends on whether Cowork recognizes the `ui://` URI scheme from this SDK. The ext-apps SDK is the officially documented approach; mcp-ui is a compatible but separate implementation.
-
-**To verify:** after connecting the server in Claude Desktop, open Cowork and say "show skill dashboard". If a visual panel appears, rawHtml is supported. If you get a text response, the server is working but Cowork is not rendering the resource format.
 
 ## invocation
 
@@ -74,16 +48,28 @@ Or natural language: "show skill dashboard", "skill status", "which skills are s
 
 ## what it shows
 
-- All skills auto-discovered from `**/SKILL.md` files
-- Status (fresh / stale / critical) based on `metadata.last_verified` -- color-coded
-- Version from SKILL.md frontmatter
-- Last verified date from SKILL.md frontmatter
-- Token budget estimated from file sizes in skill directory
+### skills (per-skill checks)
+- Spec compliance (skills-ref validation)
+- Description quality (WHAT verb + WHEN trigger)
+- Freshness (days since last_verified)
+- Token budget (warn >4k, critical >8k)
+- Body size (line count, warn >500)
+
+### plugins (per-plugin checks)
+- Manifest fields (name, version, description, author, repository)
+- Marketplace listing (in marketplace.json)
+- README exists
+
+### repo hygiene
+- No blanket .claude/ gitignore
+- No broad ambient hooks
+- State files gitignored
+- No duplicate skill names
+- best_practices.md freshness
 
 ## data sources
 
-1. `**/SKILL.md` -- auto-discovered skill files (frontmatter for name, version, last_verified)
-2. Skill directories -- file size scan for token budget estimation
+All data comes from `skill-maintainer/scripts/run_tests.py` -- the server imports and runs `test_skills()`, `test_plugins()`, and `test_repo_hygiene()` directly.
 
 ## Python MCP App pattern
 
