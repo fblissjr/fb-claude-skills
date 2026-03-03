@@ -1,0 +1,9 @@
+{
+  "name": "dev-conventions",
+  "version": "0.1.0",
+  "description": "Development conventions: language-specific tooling (Python/uv, JS/bun), TDD workflow, and documentation standards",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

@@ -18,20 +18,7 @@ from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
 
-DEFAULT_THRESHOLD_DAYS = 30
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
-
-
-def discover_skills(root: Path) -> list[Path]:
-    """Find all SKILL.md files, return their parent directories."""
-    results = []
-    for skill_md in sorted(root.rglob("SKILL.md")):
-        if any(skip in skill_md.parts for skip in SKIP_DIRS):
-            continue
-        if ".backup" in str(skill_md):
-            continue
-        results.append(skill_md.parent)
-    return results
+from shared import STALE_DAYS, discover_skills
 
 
 def get_last_verified(skill_dir: Path) -> str | None:
@@ -97,7 +84,7 @@ def check_skill(skill_dir: Path, threshold_days: int) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Check freshness of skills.")
     parser.add_argument("skill", nargs="?", default=None, help="Skill directory name to check")
-    parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD_DAYS, help="Staleness threshold in days")
+    parser.add_argument("--threshold", type=int, default=STALE_DAYS, help="Staleness threshold in days")
     parser.add_argument("--quiet", "-q", action="store_true", help="Only output stale skills")
     args = parser.parse_args()
 

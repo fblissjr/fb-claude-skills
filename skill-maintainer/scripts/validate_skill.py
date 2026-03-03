@@ -17,22 +17,10 @@ from pathlib import Path
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skills_ref.validator import validate
 
+from shared import discover_skills
+
 SKILL_MD_MAX_LINES = 500
 SKILL_MD_MAX_WORDS = 5000
-
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
-
-
-def discover_skills(root: Path) -> list[Path]:
-    """Find all SKILL.md files, return their parent directories."""
-    results = []
-    for skill_md in sorted(root.rglob("SKILL.md")):
-        if any(skip in skill_md.parts for skip in SKIP_DIRS):
-            continue
-        if ".backup" in str(skill_md):
-            continue
-        results.append(skill_md.parent)
-    return results
 
 
 def check_best_practices(skill_path: Path) -> list[str]:

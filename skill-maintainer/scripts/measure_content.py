@@ -18,8 +18,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-TOKEN_BUDGET_WARN = 4000
-TOKEN_BUDGET_CRITICAL = 8000
+from shared import TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN, discover_skills
 
 FILE_TYPE_MAP = {
     "SKILL.md": "skill_md",
@@ -27,18 +26,6 @@ FILE_TYPE_MAP = {
 }
 
 SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal", "state"}
-
-
-def discover_skills(root: Path) -> list[Path]:
-    """Find all SKILL.md files, return their parent directories."""
-    results = []
-    for skill_md in sorted(root.rglob("SKILL.md")):
-        if any(skip in skill_md.parts for skip in SKIP_DIRS):
-            continue
-        if ".backup" in str(skill_md):
-            continue
-        results.append(skill_md.parent)
-    return results
 
 
 def classify_file(file_path: Path, skill_root: Path) -> str:

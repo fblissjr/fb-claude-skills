@@ -20,24 +20,13 @@ import orjson
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skills_ref.validator import validate
 
-TOKEN_BUDGET_WARN = 4000
-TOKEN_BUDGET_CRITICAL = 8000
-STALE_DAYS = 30
-CHANGES_LOG = Path("skill-maintainer/state/changes.jsonl")
-
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
-
-
-def discover_skills(root: Path) -> list[Path]:
-    """Find all SKILL.md files, return their parent directories."""
-    results = []
-    for skill_md in sorted(root.rglob("SKILL.md")):
-        if any(skip in skill_md.parts for skip in SKIP_DIRS):
-            continue
-        if ".backup" in str(skill_md):
-            continue
-        results.append(skill_md.parent)
-    return results
+from shared import (
+    CHANGES_LOG,
+    STALE_DAYS,
+    TOKEN_BUDGET_CRITICAL,
+    TOKEN_BUDGET_WARN,
+    discover_skills,
+)
 
 
 def measure_tokens(skill_dir: Path) -> int:

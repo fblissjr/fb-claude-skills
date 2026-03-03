@@ -69,6 +69,14 @@ def main():
             detail = f"{n} pages changed" if n else "no changes"
             if pages:
                 detail += f": {', '.join(p.split('/')[-1] for p in pages[:3])}"
+        elif event_type == "source_pull":
+            n = event.get("repos_changed", 0)
+            repos = [c["repo"].replace("coderef/", "") for c in event.get("changes", [])]
+            detail = f"{n}/{event.get('repos_checked', '?')} repos changed"
+            if repos:
+                detail += f": {', '.join(repos[:3])}"
+                if len(repos) > 3:
+                    detail += f" +{len(repos) - 3} more"
         elif event_type == "quality_report":
             detail = (
                 f"{event.get('valid', '?')}/{event.get('skills', '?')} valid, "

@@ -1,5 +1,50 @@
 # changelog
 
+## 0.15.1
+
+### added
+- **skill-maintainer**: `run_tests.py` -- red/green test suite encoding best_practices.md as pass/fail checks
+  - three categories: skills (spec, budget, body size, staleness, description), plugins (manifest, marketplace, README), repo hygiene (gitignore, hooks, state, duplicates, freshness)
+  - `--verbose` shows all results; `--category skills|plugins|repo` runs one category
+  - no network calls, no file writes, pure read-only
+- **skill-maintainer**: `/maintain` slash command for full maintenance passes
+  - orchestrates pull_sources.py -> check_upstream.py -> quality_report.py -> best_practices.md review
+  - Claude proposes edits to best_practices.md based on detected changes; user approves before any writes
+- **skill-maintainer**: `pull_sources.py` script for pulling 10 tracked coderef repos and detecting changes
+  - records HEAD SHAs in `upstream_hashes.json["local_repos"]`, captures commit logs for changed repos
+  - appends `source_pull` events to `changes.jsonl` audit log
+  - CLI flags: `--no-pull`, `--no-save`, `--no-log`
+- `VISION.md`: design principles document -- skills as retrieval, precision/recall framework, progressive disclosure, always-loaded context justification
+- **skill-maintainer**: `shared.py` -- added `discover_plugins()` function (mirrors `discover_skills()` for plugin directories)
+
+### changed
+- `query_log.py`: added `source_pull` event type display
+- `.claude/rules/plugins.md`: removed stale references to config.yaml and monitored_sources.md (removed in v0.13.0)
+- **skill-maintainer**: `best_practices.md` rewritten as machine-parseable checklist with sections mapped to VISION.md principles
+- **skill-maintainer**: `README.md` rewritten with full workflow section (before/after changes, periodic maintenance, individual checks table)
+
+### removed
+- PostToolUse hook on Skill tool (was firing on every skill invocation across all sessions; staleness now checked on-demand via `/maintain` or `check_freshness.py`)
+- `.claude/hooks/check-skill-freshness.sh`: dead hook script (PostToolUse hook removed)
+- `.gitignore`: removed blanket `.claude/` ignore; project-shared files (rules, commands, hooks, settings.json) are now tracked
+
+## 0.15.0
+
+### changed
+- **pyproject.toml**: restructured as uv workspace with four members (skill-maintainer, env-forge, skill-dashboard, mece-decomposer)
+  - each subfolder declares its own dependencies instead of a monolithic root
+  - removed `coderef/` editable paths that broke on clone (local-only symlinks)
+  - `skills-ref` now installed from PyPI; `mcp-ui-server` from git (github.com/idosal/mcp-ui)
+  - root is a workspace coordinator with dev-only deps (pytest, ruff)
+  - setup: `uv sync --all-packages`; existing `uv run` commands unchanged
+
+### added
+- **dev-conventions**: new installable plugin extracting global CLAUDE.md into selective skills
+  - `python-tooling` (background): enforces uv over pip, orjson over json
+  - `bun-tooling` (background): enforces bun over npm/yarn/pnpm
+  - `tdd-workflow` (user-invocable): red/green TDD workflow
+  - `doc-conventions` (user-invocable): last-updated dates, lowercase filenames, session logs, document the "why"
+
 ## 0.14.0
 
 ### removed

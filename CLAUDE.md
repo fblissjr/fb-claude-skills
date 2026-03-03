@@ -36,6 +36,9 @@ fb-claude-skills/
     commands/                # Slash commands: browse, forge, launch, verify
     skills/env-forge/        # SKILL.md + references/
     scripts/                 # catalog.py, materialize.py, validate_env.py
+  dev-conventions/           # Plugin: development conventions (tooling, TDD, documentation)
+    .claude-plugin/plugin.json
+    skills/                  # python-tooling, bun-tooling, tdd-workflow, doc-conventions
   heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
   skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
     .claude-plugin/plugin.json
@@ -44,7 +47,7 @@ fb-claude-skills/
     server.py                # FastMCP + mcp-ui server
     templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
   skill-maintainer/          # Project-scoped: maintenance tooling (not a skill)
-    scripts/                 # quality_report, check_upstream, check_freshness, validate_skill, measure_content, query_log
+    scripts/                 # quality_report, check_upstream, pull_sources, check_freshness, validate_skill, measure_content, query_log
     references/              # Best practices
     state/                   # upstream_hashes.json, changes.jsonl (auto-generated)
   docs/
@@ -76,6 +79,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
+/plugin install dev-conventions@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/mece-decomposer:decompose`).
@@ -132,6 +136,10 @@ Three repos form a database-like component stack:
 
 See `docs/analysis/abstraction_analogies.md` for the full treatment.
 
+### Context as retrieval
+
+Skills are retrieval. High precision is the constraint, high recall is the goal. Every always-loaded line (CLAUDE.md, rules, skill descriptions) must justify its presence. See `VISION.md` for the full design principles.
+
 ### Catalog as exemplar
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `env-forge/commands/forge.md` step 2.
@@ -141,9 +149,10 @@ When generating new artifacts, first search existing catalogs for structurally s
 | Concern | Mechanism | Trigger |
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
-| Staleness awareness | PostToolUse hook on Skill tool | Automatic when any skill is used |
+| Full maintenance pass | `/maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
 | Quality/budget/freshness | `uv run python skill-maintainer/scripts/quality_report.py` | On demand |
 | Upstream change detection | `uv run python skill-maintainer/scripts/check_upstream.py` | On demand |
+| Local source pulls | `uv run python skill-maintainer/scripts/pull_sources.py` | On demand |
 | Change history | `uv run python skill-maintainer/scripts/query_log.py` | On demand |
 
 Other useful commands:
@@ -152,7 +161,7 @@ Other useful commands:
 uv run python skill-maintainer/scripts/validate_skill.py --all    # validate all skills
 uv run python skill-maintainer/scripts/measure_content.py          # token budget report
 uv run python skill-maintainer/scripts/check_freshness.py          # staleness check
-uv run skills-ref validate path/to/SKILL.md                        # validate a single skill
+uv run agentskills validate path/to/SKILL.md                        # validate a single skill
 ```
 
 ## State
@@ -168,7 +177,6 @@ See [docs/README.md](docs/README.md) for the full documentation index (16 domain
 ## Cross-repo references
 
 - **agentskills** (`coderef/agentskills/` -> `~/claude/agentskills`): Agent Skills open standard and `skills-ref` validator.
-- **mlx-skills** (`~/claude/mlx-skills`): Semi-automated skill maintenance for MLX-related skills.
 
 ## Conventions
 
@@ -178,10 +186,13 @@ Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are au
 
 JavaScript/TypeScript projects use `bun` instead of `npm` or `yarn`.
 
-Python managed via `pyproject.toml` with uv:
-- `orjson` - fast JSON
-- `httpx` - HTTP client for upstream change detection
-- `pyyaml` - config parsing
-- `huggingface-hub` - HF dataset access for env-forge catalog
-- `skills-ref` - Agent Skills validator (editable install from `coderef/agentskills/skills-ref`)
-- `mcp-ui-server` - MCP UI SDK Python server (editable install from `coderef/mcp-ui/sdks/python/server`)
+Python managed as a **uv workspace**. The root `pyproject.toml` coordinates four member packages, each declaring its own deps:
+
+| Member | Key dependencies |
+|--------|-----------------|
+| `skill-maintainer` | orjson, httpx, skills-ref (PyPI) |
+| `env-forge` | orjson, huggingface-hub |
+| `skill-dashboard` | orjson, pyyaml, mcp, mcp-ui-server (git) |
+| `mece-decomposer` | orjson |
+
+Setup: `uv sync --all-packages` installs all member deps into a shared venv. Existing `uv run` commands work unchanged.

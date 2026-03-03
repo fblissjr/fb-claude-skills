@@ -54,6 +54,12 @@
       "source": "./env-forge",
       "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog",
       "version": "0.1.0"
+    },
+    {
+      "name": "dev-conventions",
+      "source": "./dev-conventions",
+      "description": "Development conventions: language-specific tooling (Python/uv, JS/bun), TDD workflow, and documentation standards",
+      "version": "0.1.0"
     }
   ]
 }

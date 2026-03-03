@@ -1,31 +1,16 @@
 [project]
 name = "fb-claude-skills"
-version = "0.10.0"
+version = "0.15.0"
 description = "Plugin marketplace and extension system for Claude Code"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = [
-    "orjson>=3.10",
-    "httpx>=0.27",
-    "pyyaml>=6.0",
-    "skills-ref",
-    "mcp-ui-server",
-    "huggingface-hub>=1.4.1",
-]
+dependencies = []
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "ruff>=0.8.0",
-]
+[tool.uv]
+package = false
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv.workspace]
+members = ["skill-maintainer", "env-forge", "skill-dashboard", "mece-decomposer"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["skill-maintainer/scripts"]
-
-[tool.uv.sources]
-skills-ref = { path = "coderef/agentskills/skills-ref", editable = true }
-mcp-ui-server = { path = "coderef/mcp-ui/sdks/python/server", editable = true }
+[dependency-groups]
+dev = ["pytest>=7.0", "ruff>=0.8.0"]
