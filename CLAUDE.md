@@ -6,7 +6,7 @@ Plugin marketplace and extension system for Claude Code. Bundles skills, agents,
 
 ```
 fb-claude-skills/
-  .mcp.json                  # Root MCP server config (skill-dashboard auto-starts)
+  .mcp.json                  # Root MCP server config (empty; add servers on demand)
   .claude-plugin/
     marketplace.json         # Root marketplace catalog (lists all installable plugins)
   skills/                    # Pure markdown skill bundles
@@ -33,9 +33,7 @@ fb-claude-skills/
   docs/
     analysis/                # 16 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
-    internals/               # API reference, schemas, troubleshooting
-    claude-docs/             # Captured Claude Code official docs
-    guides/                  # PDF guide source
+    claude-docs/             # Captured Claude Code official docs (20 files)
   coderef/
     agentskills/             # Symlink -> ~/claude/agentskills (Agent Skills spec + skills-ref)
     ext-apps/                # MCP Apps SDK reference

@@ -13,7 +13,7 @@ After `uv sync --all-packages`, the `skill-maintain` command is available in the
 ### in another repo (git install)
 
 ```bash
-uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer
+uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer
 ```
 
 Then initialize per-repo config:
@@ -172,7 +172,7 @@ Add skill-maintainer as a dependency in the target repo:
 
 ```bash
 cd ~/path/to/other-repo
-uv add "skill-maintainer @ git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer"
+uv add "skill-maintainer @ git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer"
 skill-maintain init
 skill-maintain validate --all
 skill-maintain quality

@@ -1,6 +1,6 @@
 [project]
 name = "fb-claude-skills"
-version = "0.17.0"
+version = "0.18.0"
 description = "Plugin marketplace and extension system for Claude Code"
 license = "MIT"
 requires-python = ">=3.11"
@@ -10,7 +10,8 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["skill-maintainer", "env-forge", "skill-dashboard", "mece-decomposer"]
+members = ["tools/skill-maintainer", "apps/env-forge", "apps/skill-dashboard", "apps/mece-decomposer"]
+exclude = ["apps/readwise-reader"]
 
 [dependency-groups]
 dev = ["pytest>=7.0", "ruff>=0.8.0"]
