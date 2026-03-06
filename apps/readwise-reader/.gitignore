@@ -2,15 +2,6 @@
 __pycache__/
 *.py[codz]
 *$py.class
-.DS_Store
-coderef/
-internal/
-update-coderef.sh
-
-# Claude Code author-side files (not for distribution)
-.claude/worktrees/
-.claude/settings.local.json
-.claude/agent-memory/
 
 # C extensions
 *.so
@@ -191,11 +182,17 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer,
+#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
+
+# Packaged plugin zip
+readwise-reader.zip
+
+# TLS certs (mkcert)
+certs/
 
 # Ruff stuff:
 .ruff_cache/
@@ -214,23 +211,3 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
-# env-forge generated environments and HF cache
-.env-forge/
-
-# DuckDB files (reconstructible from state.json + config.yaml)
-*.duckdb
-*.duckdb.wal
-
-# Skill maintainer auto-generated state
-tools/skill-maintainer/state/upstream_hashes.json
-tools/skill-maintainer/state/changes.jsonl
-.skill-maintainer/state/
-*.backup/
-
-# readwise-reader local artifacts
-certs/
-models/
-
-# Internal logs (separate repo)
-internal/

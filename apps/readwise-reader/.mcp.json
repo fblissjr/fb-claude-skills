@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "readwise-reader": {
+      "type": "http",
+      "url": "https://localhost:8787/mcp"
+    }
+  }
+}

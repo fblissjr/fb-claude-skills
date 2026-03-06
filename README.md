@@ -10,27 +10,28 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [mece-decomposer](mece-decomposer/) | Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer |
-| [mcp-apps](mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
-| [plugin-toolkit](plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [tui-design](tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
-| [cogapp-markdown](cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
-| [dimensional-modeling](dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
-| [env-forge](env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
-| [skill-dashboard](skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
+| [mece-decomposer](apps/mece-decomposer/) | Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer |
+| [mcp-apps](skills/mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
+| [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
+| [tui-design](skills/tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
+| [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
+| [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
+| [env-forge](apps/env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
+| [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
+| [skill-dashboard](apps/skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
 
 ### project-scoped
 
 | Module | Description |
 |--------|-------------|
-| [heylook-monitor](heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
-| [skill-dashboard](skill-dashboard/) | Python-native MCP App skill dashboard (reference implementation) |
+| [heylook-monitor](apps/heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
+| [skill-dashboard](apps/skill-dashboard/) | Python-native MCP App skill dashboard (reference implementation) |
 
 ### installable as a package (not a Claude plugin)
 
 | Module | Description |
 |--------|-------------|
-| [skill-maintainer](skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
+| [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
 
 ## installation
 
@@ -69,7 +70,7 @@ cd fb-claude-skills
 ### temporary loading (development)
 
 ```bash
-claude --plugin-dir ./mece-decomposer
+claude --plugin-dir ./apps/mece-decomposer
 ```
 
 ### uninstall
@@ -161,7 +162,7 @@ The plugins in this repo use stdio transport (local process). To use MCP Apps on
 
 1. Run the server as an HTTP service (not stdio):
    ```bash
-   cd mece-decomposer/mcp-app
+   cd apps/mece-decomposer/mcp-app
    bun install
    node dist/index.cjs  # starts Streamable HTTP on port 3001
    ```
@@ -175,7 +176,7 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 Installable Python package providing the `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Within this repo it is available after `uv sync --all-packages`. For use in other repos:
 
 ```bash
-uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer
+uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer
 skill-maintain init
 ```
 
@@ -189,7 +190,7 @@ skill-maintain sources           # pull tracked repos, detect changes
 skill-maintain log --tail 5      # query audit log
 ```
 
-The `/maintain` slash command orchestrates the full pipeline: `sources → upstream → quality → review`. See [skill-maintainer/README.md](skill-maintainer/README.md) for the full CLI reference and data flow diagram.
+The `/maintain` slash command orchestrates the full pipeline: `sources → upstream → quality → review`. See [skill-maintainer/README.md](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.
 
 ## documentation
 

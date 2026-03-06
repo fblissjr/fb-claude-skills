@@ -17,7 +17,7 @@ import orjson
 from mcp.server.fastmcp import FastMCP
 from mcp_ui_server import UIMetadataKey, create_ui_resource
 
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 TEMPLATE_PATH = Path(__file__).parent / "templates" / "dashboard.html"
 
 from skill_maintainer.tests import Result, test_plugins, test_repo_hygiene, test_skills  # noqa: E402

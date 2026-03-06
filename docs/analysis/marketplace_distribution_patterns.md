@@ -41,8 +41,8 @@ Example from fb-claude-skills (abbreviated):
   "owner": { "name": "Fred Bliss" },
   "metadata": { "description": "A collection of Claude Code plugins and skills" },
   "plugins": [
-    { "name": "mcp-apps", "source": "./mcp-apps", "description": "...", "version": "0.1.0" },
-    { "name": "mece-decomposer", "source": "./mece-decomposer", "description": "...", "version": "0.2.0" }
+    { "name": "mcp-apps", "source": "./skills/mcp-apps", "description": "...", "version": "0.1.0" },
+    { "name": "mece-decomposer", "source": "./apps/mece-decomposer", "description": "...", "version": "0.2.0" }
   ]
 }
 ```
@@ -101,45 +101,58 @@ This repository contains both the marketplace catalog and all plugin directories
 
 ```
 fb-claude-skills/
-  .claude-plugin/marketplace.json   # Root catalog -- lists 7 installable plugins
-  mcp-apps/
-    .claude-plugin/plugin.json      # name, version, description, author, repository
-    skills/create-mcp-app/          # SKILL.md
-    skills/migrate-oai-app/         # SKILL.md
-    references/                     # Upstream docs (offline copies)
-  plugin-toolkit/
-    .claude-plugin/plugin.json
-    skills/plugin-toolkit/          # SKILL.md + references/
-    agents/                         # plugin-scanner, quality-checker
-  web-tdd/
-    .claude-plugin/plugin.json
-    skills/web-tdd/                 # SKILL.md
-  cogapp-markdown/
-    .claude-plugin/plugin.json
-    skills/cogapp-markdown/         # SKILL.md
-  tui-design/
-    .claude-plugin/plugin.json
-    skills/tui-design/              # SKILL.md + references/
-  dimensional-modeling/
-    .claude-plugin/plugin.json
-    skills/dimensional-modeling/    # SKILL.md
-  mece-decomposer/
-    .claude-plugin/plugin.json
-    skills/mece-decomposer/         # SKILL.md + references/ + scripts/
-    commands/                       # Slash commands: decompose, interview, validate, export
-    mcp-app/                        # MCP App: interactive tree visualizer (React)
-    .mcp.json                       # MCP server auto-configuration (stdio)
-  skill-maintainer/                 # NOT in marketplace (project-scoped only)
-    config.yaml, state/, scripts/   # Depends on repo-internal state
+  .claude-plugin/marketplace.json   # Root catalog -- lists 10 installable plugins
+  skills/                           # Pure markdown skill bundles
+    mcp-apps/
+      .claude-plugin/plugin.json    # name, version, description, author, repository
+      skills/create-mcp-app/        # SKILL.md
+      skills/migrate-oai-app/       # SKILL.md
+      references/                   # Upstream docs (offline copies)
+    plugin-toolkit/
+      .claude-plugin/plugin.json
+      skills/plugin-toolkit/        # SKILL.md + references/
+      agents/                       # plugin-scanner, quality-checker
+    cogapp-markdown/
+      .claude-plugin/plugin.json
+      skills/cogapp-markdown/       # SKILL.md
+    tui-design/
+      .claude-plugin/plugin.json
+      skills/tui-design/            # SKILL.md + references/
+    dimensional-modeling/
+      .claude-plugin/plugin.json
+      skills/dimensional-modeling/  # SKILL.md + references/
+    dev-conventions/
+      .claude-plugin/plugin.json
+      skills/                       # bun-tooling, doc-conventions, python-tooling, tdd-workflow
+  apps/                             # MCP server applications
+    mece-decomposer/
+      .claude-plugin/plugin.json
+      skills/mece-decomposer/       # SKILL.md + references/ + scripts/
+      commands/                     # Slash commands: decompose, interview, validate, export
+      mcp-app/                      # MCP App: interactive tree visualizer (React)
+      .mcp.json                     # MCP server auto-configuration (stdio)
+    env-forge/
+      .claude-plugin/plugin.json
+      skills/env-forge/             # SKILL.md + references/
+      commands/                     # Slash commands: forge, browse, launch, verify
+    readwise-reader/
+      .claude-plugin/plugin.json
+      skills/                       # 3 skills: readwise-reader, readwise-search, readwise-sync
+      commands/                     # 5 slash commands
+    skill-dashboard/                # Project-scoped: MCP App skill dashboard
+      .claude-plugin/plugin.json
+  tools/                            # CLI packages
+    skill-maintainer/               # Installable package (git-installable from other repos)
+      src/skill_maintainer/         # Python package with CLI entry point `skill-maintain`
 ```
 
 Key observations:
 
 - Every installable plugin has its own `.claude-plugin/plugin.json` with `name`, `version`, `description`, `author`, and `repository`.
-- The marketplace references all plugins via relative paths (`"source": "./mcp-apps"`), which works because users add the marketplace from git.
-- Not all modules appear in the marketplace. `skill-maintainer` depends on repo-internal state (`config.yaml`, `state/`) and cannot be installed globally.
+- The marketplace references plugins via relative paths (`"source": "./skills/mcp-apps"`, `"source": "./apps/mece-decomposer"`), which works because users add the marketplace from git.
+- `skill-maintainer` is not in the marketplace but is git-installable as a standalone package: `uv add git+<repo>#subdirectory=tools/skill-maintainer`.
 - All plugins share the same `repository` URL in their `plugin.json`, pointing to the monorepo root. The `repository` field identifies the monorepo, not individual plugin directories.
-- Plugin complexity varies: some are a single SKILL.md (web-tdd, cogapp-markdown), others include agents (plugin-toolkit), MCP servers (mece-decomposer), or both skills and references (tui-design).
+- Plugin complexity varies: some are a single SKILL.md (cogapp-markdown), others include agents (plugin-toolkit), MCP servers (mece-decomposer), or both skills and references (tui-design).
 
 ### 4.2 advantages and constraints
 
@@ -289,4 +302,4 @@ claude plugin validate .
 - `docs/claude-docs/claude_docs_plugin-marketplaces.md` -- upstream marketplace creation docs.
 - `docs/claude-docs/claude_docs_discover-plugins.md` -- upstream plugin discovery docs.
 - `docs/claude-docs/claude_docs_permissions.md` -- permission system and managed settings.
-- `skill-maintainer/config.yaml` -- source registry tracking upstream doc pages for CDC.
+- `.skill-maintainer/config.json` -- source registry tracking upstream doc pages for CDC.

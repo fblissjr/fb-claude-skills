@@ -25,7 +25,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "skill-dashboard": {
       "command": "uv",
-      "args": ["run", "python", "skill-dashboard/server.py"],
+      "args": ["run", "python", "apps/skill-dashboard/server.py"],
       "cwd": "/path/to/fb-claude-skills"
     }
   }

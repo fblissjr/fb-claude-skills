@@ -40,7 +40,7 @@ The MCP server starts automatically -- no build step needed. The bundled server 
 If you want to modify the MCP App:
 
 ```bash
-cd mece-decomposer/mcp-app
+cd apps/mece-decomposer/mcp-app
 bun install
 bun run dev     # hot reload for UI + server
 ```

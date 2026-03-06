@@ -1,0 +1,9 @@
+{
+  "name": "readwise-reader",
+  "version": "1.0.0",
+  "description": "Search, save, and surface your Readwise Reader library. Turn your read-it-later archive into an active knowledge base.",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

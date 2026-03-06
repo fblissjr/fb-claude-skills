@@ -9,46 +9,23 @@ fb-claude-skills/
   .mcp.json                  # Root MCP server config (skill-dashboard auto-starts)
   .claude-plugin/
     marketplace.json         # Root marketplace catalog (lists all installable plugins)
-  mcp-apps/                  # Plugin: MCP Apps creation and migration
-    .claude-plugin/plugin.json
-    skills/                  # create-mcp-app, migrate-oai-app
-    references/              # Upstream docs (offline copies)
-  plugin-toolkit/            # Plugin: plugin analysis and management
-    .claude-plugin/plugin.json
-    skills/plugin-toolkit/   # SKILL.md + references/
-    agents/                  # plugin-scanner, quality-checker
-  cogapp-markdown/           # Plugin: auto-generate markdown sections
-    .claude-plugin/plugin.json
-    skills/cogapp-markdown/  # SKILL.md
-  tui-design/                # Plugin: terminal UI design principles
-    .claude-plugin/plugin.json
-    skills/tui-design/       # SKILL.md + references/
-  dimensional-modeling/      # Plugin: Kimball star schema patterns
-    .claude-plugin/plugin.json
-    skills/dimensional-modeling/  # SKILL.md + references/
-  mece-decomposer/           # Plugin: MECE decomposition + MCP App
-    .claude-plugin/plugin.json
-    .mcp.json                # MCP server auto-configuration (stdio)
-    commands/                # Slash commands: decompose, interview, validate, export
-    skills/mece-decomposer/  # SKILL.md + references/ + scripts/
-    mcp-app/                 # MCP App: interactive tree visualizer (React + bundled server)
-  env-forge/                 # Plugin: database-backed MCP tool environment generator
-    .claude-plugin/plugin.json
-    commands/                # Slash commands: browse, forge, launch, verify
-    skills/env-forge/        # SKILL.md + references/
-    scripts/                 # catalog.py, materialize.py, validate_env.py
-  dev-conventions/           # Plugin: development conventions (tooling, TDD, documentation)
-    .claude-plugin/plugin.json
-    skills/                  # python-tooling, bun-tooling, tdd-workflow, doc-conventions
-  heylook-monitor/           # Project-scoped: MCP App dashboard for local LLM server
-  skill-dashboard/           # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
-    .claude-plugin/plugin.json
-    skills/skill-dashboard/  # SKILL.md
-    server.py                # FastMCP + mcp-ui server (imports run_tests.py from skill-maintainer)
-    templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
-  skill-maintainer/          # Installable package: maintenance CLI for any skill repo
-    src/skill_maintainer/    # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
-    references/              # Best practices
+  skills/                    # Pure markdown skill bundles
+    mcp-apps/                # Plugin: MCP Apps creation and migration
+    plugin-toolkit/          # Plugin: plugin analysis and management
+    cogapp-markdown/         # Plugin: auto-generate markdown sections
+    tui-design/              # Plugin: terminal UI design principles
+    dimensional-modeling/    # Plugin: Kimball star schema patterns
+    dev-conventions/         # Plugin: development conventions (tooling, TDD, documentation)
+  apps/                      # MCP server applications
+    readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
+    mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer
+    env-forge/               # Plugin: database-backed MCP tool environment generator
+    skill-dashboard/         # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
+    heylook-monitor/         # Project-scoped: MCP App dashboard for local LLM server
+  tools/                     # CLI packages
+    skill-maintainer/        # Installable package: maintenance CLI for any skill repo
+      src/skill_maintainer/  # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
+      references/            # Best practices
   .skill-maintainer/         # Per-repo config and state (gitignored state/)
     config.json              # upstream URLs, tracked repos, llms-full URL
     best_practices.md        # Machine-parseable best practices checklist
@@ -83,6 +60,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
+/plugin install readwise-reader@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/mece-decomposer:decompose`).
@@ -93,7 +71,7 @@ To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 heylook-monitor and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation.
 
-skill-maintainer is an installable Python package. From other repos: `uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer`. Then run `skill-maintain init` to create per-repo config.
+skill-maintainer is an installable Python package. From other repos: `uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer`. Then run `skill-maintain init` to create per-repo config.
 
 ## Plugin development
 
@@ -147,7 +125,7 @@ Skills are retrieval. High precision is the constraint, high recall is the goal.
 
 ### Catalog as exemplar
 
-When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `env-forge/commands/forge.md` step 2.
+When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `apps/env-forge/commands/forge.md` step 2.
 
 ### Cross-member imports
 
@@ -199,13 +177,14 @@ Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are au
 
 JavaScript/TypeScript projects use `bun` instead of `npm` or `yarn`.
 
-Python managed as a **uv workspace**. The root `pyproject.toml` coordinates four member packages, each declaring its own deps:
+Python managed as a **uv workspace**. The root `pyproject.toml` coordinates workspace member packages, each declaring its own deps:
 
-| Member | Key dependencies |
-|--------|-----------------|
-| `skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
-| `env-forge` | orjson, huggingface-hub |
-| `skill-dashboard` | orjson, mcp, mcp-ui-server (git), skill-maintainer (workspace) |
-| `mece-decomposer` | orjson |
+| Member | Path | Key dependencies |
+|--------|------|-----------------|
+| `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
+| `env-forge` | `apps/env-forge` | orjson, huggingface-hub |
+| `skill-dashboard` | `apps/skill-dashboard` | orjson, mcp, mcp-ui-server (git), skill-maintainer (workspace) |
+| `mece-decomposer` | `apps/mece-decomposer` | orjson |
+| `readwise-reader` | `apps/readwise-reader` | mcp, httpx, duckdb, pydantic, authlib, skill-maintainer (workspace); opt-in, requires Python 3.13+ |
 
-Setup: `uv sync --all-packages` installs all member deps into a shared venv. Existing `uv run` commands work unchanged.
+Setup: `uv sync --all-packages` installs all member deps into a shared venv. Existing `uv run` commands work unchanged. readwise-reader is excluded from the default workspace (requires Python 3.13+); opt in by removing it from the `exclude` list in `pyproject.toml`.

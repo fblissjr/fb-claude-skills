@@ -18,34 +18,74 @@ This is precision and recall applied to context:
 
 ## what gets loaded and when
 
-Every Claude Code session in this project loads context before the user types anything:
+Three loading levels, each gated by increasing specificity. Analogous to how a search engine works: index -> snippet -> full page.
 
-| Layer | What | When loaded | Control mechanism |
-|-------|------|-------------|-------------------|
-| Global instructions | `~/.claude/CLAUDE.md` | Always | Edit the file |
-| Project instructions | `./CLAUDE.md` | Always | Edit the file |
-| Auto-memory | `~/.claude/projects/.../memory/MEMORY.md` | Always (first 200 lines) | Edit the file |
-| Unconditional rules | `.claude/rules/general.md` | Always | Edit or delete |
-| Conditional rules | `.claude/rules/skills.md`, `plugins.md` | When matching files are in context | Path globs in frontmatter |
-| Skill descriptions | All installed SKILL.md frontmatter | Always (2% of context budget) | Install/uninstall plugins |
-| Settings | `.claude/settings.json` | Always | Edit the file |
+| Level | What | When | Control |
+|-------|------|------|---------|
+| **L1** | `~/.claude/CLAUDE.md` (global instructions) | Always | Edit the file |
+| **L1** | `./CLAUDE.md` (project instructions) | Always | Edit the file |
+| **L1** | `MEMORY.md` (auto-memory, first 200 lines) | Always | Edit the file |
+| **L1** | `.claude/rules/general.md` (unconditional rules) | Always | Edit or delete |
+| **L1**\* | `.claude/rules/skills.md`, `plugins.md` (conditional rules) | When matching files are in context | Path globs in frontmatter |
+| **L1** | All installed SKILL.md frontmatter (~2% of context) | Always | Install/uninstall plugins |
+| **L1** | `.claude/settings.json` | Always | Edit the file |
+| **L2** | SKILL.md body | Intent matches frontmatter description | Description quality |
+| **L3** | `references/*.md` | Skill body links to them | Explicit link in SKILL.md |
+| **L3** | `scripts/*.py` | Skill invokes them | `uv run` or subprocess call |
 
-This is the static index. It is the always-on cost of this project. Every line must justify its presence.
+*\* Conditional rules use the same static-load mechanism but are gated by path globs -- they only appear when matching files are in context.*
 
-Skill bodies and references load dynamically:
+### loading hierarchy
 
-| Layer | When loaded | Trigger |
-|-------|-------------|---------|
-| SKILL.md body | When Claude decides the skill is relevant | Description match against user intent |
-| `references/` files | When the skill body references them | Explicit link in SKILL.md |
-| Scripts | When invoked by the skill | `uv run` or subprocess call |
+```
+SESSION START
+  |
+  v
++-----------------------------------------------------------+
+| L1: STATIC INDEX (always loaded)                          |
+|                                                           |
+|   CLAUDE.md (global + project)   instructions, routing    |
+|   MEMORY.md (200 lines)          persistent auto-memory   |
+|   .claude/rules/                 unconditional rules      |
+|   .claude/rules/*  (conditional) if matching files present*|
+|   SKILL.md frontmatter           all installed plugins    |
+|   settings.json                  permissions, config      |
+|                                                           |
+|   Cost: paid every session. Every line must earn its spot.|
++-----------------------------------------------------------+
+  |
+  | user states intent -- PRECISION GATE
+  v
++-----------------------------------------------------------+
+| L2: SKILL BODY (loaded on match)                          |
+|                                                           |
+|   Frontmatter description matched user intent?            |
+|     yes --> load full SKILL.md body                       |
+|     no  --> skill stays dormant                           |
+|                                                           |
+|   Descriptions are reverse queries -- they determine      |
+|   which skills activate.                                  |
++-----------------------------------------------------------+
+  |
+  | skill body references deeper material
+  v
++-----------------------------------------------------------+
+| L3: DEEP CONTEXT (loaded on demand)                       |
+|                                                           |
+|   references/*.md    detailed docs, schemas, examples     |
+|   scripts/*.py       executable logic (uv run)            |
+|                                                           |
+|   Only loaded when the active skill explicitly links to   |
+|   them. Maximum recall without polluting other tasks.     |
++-----------------------------------------------------------+
+```
 
-This three-level structure is staged retrieval:
-1. **Index** (frontmatter): always loaded. Tiny, precise. Determines routing.
-2. **Summary** (SKILL.md body): loaded on match. Full instructions for the workflow.
-3. **Full documents** (references/): loaded on demand. Deep detail when needed.
+Staged retrieval:
+- **L1** (static index): always loaded. Tiny, precise. Determines routing.
+- **L2** (skill body): loaded on match. Full instructions for the active workflow.
+- **L3** (deep context): loaded on demand. References and scripts when needed.
 
-This maps directly to how a search engine works: index -> snippet -> full page. Each level is a precision gate.
+![Loading hierarchy diagram](docs/loading-hierarchy.svg)
 
 ## principles
 

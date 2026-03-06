@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 580" width="520" height="580">
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- L1 box -->
+  <rect x="30" y="20" width="460" height="200" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="30" y="20" width="460" height="28" rx="6" fill="#3b82f6"/>
+  <rect x="30" y="40" width="460" height="8" fill="#3b82f6"/>
+  <text x="260" y="39" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#fff">L1: STATIC INDEX (always loaded)</text>
+  <text x="50" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">CLAUDE.md (global + project)</text>
+  <text x="310" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">instructions, routing</text>
+  <text x="50" y="92" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">MEMORY.md (200 lines)</text>
+  <text x="310" y="92" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">persistent auto-memory</text>
+  <text x="50" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">.claude/rules/</text>
+  <text x="310" y="112" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">unconditional rules</text>
+  <text x="50" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">.claude/rules/* (conditional)*</text>
+  <text x="310" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">if matching files present</text>
+  <text x="50" y="152" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">SKILL.md frontmatter</text>
+  <text x="310" y="152" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">all installed plugins</text>
+  <text x="50" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">settings.json</text>
+  <text x="310" y="172" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">permissions, config</text>
+  <text x="50" y="200" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="9" fill="#94a3b8">Cost: paid every session. Every line must earn its spot.</text>
+
+  <!-- Arrow L1 -> L2 -->
+  <line x1="260" y1="220" x2="260" y2="270" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="270" y="250" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" font-weight="600" fill="#dc2626">PRECISION GATE</text>
+  <text x="270" y="262" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">user states intent</text>
+
+  <!-- L2 box -->
+  <rect x="30" y="270" width="460" height="120" rx="6" fill="#fefce8" stroke="#fde68a" stroke-width="1.5"/>
+  <rect x="30" y="270" width="460" height="28" rx="6" fill="#eab308"/>
+  <rect x="30" y="290" width="460" height="8" fill="#eab308"/>
+  <text x="260" y="289" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#fff">L2: SKILL BODY (loaded on match)</text>
+  <text x="50" y="318" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">Frontmatter description matched user intent?</text>
+  <text x="70" y="338" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">yes --&gt; load full SKILL.md body</text>
+  <text x="70" y="358" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">no  --&gt; skill stays dormant</text>
+  <text x="50" y="378" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">Descriptions are reverse queries -- they determine which skills activate.</text>
+
+  <!-- Arrow L2 -> L3 -->
+  <line x1="260" y1="390" x2="260" y2="440" stroke="#94a3b8" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)"/>
+  <text x="270" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">skill body references deeper material</text>
+
+  <!-- L3 box -->
+  <rect x="30" y="440" width="460" height="100" rx="6" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1.5"/>
+  <rect x="30" y="440" width="460" height="28" rx="6" fill="#22c55e"/>
+  <rect x="30" y="460" width="460" height="8" fill="#22c55e"/>
+  <text x="260" y="459" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="700" fill="#fff">L3: DEEP CONTEXT (loaded on demand)</text>
+  <text x="50" y="488" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">references/*.md</text>
+  <text x="310" y="488" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">detailed docs, schemas, examples</text>
+  <text x="50" y="508" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#1e293b">scripts/*.py</text>
+  <text x="310" y="508" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">executable logic (uv run)</text>
+  <text x="50" y="530" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10" fill="#64748b" font-style="italic">Only loaded when the active skill explicitly links to them.</text>
+
+  <!-- Footnote -->
+  <text x="30" y="565" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="9" fill="#94a3b8">* Conditional rules use the same static-load mechanism but are gated by path globs.</text>
+</svg>

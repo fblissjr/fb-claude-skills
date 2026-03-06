@@ -1,5 +1,33 @@
 # changelog
 
+## 0.18.0
+
+### changed
+- **repo structure**: reorganized from flat layout to type-based grouping
+  - `skills/`: pure markdown skill bundles (tui-design, dimensional-modeling, cogapp-markdown, dev-conventions, mcp-apps, plugin-toolkit)
+  - `apps/`: MCP server applications (mece-decomposer, env-forge, skill-dashboard, heylook-monitor, readwise-reader)
+  - `tools/`: CLI packages (skill-maintainer)
+- **readwise-reader**: migrated from `~/claude/cowork-plugins/readwise-reader` into `apps/readwise-reader/`
+  - flattened `plugin/readwise-reader/` contents to top level
+  - converted build system from setuptools to hatchling
+  - skill-maintainer dep changed from git URL to workspace reference
+  - removed non-portable artifacts (certs, models, zip, .venv, scripts/package_plugin.sh)
+- workspace member paths updated: `skill-maintainer` -> `tools/skill-maintainer`, `env-forge` -> `apps/env-forge`, etc.
+- readwise-reader excluded from default workspace (requires Python 3.13+)
+- skill-dashboard `PROJECT_ROOT` fixed for new `apps/` depth
+- marketplace.json source paths updated for all plugins
+- root `.mcp.json` server path updated
+- skill-maintainer git-install subdirectory updated to `tools/skill-maintainer`
+
+### fixed
+- **readwise-reader**: added `metadata.last_verified`, `metadata.author`, `metadata.version` to all 3 SKILL.md files
+- **readwise-reader**: fixed description quality (added WHAT verb + WHEN trigger) on all 3 skills
+- **readwise-reader**: added `repository` field to plugin.json
+- stale path references in READMEs and rules from pre-reorg layout (skill-maintainer git-install path, skill-dashboard server.py path, mece-decomposer dev setup path)
+- general.md state path corrected to `.skill-maintainer/state/`
+- marketplace_distribution_patterns.md section 4.1 updated for current repo layout
+- create-mcp-app and migrate-oai-app descriptions fixed (added WHAT verb)
+
 ## 0.17.0
 
 ### changed

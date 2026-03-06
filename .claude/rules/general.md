@@ -26,7 +26,7 @@ All skills follow the [Agent Skills](https://agentskills.io) spec. Validate with
 
 ## State in repo
 
-`skill-maintainer/state/` is versioned and portable. Do not use `~/.claude/` for project state.
+`.skill-maintainer/state/` holds per-repo maintenance state (gitignored). Do not use `~/.claude/` for project state.
 
 ## Non-destructive
 
