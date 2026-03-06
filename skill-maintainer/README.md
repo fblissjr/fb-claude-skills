@@ -147,6 +147,59 @@ Phase 4 never auto-writes. Claude shows proposed changes and waits for approval.
 
 **Where:** `.claude/commands/maintain.md`
 
+### applying best practices to another repo
+
+Two options depending on whether you want a permanent install or a one-off check.
+
+**Option A: `--dir` (no install needed)**
+
+Run from within fb-claude-skills, targeting the other repo:
+
+```bash
+# initialize config in the target repo
+skill-maintain init --dir ~/claude/mlx-skills
+
+# validate and check quality
+skill-maintain validate --all --dir ~/claude/mlx-skills
+skill-maintain quality --dir ~/claude/mlx-skills
+skill-maintain freshness --dir ~/claude/mlx-skills
+skill-maintain measure --dir ~/claude/mlx-skills
+```
+
+**Option B: git-install (standalone)**
+
+Add skill-maintainer as a dependency in the target repo:
+
+```bash
+cd ~/path/to/other-repo
+uv add "skill-maintainer @ git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer"
+skill-maintain init
+skill-maintain validate --all
+skill-maintain quality
+```
+
+Option A is simpler for one-off checks. Option B gives the repo its own `skill-maintain` command and lets CI run it without fb-claude-skills present.
+
+**Full end-to-end scenario:**
+
+```bash
+# 1. sync upstream knowledge in fb-claude-skills first
+skill-maintain sources       # pull tracked repos
+skill-maintain upstream      # check Anthropic docs for changes
+
+# 2. review current state
+skill-maintain quality       # see your own repo's health
+
+# 3. apply to target repo (option A shown)
+skill-maintain init --dir ~/claude/other-repo
+skill-maintain quality --dir ~/claude/other-repo
+
+# 4. fix what the report flags
+#    - add metadata.last_verified to SKILL.md frontmatter
+#    - add WHAT verb + WHEN trigger to descriptions
+#    - trim skills over budget (move content to references/)
+```
+
 ## subcommand details
 
 ### validate
