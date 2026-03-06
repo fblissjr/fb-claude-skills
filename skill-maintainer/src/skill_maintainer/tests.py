@@ -327,10 +327,14 @@ def main(args=None):
         "repo": test_repo_hygiene,
     }
 
+    labels = {"skills": "Running skill tests...", "plugins": "Running plugin tests...", "repo": "Running repo hygiene tests..."}
+
     if parsed.category:
+        print(labels[parsed.category], file=sys.stderr, flush=True)
         all_results.extend(runners[parsed.category](root))
     else:
-        for runner in runners.values():
+        for key, runner in runners.items():
+            print(labels[key], file=sys.stderr, flush=True)
             all_results.extend(runner(root))
 
     # Output

@@ -95,6 +95,8 @@ def main(args=None):
     new_hashes = dict(old_hashes)
     changed = []
 
+    print(f"Comparing {len(watch_pages)} watched pages...", file=sys.stderr, flush=True)
+
     # Check each watched page
     for url in watch_pages:
         content = sections.get(url)

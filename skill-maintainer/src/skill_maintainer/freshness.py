@@ -80,6 +80,9 @@ def main(args=None):
             print(f"Skill '{parsed.skill}' not found", file=sys.stderr)
             sys.exit(1)
 
+    if not parsed.quiet:
+        print(f"Checking freshness of {len(skills)} skills...", file=sys.stderr, flush=True)
+
     for skill_dir in skills:
         result = check_skill(skill_dir, parsed.threshold)
 

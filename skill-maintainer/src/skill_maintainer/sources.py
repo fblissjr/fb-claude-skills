@@ -103,6 +103,9 @@ def main(args=None):
     local_repos = all_hashes.get("local_repos", {})
     results = []
 
+    action = "Checking" if parsed.no_pull else "Pulling"
+    print(f"{action} {len(tracked_repos)} tracked repos...", file=sys.stderr, flush=True)
+
     for rel_path in tracked_repos:
         path = root / rel_path
         name = rel_path
@@ -120,6 +123,9 @@ def main(args=None):
             continue
 
         old_sha = local_repos.get(name)
+        if parsed.no_pull:
+            sys.stderr.write(f"  Checking {name}...")
+            sys.stderr.flush()
         before_sha = git_head(resolved)
 
         if before_sha is None:
@@ -129,9 +135,14 @@ def main(args=None):
 
         # Pull unless --no-pull
         if not parsed.no_pull:
+            sys.stderr.write(f"  Pulling {name}...")
+            sys.stderr.flush()
             ok, msg = git_pull(resolved)
             if not ok:
-                print(f"  PULL FAILED: {name}: {msg}", file=sys.stderr)
+                sys.stderr.write(f" FAILED: {msg}\n")
+            else:
+                sys.stderr.write(" ok\n")
+            sys.stderr.flush()
 
         after_sha = git_head(resolved)
         if after_sha is None:
@@ -148,6 +159,10 @@ def main(args=None):
         else:
             status = "UP_TO_DATE"
             commits = []
+
+        if parsed.no_pull:
+            sys.stderr.write(f" {status.lower().replace('_', ' ')}\n")
+            sys.stderr.flush()
 
         results.append({
             "name": name,
