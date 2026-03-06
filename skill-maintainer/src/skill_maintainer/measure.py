@@ -1,31 +1,16 @@
-#!/usr/bin/env python3
-"""
-Token budget measurement for all skills in the repo.
+"""Token budget measurement for all skills."""
 
-Walks all SKILL.md files, measures each file in the skill directory,
-and outputs a budget report. No DuckDB, no config file needed.
-
-The 2% rule: a skill should use ~2% of the context window when loaded.
-For a 200k token window, that's ~4000 tokens. Estimate: 1 token ~ 4 chars.
-
-Usage:
-    uv run python skill-maintainer/scripts/measure_content.py
-    uv run python skill-maintainer/scripts/measure_content.py --skill plugin-toolkit
-"""
-
-import argparse
-import hashlib
 import sys
 from pathlib import Path
 
-from shared import TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN, discover_skills
+from skill_maintainer.shared import SKIP_DIRS, TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN, discover_skills
 
 FILE_TYPE_MAP = {
     "SKILL.md": "skill_md",
     "COMMAND.md": "command_md",
 }
 
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal", "state"}
+SKIP_DIRS_WITH_STATE = SKIP_DIRS | {"state"}
 
 
 def classify_file(file_path: Path, skill_root: Path) -> str:
@@ -63,16 +48,14 @@ def measure_file(file_path: Path) -> dict:
     except (OSError, UnicodeDecodeError):
         try:
             raw = file_path.read_bytes()
-            return {"line_count": 0, "word_count": 0, "char_count": len(raw),
-                    "content_hash": hashlib.sha256(raw).hexdigest()}
+            return {"line_count": 0, "word_count": 0, "char_count": len(raw)}
         except OSError:
-            return {"line_count": 0, "word_count": 0, "char_count": 0, "content_hash": ""}
+            return {"line_count": 0, "word_count": 0, "char_count": 0}
 
     return {
         "line_count": len(content.splitlines()),
         "word_count": len(content.split()),
         "char_count": len(content),
-        "content_hash": hashlib.sha256(content.encode()).hexdigest(),
     }
 
 
@@ -86,7 +69,7 @@ def walk_skill_files(skill_path: Path) -> list[tuple[Path, str]]:
             continue
         if item.name.startswith("."):
             continue
-        if any(skip in item.parts for skip in SKIP_DIRS):
+        if any(skip in item.parts for skip in SKIP_DIRS_WITH_STATE):
             continue
         if item.suffix in (".md", ".py", ".yaml", ".yml", ".json", ".txt", ".sh", ".toml"):
             file_type = classify_file(item, skill_path)
@@ -171,19 +154,21 @@ def generate_report(results: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Measure token budgets for skills.")
     parser.add_argument("--skill", type=str, default=None, help="Measure only this skill (by directory name)")
     parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to search")
     parser.add_argument("--output", type=Path, default=None, help="Write report to file")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    skills = discover_skills(args.dir)
+    skills = discover_skills(parsed.dir)
 
-    if args.skill:
-        skills = [s for s in skills if s.name == args.skill]
+    if parsed.skill:
+        skills = [s for s in skills if s.name == parsed.skill]
         if not skills:
-            print(f"Error: skill '{args.skill}' not found", file=sys.stderr)
+            print(f"Error: skill '{parsed.skill}' not found", file=sys.stderr)
             sys.exit(1)
 
     results = []
@@ -195,12 +180,8 @@ def main():
         print(f"  {result['file_count']} files, {result['total_tokens']:,} tokens", file=sys.stderr)
 
     report = generate_report(results)
-    if args.output:
-        args.output.write_text(report)
-        print(f"Report written to {args.output}", file=sys.stderr)
+    if parsed.output:
+        parsed.output.write_text(report)
+        print(f"Report written to {parsed.output}", file=sys.stderr)
     else:
         print(report)
-
-
-if __name__ == "__main__":
-    main()

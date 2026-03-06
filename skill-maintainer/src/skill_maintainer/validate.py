@@ -1,23 +1,12 @@
-#!/usr/bin/env python3
-"""
-Validate a skill against the Agent Skills spec and best practices.
+"""Validate skills against the Agent Skills spec and best practices."""
 
-Wraps the skills-ref validator and adds additional checks.
-No DuckDB dependency.
-
-Usage:
-    uv run python skill-maintainer/scripts/validate_skill.py ./plugin-toolkit/skills/plugin-toolkit
-    uv run python skill-maintainer/scripts/validate_skill.py --all
-"""
-
-import argparse
 import sys
 from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skills_ref.validator import validate
 
-from shared import discover_skills
+from skill_maintainer.shared import check_description_quality, discover_skills
 
 SKILL_MD_MAX_LINES = 500
 SKILL_MD_MAX_WORDS = 5000
@@ -54,27 +43,9 @@ def check_best_practices(skill_path: Path) -> list[str]:
 
     description = metadata.get("description", "")
     if description:
-        desc_lower = description.lower()
-
-        has_what = any(w in desc_lower for w in [
-            "use when", "use for", "handles", "manages", "creates",
-            "generates", "monitors", "validates", "analyzes",
-        ])
-        has_when = any(w in desc_lower for w in [
-            "use when", "when user", "when the", "if user",
-            "trigger", "mention",
-        ])
-
-        if not has_what:
-            warnings.append(
-                "Description may be missing WHAT the skill does. "
-                "Include verbs like 'handles', 'generates', 'monitors'."
-            )
-        if not has_when:
-            warnings.append(
-                "Description may be missing WHEN to use it (trigger conditions). "
-                "Include phrases like 'Use when user says...' or trigger keywords."
-            )
+        desc_issues = check_description_quality(description)
+        for issue in desc_issues:
+            warnings.append(f"Description: {issue}")
         if "<" in description or ">" in description:
             warnings.append(
                 "Description contains angle brackets (< >), which are "
@@ -116,7 +87,9 @@ def validate_single(skill_path: Path, verbose: bool = False) -> tuple[bool, list
     return len(errors) == 0, errors, warnings
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Validate skills against spec and best practices."
     )
@@ -124,18 +97,19 @@ def main():
         "skill_path", nargs="?", type=Path, default=None,
         help="Path to skill directory to validate",
     )
-    parser.add_argument("--all", action="store_true", help="Validate all skills in repo")
+    parser.add_argument("--all", action="store_true", help="Validate all skills")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to search")
     parser.add_argument("--verbose", "-v", action="store_true")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    if args.all:
-        skills = discover_skills(Path("."))
+    if parsed.all:
+        skills = discover_skills(parsed.dir)
         all_valid = True
 
         for skill_dir in skills:
             name = skill_dir.name
             print(f"Validating {name} ({skill_dir})...", file=sys.stderr)
-            is_valid, errors, warnings = validate_single(skill_dir, args.verbose)
+            is_valid, errors, warnings = validate_single(skill_dir, parsed.verbose)
 
             if is_valid:
                 status = "PASS"
@@ -148,23 +122,23 @@ def main():
                     status += f" ({len(warnings)} warnings)"
                 print(f"  {status}")
                 all_valid = False
-                if not args.verbose:
+                if not parsed.verbose:
                     for e in errors:
                         print(f"    - {e}")
 
         sys.exit(0 if all_valid else 1)
 
-    elif args.skill_path:
-        is_valid, errors, warnings = validate_single(args.skill_path, True)
+    elif parsed.skill_path:
+        is_valid, errors, warnings = validate_single(parsed.skill_path, True)
 
         if is_valid:
-            print(f"Valid skill: {args.skill_path}")
+            print(f"Valid skill: {parsed.skill_path}")
             if warnings:
                 print(f"\n{len(warnings)} warning(s):")
                 for w in warnings:
                     print(f"  - {w}")
         else:
-            print(f"Validation failed for {args.skill_path}:", file=sys.stderr)
+            print(f"Validation failed for {parsed.skill_path}:", file=sys.stderr)
             for e in errors:
                 print(f"  - {e}", file=sys.stderr)
             if warnings:
@@ -175,7 +149,3 @@ def main():
     else:
         parser.print_help()
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

@@ -1,10 +1,8 @@
-"""Shared constants and utilities for skill-maintainer scripts."""
+"""Shared constants and utilities for skill-maintainer."""
 
 from pathlib import Path
 
 SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
-HASHES_FILE = Path("skill-maintainer/state/upstream_hashes.json")
-CHANGES_LOG = Path("skill-maintainer/state/changes.jsonl")
 TOKEN_BUDGET_WARN = 4000
 TOKEN_BUDGET_CRITICAL = 8000
 STALE_DAYS = 30
@@ -52,6 +50,28 @@ def measure_tokens(skill_dir: Path) -> int:
             except (OSError, UnicodeDecodeError):
                 pass
     return total_chars // 4
+
+
+def get_last_verified(metadata: dict) -> tuple[str | None, int | None]:
+    """Extract last_verified date and days-ago from parsed frontmatter metadata.
+
+    Returns (date_str, days_ago). Either or both may be None.
+    """
+    from datetime import date
+
+    meta = metadata.get("metadata", {})
+    if not isinstance(meta, dict):
+        return None, None
+    lv = meta.get("last_verified")
+    if not lv:
+        return None, None
+    lv_str = str(lv)
+    try:
+        lv_date = date.fromisoformat(lv_str)
+        days_ago = (date.today() - lv_date).days
+        return lv_str, days_ago
+    except ValueError:
+        return lv_str, None
 
 
 def check_description_quality(description: str) -> list[str]:

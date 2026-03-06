@@ -19,7 +19,7 @@ Keep skill descriptions under 1024 characters. The description field in frontmat
 
 All `uv run` commands in SKILL.md must use paths relative to the project root (where `uv run` is called from), not relative to the SKILL.md file.
 
-Correct: `uv run python skill-maintainer/scripts/check_freshness.py`
+Correct: `skill-maintain freshness` or `uv run python skill-maintainer/scripts/check_freshness.py`
 Wrong: `uv run python scripts/check_freshness.py`
 
 ## Body length limit

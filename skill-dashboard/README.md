@@ -26,7 +26,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
     "skill-dashboard": {
       "command": "uv",
       "args": ["run", "python", "skill-dashboard/server.py"],
-      "cwd": "/Users/fredbliss/claude/fb-claude-skills"
+      "cwd": "/path/to/fb-claude-skills"
     }
   }
 }
@@ -69,7 +69,7 @@ Or natural language: "show skill dashboard", "skill status", "which skills are s
 
 ## data sources
 
-All data comes from `skill-maintainer/scripts/run_tests.py` -- the server imports and runs `test_skills()`, `test_plugins()`, and `test_repo_hygiene()` directly.
+All data comes from the `skill_maintainer` package -- the server imports and runs `test_skills()`, `test_plugins()`, and `test_repo_hygiene()` from `skill_maintainer.tests` directly.
 
 ## Python MCP App pattern
 

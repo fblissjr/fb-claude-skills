@@ -1,14 +1,54 @@
-last updated: 2026-03-03
+last updated: 2026-03-06
 
 # skill-maintainer
 
-Maintenance tooling for the skill ecosystem in this repo. Not a skill, not a plugin -- just scripts, hooks, and a slash command that run from within this repo.
+Installable Python package providing a `skill-maintain` CLI for monitoring, validating, and maintaining Claude Code skill repos. Runs as project-scoped tooling within fb-claude-skills and is git-installable for use in other repos.
 
-There is exactly one thing that runs automatically. Everything else runs when you ask for it.
+## installation
+
+### within fb-claude-skills (already available)
+
+After `uv sync --all-packages`, the `skill-maintain` command is available in the workspace venv. No additional setup needed.
+
+### in another repo (git install)
+
+```bash
+uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer
+```
+
+Then initialize per-repo config:
+
+```bash
+skill-maintain init
+```
+
+This creates `.skill-maintainer/config.json` in the current directory with default upstream URLs and tracked repo paths.
+
+## data flow
+
+skill-maintainer is a maintenance pipeline. Think of it as a DAG with three input types, seven processing stages, and two output layers.
+
+```
+INPUTS                      PROCESSING                      STATE / OUTPUT
+------                      ----------                      --------------
+
+SKILL.md files              validate ──────────────────┐
+(local, discovered          quality ────────────────────┤
+ by glob)                   freshness ──────────────────┤──► CLI reports
+                            measure ────────────────────┤    (tables, pass/fail,
+upstream docs               upstream ──────────────────►┤     exit codes for CI)
+(llms-full.txt via HTTP)    sources ───────────────────►┤
+                            test ───────────────────────┘
+tracked git repos                                              .skill-maintainer/
+(coderef/ or configured     log ──────────────────────────►   state/upstream_hashes.json
+ paths)                                                        state/changes.jsonl
+```
+
+The `/maintain` slash command orchestrates the pipeline in sequence: `sources → upstream → quality → review`.
 
 ## what runs automatically
 
-### Pre-commit hook (git)
+### pre-commit hook (git)
 
 **When:** every `git commit` that includes a staged `SKILL.md` file.
 
@@ -27,20 +67,63 @@ There is exactly one thing that runs automatically. Everything else runs when yo
 
 That's it. Nothing else runs unless you invoke it.
 
+## CLI reference
+
+All subcommands accept `--dir <path>` to target a skill repo other than the current directory.
+
+| Command | What it does |
+|---------|-------------|
+| `init` | Create `.skill-maintainer/config.json` in the target repo |
+| `validate` | Validate skills against Agent Skills spec + best practices |
+| `quality` | Unified report: validation + token budget + freshness + description quality |
+| `freshness` | Check `metadata.last_verified` staleness across all skills |
+| `measure` | Token budget measurement with per-file breakdown |
+| `test` | Red/green test suite (skills, plugins, repo hygiene) |
+| `upstream` | Fetch Claude Code docs via llms-full.txt, detect page changes |
+| `sources` | Pull tracked git repos, detect changes since last run |
+| `log` | Query the `.skill-maintainer/state/changes.jsonl` audit log |
+
+### examples
+
+```bash
+# baseline before making changes
+skill-maintain test
+
+# after making changes -- nothing should go green to red
+skill-maintain test --verbose
+
+# full maintenance pass (or use /maintain in Claude Code)
+skill-maintain sources
+skill-maintain upstream
+skill-maintain quality
+
+# target a different repo
+skill-maintain quality --dir ~/path/to/other-skill-repo
+
+# check a single skill's token budget
+skill-maintain measure --skill tui-design
+
+# see last 5 audit log entries
+skill-maintain log --tail 5
+
+# check staleness only, suppress passing skills
+skill-maintain freshness --quiet
+```
+
 ## workflow
 
 ### before making changes
 
-```
-uv run python skill-maintainer/scripts/run_tests.py
+```bash
+skill-maintain test
 ```
 
-Note what's green. This is your baseline. If something is already red, decide whether to fix it now or leave it for later.
+Note what's green. This is your baseline. If something is already red, decide whether to fix it now or leave it.
 
 ### after making changes
 
-```
-uv run python skill-maintainer/scripts/run_tests.py
+```bash
+skill-maintain test
 ```
 
 Nothing should go from green to red unless you intended it. Use `--verbose` to see all results including passes.
@@ -51,168 +134,151 @@ Nothing should go from green to red unless you intended it. Use `--verbose` to s
 /maintain
 ```
 
-Pulls upstream sources, checks for doc changes, runs the quality report, and proposes updates to `best_practices.md`. Run this when you want to sync with upstream and review the maintenance checklist. Or run the phases individually (see scripts below).
+Pulls upstream sources, checks for doc changes, runs the quality report, and proposes updates to `.skill-maintainer/best_practices.md`. Run this when you want to sync with upstream and review the maintenance checklist. Or run the phases individually:
 
-### individual checks
+```bash
+skill-maintain sources   # phase 1: pull tracked repos
+skill-maintain upstream  # phase 2: check upstream docs
+skill-maintain quality   # phase 3: validate all skills
+# phase 4: Claude reviews results and proposes best_practices.md edits
+```
 
-| Script | Purpose | Example |
-|--------|---------|---------|
-| `run_tests.py` | Full red/green test suite | `uv run python skill-maintainer/scripts/run_tests.py --category repo` |
-| `quality_report.py` | Detailed quality table (validation, budget, staleness) | `uv run python skill-maintainer/scripts/quality_report.py` |
-| `validate_skill.py` | Spec + best practice validation for one or all skills | `uv run python skill-maintainer/scripts/validate_skill.py --all` |
-| `check_freshness.py` | Staleness check on metadata.last_verified dates | `uv run python skill-maintainer/scripts/check_freshness.py --quiet` |
-| `measure_content.py` | Per-file token budget breakdown | `uv run python skill-maintainer/scripts/measure_content.py --skill tui-design` |
-| `pull_sources.py` | Pull tracked coderef repos, detect changes | `uv run python skill-maintainer/scripts/pull_sources.py --no-pull` |
-| `check_upstream.py` | Fetch Claude Code docs, detect page changes | `uv run python skill-maintainer/scripts/check_upstream.py --no-save` |
-| `query_log.py` | Query the changes.jsonl audit log | `uv run python skill-maintainer/scripts/query_log.py --tail 5` |
-
-## what you run manually
-
-### /maintain -- full maintenance pass
-
-**When:** you type `/maintain` in Claude Code.
-
-**What it does:** runs three scripts in sequence, then has Claude review the results and propose updates to `best_practices.md`. Four phases:
-
-| Phase | Script | What happens |
-|-------|--------|-------------|
-| 1 | `pull_sources.py` | Git pulls 10 tracked repos under `coderef/`, reports what changed |
-| 2 | `check_upstream.py` | Fetches Claude Code docs from the web, compares hashes, reports changes |
-| 3 | `quality_report.py` | Validates all skills, checks token budgets and staleness |
-| 4 | (Claude) | Reads change data + `best_practices.md`, proposes specific edits if needed |
-
-Phase 4 never auto-writes. Claude shows you proposed changes and waits for approval.
+Phase 4 never auto-writes. Claude shows proposed changes and waits for approval.
 
 **Where:** `.claude/commands/maintain.md`
 
-### individual scripts
+## subcommand details
 
-All scripts run via `uv run python skill-maintainer/scripts/<name>.py` from the repo root.
-
-You can run any of these independently at any time. `/maintain` just orchestrates the first three.
-
-## scripts: what each one does under the hood
-
-### pull_sources.py
-
-Pulls 10 tracked git repos under `coderef/` and detects what changed since the last run.
-
-**Tracked repos** (hardcoded in `TRACKED_REPOS` constant):
-```
-coderef/agentskills              Agent Skills spec
-coderef/skills                   Anthropic example skills
-coderef/claude-plugins-official  Official plugin directory
-coderef/knowledge-work-plugins   Enterprise patterns
-coderef/claude-agent-sdk-python  Claude Agent SDK
-coderef/claude-cookbooks         Capability patterns
-coderef/mcp/modelcontextprotocol MCP spec
-coderef/mcp/python-sdk           Python MCP SDK
-coderef/mcp/ext-apps             MCP Apps SDK
-coderef/mcp/experimental-ext-skills  Skills-over-MCP
-```
-
-**Step by step:**
-1. Loads stored SHAs from `state/upstream_hashes.json` under the `"local_repos"` key
-2. For each repo: resolves symlinks via `Path.resolve()`, checks `.git` exists
-3. Records current HEAD SHA (`git rev-parse HEAD`)
-4. Runs `git pull --ff-only` (skipped with `--no-pull`)
-5. Records HEAD SHA again after pull
-6. Compares post-pull SHA to stored SHA:
-   - No stored SHA -> status `NEW`
-   - SHA differs -> status `CHANGED`, captures `git log --oneline old..new`
-   - SHA matches -> status `UP_TO_DATE`
-7. Saves updated SHAs to `upstream_hashes.json["local_repos"]` (skipped with `--no-save`)
-8. Appends a `source_pull` event to `changes.jsonl` (skipped with `--no-log`)
-
-**Flags:** `--no-pull` (check only), `--no-save` (don't persist), `--no-log` (skip audit log)
-
-### check_upstream.py
-
-Fetches Claude Code documentation from the web and detects page-level changes.
-
-**Step by step:**
-1. Fetches `https://code.claude.com/docs/llms-full.txt` (single HTTP GET via httpx)
-2. Splits the response by `Source: <url>` delimiters into per-page sections
-3. Loads stored hashes from `state/upstream_hashes.json` (URL-keyed, top level)
-4. For each of 9 watched pages (hardcoded in `DEFAULT_PAGES`):
-   - SHA-256 hashes the page content (first 16 hex chars)
-   - Compares to stored hash: `NEW` if no prior hash, `CHANGED` if differs
-5. Saves updated hashes (skipped with `--no-save`)
-6. Appends an `upstream_check` event to `changes.jsonl` (skipped with `--no-log`)
-
-**Watched pages:** skills, plugins, plugins-reference, discover-plugins, plugin-marketplaces, hooks-guide, hooks, sub-agents, memory
-
-**Flags:** `--url-file <path>` (custom URL list), `--no-save`, `--no-log`
-
-### quality_report.py
-
-Runs validation, token budget, and staleness checks on every skill in the repo.
-
-**Step by step:**
-1. Walks repo with `rglob("SKILL.md")`, skipping `coderef/`, `.venv/`, `node_modules/`, etc.
-2. For each skill directory:
-   - **Validation:** calls `skills_ref.validator.validate()` (the same validator the pre-commit hook uses)
-   - **Token budget:** sums character counts of all text files in the skill dir, divides by 4. Thresholds: 4000 (warn), 8000 (critical)
-   - **Staleness:** reads `metadata.last_verified` from frontmatter, computes days since. >30 days = stale
-   - **Description quality:** checks for WHAT verb ("handles", "generates", etc.) and WHEN trigger ("use when", "when user", etc.)
-3. Prints a table with all results
-4. Appends a `quality_report` event to `changes.jsonl` (skipped with `--no-log`)
-5. Exits 1 if any skill fails validation, 0 otherwise
-
-**Flags:** `--dir <path>` (custom root), `--no-log`
-
-### validate_skill.py
+### validate
 
 Validates one or all skills against the Agent Skills spec plus best-practice checks.
 
-**Step by step:**
-1. For each skill:
-   - Runs `skills_ref.validator.validate()` (spec compliance: name format, required fields, allowed fields)
-   - Runs additional checks: line count (max 500), word count (max 5000), description quality (WHAT + WHEN pattern), angle brackets in description, unlinked reference files
-2. Reports errors (spec violations) and warnings (best practice issues) separately
+For each skill:
+- Runs `skills_ref.validator.validate()` (spec compliance: name format, required fields, allowed fields)
+- Checks line count (max 500), word count (max 5000), description quality (WHAT + WHEN pattern), angle brackets in description, unlinked reference files
 
-**Flags:** `--all` (validate every skill), `--verbose` (show all details), or pass a single skill path
+Reports errors (spec violations) and warnings (best practice issues) separately.
 
-### check_freshness.py
+```bash
+skill-maintain validate --all
+skill-maintain validate --skill tui-design --verbose
+```
+
+### quality
+
+Unified report: validation + token budget + staleness + description quality, one row per skill.
+
+For each skill:
+- **Validation:** `skills_ref.validator.validate()`
+- **Token budget:** chars / 4 estimate. Warn >4000, critical >8000
+- **Staleness:** days since `metadata.last_verified`. >30 days = stale
+- **Description quality:** checks for WHAT verb ("handles", "generates", etc.) and WHEN trigger ("use when", "when user", etc.)
+
+Exits 1 if any skill fails validation.
+
+```bash
+skill-maintain quality
+skill-maintain quality --no-log   # skip audit log entry
+```
+
+### freshness
 
 Checks `metadata.last_verified` dates across all skills.
 
-**Step by step:**
-1. Discovers all SKILL.md files
-2. For each: parses frontmatter, reads `metadata.last_verified`
-3. Computes days since that date, flags if over threshold
+```bash
+skill-maintain freshness                    # show all
+skill-maintain freshness --quiet            # only show stale
+skill-maintain freshness --threshold 14     # stricter threshold (days)
+skill-maintain freshness --skill tui-design # check one skill
+```
 
-**Flags:** `<skill-name>` (check one), `--threshold <days>` (default 30), `--quiet` (only show stale)
+### measure
 
-### measure_content.py
+Detailed token budget measurement with per-file breakdown. Classifies files by type (skill_md, reference, script, agent, etc.) and estimates tokens as chars / 4.
 
-Detailed token budget measurement with per-file breakdown.
+```bash
+skill-maintain measure
+skill-maintain measure --skill tui-design
+skill-maintain measure --output report.md   # write to file
+```
 
-**Step by step:**
-1. Discovers all skills
-2. For each skill: walks all text files, classifies by type (skill_md, reference, script, agent, etc.), measures lines/words/chars
-3. Estimates tokens as chars / 4 (rough approximation)
-4. Generates a markdown report with per-skill and per-file breakdown
+### test
 
-**Flags:** `--skill <name>` (measure one), `--dir <path>`, `--output <file>` (write report to file)
+Red/green test suite with three categories: skills, plugins, repo hygiene.
 
-### query_log.py
+```bash
+skill-maintain test
+skill-maintain test --category skills
+skill-maintain test --category repo
+skill-maintain test --verbose
+```
 
-Queries the append-only audit log (`changes.jsonl`).
+### upstream
 
-**Step by step:**
-1. Reads `state/changes.jsonl` line by line (each line is a JSON object)
-2. Filters by date range, event type, or tail count
-3. Formats output based on event type:
-   - `source_pull`: "3/10 repos changed: agentskills, skills, cookbooks"
-   - `upstream_check`: "2 pages changed: skills, plugins"
-   - `quality_report`: "9/9 valid, 5 over budget, 0 stale"
+Fetches `https://code.claude.com/docs/llms-full.txt`, splits by `Source: <url>` delimiters into per-page sections, hashes each watched page, and reports changes.
 
-**Flags:** `--days <n>` (recent window), `--type <event>` (filter), `--tail <n>` (last N events)
+Watched pages are configured in `.skill-maintainer/config.json` under `upstream_urls`. Defaults cover: skills, plugins, plugins-reference, discover-plugins, plugin-marketplaces, hooks-guide, hooks, sub-agents, memory.
+
+```bash
+skill-maintain upstream
+skill-maintain upstream --no-save   # check without persisting hashes
+skill-maintain upstream --no-log    # skip audit log entry
+```
+
+### sources
+
+Pulls tracked git repos and detects what changed since the last run. Tracked repos are configured in `.skill-maintainer/config.json` under `tracked_repos`.
+
+For each repo:
+1. Loads stored SHA from `.skill-maintainer/state/upstream_hashes.json` under `"local_repos"`
+2. Records current HEAD SHA
+3. Runs `git pull --ff-only`
+4. Compares post-pull SHA to stored SHA: `NEW`, `CHANGED` (with commit log), or `UP_TO_DATE`
+5. Saves updated SHAs and appends a `source_pull` event to `changes.jsonl`
+
+```bash
+skill-maintain sources
+skill-maintain sources --no-pull    # check SHAs without pulling
+skill-maintain sources --no-save    # don't persist updated SHAs
+```
+
+### log
+
+Queries the append-only audit log at `.skill-maintainer/state/changes.jsonl`.
+
+```bash
+skill-maintain log --tail 5
+skill-maintain log --days 7
+skill-maintain log --type upstream_check
+```
+
+## configuration
+
+Per-repo config lives at `.skill-maintainer/config.json`. Created by `skill-maintain init`.
+
+```json
+{
+  "upstream_urls": [
+    "https://code.claude.com/docs/en/skills",
+    "https://code.claude.com/docs/en/plugins"
+  ],
+  "tracked_repos": [
+    "coderef/agentskills",
+    "coderef/mcp/modelcontextprotocol"
+  ],
+  "llms_full_url": "https://code.claude.com/docs/llms-full.txt"
+}
+```
+
+To add a tracked source, add an entry to `tracked_repos` and clone or symlink the repo at the specified path.
+
+To add a watched upstream page, add its URL to `upstream_urls`. The page must appear in `llms-full.txt`.
+
+Best practices doc: `.skill-maintainer/best_practices.md` (proposed edits from `/maintain`, reviewed manually before applying).
 
 ## state files
 
-All state lives in `skill-maintainer/state/`. Both files are gitignored and auto-generated.
+Both state files live at `.skill-maintainer/state/`. They are gitignored and auto-generated.
 
 ### upstream_hashes.json
 
@@ -220,42 +286,32 @@ All state lives in `skill-maintainer/state/`. Both files are gitignored and auto
 {
   "https://code.claude.com/docs/en/skills": "7fdcca7ff9e64a8c",
   "https://code.claude.com/docs/en/plugins": "6f472f023ede34f8",
-  ...
   "local_repos": {
     "coderef/agentskills": "abc123def456...",
-    "coderef/skills": "789012ghi345...",
-    ...
+    "coderef/mcp/modelcontextprotocol": "789012ghi345..."
   }
 }
 ```
 
-Top-level keys are URLs (written by `check_upstream.py`). The `local_repos` key holds git SHAs (written by `pull_sources.py`). The two scripts share the file but use different key namespaces so they don't interfere.
+Top-level keys are URLs (written by `upstream`). The `"local_repos"` key holds git SHAs (written by `sources`). The two subcommands share the file but use different key namespaces.
 
 ### changes.jsonl
 
 Append-only audit log. One JSON object per line. Three event types:
 
 ```json
-{"type": "source_pull", "date": "2026-03-03", "repos_checked": 10, "repos_changed": 3, "changes": [...]}
-{"type": "upstream_check", "date": "2026-03-03", "changed_pages": [...], "total_changed": 2}
-{"type": "quality_report", "date": "2026-03-03", "skills": 9, "valid": 9, "over_budget": 5, "stale": 0}
+{"type": "source_pull", "date": "2026-03-06", "repos_checked": 10, "repos_changed": 3, "changes": [...]}
+{"type": "upstream_check", "date": "2026-03-06", "changed_pages": [...], "total_changed": 2}
+{"type": "quality_report", "date": "2026-03-06", "skills": 9, "valid": 9, "over_budget": 5, "stale": 0}
 ```
 
 ### metadata.last_verified (in SKILL.md files)
 
-Not a state file, but part of the system. Each SKILL.md has this in frontmatter:
+Each SKILL.md has this in frontmatter:
 
 ```yaml
 metadata:
-  last_verified: 2026-02-25
+  last_verified: 2026-03-06
 ```
 
-This is what `check_freshness.py` and `quality_report.py` check. Update it when you review or modify a skill.
-
-## adding a new tracked source
-
-Edit `TRACKED_REPOS` in `pull_sources.py`. Clone or symlink the repo into `coderef/`. That's it.
-
-## adding a new upstream doc page to watch
-
-Edit `DEFAULT_PAGES` in `check_upstream.py`. Add the full URL. The page must exist in `llms-full.txt`.
+Update it when you review or modify a skill. `freshness` and `quality` both read this field.

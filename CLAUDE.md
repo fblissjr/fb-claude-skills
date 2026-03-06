@@ -46,10 +46,13 @@ fb-claude-skills/
     skills/skill-dashboard/  # SKILL.md
     server.py                # FastMCP + mcp-ui server (imports run_tests.py from skill-maintainer)
     templates/               # dashboard.html (Tailwind CDN + Alpine.js CDN)
-  skill-maintainer/          # Project-scoped: maintenance tooling (not a skill)
-    scripts/                 # shared, run_tests, quality_report, check_upstream, pull_sources, check_freshness, validate_skill, measure_content, query_log
+  skill-maintainer/          # Installable package: maintenance CLI for any skill repo
+    src/skill_maintainer/    # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
     references/              # Best practices
-    state/                   # upstream_hashes.json, changes.jsonl (auto-generated)
+  .skill-maintainer/         # Per-repo config and state (gitignored state/)
+    config.json              # upstream URLs, tracked repos, llms-full URL
+    best_practices.md        # Machine-parseable best practices checklist
+    state/                   # upstream_hashes.json, changes.jsonl (auto-generated, gitignored)
   docs/
     analysis/                # 16 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
@@ -88,7 +91,9 @@ To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 ### Project-scoped modules
 
-heylook-monitor and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation. skill-maintainer is project-scoped tooling (scripts + hooks), not a skill.
+heylook-monitor and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation.
+
+skill-maintainer is an installable Python package. From other repos: `uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer`. Then run `skill-maintain init` to create per-repo config.
 
 ## Plugin development
 
@@ -146,33 +151,36 @@ When generating new artifacts, first search existing catalogs for structurally s
 
 ### Cross-member imports
 
-`skill-dashboard/server.py` imports from `skill-maintainer/scripts/` via `sys.path.insert`. This is necessary because both are `package = false` uv workspace members. `shared.py` in `skill-maintainer/scripts/` is the canonical home for reusable functions (discovery, token measurement, description quality checks). Budget threshold constants (`TOKEN_BUDGET_WARN`, `TOKEN_BUDGET_CRITICAL`) live in `shared.py` and are injected into downstream consumers (dashboard HTML) -- never hardcode them.
+`skill-dashboard` declares `skill-maintainer` as a workspace dependency. Imports: `from skill_maintainer.tests import test_skills, test_plugins, test_repo_hygiene` and `from skill_maintainer.shared import TOKEN_BUDGET_WARN, TOKEN_BUDGET_CRITICAL`. Budget threshold constants live in `skill_maintainer.shared` and are injected into downstream consumers (dashboard HTML) -- never hardcode them.
 
 ## How to keep things fresh
 
 | Concern | Mechanism | Trigger |
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
-| Red/green tests | `uv run python skill-maintainer/scripts/run_tests.py` | On demand |
+| Red/green tests | `skill-maintain test` | On demand |
 | Full maintenance pass | `/maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
-| Quality/budget/freshness | `uv run python skill-maintainer/scripts/quality_report.py` | On demand |
-| Upstream change detection | `uv run python skill-maintainer/scripts/check_upstream.py` | On demand |
-| Local source pulls | `uv run python skill-maintainer/scripts/pull_sources.py` | On demand |
-| Change history | `uv run python skill-maintainer/scripts/query_log.py` | On demand |
+| Quality/budget/freshness | `skill-maintain quality` | On demand |
+| Upstream change detection | `skill-maintain upstream` | On demand |
+| Local source pulls | `skill-maintain sources` | On demand |
+| Change history | `skill-maintain log` | On demand |
 
 Other useful commands:
 
 ```bash
-uv run python skill-maintainer/scripts/validate_skill.py --all    # validate all skills
-uv run python skill-maintainer/scripts/measure_content.py          # token budget report
-uv run python skill-maintainer/scripts/check_freshness.py          # staleness check
-uv run agentskills validate path/to/SKILL.md                        # validate a single skill
+skill-maintain validate --all                    # validate all skills
+skill-maintain measure                           # token budget report
+skill-maintain freshness                         # staleness check
+skill-maintain init                              # initialize .skill-maintainer/ in a new repo
+uv run agentskills validate path/to/SKILL.md     # validate a single skill (low-level)
 ```
+
+All commands accept `--dir <path>` to target a different repo.
 
 ## State
 
-- `skill-maintainer/state/upstream_hashes.json` -- page content hashes for upstream detection (auto-generated)
-- `skill-maintainer/state/changes.jsonl` -- append-only audit log of quality reports and upstream checks
+- `.skill-maintainer/state/upstream_hashes.json` -- page content hashes for upstream detection (auto-generated)
+- `.skill-maintainer/state/changes.jsonl` -- append-only audit log of quality reports and upstream checks
 - `metadata.last_verified` in each SKILL.md frontmatter -- date the skill was last reviewed
 
 ## Documentation index
@@ -195,9 +203,9 @@ Python managed as a **uv workspace**. The root `pyproject.toml` coordinates four
 
 | Member | Key dependencies |
 |--------|-----------------|
-| `skill-maintainer` | orjson, httpx, skills-ref (PyPI) |
+| `skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
 | `env-forge` | orjson, huggingface-hub |
-| `skill-dashboard` | orjson, mcp, mcp-ui-server (git) |
+| `skill-dashboard` | orjson, mcp, mcp-ui-server (git), skill-maintainer (workspace) |
 | `mece-decomposer` | orjson |
 
 Setup: `uv sync --all-packages` installs all member deps into a shared venv. Existing `uv run` commands work unchanged.

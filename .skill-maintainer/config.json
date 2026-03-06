@@ -1,0 +1,26 @@
+{
+  "upstream_urls": [
+    "https://code.claude.com/docs/en/skills",
+    "https://code.claude.com/docs/en/plugins",
+    "https://code.claude.com/docs/en/plugins-reference",
+    "https://code.claude.com/docs/en/discover-plugins",
+    "https://code.claude.com/docs/en/plugin-marketplaces",
+    "https://code.claude.com/docs/en/hooks-guide",
+    "https://code.claude.com/docs/en/hooks",
+    "https://code.claude.com/docs/en/sub-agents",
+    "https://code.claude.com/docs/en/memory"
+  ],
+  "llms_full_url": "https://code.claude.com/docs/llms-full.txt",
+  "tracked_repos": [
+    "coderef/agentskills",
+    "coderef/skills",
+    "coderef/claude-plugins-official",
+    "coderef/knowledge-work-plugins",
+    "coderef/claude-agent-sdk-python",
+    "coderef/claude-cookbooks",
+    "coderef/mcp/modelcontextprotocol",
+    "coderef/mcp/python-sdk",
+    "coderef/mcp/ext-apps",
+    "coderef/mcp/experimental-ext-skills"
+  ]
+}

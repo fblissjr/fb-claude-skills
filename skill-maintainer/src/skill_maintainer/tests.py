@@ -1,19 +1,9 @@
-#!/usr/bin/env python3
-"""
-Red/green test suite for skill ecosystem properties.
+"""Red/green test suite for skill ecosystem properties.
 
-Encodes the measurable checks from best_practices.md as pass/fail assertions.
+Encodes the measurable checks from best practices as pass/fail assertions.
 No pytest dependency. No network calls. No file writes. Pure read-only.
-
-Usage:
-    uv run python skill-maintainer/scripts/run_tests.py
-    uv run python skill-maintainer/scripts/run_tests.py --verbose
-    uv run python skill-maintainer/scripts/run_tests.py --category skills
-    uv run python skill-maintainer/scripts/run_tests.py --category plugins
-    uv run python skill-maintainer/scripts/run_tests.py --category repo
 """
 
-import argparse
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -25,25 +15,19 @@ import orjson
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skills_ref.validator import validate
 
-from shared import (
+from skill_maintainer.config import best_practices_file
+from skill_maintainer.shared import (
     STALE_DAYS,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
     check_description_quality,
     discover_plugins,
     discover_skills,
+    get_last_verified,
     measure_tokens,
 )
 
 PLUGIN_REQUIRED_FIELDS = ("name", "version", "description", "author", "repository")
-MARKETPLACE_PATH = Path(".claude-plugin/marketplace.json")
-SETTINGS_PATH = Path(".claude/settings.json")
-GITIGNORE_PATH = Path(".gitignore")
-BEST_PRACTICES_PATH = Path("skill-maintainer/references/best_practices.md")
-STATE_FILES = [
-    Path("skill-maintainer/state/upstream_hashes.json"),
-    Path("skill-maintainer/state/changes.jsonl"),
-]
 
 # High-frequency hook events that should not have broad (unmatched) triggers
 HIGH_FREQ_EVENTS = {"PreToolUse", "PostToolUse"}
@@ -112,18 +96,15 @@ def test_skills(root: Path) -> list[Result]:
             results.append(Result("skill", name, "description quality", False, "failed to parse frontmatter"))
             continue
 
-        meta = metadata.get("metadata", {})
-        lv = meta.get("last_verified") if isinstance(meta, dict) else None
-        if lv:
-            try:
-                days = (date.today() - date.fromisoformat(str(lv))).days
-                results.append(Result(
-                    "skill", name, "staleness",
-                    days <= STALE_DAYS,
-                    f"{days}d" if days <= STALE_DAYS else f"{days}d > {STALE_DAYS}d",
-                ))
-            except ValueError:
-                results.append(Result("skill", name, "staleness", False, f"invalid date: {lv}"))
+        lv_str, days_ago = get_last_verified(metadata)
+        if lv_str and days_ago is not None:
+            results.append(Result(
+                "skill", name, "staleness",
+                days_ago <= STALE_DAYS,
+                f"{days_ago}d" if days_ago <= STALE_DAYS else f"{days_ago}d > {STALE_DAYS}d",
+            ))
+        elif lv_str:
+            results.append(Result("skill", name, "staleness", False, f"invalid date: {lv_str}"))
         else:
             results.append(Result("skill", name, "staleness", False, "missing metadata.last_verified"))
 
@@ -146,7 +127,7 @@ def test_skills(root: Path) -> list[Result]:
 
 def load_marketplace(root: Path) -> list[str]:
     """Return plugin names listed in marketplace.json."""
-    mp_path = root / MARKETPLACE_PATH
+    mp_path = root / ".claude-plugin" / "marketplace.json"
     if not mp_path.exists():
         return []
     data = orjson.loads(mp_path.read_bytes())
@@ -182,12 +163,13 @@ def test_plugins(root: Path) -> list[Result]:
             f"missing: {', '.join(missing)}" if missing else "",
         ))
 
-        # 2. Marketplace listing
-        results.append(Result(
-            "plugin", name, "marketplace listing",
-            name in marketplace_names,
-            "" if name in marketplace_names else "not in marketplace.json",
-        ))
+        # 2. Marketplace listing (only if marketplace.json exists)
+        if marketplace_names:
+            results.append(Result(
+                "plugin", name, "marketplace listing",
+                name in marketplace_names,
+                "" if name in marketplace_names else "not in marketplace.json",
+            ))
 
         # 3. README exists
         readme = plugin_dir / "README.md"
@@ -206,11 +188,11 @@ def test_plugins(root: Path) -> list[Result]:
 
 
 def test_repo_hygiene(root: Path) -> list[Result]:
-    """Run one-time repo-level checks."""
+    """Run repo-level checks."""
     results = []
 
     # 1. No blanket .claude/ gitignore
-    gitignore_path = root / GITIGNORE_PATH
+    gitignore_path = root / ".gitignore"
     blanket_found = False
     if gitignore_path.exists():
         for line in gitignore_path.read_text().splitlines():
@@ -225,7 +207,7 @@ def test_repo_hygiene(root: Path) -> list[Result]:
     ))
 
     # 2. No broad ambient hooks
-    settings_path = root / SETTINGS_PATH
+    settings_path = root / ".claude" / "settings.json"
     broad_hooks = []
     if settings_path.exists():
         try:
@@ -249,22 +231,22 @@ def test_repo_hygiene(root: Path) -> list[Result]:
     ))
 
     # 3. State files gitignored
+    state_patterns = [".skill-maintainer/state/"]
     all_ignored = True
     not_ignored = []
-    for sf in STATE_FILES:
+    for pattern in state_patterns:
         try:
             cp = subprocess.run(
-                ["git", "check-ignore", "-q", str(sf)],
+                ["git", "check-ignore", "-q", pattern],
                 cwd=str(root),
                 capture_output=True,
             )
             if cp.returncode != 0:
                 all_ignored = False
-                not_ignored.append(sf.name)
+                not_ignored.append(pattern)
         except FileNotFoundError:
-            # git not available
             all_ignored = False
-            not_ignored.append(f"{sf.name} (git not found)")
+            not_ignored.append(f"{pattern} (git not found)")
     results.append(Result(
         "repo", "", "state files gitignored",
         all_ignored,
@@ -286,8 +268,8 @@ def test_repo_hygiene(root: Path) -> list[Result]:
         f"duplicates: {', '.join(sorted(dupes))}" if dupes else "",
     ))
 
-    # 5. best_practices.md freshness
-    bp_path = root / BEST_PRACTICES_PATH
+    # 5. best_practices.md freshness (if it exists)
+    bp_path = best_practices_file(root)
     if bp_path.exists():
         content = bp_path.read_text()
         first_line = content.splitlines()[0] if content else ""
@@ -310,12 +292,6 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 False,
                 "missing or unparseable 'last updated' date",
             ))
-    else:
-        results.append(Result(
-            "repo", "", "best_practices.md fresh",
-            False,
-            "file not found",
-        ))
 
     return results
 
@@ -333,13 +309,16 @@ def format_result(r: Result) -> str:
     return f"{tag}  {prefix:<35} {r.check}{detail}"
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Red/green test suite for skill ecosystem properties.")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to test")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show PASS results (default: only FAIL + summary)")
     parser.add_argument("--category", choices=["skills", "plugins", "repo"], help="Run only one category")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    root = Path(".")
+    root = parsed.dir
     all_results: list[Result] = []
 
     runners = {
@@ -348,8 +327,8 @@ def main():
         "repo": test_repo_hygiene,
     }
 
-    if args.category:
-        all_results.extend(runners[args.category](root))
+    if parsed.category:
+        all_results.extend(runners[parsed.category](root))
     else:
         for runner in runners.values():
             all_results.extend(runner(root))
@@ -359,7 +338,7 @@ def main():
     failed = [r for r in all_results if not r.passed]
 
     for r in all_results:
-        if r.passed and not args.verbose:
+        if r.passed and not parsed.verbose:
             continue
         print(format_result(r))
 
@@ -367,7 +346,3 @@ def main():
     print(f"{len(passed)} passed, {len(failed)} failed")
 
     sys.exit(0 if len(failed) == 0 else 1)
-
-
-if __name__ == "__main__":
-    main()

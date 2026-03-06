@@ -1,59 +1,52 @@
-#!/usr/bin/env python3
-"""
-Query the append-only changes log.
+"""Query the append-only changes log."""
 
-Reads state/changes.jsonl and filters by date, event type, or skill name.
-
-Usage:
-    uv run python skill-maintainer/scripts/query_log.py
-    uv run python skill-maintainer/scripts/query_log.py --days 7
-    uv run python skill-maintainer/scripts/query_log.py --type upstream_check
-"""
-
-import argparse
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
 import orjson
 
-CHANGES_LOG = Path("skill-maintainer/state/changes.jsonl")
+from skill_maintainer.config import changes_log
 
 
-def load_events() -> list[dict]:
-    if not CHANGES_LOG.exists():
+def load_events(root: Path) -> list[dict]:
+    log_path = changes_log(root)
+    if not log_path.exists():
         return []
     events = []
-    for line in CHANGES_LOG.read_bytes().splitlines():
+    for line in log_path.read_bytes().splitlines():
         if line.strip():
             events.append(orjson.loads(line))
     return events
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Query the changes log.")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory (for state)")
     parser.add_argument("--days", type=int, default=None, help="Show events from last N days")
     parser.add_argument("--type", type=str, default=None, help="Filter by event type")
     parser.add_argument("--tail", type=int, default=None, help="Show last N events")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    events = load_events()
+    events = load_events(parsed.dir)
     if not events:
         print("No events in log.", file=sys.stderr)
         sys.exit(0)
 
     # Filter by date
-    if args.days is not None:
-        cutoff = (date.today() - timedelta(days=args.days)).isoformat()
+    if parsed.days is not None:
+        cutoff = (date.today() - timedelta(days=parsed.days)).isoformat()
         events = [e for e in events if e.get("date", "") >= cutoff]
 
     # Filter by type
-    if args.type:
-        events = [e for e in events if e.get("type") == args.type]
+    if parsed.type:
+        events = [e for e in events if e.get("type") == parsed.type]
 
     # Tail
-    if args.tail:
-        events = events[-args.tail:]
+    if parsed.tail:
+        events = events[-parsed.tail:]
 
     if not events:
         print("No matching events.", file=sys.stderr)
@@ -62,7 +55,6 @@ def main():
     for event in events:
         event_type = event.get("type", "?")
         event_date = event.get("date", "?")
-        # Format depends on type
         if event_type == "upstream_check":
             n = event.get("total_changed", 0)
             pages = event.get("changed_pages", [])
@@ -87,7 +79,3 @@ def main():
             detail = str(event)
 
         print(f"[{event_date}] {event_type}: {detail}")
-
-
-if __name__ == "__main__":
-    main()

@@ -1,5 +1,21 @@
 # changelog
 
+## 0.17.0
+
+### changed
+- **skill-maintainer**: converted from `package = false` scripts to a proper installable Python package
+  - new `src/skill_maintainer/` package with CLI entry point `skill-maintain`
+  - git-installable: `uv add git+<repo>#subdirectory=skill-maintainer`
+  - all commands accept `--dir <path>` to target any skill repo (default: `.`)
+  - subcommands: init, validate, quality, freshness, measure, test, upstream, sources, log
+  - per-repo config in `.skill-maintainer/config.json` (upstream URLs, tracked repos)
+  - per-repo state in `.skill-maintainer/state/` (hashes, changes log)
+  - best_practices.md moved to `.skill-maintainer/best_practices.md`
+  - version bumped to 0.2.0
+- **skill-dashboard**: replaced `sys.path.insert` hack with proper `skill-maintainer` workspace dependency
+  - imports now: `from skill_maintainer.tests import ...` and `from skill_maintainer.shared import ...`
+  - removed unused `sys` import
+
 ## 0.16.0
 
 ### changed

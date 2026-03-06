@@ -224,6 +224,7 @@ __marimo__/
 # Skill maintainer auto-generated state
 skill-maintainer/state/upstream_hashes.json
 skill-maintainer/state/changes.jsonl
+.skill-maintainer/state/
 *.backup/
 
 # Internal logs (separate repo)

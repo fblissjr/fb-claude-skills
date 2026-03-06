@@ -1,51 +1,24 @@
-#!/usr/bin/env python3
-"""
-On-demand upstream change detection.
+"""On-demand upstream change detection.
 
 Fetches llms-full.txt from Claude Code docs, splits by page,
-compares hashes to state/upstream_hashes.json, prints what changed.
-
-Usage:
-    uv run python skill-maintainer/scripts/check_upstream.py
-    uv run python skill-maintainer/scripts/check_upstream.py --url-file upstream_urls.txt
+compares hashes to stored state, prints what changed.
 """
 
-import argparse
 import hashlib
 import sys
 from datetime import date
 from pathlib import Path
 
 import httpx
-import orjson
 
-LLMS_FULL_URL = "https://code.claude.com/docs/llms-full.txt"
-HASHES_FILE = Path("skill-maintainer/state/upstream_hashes.json")
-CHANGES_LOG = Path("skill-maintainer/state/changes.jsonl")
-
-# Default pages to watch (from the old config.yaml)
-DEFAULT_PAGES = [
-    "https://code.claude.com/docs/en/skills",
-    "https://code.claude.com/docs/en/plugins",
-    "https://code.claude.com/docs/en/plugins-reference",
-    "https://code.claude.com/docs/en/discover-plugins",
-    "https://code.claude.com/docs/en/plugin-marketplaces",
-    "https://code.claude.com/docs/en/hooks-guide",
-    "https://code.claude.com/docs/en/hooks",
-    "https://code.claude.com/docs/en/sub-agents",
-    "https://code.claude.com/docs/en/memory",
-]
-
-
-def load_hashes() -> dict:
-    if HASHES_FILE.exists():
-        return orjson.loads(HASHES_FILE.read_bytes())
-    return {}
-
-
-def save_hashes(hashes: dict) -> None:
-    HASHES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HASHES_FILE.write_bytes(orjson.dumps(hashes, option=orjson.OPT_INDENT_2))
+from skill_maintainer.config import (
+    append_event,
+    get_llms_full_url,
+    get_upstream_urls,
+    hashes_file,
+    load_hashes,
+    save_hashes,
+)
 
 
 def split_by_source(text: str) -> dict[str, str]:
@@ -73,48 +46,52 @@ def hash_content(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
-def append_to_log(changed: list[dict]) -> None:
-    CHANGES_LOG.parent.mkdir(parents=True, exist_ok=True)
-    event = {
+def _log_event(root: Path, changed: list[dict]) -> None:
+    append_event(root, {
         "type": "upstream_check",
         "date": date.today().isoformat(),
         "changed_pages": [c["url"] for c in changed],
         "total_changed": len(changed),
-    }
-    with open(CHANGES_LOG, "ab") as f:
-        f.write(orjson.dumps(event) + b"\n")
+    })
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Check for upstream doc changes.")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory (for config/state)")
     parser.add_argument(
         "--url-file", type=Path, default=None,
-        help="File with one URL per line to watch (default: built-in list)",
+        help="File with one URL per line to watch (overrides config)",
     )
     parser.add_argument("--no-save", action="store_true", help="Don't update hash state")
     parser.add_argument("--no-log", action="store_true", help="Skip writing to changes.jsonl")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
+
+    root = parsed.dir
 
     # Determine which pages to watch
-    if args.url_file and args.url_file.exists():
+    if parsed.url_file and parsed.url_file.exists():
         watch_pages = [
-            line.strip() for line in args.url_file.read_text().splitlines()
+            line.strip() for line in parsed.url_file.read_text().splitlines()
             if line.strip() and not line.startswith("#")
         ]
     else:
-        watch_pages = DEFAULT_PAGES
+        watch_pages = get_upstream_urls(root)
+
+    llms_url = get_llms_full_url(root)
 
     # Fetch llms-full.txt
     print("Fetching llms-full.txt...", file=sys.stderr)
     try:
-        resp = httpx.get(LLMS_FULL_URL, timeout=30, follow_redirects=True)
+        resp = httpx.get(llms_url, timeout=30, follow_redirects=True)
         resp.raise_for_status()
     except httpx.HTTPError as e:
         print(f"Error fetching llms-full.txt: {e}", file=sys.stderr)
         sys.exit(1)
 
     sections = split_by_source(resp.text)
-    old_hashes = load_hashes()
+    old_hashes = load_hashes(root)
     new_hashes = dict(old_hashes)
     changed = []
 
@@ -149,15 +126,11 @@ def main():
         print("  No changes detected.")
 
     # Save state
-    if not args.no_save:
-        save_hashes(new_hashes)
-        print(f"\nHashes saved to {HASHES_FILE}", file=sys.stderr)
+    if not parsed.no_save:
+        save_hashes(root, new_hashes)
+        print(f"\nHashes saved to {hashes_file(root)}", file=sys.stderr)
 
-    if changed and not args.no_log:
-        append_to_log(changed)
+    if changed and not parsed.no_log:
+        _log_event(root, changed)
 
     sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()

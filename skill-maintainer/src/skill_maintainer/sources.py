@@ -1,52 +1,17 @@
-#!/usr/bin/env python3
-"""
-Pull tracked local repos and detect what changed since last run.
+"""Pull tracked local repos and detect what changed since last run."""
 
-Resolves coderef/ symlinks, runs git pull --ff-only on each repo,
-compares HEAD before/after against stored state, captures commit logs.
-
-Usage:
-    uv run python skill-maintainer/scripts/pull_sources.py
-    uv run python skill-maintainer/scripts/pull_sources.py --no-pull
-    uv run python skill-maintainer/scripts/pull_sources.py --no-save --no-log
-"""
-
-import argparse
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
-import orjson
-
-HASHES_FILE = Path("skill-maintainer/state/upstream_hashes.json")
-CHANGES_LOG = Path("skill-maintainer/state/changes.jsonl")
-
-# Tracked repos under coderef/ (relative to repo root).
-# Entries may be symlinks -- resolved at runtime.
-TRACKED_REPOS = [
-    "coderef/agentskills",
-    "coderef/skills",
-    "coderef/claude-plugins-official",
-    "coderef/knowledge-work-plugins",
-    "coderef/claude-agent-sdk-python",
-    "coderef/claude-cookbooks",
-    "coderef/mcp/modelcontextprotocol",
-    "coderef/mcp/python-sdk",
-    "coderef/mcp/ext-apps",
-    "coderef/mcp/experimental-ext-skills",
-]
-
-
-def load_hashes() -> dict:
-    if HASHES_FILE.exists():
-        return orjson.loads(HASHES_FILE.read_bytes())
-    return {}
-
-
-def save_hashes(hashes: dict) -> None:
-    HASHES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    HASHES_FILE.write_bytes(orjson.dumps(hashes, option=orjson.OPT_INDENT_2))
+from skill_maintainer.config import (
+    append_event,
+    get_tracked_repos,
+    hashes_file,
+    load_hashes,
+    save_hashes,
+)
 
 
 def git_head(repo_path: Path) -> str | None:
@@ -101,10 +66,9 @@ def git_log_oneline(repo_path: Path, old_sha: str, new_sha: str) -> list[str]:
     return []
 
 
-def append_to_log(results: list[dict]) -> None:
-    CHANGES_LOG.parent.mkdir(parents=True, exist_ok=True)
+def _log_event(root: Path, results: list[dict]) -> None:
     changed = [r for r in results if r["status"] in ("CHANGED", "NEW")]
-    event = {
+    append_event(root, {
         "type": "source_pull",
         "date": date.today().isoformat(),
         "repos_checked": len(results),
@@ -113,24 +77,34 @@ def append_to_log(results: list[dict]) -> None:
             {"repo": r["name"], "status": r["status"], "commits": len(r.get("commits", []))}
             for r in changed
         ],
-    }
-    with open(CHANGES_LOG, "ab") as f:
-        f.write(orjson.dumps(event) + b"\n")
+    })
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Pull tracked repos and detect changes.")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory (for config/state)")
     parser.add_argument("--no-pull", action="store_true", help="Check only, don't git pull")
     parser.add_argument("--no-save", action="store_true", help="Don't update hash state")
     parser.add_argument("--no-log", action="store_true", help="Skip writing to changes.jsonl")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    all_hashes = load_hashes()
+    root = parsed.dir
+    tracked_repos = get_tracked_repos(root)
+
+    if not tracked_repos:
+        print("No tracked repos configured.", file=sys.stderr)
+        print("Add repos to .skill-maintainer/config.json under 'tracked_repos'.", file=sys.stderr)
+        print('Example: "tracked_repos": ["coderef/agentskills", "coderef/mcp/python-sdk"]', file=sys.stderr)
+        sys.exit(1)
+
+    all_hashes = load_hashes(root)
     local_repos = all_hashes.get("local_repos", {})
     results = []
 
-    for rel_path in TRACKED_REPOS:
-        path = Path(rel_path)
+    for rel_path in tracked_repos:
+        path = root / rel_path
         name = rel_path
 
         # Resolve symlinks to find the actual git repo
@@ -154,11 +128,10 @@ def main():
             continue
 
         # Pull unless --no-pull
-        if not args.no_pull:
+        if not parsed.no_pull:
             ok, msg = git_pull(resolved)
             if not ok:
                 print(f"  PULL FAILED: {name}: {msg}", file=sys.stderr)
-                # Still record current HEAD even if pull fails
 
         after_sha = git_head(resolved)
         if after_sha is None:
@@ -167,7 +140,6 @@ def main():
             continue
 
         if old_sha is None:
-            # First time seeing this repo
             status = "NEW"
             commits = []
         elif old_sha != after_sha:
@@ -185,7 +157,6 @@ def main():
             "commits": commits,
         })
 
-        # Update stored SHA
         local_repos[name] = after_sha
 
     # Report
@@ -193,7 +164,7 @@ def main():
     up_to_date = [r for r in results if r["status"] == "UP_TO_DATE"]
     errors = [r for r in results if r["status"] in ("MISSING", "NOT_GIT", "ERROR")]
 
-    print(f"\nRepos: {len(TRACKED_REPOS)} tracked, {len(changed)} changed, "
+    print(f"\nRepos: {len(tracked_repos)} tracked, {len(changed)} changed, "
           f"{len(up_to_date)} up to date, {len(errors)} errors")
     print()
 
@@ -207,8 +178,7 @@ def main():
             "ERROR": "ERROR",
         }.get(r["status"], "?")
 
-        short_name = r["name"].replace("coderef/", "")
-        print(f"  [{marker:>8}] {short_name}")
+        print(f"  [{marker:>8}] {r['name']}")
 
         if r.get("commits"):
             for commit in r["commits"][:5]:
@@ -217,16 +187,12 @@ def main():
                 print(f"             ... and {len(r['commits']) - 5} more")
 
     # Save state
-    if not args.no_save:
+    if not parsed.no_save:
         all_hashes["local_repos"] = local_repos
-        save_hashes(all_hashes)
-        print(f"\nHashes saved to {HASHES_FILE}", file=sys.stderr)
+        save_hashes(root, all_hashes)
+        print(f"\nHashes saved to {hashes_file(root)}", file=sys.stderr)
 
-    if changed and not args.no_log:
-        append_to_log(results)
+    if changed and not parsed.no_log:
+        _log_event(root, results)
 
     sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()

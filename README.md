@@ -1,4 +1,4 @@
-last updated: 2026-02-23
+last updated: 2026-03-06
 
 # fb-claude-skills
 
@@ -19,13 +19,18 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [env-forge](env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [skill-dashboard](skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
 
-### project-scoped (not installable)
+### project-scoped
 
 | Module | Description |
 |--------|-------------|
-| [skill-maintainer](skill-maintainer/) | Automated skill maintenance and upstream change monitoring |
 | [heylook-monitor](heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
 | [skill-dashboard](skill-dashboard/) | Python-native MCP App skill dashboard (reference implementation) |
+
+### installable as a package (not a Claude plugin)
+
+| Module | Description |
+|--------|-------------|
+| [skill-maintainer](skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
 
 ## installation
 
@@ -167,23 +172,24 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 
 ## skill-maintainer
 
-This repo includes a self-updating system that monitors upstream docs and source repos for changes. It runs from within this repo (not installable as a plugin).
+Installable Python package providing the `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Within this repo it is available after `uv sync --all-packages`. For use in other repos:
 
 ```bash
-cd fb-claude-skills
-claude
-# /skill-maintainer check
+uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=skill-maintainer
+skill-maintain init
 ```
 
-Or run scripts directly:
+Common commands:
 
 ```bash
-uv run python skill-maintainer/scripts/docs_monitor.py      # check doc changes
-uv run python skill-maintainer/scripts/source_monitor.py     # check source changes
-uv run python skill-maintainer/scripts/update_report.py      # generate report
-uv run python skill-maintainer/scripts/apply_updates.py --skill <name>  # apply
-uv run python skill-maintainer/scripts/check_freshness.py    # check staleness
+skill-maintain test              # red/green test suite
+skill-maintain quality           # validation + budget + freshness report
+skill-maintain upstream          # check Claude Code docs for changes
+skill-maintain sources           # pull tracked repos, detect changes
+skill-maintain log --tail 5      # query audit log
 ```
+
+The `/maintain` slash command orchestrates the full pipeline: `sources → upstream → quality → review`. See [skill-maintainer/README.md](skill-maintainer/README.md) for the full CLI reference and data flow diagram.
 
 ## documentation
 

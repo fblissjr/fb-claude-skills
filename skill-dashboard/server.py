@@ -9,7 +9,6 @@ Transport: stdio (started by Claude Code via root .mcp.json)
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,11 +20,8 @@ from mcp_ui_server import UIMetadataKey, create_ui_resource
 PROJECT_ROOT = Path(__file__).parent.parent
 TEMPLATE_PATH = Path(__file__).parent / "templates" / "dashboard.html"
 
-# Make skill-maintainer/scripts importable
-sys.path.insert(0, str(PROJECT_ROOT / "skill-maintainer" / "scripts"))
-
-from run_tests import Result, test_plugins, test_repo_hygiene, test_skills  # noqa: E402
-from shared import TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN  # noqa: E402
+from skill_maintainer.tests import Result, test_plugins, test_repo_hygiene, test_skills  # noqa: E402
+from skill_maintainer.shared import TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN  # noqa: E402
 
 mcp = FastMCP("skill-dashboard")
 

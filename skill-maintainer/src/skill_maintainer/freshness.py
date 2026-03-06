@@ -1,51 +1,35 @@
-#!/usr/bin/env python3
-"""
-Lightweight staleness check for skill freshness.
+"""Lightweight staleness check for skill freshness."""
 
-Reads last_verified from SKILL.md frontmatter, warns if stale.
-No DuckDB dependency.
-
-Usage:
-    uv run python skill-maintainer/scripts/check_freshness.py
-    uv run python skill-maintainer/scripts/check_freshness.py plugin-toolkit
-    uv run python skill-maintainer/scripts/check_freshness.py --threshold 14
-"""
-
-import argparse
 import sys
-from datetime import date
 from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
 
-from shared import STALE_DAYS, discover_skills
+from skill_maintainer.shared import STALE_DAYS, discover_skills
+from skill_maintainer.shared import get_last_verified as _get_last_verified
 
 
-def get_last_verified(skill_dir: Path) -> str | None:
+def _read_last_verified(skill_dir: Path) -> tuple[str | None, int | None]:
     """Read last_verified from SKILL.md frontmatter."""
     skill_md = find_skill_md(skill_dir)
     if skill_md is None:
-        return None
+        return None, None
 
     try:
         content = skill_md.read_text()
         metadata, _ = parse_frontmatter(content)
     except Exception:
-        return None
+        return None, None
 
-    meta = metadata.get("metadata", {})
-    if isinstance(meta, dict):
-        lv = meta.get("last_verified")
-        return str(lv) if lv else None
-    return None
+    return _get_last_verified(metadata)
 
 
 def check_skill(skill_dir: Path, threshold_days: int) -> dict:
     """Check freshness of a single skill."""
     name = skill_dir.name
-    lv = get_last_verified(skill_dir)
+    lv_str, days_ago = _read_last_verified(skill_dir)
 
-    if lv is None:
+    if lv_str is None:
         return {
             "name": name,
             "is_stale": True,
@@ -54,59 +38,55 @@ def check_skill(skill_dir: Path, threshold_days: int) -> dict:
             "message": f"{name}: no last_verified date in metadata",
         }
 
-    try:
-        lv_date = date.fromisoformat(lv)
-    except ValueError:
+    if days_ago is None:
         return {
             "name": name,
             "is_stale": True,
-            "last_verified": lv,
+            "last_verified": lv_str,
             "days_ago": None,
-            "message": f"{name}: invalid last_verified date: {lv}",
+            "message": f"{name}: invalid last_verified date: {lv_str}",
         }
 
-    days_ago = (date.today() - lv_date).days
     is_stale = days_ago > threshold_days
 
     message = None
     if is_stale:
-        message = f"{name}: last verified {days_ago} days ago ({lv}). Consider reviewing."
+        message = f"{name}: last verified {days_ago} days ago ({lv_str}). Consider reviewing."
 
     return {
         "name": name,
         "is_stale": is_stale,
-        "last_verified": lv,
+        "last_verified": lv_str,
         "days_ago": days_ago,
         "message": message,
     }
 
 
-def main():
+def main(args=None):
+    import argparse
+
     parser = argparse.ArgumentParser(description="Check freshness of skills.")
     parser.add_argument("skill", nargs="?", default=None, help="Skill directory name to check")
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to search")
     parser.add_argument("--threshold", type=int, default=STALE_DAYS, help="Staleness threshold in days")
     parser.add_argument("--quiet", "-q", action="store_true", help="Only output stale skills")
-    args = parser.parse_args()
+    parsed = parser.parse_args(args)
 
-    skills = discover_skills(Path("."))
+    skills = discover_skills(parsed.dir)
 
-    if args.skill:
-        skills = [s for s in skills if s.name == args.skill]
+    if parsed.skill:
+        skills = [s for s in skills if s.name == parsed.skill]
         if not skills:
-            print(f"Skill '{args.skill}' not found", file=sys.stderr)
+            print(f"Skill '{parsed.skill}' not found", file=sys.stderr)
             sys.exit(1)
 
     for skill_dir in skills:
-        result = check_skill(skill_dir, args.threshold)
+        result = check_skill(skill_dir, parsed.threshold)
 
         if result["is_stale"]:
             if result.get("message"):
                 print(result["message"], file=sys.stderr)
-        elif not args.quiet:
+        elif not parsed.quiet:
             print(f"{result['name']}: OK (verified {result['days_ago']} days ago)", file=sys.stderr)
 
     sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
