@@ -624,22 +624,21 @@ implementations in this repository.
 
 | Pattern | Implementation | Location |
 |---------|---------------|----------|
-| Plugin structure with manifest | Every plugin has `.claude-plugin/plugin.json`, auto-discovered skills, and optional agents/hooks | `mcp-apps/`, `plugin-toolkit/`, `web-tdd/`, `cogapp-markdown/`, `tui-design/`, `mece-decomposer/`, `dimensional-modeling/` |
+| Plugin structure with manifest | Every plugin has `.claude-plugin/plugin.json`, auto-discovered skills, and optional agents/hooks | `skills/mcp-apps/`, `skills/plugin-toolkit/`, `skills/cogapp-markdown/`, `skills/tui-design/`, `skills/dimensional-modeling/`, `apps/mece-decomposer/`, `apps/env-forge/`, `apps/readwise-reader/`, `skills/dev-conventions/` |
 | Marketplace distribution | Root marketplace catalog lists all installable plugins | `.claude-plugin/marketplace.json` |
 | Multi-plugin monorepo | Single repo contains marketplace + all plugin directories using relative source paths | Repository root |
 | Progressive disclosure | Frontmatter for routing, SKILL.md body for instructions, `references/` for detailed docs | All skills follow this pattern |
-| Skills with agents | Plugin-toolkit bundles skills alongside scanner and quality-checker subagents | `plugin-toolkit/agents/` |
-| MCP server in a plugin | mece-decomposer includes `.mcp.json` for stdio server auto-start | `mece-decomposer/.mcp.json` |
-| MCP App with text fallback | mece-decomposer includes React tree visualizer as an MCP App | `mece-decomposer/mcp-app/` |
-| Commands (slash invocation) | mece-decomposer provides decompose, interview, validate, export commands | `mece-decomposer/commands/` |
-| CDC docs monitoring | Three-layer pipeline: watermark, per-page hash, keyword classification | `skill-maintainer/scripts/docs_monitor.py` |
-| CDC source monitoring | Git-based: shallow clone, commit extraction, AST parsing, deprecation scanning | `skill-maintainer/scripts/source_monitor.py` |
-| Closed-loop updates | detect -> classify -> apply -> validate with skills-ref -> human review | `skill-maintainer/scripts/apply_updates.py` |
-| Dimensional model for state | DuckDB star schema with SCD Type 2, MD5 surrogate keys, session events | `skill-maintainer/scripts/store.py` |
-| Freshness checking | Timestamp-based staleness detection, under 100ms, never blocking | `skill-maintainer/scripts/check_freshness.py` |
-| Source registry | YAML config mapping sources to skills with detection methods | `skill-maintainer/config.yaml` |
+| Skills with agents | Plugin-toolkit bundles skills alongside scanner and quality-checker subagents | `skills/plugin-toolkit/agents/` |
+| MCP server in a plugin | mece-decomposer includes `.mcp.json` for stdio server auto-start | `apps/mece-decomposer/.mcp.json` |
+| MCP App with text fallback | mece-decomposer includes React tree visualizer as an MCP App | `apps/mece-decomposer/mcp-app/` |
+| Commands (slash invocation) | mece-decomposer provides decompose, interview, validate, export commands | `apps/mece-decomposer/commands/` |
+| CDC upstream detection | Hash-based upstream doc change detection via llms-full.txt | `tools/skill-maintainer/src/skill_maintainer/upstream.py` |
+| Source pulling | Git-based local repo pulling with change detection | `tools/skill-maintainer/src/skill_maintainer/sources.py` |
+| Quality reporting | Validation, token budget, freshness, description quality | `tools/skill-maintainer/src/skill_maintainer/quality.py` |
+| Freshness checking | Timestamp-based staleness detection via metadata.last_verified | `tools/skill-maintainer/src/skill_maintainer/freshness.py` |
+| Source registry | JSON config mapping upstream URLs and tracked repos | `.skill-maintainer/config.json` |
 | Spec validation | All skills validated against Agent Skills spec via skills-ref | `coderef/agentskills/skills-ref/` |
-| Self-referential maintenance | skill-maintainer monitors its own upstream sources and maintains itself | `skill-maintainer/config.yaml` (self-entry) |
+| Self-referential maintenance | skill-maintainer monitors its own upstream sources and maintains itself | `.skill-maintainer/config.json` (self-entry) |
 | Selection under constraint | Decompose, route, prune, synthesize, verify -- applied at every system level | `docs/analysis/abstraction_analogies.md` |
 | Database analogy | Skills as view definitions + stored procedures; context window as temp table | `docs/analysis/abstraction_analogies.md` |
 | Auto memory | Claude maintains MEMORY.md with project patterns, key file paths, conventions, and gotchas for cross-session persistence | `~/.claude/projects/.../memory/MEMORY.md` |

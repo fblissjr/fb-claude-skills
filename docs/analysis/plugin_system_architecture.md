@@ -445,7 +445,7 @@ claude --plugin-dir ./my-plugin
 
 ## 9. Implementation Audit
 
-This repository contains 7 installable plugins plus 1 project-scoped module (skill-maintainer, which cannot be installed as a plugin because it depends on repo-local state). The marketplace at `.claude-plugin/marketplace.json` lists all 7 installable plugins.
+This repository contains 10 installable plugins plus 1 project-scoped module (skill-maintainer, which cannot be installed as a plugin because it depends on repo-local state). The marketplace at `.claude-plugin/marketplace.json` lists all 10 installable plugins.
 
 ### Plugin inventory
 
@@ -453,7 +453,6 @@ This repository contains 7 installable plugins plus 1 project-scoped module (ski
 |--------|---------|--------|----------|--------|-----|-------|-----|------------|
 | mcp-apps | 0.1.0 | 2 (create-mcp-app, migrate-oai-app) | 0 | 0 | 0 | 0 | 0 | yes |
 | plugin-toolkit | 0.1.0 | 1 (plugin-toolkit) | 0 | 2 (plugin-scanner, quality-checker) | 0 | 0 | 0 | yes |
-| web-tdd | 0.1.0 | 1 (web-tdd) | 0 | 0 | 0 | 0 | 0 | no |
 | cogapp-markdown | 0.1.0 | 1 (cogapp-markdown) | 0 | 0 | 0 | 0 | 0 | no |
 | tui-design | 0.1.0 | 1 (tui-design) | 0 | 0 | 0 | 0 | 0 | yes |
 | dimensional-modeling | 0.1.0 | 1 (dimensional-modeling) | 0 | 0 | 0 | 0 | 0 | yes |
@@ -472,12 +471,6 @@ This repository contains 7 installable plugins plus 1 project-scoped module (ski
 - **Components**: 1 skill in `skills/plugin-toolkit/` with 4 reference files (analysis-template, command-template, hook-patterns, quality-checklist). 2 agents in `agents/` (plugin-scanner, quality-checker).
 - **Notable**: The only plugin in this repo that uses agents. The agents are well-structured with purpose, process, input/output format, and usage sections. The quality-checker agent consumes output from plugin-scanner, forming a pipeline.
 - **plugin.json**: Minimal. Auto-discovery handles both the skill and agents directories.
-
-#### web-tdd
-
-- **Components**: 1 skill. No references directory, no scripts.
-- **Notable**: Simplest plugin in the repo (skill-only, no supporting files). Could benefit from reference material for framework-specific testing patterns.
-- **plugin.json**: Minimal.
 
 #### cogapp-markdown
 

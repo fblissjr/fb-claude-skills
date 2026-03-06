@@ -8,14 +8,14 @@ Gap analysis comparing the Anthropic skills guide recommendations against what e
 
 ### structure and naming
 
-| Recommendation | plugin-toolkit | skill-maintainer | web-tdd | cogapp-markdown |
-|---|---|---|---|---|
-| Folder in kebab-case | PASS | PASS | PASS (web-tdd) | PASS |
-| SKILL.md exists (exact case) | PASS | PASS | PASS | PASS |
-| YAML frontmatter with --- | PASS | PASS | PASS | PASS |
-| name matches folder | PASS | PASS | PASS | PASS |
-| No README.md in skill folder | N/A (has README at plugin level, not skill level) | PASS | PASS | PASS |
-| SKILL.md under 500 lines | ~214 lines: PASS | ~120 lines: PASS | needs check | needs check |
+| Recommendation | plugin-toolkit | skill-maintainer | cogapp-markdown |
+|---|---|---|---|
+| Folder in kebab-case | PASS | PASS | PASS |
+| SKILL.md exists (exact case) | PASS | PASS | PASS |
+| YAML frontmatter with --- | PASS | PASS | PASS |
+| name matches folder | PASS | PASS | PASS |
+| No README.md in skill folder | N/A (has README at plugin level, not skill level) | PASS | PASS |
+| SKILL.md under 500 lines | ~214 lines: PASS | ~120 lines: PASS | needs check |
 
 ### frontmatter quality
 
@@ -60,7 +60,7 @@ Per the official Claude Code plugin docs, plugin manifests belong at `.claude-pl
 | No non-standard fields in manifests | PASS (removed `skills`/`agents` arrays, auto-discovery handles these) |
 | `repository` field in manifests | PASS (added in v0.4.0) |
 | Installation docs use correct CLI commands | PASS (fixed in v0.4.0) |
-| config.yaml watches discover-plugins + plugin-marketplaces pages | PASS (added in v0.4.0) |
+| `.skill-maintainer/config.json` tracks upstream URLs | PASS (migrated in v0.17.0) |
 
 ## actionable findings for skill-maintainer
 
@@ -68,9 +68,7 @@ Per the official Claude Code plugin docs, plugin manifests belong at `.claude-pl
 
 1. **Add metadata.version to plugin-toolkit**: The guide recommends `metadata` with `author` and `version`. plugin-toolkit is missing this. The skill-maintainer should detect and suggest adding it.
 
-2. ~~**web-tdd has README.md in skill folder**~~: RESOLVED -- README.md removed from skill folder.
-
-3. **No license field on any skill**: For open-source distribution, the guide recommends including `license: MIT` or similar. Should be flagged but not auto-added (requires user decision).
+2. **No license field on any skill**: For open-source distribution, the guide recommends including `license: MIT` or similar. Should be flagged but not auto-added (requires user decision).
 
 ### medium priority
 

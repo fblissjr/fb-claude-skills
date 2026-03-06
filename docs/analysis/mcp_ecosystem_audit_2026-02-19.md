@@ -2,7 +2,7 @@ last updated: 2026-02-19
 
 # MCP Ecosystem Audit: fb-claude-skills vs. Claude Code Primitives
 
-Scope: All 7 installable plugins + skill-maintainer (project-scoped) audited against the 4-layer ecosystem model, new Claude Code docs, and Agent Skills best practices.
+Scope: All 10 installable plugins + skill-maintainer (project-scoped) audited against the 4-layer ecosystem model, new Claude Code docs, and Agent Skills best practices.
 
 Sources consulted:
 - All SKILL.md files and plugin.json manifests
@@ -26,14 +26,16 @@ Sources consulted:
 | mcp-apps | D | D | B | A | D | C |
 | dimensional-modeling | D | D | B | B | D | C- |
 | tui-design | D | D | B | B | D | C- |
-| web-tdd | D | D | B | B | D | C- |
+| env-forge | D | D | B | B | D | C- |
+| dev-conventions | D | D | B | B | D | C- |
+| readwise-reader | A | D | B | B | D | B- |
 | cogapp-markdown | D | D | B | C | D | D+ |
 
 **L2**: MCP tools/resources/prompts. **L3**: MCP App (interactive UI). **L4**: Plugin distribution conformance. **New Primitives**: allowed-tools, context: fork, dynamic injection, ultrathink.
 
 ### Overall assessment
 
-The repo has one fully realized plugin (mece-decomposer) and seven plugins that use only Layer 1 (skill descriptions loaded into context). The distribution layer is clean and consistent. The critical gap is that new Claude Code primitives (allowed-tools, sub-agent execution, dynamic context injection, ultrathink, skill-scoped hooks) are unused across all plugins. This is not a blocking problem today, but as the ecosystem matures these primitives will become table stakes for quality plugins.
+The repo has two plugins with MCP tool surfaces (mece-decomposer, readwise-reader) and eight plugins that use only Layer 1 (skill descriptions loaded into context). The distribution layer is clean and consistent. The critical gap is that new Claude Code primitives (allowed-tools, sub-agent execution, dynamic context injection, ultrathink, skill-scoped hooks) are unused across all plugins. This is not a blocking problem today, but as the ecosystem matures these primitives will become table stakes for quality plugins.
 
 ---
 
@@ -62,7 +64,7 @@ mece-decomposer registers 4 tools with correct visibility scoping:
 - `mece-refine-node`: visibility `["app"]` -- UI-only, not model-invoked
 - `mece-export-sdk`: visibility `["model","app"]` -- callable by model and app
 
-The remaining 5 plugins (web-tdd, cogapp-markdown, tui-design, dimensional-modeling, plugin-toolkit) have no MCP primitives. They teach concepts but Claude cannot use those concepts as callable tools -- all interaction requires a human invoking a skill command.
+The remaining plugins (cogapp-markdown, tui-design, dimensional-modeling, plugin-toolkit, env-forge, dev-conventions) have no MCP primitives. They teach concepts but Claude cannot use those concepts as callable tools -- all interaction requires a human invoking a skill command.
 
 skill-maintainer runs all operations as Python CLI subprocesses. No MCP tool surface exists.
 
@@ -85,11 +87,11 @@ No other plugin has a Layer 3 component.
 
 Status: **Clean and consistent across all plugins.**
 
-All 7 installable plugins conform to the plugin structure:
+All 10 installable plugins conform to the plugin structure:
 - `plugin-name/.claude-plugin/plugin.json` with name, version, description, author, repository
 - Skills in auto-discovered `skills/` directories (no explicit listing in plugin.json)
 - Agents in auto-discovered `agents/` directories (plugin-toolkit: 2 agents)
-- Root `marketplace.json` lists all 7 plugins with source paths and versions
+- Root `marketplace.json` lists all 10 plugins with source paths and versions
 - Semver consistent between marketplace.json and individual plugin.json files
 
 One gap: `marketplace.json` has no `mcp_capabilities` or `tools` field -- a user browsing the marketplace cannot tell that mece-decomposer has MCP tools without installing it.
@@ -230,21 +232,22 @@ One gap: `marketplace.json` has no `mcp_capabilities` or `tools` field -- a user
 
 ---
 
-### web-tdd (version 0.1.0)
+### readwise-reader (version 0.1.0)
 
-**What it does**: TDD workflow for web applications. Stack selection (React+Node, React+Python, vanilla+Python), E2E with Playwright or Vibium, spec.md discipline, commit strategy.
+**What it does**: MCP server for Readwise Reader library access. OAuth 2.1 authentication, DuckDB star schema storage, BM25 full-text search. 3 skills (library-search, content-triage, knowledge-retrieval), 5 commands.
 
 **Primitives used**:
-- L1: SKILL.md with trigger phrases, references/ for project structures and patterns
+- L1: 3 SKILL.md files with trigger phrases, CONNECTORS.md for API documentation
+- L2: Full MCP tool surface (search, triage, digest, save, reference tools)
+- L3: None
 - L4: plugin.json + marketplace.json entry
 
 **Gaps**:
-- No MCP tools -- cannot scaffold test files, run a test suite, or check coverage
-- No `allowed-tools` -- the skill runs npm, vitest, playwright, pytest but doesn't declare which
-- The "choose Vibium over Playwright" decision tree mentions MCP integration but the skill itself does not use any MCP
-- `disable-model-invocation: true` should be considered -- deploying test scaffolding should probably be user-initiated
+- No MCP App (would benefit from a document browser UI)
+- No `allowed-tools` in SKILL.md frontmatter
+- Requires Python 3.13+ (excluded from default workspace)
 
-**Assessment**: Practical content with clear workflow. The Vibium recommendation is appropriate. The main gap is no executable surface.
+**Assessment**: Second plugin with a real MCP tool surface. Strong API integration with proper OAuth, rate limiting, and local caching via DuckDB.
 
 ---
 
@@ -277,12 +280,11 @@ The following primitives are documented in the new Claude Code docs but unused i
 
 **Current status**: Absent from all 9 SKILL.md files.
 
-**Impact**: Every tool use during skill execution may trigger a permission prompt (depending on user's permission mode). Users running skills like web-tdd or cogapp-markdown will see prompts for every npm or uv run command. Declaring intent also documents the skill's actual tool requirements.
+**Impact**: Every tool use during skill execution may trigger a permission prompt (depending on user's permission mode). Users running skills like cogapp-markdown will see prompts for every uv run command. Declaring intent also documents the skill's actual tool requirements.
 
 **Which skills need it**:
 | Skill | Tools to declare |
 |-------|-----------------|
-| web-tdd | `Bash(npm *), Bash(npx *), Bash(uv run *)` |
 | cogapp-markdown | `Bash(uv run *)` |
 | tui-design | `Bash(python *)` |
 | skill-maintainer | `Bash(uv run *)` |
@@ -299,7 +301,7 @@ The following primitives are documented in the new Claude Code docs but unused i
 **Best candidates**:
 - `plugin-toolkit:analyze` -- pure exploration, should not modify conversation context
 - `skill-maintainer check` and `status` -- read-only monitoring, ideal for isolation
-- `web-tdd` project setup phase -- running setup commands in isolation prevents cluttering the main context
+- `env-forge` environment generation -- running setup commands in isolation prevents cluttering the main context
 
 **Example for plugin-toolkit**:
 ```yaml
@@ -352,16 +354,7 @@ Review the above freshness data and...
 
 **Best candidates**:
 - `skill-maintainer`: PostToolUse hook to log all file writes to the JSONL buffer for audit trail
-- `web-tdd`: PreToolUse hook to prevent `git push` during TDD workflow (enforce manual push discipline)
 - `plugin-toolkit:analyze`: Stop hook to confirm analysis docs were written before exiting
-
-**Example for web-tdd**:
-```yaml
-hooks:
-  PreToolUse:
-    - matcher: Bash(git push*)
-      command: echo "web-tdd: push is manual -- review commits first" && exit 1
-```
 
 ### model field
 
@@ -409,11 +402,6 @@ Passes: 8 technical terms. Gap: no user-action phrases ("design a schema for", "
 
 Passes: 7 trigger phrases including one natural user phrase ("make this look better in the terminal"). Solid.
 
-**web-tdd**:
-> "TDD workflow for web applications with Vitest... Use when building web apps, adding tests to existing projects, or implementing features with test-driven development."
-
-Partial: situation-based ("when building web apps") without user phrases. Missing: "write tests for", "add Playwright", "test-first", "red-green-refactor".
-
 **plugin-toolkit**:
 > "Analyze, polish, and manage Claude Code plugins. Use when user wants to evaluate a plugin (/plugin-toolkit:analyze), add standard utility commands (/plugin-toolkit:polish)..."
 
@@ -445,8 +433,7 @@ Apply to all B/C/D tier skills before the P1 work begins.
 
 | ID | Item | File | Effort |
 |----|------|------|--------|
-| P0-1 | Add `allowed-tools` to web-tdd (`Bash(npm *), Bash(npx *), Bash(uv run *)`) | `web-tdd/skills/web-tdd/SKILL.md` | XS |
-| P0-2 | Add `allowed-tools: Bash(uv run *)` to cogapp-markdown | `cogapp-markdown/skills/cogapp-markdown/SKILL.md` | XS |
+| P0-1 | Add `allowed-tools: Bash(uv run *)` to cogapp-markdown | `cogapp-markdown/skills/cogapp-markdown/SKILL.md` | XS |
 | P0-3 | Add `allowed-tools: Bash(uv run *)` to skill-maintainer | `skill-maintainer/SKILL.md` | XS |
 | P0-4 | Add `allowed-tools: Bash(npm *), Bash(git *)` to mcp-apps skills | `mcp-apps/skills/*/SKILL.md` (2 files) | XS |
 | P0-5 | Add `allowed-tools: Read, Glob, Grep` to plugin-toolkit | `plugin-toolkit/skills/plugin-toolkit/SKILL.md` | XS |
@@ -456,8 +443,7 @@ Apply to all B/C/D tier skills before the P1 work begins.
 | P0-9 | Fix cogapp-markdown description: add trigger phrases ("keep docs in sync", "regenerate readme", "embed --help output", "cog -r", "documentation out of date") | `cogapp-markdown/skills/cogapp-markdown/SKILL.md` | XS |
 | P0-10 | Fix cogapp-markdown: change `pip install cogapp` to `uv add --dev cogapp` | `cogapp-markdown/skills/cogapp-markdown/SKILL.md` | XS |
 | P0-11 | Add trigger phrases to plugin-toolkit description ("review my plugin", "add help command", "check plugin quality") | `plugin-toolkit/skills/plugin-toolkit/SKILL.md` | XS |
-| P0-12 | Add user-action trigger phrases to web-tdd description ("write tests for", "add Playwright", "test-first") | `web-tdd/skills/web-tdd/SKILL.md` | XS |
-| P0-13 | Add trigger phrases to dimensional-modeling description ("design a schema for", "help me track agent state", "store execution data") | `dimensional-modeling/skills/dimensional-modeling/SKILL.md` | XS |
+| P0-12 | Add trigger phrases to dimensional-modeling description ("design a schema for", "help me track agent state", "store execution data") | `dimensional-modeling/skills/dimensional-modeling/SKILL.md` | XS |
 | P0-14 | Add `disable-model-invocation: true` to skill-maintainer update/add-source commands (side-effect operations) | `skill-maintainer/SKILL.md` (command-level) | S |
 | P0-15 | Fix dimensional-modeling store.py reference: change GitHub URL to relative local path | `dimensional-modeling/skills/dimensional-modeling/SKILL.md` | XS |
 
@@ -468,8 +454,7 @@ Apply to all B/C/D tier skills before the P1 work begins.
 | P1-1 | Add `context: fork` + `agent: Explore` to plugin-toolkit (scan phase is read-only exploration) | `plugin-toolkit/skills/plugin-toolkit/SKILL.md` | S |
 | P1-2 | Add dynamic context injection to skill-maintainer (`!`uv run check_freshness.py`` at skill load) | `skill-maintainer/SKILL.md` | S |
 | P1-3 | Add dynamic context injection to skill-maintainer budget command (`!`uv run measure_content.py``) | `skill-maintainer/SKILL.md` | S |
-| P1-4 | Add `hooks: PreToolUse` to web-tdd (block `git push` during skill execution, enforce manual push) | `web-tdd/skills/web-tdd/SKILL.md` | M |
-| P1-5 | Add `model: claude-haiku-4-5-20251001` to plugin-toolkit (scanner/inventory is mechanical) | `plugin-toolkit/skills/plugin-toolkit/SKILL.md` | XS |
+| P1-4 | Add `model: claude-haiku-4-5-20251001` to plugin-toolkit (scanner/inventory is mechanical) | `plugin-toolkit/skills/plugin-toolkit/SKILL.md` | XS |
 | P1-6 | Audit and update plugin-scanner.md and quality-checker.md agent frontmatter against sub-agents spec | `plugin-toolkit/agents/*.md` | S |
 | P1-7 | Add mece-decomposer output schema as a declared MCP resource (uri://mece/output-schema) | `mece-decomposer/mcp-app/server.ts` | M |
 | P1-8 | Add validation heuristics as a declared MCP resource (uri://mece/validation-heuristics) | `mece-decomposer/mcp-app/server.ts` | M |
@@ -484,7 +469,7 @@ Apply to all B/C/D tier skills before the P1 work begins.
 | P2-3 | plugin-toolkit MCP tool: `plugin-audit` (structural scan returning JSON, usable from any MCP client) | High |
 | P2-4 | dimensional-modeling MCP tools: `dm-generate-ddl` (takes business process description, returns DuckDB DDL) | Medium |
 | P2-5 | dimensional-modeling MCP tool: `dm-query-schema` (introspect existing DuckDB file) | Medium |
-| P2-6 | web-tdd MCP tool: `tdd-scaffold` (generate test file + component stub from a feature description) | High |
+| P2-6 | readwise-reader MCP App: document browser with search, triage, and tag management UI | High |
 
 ### P3: Architectural / exploratory (research + design first)
 
@@ -523,7 +508,6 @@ uv add --dev cogapp
 
 Add to each SKILL.md frontmatter:
 
-- `web-tdd/skills/web-tdd/SKILL.md`: `allowed-tools: Bash(npm *), Bash(npx *), Bash(uv run *)`
 - `cogapp-markdown/skills/cogapp-markdown/SKILL.md`: `allowed-tools: Bash(uv run *)`
 - `skill-maintainer/SKILL.md`: `allowed-tools: Bash(uv run *)`
 - `mcp-apps/skills/create-mcp-app/SKILL.md`: `allowed-tools: Bash(npm *), Bash(git *)`
@@ -540,7 +524,6 @@ Add to each SKILL.md frontmatter:
 ### Step 4: trigger phrase improvements
 
 - `plugin-toolkit/skills/plugin-toolkit/SKILL.md`: Append to description: `Also use when user says "review my plugin", "check plugin quality", "what's wrong with my plugin", "add a help command to my plugin", or "improve my plugin structure".`
-- `web-tdd/skills/web-tdd/SKILL.md`: Append to description: `Also triggers on "write tests for", "add Playwright", "test first", "red-green-refactor", "add test coverage", or "scaffold tests".`
 - `dimensional-modeling/skills/dimensional-modeling/SKILL.md`: Append to description: `Also triggers on "design a schema for", "help me track agent state", "store execution data in DuckDB", "I need to persist", or "how do I model".`
 
 ### Step 5: fix dimensional-modeling store.py link
@@ -569,7 +552,9 @@ Working proof: `skill-maintainer/scripts/store.py` -- the full Kimball schema (v
 | mcp-apps:migrate | - | - | - | - | - | - | - | - | - |
 | dimensional-modeling | - | - | - | - | - | - | - | - | - |
 | tui-design | - | - | - | - | - | - | - | - | - |
-| web-tdd | - | - | - | - | - | - | - | - | - |
+| env-forge | - | - | - | - | - | - | - | - | - |
+| dev-conventions | - | - | - | - | - | - | - | - | - |
+| readwise-reader | - | - | - | - | - | - | - | yes | - |
 | cogapp-markdown | - | - | - | - | - | - | - | - | - |
 
 All `-` cells are opportunities. The 15 P0 items alone would fill in 6 columns with 2 hours of SKILL.md edits.

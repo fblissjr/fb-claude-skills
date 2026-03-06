@@ -1,4 +1,4 @@
-last updated: 2026-02-23
+last updated: 2026-03-06
 
 # documentation
 
@@ -41,17 +41,6 @@ Design documents and research created during development. 16 reports covering th
 |----------|-------------|
 | [claude_ecosystem_synthesis.md](reports/claude_ecosystem_synthesis.md) | Full ecosystem overview, decision tree, maturity assessment |
 
-## skill-maintainer internals (`internals/`)
-
-Technical documentation for the automated skill maintenance system.
-
-| Document | Description |
-|----------|-------------|
-| [api_reference.md](internals/api_reference.md) | Function signatures, parameters, return types for all Python scripts |
-| [schema.md](internals/schema.md) | Formal schemas for state.json and config.yaml |
-| [duckdb_schema.md](internals/duckdb_schema.md) | DuckDB star schema tables, views, and dimensional model |
-| [troubleshooting.md](internals/troubleshooting.md) | Common issues, error messages, and recovery procedures |
-
 ## captured external docs (`claude-docs/`)
 
 Offline copies of upstream Claude Code documentation for reference and CDC comparison.
@@ -75,4 +64,6 @@ Offline copies of upstream Claude Code documentation for reference and CDC compa
 | [claude_docs_troubleshooting.md](claude-docs/claude_docs_troubleshooting.md) | Troubleshooting |
 | [claude_docs_cli-reference_reference.md](claude-docs/claude_docs_cli-reference_reference.md) | CLI reference |
 | [interactive-mode.md](claude-docs/interactive-mode.md) | Interactive mode |
+| [claude_docs_memory.md](claude-docs/claude_docs_memory.md) | Memory system |
+| [claude_docs_best_practices.md](claude-docs/claude_docs_best_practices.md) | Best practices |
 | [claude_generated_docs_dot_claude_folder.md](claude-docs/claude_generated_docs_dot_claude_folder.md) | .claude folder structure |

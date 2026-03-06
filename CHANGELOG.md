@@ -27,6 +27,12 @@
 - general.md state path corrected to `.skill-maintainer/state/`
 - marketplace_distribution_patterns.md section 4.1 updated for current repo layout
 - create-mcp-app and migrate-oai-app descriptions fixed (added WHAT verb)
+- docs/claude-docs: flattened 2 files from nested .md-named directories, added to index
+- docs/README.md: removed empty internals section, added memory and best_practices to claude-docs index
+- removed stale web-tdd references from 4 analysis docs (deleted in v0.14.0)
+- mcp_ecosystem_audit: updated for current plugin set (added readwise-reader, env-forge, dev-conventions)
+- claude_ecosystem_synthesis.md: fixed 9 stale path/config references for v0.17.0/v0.18.0 changes
+- skills_guide_analysis.md: config.yaml -> .skill-maintainer/config.json
 
 ## 0.17.0
 
