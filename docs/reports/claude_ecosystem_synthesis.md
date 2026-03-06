@@ -2,7 +2,7 @@ last updated: 2026-02-19
 
 # Claude Extension Ecosystem Synthesis
 
-A unified view of the Claude Code extension architecture, drawn from 15 analysis
+A unified view of the Claude Code extension architecture, drawn from 16 analysis
 reports covering skills, plugins, hooks, MCP servers, MCP Apps, subagents, agent
 teams, marketplaces, cross-surface compatibility, the memory and rules system, and
 the maintenance systems that keep them all current. This document ties together
@@ -513,41 +513,44 @@ These sources change independently of the skills that reference them:
 Without monitoring, skills degrade silently. Users follow stale instructions,
 produce incorrect output, and lose trust in the skill system.
 
-### The CDC Pipeline
+### Property-Driven Maintenance
 
-This repository implements a three-layer Change Data Capture pipeline to detect
-and classify upstream changes:
+The `skill-maintainer` CLI package (`tools/skill-maintainer/`) provides
+on-demand maintenance through composable subcommands:
 
-1. **Detect** -- HEAD request on `llms-full.txt` (Mintlify's clean markdown
-   export of documentation sites). Compare `Last-Modified` header to stored
-   watermark. Zero bytes transferred if unchanged.
-2. **Identify** -- If the watermark changed, fetch the full content. Split
-   by `Source:` delimiters, hash each watched page independently, compare
-   to stored per-page hashes.
-3. **Classify** -- Run keyword heuristics on the diff text. Categorize as
-   breaking (API removal, field rename), additive (new feature, new field),
-   or cosmetic (typo fix, formatting change).
+1. **Pre-commit validation** -- A git hook runs `skills-ref` on staged
+   SKILL.md files automatically on every commit. Invalid frontmatter or
+   structure blocks the commit.
+2. **Upstream detection** (`skill-maintain upstream`) -- Fetches the
+   configured `llms-full.txt` URL, splits by `Source:` delimiters, hashes
+   each watched page independently, and compares to stored per-page hashes
+   in `.skill-maintainer/state/upstream_hashes.json`.
+3. **Source tracking** (`skill-maintain sources`) -- Pulls tracked local
+   repositories and detects changes since the last check.
+4. **Quality checks** (`skill-maintain quality`) -- Runs validation, token
+   budget analysis, freshness scoring, and description quality checks across
+   all skills and plugins.
+5. **Test suite** (`skill-maintain test`) -- Red/green tests covering skill
+   validity, plugin structure, and repo hygiene.
 
-For source code monitoring, `source_monitor.py` shallow-clones configured
-repositories, extracts commits since the last check, parses Python files via
-AST to detect API changes, and scans commit messages for deprecation keywords.
+Per-repo configuration lives in `.skill-maintainer/config.json` (upstream
+URLs, tracked repos). State lives in `.skill-maintainer/state/` (gitignored).
 
-### The Closed Loop
+### The Maintenance Loop
 
-Detection feeds into application:
+All maintenance is on-demand, triggered via `skill-maintain` CLI or the
+`/maintain` slash command:
 
 ```
-detect -> identify -> classify -> apply -> validate -> human review
+detect -> report -> human review -> fix -> validate
 ```
 
-`apply_updates.py` supports three modes: `report-only` (show what would
-change), `apply-local` (update files, create backups, validate with
-`skills-ref`), and `create-pr` (branch, commit, open a pull request).
-The system never auto-commits. Human review is always the final gate.
-
-Staleness tracking via `check_freshness.py` reads `state.json` timestamps
-and warns if a skill has not been checked in N days. Runs in under 100ms
-and never blocks skill invocation.
+There is no auto-apply. The CLI produces quality reports; a human reviews
+and makes changes. Staleness is tracked via `metadata.last_verified` in each
+SKILL.md frontmatter -- `skill-maintain freshness` flags skills that have not
+been verified recently. An append-only audit log in
+`.skill-maintainer/state/changes.jsonl` records quality reports and upstream
+checks for traceability.
 
 See [self_updating_system_design.md](../analysis/self_updating_system_design.md)
 for the full source inventory and change detection strategies.

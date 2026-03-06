@@ -32,6 +32,7 @@
 - removed stale web-tdd references from 4 analysis docs (deleted in v0.14.0)
 - mcp_ecosystem_audit: updated for current plugin set (added readwise-reader, env-forge, dev-conventions)
 - claude_ecosystem_synthesis.md: fixed 9 stale path/config references for v0.17.0/v0.18.0 changes
+- claude_ecosystem_synthesis.md: rewrote section 8 for property-driven maintenance (was stale CDC pipeline from v0.12.x), fixed report count 15->16
 - skills_guide_analysis.md: config.yaml -> .skill-maintainer/config.json
 
 ## 0.17.0
