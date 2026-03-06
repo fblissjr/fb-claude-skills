@@ -10,6 +10,7 @@ update-coderef.sh
 # Claude Code author-side files (not for distribution)
 .claude/worktrees/
 .claude/settings.local.json
+.claude/agent-memory/
 
 # C extensions
 *.so
