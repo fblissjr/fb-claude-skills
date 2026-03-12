@@ -1,4 +1,4 @@
-last updated: 2026-03-06
+last updated: 2026-03-12
 
 # fb-claude-skills
 
@@ -32,6 +32,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | Module | Description |
 |--------|-------------|
 | [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
+| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage. |
 
 ## installation
 

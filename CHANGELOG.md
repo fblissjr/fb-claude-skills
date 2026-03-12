@@ -1,5 +1,18 @@
 # changelog
 
+## 0.18.1
+
+### added
+- **agent-state**: new workspace package for DuckDB audit and state tracking
+  - Kimball star schema: `fact_run`, `fact_run_message`, `fact_watermark`, `dim_run_source`, `dim_skill_version`, `dim_watermark_source`
+  - `RunContext` context manager: atomic watermark commits on success, automatic rollback on failure
+  - skill version lineage: `dim_skill_version` connects pipeline outputs to agent inputs
+  - watermark tracking: replaces `upstream_hashes.json` with queryable history (`v_latest_watermark`)
+  - views: `v_run_tree` (recursive hierarchy), `v_flywheel` (producer->skill->consumer), `v_restartable_failures`
+  - migration from `changes.jsonl` and `upstream_hashes.json`
+  - CLI: `agent-state init|status|runs|tree|watermarks|flywheel|migrate`
+  - storage: single global DuckDB at `~/.claude/agent_state.duckdb`
+
 ## 0.18.0
 
 ### changed

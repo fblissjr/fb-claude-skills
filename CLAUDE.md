@@ -26,6 +26,9 @@ fb-claude-skills/
     skill-maintainer/        # Installable package: maintenance CLI for any skill repo
       src/skill_maintainer/  # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
       references/            # Best practices
+    agent-state/             # Installable package: DuckDB audit/state tracking for runs
+      src/agent_state/       # Python package (database, run_context, watermarks, skill_versions, query, migration, cli)
+      tests/                 # Unit tests
   .skill-maintainer/         # Per-repo config and state (gitignored state/)
     config.json              # upstream URLs, tracked repos, llms-full URL
     best_practices.md        # Machine-parseable best practices checklist
@@ -180,6 +183,7 @@ Python managed as a **uv workspace**. The root `pyproject.toml` coordinates work
 | Member | Path | Key dependencies |
 |--------|------|-----------------|
 | `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
+| `agent-state` | `tools/agent-state` | orjson, duckdb; CLI: `agent-state` |
 | `env-forge` | `apps/env-forge` | orjson, huggingface-hub |
 | `skill-dashboard` | `apps/skill-dashboard` | orjson, mcp, mcp-ui-server (git), skill-maintainer (workspace) |
 | `mece-decomposer` | `apps/mece-decomposer` | orjson |
