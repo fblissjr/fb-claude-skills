@@ -1,4 +1,4 @@
-last updated: 2026-03-12
+last updated: 2026-03-13
 
 # fb-claude-skills
 
@@ -32,7 +32,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | Module | Description |
 |--------|-------------|
 | [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
-| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage. |
+| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage with routing metadata and lifecycle management. |
 
 ## installation
 
@@ -205,8 +205,8 @@ Highlights:
 
 ## credits
 
-- env-forge synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
 - Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
 - cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 - MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
+- env-forge synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs

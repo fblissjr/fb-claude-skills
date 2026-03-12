@@ -26,8 +26,9 @@ fb-claude-skills/
     skill-maintainer/        # Installable package: maintenance CLI for any skill repo
       src/skill_maintainer/  # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
       references/            # Best practices
-    agent-state/             # Installable package: DuckDB audit/state tracking for runs
+    agent-state/             # Installable package: DuckDB audit/state tracking for runs (schema v2)
       src/agent_state/       # Python package (database, run_context, watermarks, skill_versions, query, migration, cli)
+      BACKLOG.md             # Future work items
       tests/                 # Unit tests
   .skill-maintainer/         # Per-repo config and state (gitignored state/)
     config.json              # upstream URLs, tracked repos, llms-full URL
@@ -161,6 +162,7 @@ All commands accept `--dir <path>` to target a different repo.
 - `.skill-maintainer/state/upstream_hashes.json` -- page content hashes for upstream detection (auto-generated)
 - `.skill-maintainer/state/changes.jsonl` -- append-only audit log of quality reports and upstream checks
 - `metadata.last_verified` in each SKILL.md frontmatter -- date the skill was last reviewed
+- `~/.claude/agent_state.duckdb` -- global DuckDB for run audit and state tracking (schema v2, see `tools/agent-state/README.md` for full schema docs)
 
 ## Documentation index
 

@@ -21,6 +21,12 @@ class RunStatus(str, Enum):
     PARTIAL = "partial"
 
 
+class SkillStatus(str, Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    DEPRECATED = "deprecated"
+
+
 class MessageLevel(str, Enum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -104,6 +110,9 @@ class SkillVersion:
     is_valid: bool | None = None
     created_at: datetime | None = None
     created_by_run_id: str | None = None
+    domain: str | None = None
+    task_type: str | None = None
+    status: str | None = "active"
     metadata: dict[str, Any] | None = None
 
 

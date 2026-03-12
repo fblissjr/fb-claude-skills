@@ -1,4 +1,4 @@
-last updated: 2026-03-06
+last updated: 2026-03-13
 
 # documentation
 
@@ -11,6 +11,13 @@ Authoritative index for all documentation in this repository.
 | [mcp-ecosystem.md](mcp-ecosystem.md) | Field guide to the full MCP ecosystem: protocol, tools, resources, apps, connectors, extensions, and how they relate |
 
 See also the root [README.md](../README.md) for plugin installation, surface compatibility, and usage instructions.
+
+## package documentation
+
+| Document | Description |
+|----------|-------------|
+| [agent-state README](../tools/agent-state/README.md) | Schema reference (v2), CLI, Python API, migration guide |
+| [skill-maintainer README](../tools/skill-maintainer/README.md) | CLI reference, data flow, workflow, configuration |
 
 ## domain reports (`analysis/`)
 
@@ -29,7 +36,6 @@ Design documents and research created during development. 16 reports covering th
 | [skills_guide_structured.md](analysis/skills_guide_structured.md) | Structured extraction from skills guide (for CDC) |
 | [skills_guide_analysis.md](analysis/skills_guide_analysis.md) | Gap analysis: guide recommendations vs this repo |
 | [self_updating_system_design.md](analysis/self_updating_system_design.md) | CDC architecture decisions and source inventory |
-| [abstraction_analogies.md](analysis/abstraction_analogies.md) | Unifying design principle: selection under constraint |
 | [duckdb_dimensional_model_strategy.md](analysis/duckdb_dimensional_model_strategy.md) | DuckDB star schema strategy for agent state |
 | [data_centric_agent_state_research.md](analysis/data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
 | [memory_and_rules_system.md](analysis/memory_and_rules_system.md) | Memory hierarchy, auto memory, CLAUDE.md imports, rules |

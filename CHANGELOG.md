@@ -3,6 +3,7 @@
 ## 0.18.1
 
 ### added
+- **agent-state**: `domain`, `task_type`, `status` columns on `dim_skill_version` for routing and lifecycle management
 - **agent-state**: new workspace package for DuckDB audit and state tracking
   - Kimball star schema: `fact_run`, `fact_run_message`, `fact_watermark`, `dim_run_source`, `dim_skill_version`, `dim_watermark_source`
   - `RunContext` context manager: atomic watermark commits on success, automatic rollback on failure

@@ -11,7 +11,7 @@ import duckdb
 logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = Path.home() / ".claude" / "agent_state.duckdb"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class AgentStateDB:

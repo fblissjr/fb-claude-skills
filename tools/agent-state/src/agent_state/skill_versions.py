@@ -27,6 +27,9 @@ def get_or_create_skill_version(
     token_count: int | None = None,
     is_valid: bool | None = None,
     created_by_run_id: str | None = None,
+    domain: str | None = None,
+    task_type: str | None = None,
+    status: str | None = "active",
     metadata: dict[str, Any] | None = None,
 ) -> int:
     """Get existing skill version by hash, or create a new one. Returns skill_version_id."""
@@ -42,12 +45,14 @@ def get_or_create_skill_version(
         """
         INSERT INTO dim_skill_version (
             skill_name, skill_path, version_hash, repo_root,
-            token_count, is_valid, created_by_run_id, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            token_count, is_valid, created_by_run_id,
+            domain, task_type, status, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING skill_version_id
         """,
         [skill_name, skill_path, version_hash, repo_root,
-         token_count, is_valid, created_by_run_id, metadata_json],
+         token_count, is_valid, created_by_run_id,
+         domain, task_type, status, metadata_json],
     )
     return result[0]
 
@@ -78,3 +83,50 @@ def get_skill_version_by_hash(
         [version_hash],
     )
     return rows[0] if rows else None
+
+
+def get_active_skill(
+    db: AgentStateDB, skill_name: str
+) -> dict[str, Any] | None:
+    """Get the latest active version of a skill."""
+    rows = db.fetchall_dicts(
+        """
+        SELECT * FROM dim_skill_version
+        WHERE skill_name = ? AND status = 'active'
+        ORDER BY skill_version_id DESC
+        LIMIT 1
+        """,
+        [skill_name],
+    )
+    return rows[0] if rows else None
+
+
+def deprecate_skill_version(db: AgentStateDB, skill_version_id: int) -> None:
+    """Mark a skill version as deprecated."""
+    db.execute(
+        "UPDATE dim_skill_version SET status = 'deprecated' WHERE skill_version_id = ?",
+        [skill_version_id],
+    )
+
+
+def get_skills_by_domain(
+    db: AgentStateDB, domain: str, task_type: str | None = None
+) -> list[dict[str, Any]]:
+    """Find active skills by domain and optional task_type."""
+    if task_type:
+        return db.fetchall_dicts(
+            """
+            SELECT * FROM dim_skill_version
+            WHERE domain = ? AND task_type = ? AND status = 'active'
+            ORDER BY skill_version_id DESC
+            """,
+            [domain, task_type],
+        )
+    return db.fetchall_dicts(
+        """
+        SELECT * FROM dim_skill_version
+        WHERE domain = ? AND status = 'active'
+        ORDER BY skill_version_id DESC
+        """,
+        [domain],
+    )

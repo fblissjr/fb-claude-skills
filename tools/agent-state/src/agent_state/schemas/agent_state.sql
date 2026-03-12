@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS dim_skill_version (
     is_valid BOOLEAN,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by_run_id VARCHAR,               -- loose FK to fact_run (circular, not enforced)
+    domain VARCHAR,                          -- routing: 'extraction', 'validation', etc.
+    task_type VARCHAR,                       -- routing: 'structured_data_from_document', etc.
+    status VARCHAR DEFAULT 'active',         -- lifecycle: 'draft', 'active', 'deprecated'
     metadata JSON
 );
 CREATE INDEX IF NOT EXISTS idx_skill_version_hash ON dim_skill_version(version_hash);
@@ -235,3 +238,20 @@ WHERE f.status = 'failure'
       WHERE retry.restart_from_run_id = f.run_id
         AND retry.status = 'success'
   );
+
+-- ============================================================
+-- MIGRATIONS
+-- ============================================================
+
+-- v1 -> v2: add routing metadata + lifecycle to dim_skill_version
+ALTER TABLE dim_skill_version ADD COLUMN IF NOT EXISTS domain VARCHAR;
+ALTER TABLE dim_skill_version ADD COLUMN IF NOT EXISTS task_type VARCHAR;
+ALTER TABLE dim_skill_version ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active';
+
+INSERT INTO meta_schema_version (version, description)
+SELECT 2, 'Add domain, task_type, status to dim_skill_version'
+WHERE NOT EXISTS (SELECT 1 FROM meta_schema_version WHERE version = 2);
+
+CREATE INDEX IF NOT EXISTS idx_skill_version_domain ON dim_skill_version(domain);
+CREATE INDEX IF NOT EXISTS idx_skill_version_task_type ON dim_skill_version(task_type);
+CREATE INDEX IF NOT EXISTS idx_skill_version_status ON dim_skill_version(status);
