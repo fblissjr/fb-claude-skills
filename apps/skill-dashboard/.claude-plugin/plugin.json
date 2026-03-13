@@ -1,7 +1,7 @@
 {
   "name": "skill-dashboard",
-  "version": "0.3.0",
-  "description": "Python-native MCP App skill dashboard: health status, token budgets, and freshness for all tracked skills",
+  "version": "1.0.0",
+  "description": "Interactive MCP App skill dashboard: quality checks, token budgets, freshness, and repo hygiene",
   "author": {
     "name": "Fred Bliss"
   },

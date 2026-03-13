@@ -1,0 +1,256 @@
+:root {
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: 14px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-primary, #1a1a2e);
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body {
+    color: var(--color-text-primary, #e0e0e0);
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-secondary, #888);
+  font-size: 14px;
+}
+
+.error {
+  padding: 20px;
+  color: var(--color-text-danger, #dc3545);
+}
+
+/* Dashboard layout */
+.dashboard-app {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  min-height: 200px;
+}
+
+.dashboard-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-secondary, #888);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, 0.2));
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dashboard-timestamp {
+  font-size: 12px;
+  color: var(--color-text-secondary, #888);
+}
+
+/* Section headers */
+.section-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #888);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, 0.15));
+}
+
+/* Summary bar */
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-badge {
+  padding: 4px 10px;
+  border-radius: var(--border-radius-sm, 4px);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.summary-passed {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.summary-failed {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.summary-total {
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.1));
+  color: var(--color-text-secondary, #888);
+}
+
+.summary-rate {
+  margin-left: auto;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary, inherit);
+}
+
+@media (prefers-color-scheme: dark) {
+  .summary-passed { background: #1a3a2a; color: #81c995; }
+  .summary-failed { background: #3a1a1a; color: #f28b82; }
+}
+
+/* Tables */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.check-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.check-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #888);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, 0.2));
+}
+
+.check-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, 0.08));
+}
+
+.check-table tbody tr:hover {
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.04));
+}
+
+.cell-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cell-status {
+  text-align: center;
+  width: 60px;
+}
+
+.cell-budget {
+  width: 160px;
+}
+
+/* Status dots */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-pass {
+  background: #34a853;
+}
+
+.status-fail {
+  background: #ea4335;
+}
+
+/* Token budget bars */
+.budget-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.budget-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.15));
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.budget-ok {
+  background: #34a853;
+}
+
+.budget-warn {
+  background: #fbbc04;
+}
+
+.budget-critical {
+  background: #ea4335;
+}
+
+.budget-label {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary, #888);
+  min-width: 40px;
+  text-align: right;
+}
+
+.budget-label-over {
+  color: var(--color-text-danger, #ea4335);
+  font-weight: 600;
+}
+
+/* Repo checks */
+.repo-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.repo-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.repo-check-label {
+  font-size: 13px;
+}
+
+.repo-check-detail {
+  font-size: 12px;
+  color: var(--color-text-secondary, #888);
+  margin-left: auto;
+}

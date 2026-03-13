@@ -1,8 +1,10 @@
-last updated: 2026-03-06
+last updated: 2026-03-13
 
-# skill-maintainer
+# skill-maintainer (CLI package)
 
 Installable Python package providing a `skill-maintain` CLI for monitoring, validating, and maintaining Claude Code skill repos. Runs as project-scoped tooling within fb-claude-skills and is git-installable for use in other repos.
+
+> **Primary interface:** For interactive use in Claude Code, install the `skill-maintainer` plugin instead (`/plugin install skill-maintainer@fb-claude-skills`). The plugin embeds the same knowledge and works without Python package installation. This CLI package is best suited for CI pipelines and headless automation.
 
 ## installation
 
@@ -131,7 +133,7 @@ Nothing should go from green to red unless you intended it. Use `--verbose` to s
 ### periodic maintenance
 
 ```
-/maintain
+/skill-maintainer:maintain
 ```
 
 Pulls upstream sources, checks for doc changes, runs the quality report, and proposes updates to `.skill-maintainer/best_practices.md`. Run this when you want to sync with upstream and review the maintenance checklist. Or run the phases individually:
@@ -145,7 +147,7 @@ skill-maintain quality   # phase 3: validate all skills
 
 Phase 4 never auto-writes. Claude shows proposed changes and waits for approval.
 
-**Where:** `.claude/commands/maintain.md`
+**Where:** `/skill-maintainer:maintain` (plugin skill, replaces legacy `.claude/commands/maintain.md`)
 
 ### applying best practices to another repo
 

@@ -1,0 +1,9 @@
+{
+  "name": "skill-maintainer",
+  "version": "0.1.0",
+  "description": "Maintenance tools for skills repos: validation, quality checks, freshness tracking, upstream change detection, and best practices review",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

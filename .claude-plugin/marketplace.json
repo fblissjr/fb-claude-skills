@@ -46,8 +46,8 @@
     {
       "name": "skill-dashboard",
       "source": "./apps/skill-dashboard",
-      "description": "Python-native MCP App dashboard: skills, plugins, and repo hygiene with pass/fail indicators",
-      "version": "0.3.0"
+      "description": "Interactive MCP App dashboard: quality checks, token budgets, freshness, and repo hygiene",
+      "version": "1.0.0"
     },
     {
       "name": "env-forge",
@@ -65,6 +65,12 @@
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
+      "version": "0.1.0"
+    },
+    {
+      "name": "skill-maintainer",
+      "source": "./skills/skill-maintainer",
+      "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review",
       "version": "0.1.0"
     }
   ]

@@ -1,5 +1,32 @@
 # changelog
 
+## 0.20.1
+
+### added
+- **skill-maintainer**: `$ARGUMENTS` support for `/skill-maintainer:quality` (filter by skill name, substring match)
+- **skill-maintainer**: `$ARGUMENTS` support for `/skill-maintainer:init-maintenance` (target directory path)
+- **skill-maintainer**: cross-reference validation in quality skill (checks `load the \`X\` skill` patterns resolve)
+- **skill-maintainer**: reference file date check in quality skill (checks `last updated:` line in references/*.md)
+
+## 0.20.0
+
+### added
+- **skill-maintainer**: new installable plugin at `skills/skill-maintainer/`
+  - `/skill-maintainer:maintain`: full maintenance pass (upstream, sources, quality, best practices review) -- replaces legacy `.claude/commands/maintain.md`
+  - `/skill-maintainer:quality`: quick quality check (spec, tokens, freshness, description quality) -- no CLI install required
+  - `/skill-maintainer:init-maintenance`: set up `.skill-maintainer/` config and state in any repo
+  - `references/best_practices.md`: machine-parseable checklist bundled with the plugin
+  - skills embed maintenance knowledge directly (thresholds, rules, checks) -- falls back to CLI if available but doesn't require it
+  - registered in marketplace.json
+
+### changed
+- **skill-maintainer** (CLI): README updated to note plugin is the primary interactive interface, CLI is for CI/headless
+- CLAUDE.md: updated repo structure, installation list, maintenance table for plugin
+
+### removed
+- `.claude/commands/maintain.md`: replaced by `/skill-maintainer:maintain` plugin skill
+- `.claude/commands/` directory: empty after command removal
+
 ## 0.19.0
 
 ### added

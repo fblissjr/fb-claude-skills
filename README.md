@@ -19,6 +19,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
 | [env-forge](apps/env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
+| [skill-maintainer](skills/skill-maintainer/) | Skills | Maintenance tools for skill repos: quality checks, freshness, upstream detection, best practices review |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
 
 ### project-scoped
@@ -52,6 +53,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
+/plugin install skill-maintainer@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -128,6 +130,11 @@ Once installed, invoke as namespaced slash commands:
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description
+
+/skill-maintainer:quality              # Quick quality check for all skills
+/skill-maintainer:quality tui-design   # Check a specific skill
+/skill-maintainer:maintain             # Full maintenance pass
+/skill-maintainer:init-maintenance     # Set up maintenance in a new repo
 ```
 
 ### keyword activation
@@ -181,14 +188,18 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 
 ## skill-maintainer
 
-Installable Python package providing the `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Within this repo it is available after `uv sync --all-packages`. For use in other repos:
+Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI package** for CI/headless automation.
+
+**Plugin** (recommended): install via the marketplace (see above), then use `/skill-maintainer:quality`, `/skill-maintainer:maintain`, `/skill-maintainer:init-maintenance`. Skills accept `$ARGUMENTS` for targeting specific skills or directories.
+
+**CLI**: available after `uv sync --all-packages` in this repo, or git-installable into other repos:
 
 ```bash
 uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer
 skill-maintain init
 ```
 
-Common commands:
+Common CLI commands:
 
 ```bash
 skill-maintain test              # red/green test suite
@@ -198,7 +209,7 @@ skill-maintain sources           # pull tracked repos, detect changes
 skill-maintain log --tail 5      # query audit log
 ```
 
-The `/maintain` slash command orchestrates the full pipeline: `sources → upstream → quality → review`. See [skill-maintainer/README.md](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.
+The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources -> upstream -> quality -> review`. See [skill-maintainer CLI README](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.
 
 ## documentation
 

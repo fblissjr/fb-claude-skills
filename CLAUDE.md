@@ -26,6 +26,7 @@ fb-claude-skills/
     tui-design/              # Plugin: terminal UI design principles
     dimensional-modeling/    # Plugin: Kimball star schema patterns
     dev-conventions/         # Plugin: development conventions (SessionStart hook + skills for tooling, TDD, docs)
+    skill-maintainer/        # Plugin: maintenance tools (quality, freshness, upstream, best practices)
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
     mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer
@@ -72,6 +73,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
+/plugin install skill-maintainer@fb-claude-skills
 /plugin install readwise-reader@fb-claude-skills
 ```
 
@@ -83,7 +85,7 @@ To remove: `claude plugin uninstall <name>@fb-claude-skills`
 
 heylook-monitor and skill-dashboard run from within this repo only. skill-dashboard is listed in marketplace.json as a reference but is not intended for external installation.
 
-skill-maintainer is an installable Python package. From other repos: `uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer`. Then run `skill-maintain init` to create per-repo config.
+skill-maintainer has two interfaces: a plugin (`skills/skill-maintainer/`) for interactive use in Claude Code, and a Python CLI package (`tools/skill-maintainer/`) for CI/headless use. Install the plugin for the best experience. The CLI is available from other repos via: `uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer`.
 
 ## Plugin development
 
@@ -149,8 +151,8 @@ When generating new artifacts, first search existing catalogs for structurally s
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
 | Red/green tests | `skill-maintain test` | On demand |
-| Full maintenance pass | `/maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
-| Quality/budget/freshness | `skill-maintain quality` | On demand |
+| Full maintenance pass | `/skill-maintainer:maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
+| Quality/budget/freshness | `/skill-maintainer:quality` or `skill-maintain quality` | On demand |
 | Upstream change detection | `skill-maintain upstream` | On demand |
 | Local source pulls | `skill-maintain sources` | On demand |
 | Change history | `skill-maintain log` | On demand |
