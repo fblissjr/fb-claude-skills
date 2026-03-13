@@ -43,7 +43,7 @@ function McpAppWrapper() {
   const [hostContext, setHostContext] = useState<McpUiHostContext | null>(null);
 
   const { app, error } = useApp({
-    appInfo: { name: "Skill Dashboard", version: "1.0.0" },
+    appInfo: { name: "Skill Dashboard", version: "1.1.0" },
     capabilities: {},
     onAppCreated: (app) => {
       app.ontoolinput = (params) => {

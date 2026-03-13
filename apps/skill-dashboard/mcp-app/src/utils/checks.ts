@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type {
   CheckResult,
+  FileTokenEntry,
   PluginResult,
   QualityMeta,
   QualitySummary,
@@ -162,9 +163,9 @@ function validateSpec(
 // Token measurement
 // ============================================================================
 
-function measureTokens(skillDir: string): number {
+export function measureTokensDetailed(skillDir: string): FileTokenEntry[] {
   const skipSet = new Set([...SKIP_DIRS, "state"]);
-  let totalChars = 0;
+  const files: { path: string; chars: number }[] = [];
 
   function walk(dir: string) {
     if (!fs.existsSync(dir)) return;
@@ -176,7 +177,8 @@ function measureTokens(skillDir: string): number {
         if (!skipSet.has(entry.name)) walk(fullPath);
       } else if (entry.name.endsWith(".md")) {
         try {
-          totalChars += fs.readFileSync(fullPath, "utf-8").length;
+          const chars = fs.readFileSync(fullPath, "utf-8").length;
+          files.push({ path: path.relative(skillDir, fullPath), chars });
         } catch {
           // skip unreadable files
         }
@@ -185,7 +187,27 @@ function measureTokens(skillDir: string): number {
   }
 
   walk(skillDir);
-  return Math.floor(totalChars / 4);
+
+  const totalChars = files.reduce((sum, f) => sum + f.chars, 0);
+
+  return files
+    .map((f) => ({
+      path: f.path,
+      chars: f.chars,
+      tokens: Math.floor(f.chars / 4),
+      pctOfTotal: totalChars > 0 ? Math.round((f.chars / totalChars) * 100) : 0,
+    }))
+    .sort((a, b) => b.tokens - a.tokens);
+}
+
+function measureTokens(skillDir: string): number {
+  return measureTokensDetailed(skillDir).reduce((sum, f) => sum + f.tokens, 0);
+}
+
+export function findSkillPath(root: string, skillName: string): string | null {
+  const dirs = discoverSkills(root);
+  const match = dirs.find((d) => path.basename(d) === skillName);
+  return match ? path.join(match, "SKILL.md") : null;
 }
 
 // ============================================================================

@@ -1,6 +1,6 @@
 {
   "name": "skill-dashboard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Interactive MCP App skill dashboard: quality checks, token budgets, freshness, and repo hygiene",
   "author": {
     "name": "Fred Bliss"

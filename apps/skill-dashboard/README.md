@@ -2,7 +2,7 @@ last updated: 2026-03-13
 
 # skill-dashboard
 
-Interactive ext-apps MCP App dashboard for the fb-claude-skills project. Discovers all skills and plugins, runs quality checks, and renders results in an interactive UI with pass/fail indicators, token budget bars, and freshness status.
+Interactive ext-apps MCP App dashboard for the fb-claude-skills project. Discovers all skills and plugins, runs quality checks, and renders results in an interactive UI with pass/fail indicators, token budget bars, and freshness status. Click any skill row to see a per-file token breakdown and mark it as verified.
 
 ## skills
 
@@ -20,8 +20,8 @@ mcp-app/
   server.ts            # MCP tools + resource registration
   src/
     utils/checks.ts    # Discovery, validation, measurement, hygiene checks
-    skill-dashboard-app.tsx   # Main React view
-    components/        # SummaryBar, SkillTable, PluginTable, RepoChecks, StatusDot, TokenBudgetBar
+    skill-dashboard-app.tsx   # Main React view with sidebar state
+    components/        # SummaryBar, SkillTable, PluginTable, RepoChecks, StatusDot, TokenBudgetBar, SkillSidebar, FileBreakdownTable
 ```
 
 ## MCP tools
@@ -33,6 +33,23 @@ Discovers all skills and plugins under the repo root, runs checks, returns struc
 - **Input**: `{ filter?: string }` -- optional skill name substring filter
 - **Output**: structuredContent with skills, plugins, repo checks, summary, meta
 - **Text fallback**: "Quality check: N passed, M failed across X skills, Y plugins"
+
+### skill-measure
+
+Per-file token breakdown for a single skill. Visible to both model and app.
+
+- **Input**: `{ skillName: string }`
+- **Output**: structuredContent with per-file breakdown (path, chars, tokens, pctOfTotal), totalTokens, budget thresholds
+- **Text fallback**: "skill-name: N tokens across M files (file1: X, file2: Y, ...)"
+
+### skill-verify
+
+Mark a skill as verified (updates `metadata.last_verified` in SKILL.md frontmatter). App-only tool.
+
+- **Input**: `{ skillName: string }`
+- **Output**: structuredContent with previousDate, newDate, path
+- **Text fallback**: "Verified skill-name: last_verified updated to YYYY-MM-DD"
+- **Visibility**: app-only (not callable by the model)
 
 ## building
 

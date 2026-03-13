@@ -53,4 +53,31 @@ export interface QualityCheckContent {
   meta: QualityMeta;
 }
 
-export type StructuredContent = QualityCheckContent;
+export interface FileTokenEntry {
+  path: string;
+  chars: number;
+  tokens: number;
+  pctOfTotal: number;
+}
+
+export interface SkillMeasureContent {
+  type: "skill-measure";
+  skillName: string;
+  skillDir: string;
+  files: FileTokenEntry[];
+  totalTokens: number;
+  budget: { warn: number; critical: number };
+}
+
+export interface SkillVerifyContent {
+  type: "skill-verify";
+  skillName: string;
+  previousDate: string | null;
+  newDate: string;
+  path: string;
+}
+
+export type StructuredContent =
+  | QualityCheckContent
+  | SkillMeasureContent
+  | SkillVerifyContent;

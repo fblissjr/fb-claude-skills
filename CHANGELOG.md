@@ -1,5 +1,19 @@
 # changelog
 
+## 0.22.0
+
+### added
+- **skill-dashboard**: Phase B -- drill-down, measure, verify
+  - `skill-measure` tool: per-file token breakdown for a single skill (path, chars, tokens, pctOfTotal)
+  - `skill-verify` tool: app-only tool that updates `metadata.last_verified` in SKILL.md frontmatter on disk
+  - sidebar UI: click any skill row to open file breakdown table with percentage bars and budget status
+  - "Mark Verified" button: updates SKILL.md and refreshes quality data
+  - two-panel layout (main + sidebar) with grid-based responsive design
+  - new components: SkillSidebar, FileBreakdownTable
+  - refactored `measureTokens` into `measureTokensDetailed` (returns per-file entries) + thin wrapper
+  - `findSkillPath` helper for resolving skill name to SKILL.md path
+  - bumped to v1.1.0
+
 ## 0.21.0
 
 ### changed

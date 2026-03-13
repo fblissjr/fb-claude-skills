@@ -1,6 +1,6 @@
 {
   "name": "@fb-claude-skills/skill-dashboard-mcp-app",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "MCP App for interactive skill quality dashboard with pass/fail checks, token budgets, and freshness",
   "license": "MIT",

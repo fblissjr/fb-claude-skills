@@ -10,8 +10,13 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import fs from "node:fs/promises";
 import path from "node:path";
+import matter from "gray-matter";
 import { z } from "zod";
-import { runQualityCheck } from "./src/utils/checks.js";
+import {
+  findSkillPath,
+  measureTokensDetailed,
+  runQualityCheck,
+} from "./src/utils/checks.js";
 
 // Detect source vs compiled context
 const IS_SOURCE = import.meta.filename.endsWith(".ts");
@@ -39,7 +44,7 @@ const REPO_ROOT = process.env.SKILL_DASHBOARD_ROOT
 export function createServer(): McpServer {
   const server = new McpServer({
     name: "Skill Dashboard",
-    version: "1.0.0",
+    version: "1.1.0",
   });
 
   const resourceUri = "ui://skill-dashboard/mcp-app.html";
@@ -86,6 +91,147 @@ export function createServer(): McpServer {
         return {
           content: [
             { type: "text", text: `Quality check failed: ${msg}` },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // =========================================================================
+  // Tool: skill-measure
+  // =========================================================================
+  registerAppTool(
+    server,
+    "skill-measure",
+    {
+      title: "Skill Measure",
+      description:
+        "Per-file token breakdown for a single skill. Shows each .md file with character count, estimated tokens, and percentage of total.",
+      inputSchema: {
+        skillName: z.string().describe("Name of the skill to measure"),
+      },
+      _meta: { ui: { resourceUri } },
+    },
+    async (params: { skillName: string }): Promise<CallToolResult> => {
+      try {
+        const skillPath = findSkillPath(REPO_ROOT, params.skillName);
+        if (!skillPath) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Skill not found: ${params.skillName}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        const skillDir = path.dirname(skillPath);
+        const files = measureTokensDetailed(skillDir);
+        const totalTokens = files.reduce((s, f) => s + f.tokens, 0);
+        const relDir = path.relative(REPO_ROOT, skillDir);
+
+        const fileList = files
+          .map((f) => `${f.path}: ${f.tokens.toLocaleString()}`)
+          .join(", ");
+
+        return {
+          structuredContent: {
+            type: "skill-measure",
+            skillName: params.skillName,
+            skillDir: relDir,
+            files,
+            totalTokens,
+            budget: { warn: 4000, critical: 8000 },
+          },
+          content: [
+            {
+              type: "text",
+              text: `${params.skillName}: ${totalTokens.toLocaleString()} tokens across ${files.length} files (${fileList})`,
+            },
+          ],
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return {
+          content: [
+            { type: "text", text: `Skill measure failed: ${msg}` },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // =========================================================================
+  // Tool: skill-verify
+  // =========================================================================
+  registerAppTool(
+    server,
+    "skill-verify",
+    {
+      title: "Skill Verify",
+      description:
+        "Mark a skill as verified by updating metadata.last_verified in its SKILL.md frontmatter to today's date.",
+      inputSchema: {
+        skillName: z.string().describe("Name of the skill to verify"),
+      },
+      _meta: { ui: { resourceUri, visibility: ["app"] } },
+    },
+    async (params: { skillName: string }): Promise<CallToolResult> => {
+      try {
+        const skillPath = findSkillPath(REPO_ROOT, params.skillName);
+        if (!skillPath) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Skill not found: ${params.skillName}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const content = await fs.readFile(skillPath, "utf-8");
+        const parsed = matter(content);
+        const meta = (parsed.data.metadata || {}) as Record<string, unknown>;
+        const prev = meta.last_verified;
+        const previousDate =
+          prev instanceof Date
+            ? prev.toISOString().slice(0, 10)
+            : prev
+              ? String(prev)
+              : null;
+        const newDate = new Date().toISOString().slice(0, 10);
+        meta.last_verified = newDate;
+        parsed.data.metadata = meta;
+        const updated = matter.stringify(parsed.content, parsed.data);
+        await fs.writeFile(skillPath, updated, "utf-8");
+
+        const relPath = path.relative(REPO_ROOT, skillPath);
+
+        return {
+          structuredContent: {
+            type: "skill-verify",
+            skillName: params.skillName,
+            previousDate,
+            newDate,
+            path: relPath,
+          },
+          content: [
+            {
+              type: "text",
+              text: `Verified ${params.skillName}: last_verified updated to ${newDate}`,
+            },
+          ],
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return {
+          content: [
+            { type: "text", text: `Skill verify failed: ${msg}` },
           ],
           isError: true,
         };

@@ -153,6 +153,8 @@ Plugins with MCP Apps expose tools that the model calls automatically during con
 | `mece-refine-node` | mece-decomposer | Edit nodes from the UI (app-only) |
 | `mece-export-sdk` | mece-decomposer | Preview generated Agent SDK code |
 | `skill-quality-check` | skill-dashboard | Quality checks, token budgets, freshness, version alignment |
+| `skill-measure` | skill-dashboard | Per-file token breakdown for a single skill |
+| `skill-verify` | skill-dashboard | Mark a skill as verified (app-only, updates SKILL.md on disk) |
 
 On Cowork, these render as interactive React UIs. On CLI, they return text.
 

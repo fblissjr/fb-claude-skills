@@ -254,3 +254,100 @@ html, body {
   color: var(--color-text-secondary, #888);
   margin-left: auto;
 }
+
+/* Two-panel layout */
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.dashboard-panels.has-sidebar {
+  grid-template-columns: 1fr 340px;
+}
+
+/* Sidebar */
+.dashboard-sidebar {
+  border-left: 1px solid var(--color-border, rgba(128, 128, 128, 0.2));
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidebar-close {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--color-text-secondary, #888);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sidebar-close:hover {
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.1));
+}
+
+/* Clickable skill rows */
+.check-table tbody tr.clickable {
+  cursor: pointer;
+}
+.check-table tbody tr.selected {
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.08));
+  outline: 2px solid var(--color-accent, #4285f4);
+  outline-offset: -2px;
+}
+
+/* File breakdown */
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.file-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #888);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, 0.2));
+}
+.file-table td {
+  padding: 3px 6px;
+}
+.file-path {
+  font-family: monospace;
+  font-size: 11px;
+}
+.file-pct-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #34a853;
+}
+
+/* Verify button */
+.verify-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, 0.3));
+  border-radius: var(--border-radius-sm, 4px);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-primary, inherit);
+}
+.verify-btn:hover {
+  background: var(--color-background-secondary, rgba(128, 128, 128, 0.1));
+}
+.verify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.verify-confirmed {
+  color: #34a853;
+  font-size: 12px;
+}
