@@ -2,6 +2,16 @@
 
 Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes property-driven maintenance via git hooks, Claude Code hooks, and on-demand CLI tools.
 
+## Guidelines
+
+- Use a TDD red/green style approach to development
+- When you finish a session or iteration of work, update the following, at minimum:
+  - `internal/log`
+  - `./CLAUDE.md` (if needed)
+  - `./README.md` (if needed)
+  - The `README.md` and related docs for each impacted app, skill, or tool (example: `apps/mece-decomposer/README.md`)
+  - If relevant, the `pyproject.toml` for each impacted app or tool (example: `tools/agent-state/pyproject.toml`)
+
 ## Repo structure
 
 ```
