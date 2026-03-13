@@ -1,8 +1,8 @@
-last updated: 2026-03-03
+last updated: 2026-03-13
 
 # dev-conventions
 
-Development conventions as selective skills. Language-specific tooling fires only when relevant. TDD and documentation conventions are opt-in.
+Development conventions with automatic project detection. A SessionStart hook detects Python/JS project markers and injects the relevant conventions into Claude's context. Skills provide detailed reference tables on demand.
 
 ## installation
 
@@ -17,26 +17,24 @@ Development conventions as selective skills. Language-specific tooling fires onl
 For development/testing without installing:
 
 ```bash
-claude --plugin-dir /path/to/fb-claude-skills/dev-conventions
+claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 ```
+
+## hooks
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd, injects uv/orjson/bun/TDD conventions as additionalContext |
 
 ## skills
 
-| Skill | Invocable | Trigger | What it does |
-|-------|-----------|---------|--------------|
-| `python-tooling` | no | Python projects, pip usage, json.dumps | Enforces uv over pip, orjson over json |
-| `bun-tooling` | no | JS/TS projects, npm/yarn usage | Enforces bun over npm/yarn/pnpm |
-| `tdd-workflow` | yes | `/dev-conventions:tdd-workflow` | Red/green TDD: write failing test, implement, refactor |
-| `doc-conventions` | yes | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, document the "why" |
+| Skill | Invocation | What it does |
+|-------|------------|--------------|
+| `python-tooling` | `/dev-conventions:python-tooling` | Full uv/orjson conversion tables (detailed reference) |
+| `bun-tooling` | `/dev-conventions:bun-tooling` | Full bun conversion tables and lock file migration |
+| `tdd-workflow` | `/dev-conventions:tdd-workflow` | Red/green TDD: write failing test, implement, refactor |
+| `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, document the "why" |
 
-## invocation
+## how it works
 
-Background skills (`python-tooling`, `bun-tooling`) fire automatically when Claude detects relevant context. No manual invocation needed.
-
-User-invocable skills:
-
-```
-/dev-conventions:tdd-workflow
-/dev-conventions:doc-conventions
-```
-
+When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, etc.). If found, it injects a compact conventions summary into Claude's context as `additionalContext` -- no manual invocation needed. The injected context covers the correct package manager, JSON library, and TDD basics. For full conversion tables or detailed methodology, invoke the skills directly.

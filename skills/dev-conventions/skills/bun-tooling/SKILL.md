@@ -1,13 +1,13 @@
 ---
 name: bun-tooling
 description: >-
-  Enforce bun over npm/yarn/pnpm for JavaScript and TypeScript projects. Use when working in JS/TS projects,
-  when npm install or yarn add appears, when package-lock.json or yarn.lock is referenced. Triggers on
-  "npm install", "npm run", "yarn add", "yarn install", "pnpm", "npx", "package-lock.json".
+  Detailed bun conversion reference for JavaScript and TypeScript projects. Core conventions auto-loaded
+  via SessionStart hook; invoke /dev-conventions:bun-tooling for full conversion tables and lock file
+  migration steps.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
-  last_verified: 2026-03-03
+  version: 0.2.0
+  last_verified: 2026-03-13
 ---
 
 # Bun Tooling Conventions

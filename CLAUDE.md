@@ -25,7 +25,7 @@ fb-claude-skills/
     cogapp-markdown/         # Plugin: auto-generate markdown sections
     tui-design/              # Plugin: terminal UI design principles
     dimensional-modeling/    # Plugin: Kimball star schema patterns
-    dev-conventions/         # Plugin: development conventions (tooling, TDD, documentation)
+    dev-conventions/         # Plugin: development conventions (SessionStart hook + skills for tooling, TDD, docs)
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
     mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer

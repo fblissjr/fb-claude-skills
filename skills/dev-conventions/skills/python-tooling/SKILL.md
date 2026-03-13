@@ -1,14 +1,13 @@
 ---
 name: python-tooling
 description: >-
-  Enforce Python tooling conventions: uv over pip, orjson over json. Use when working in Python projects,
-  when pip install or pip freeze appears, when json.dumps or json.loads is used, when requirements.txt
-  is referenced, or when python/python3 is called directly. Triggers on "pip install", "import json",
-  "requirements.txt", "python -m", "python3 -m", "pip freeze", "virtualenv".
+  Detailed Python/uv/orjson conversion reference. Core conventions auto-loaded via SessionStart hook;
+  invoke /dev-conventions:python-tooling for full conversion tables.
+  Use when you need the complete uv command mapping or orjson migration patterns.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
-  last_verified: 2026-03-03
+  version: 0.2.0
+  last_verified: 2026-03-13
 ---
 
 # Python Tooling Conventions

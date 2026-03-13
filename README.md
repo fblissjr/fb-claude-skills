@@ -6,7 +6,7 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 
 ## plugins
 
-Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
+Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (dev-conventions, tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
 
 | Plugin | Type | Description |
 |--------|------|-------------|
@@ -15,6 +15,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
 | [tui-design](skills/tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
 | [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
+| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/orjson/bun/TDD conventions into context |
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
 | [env-forge](apps/env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
@@ -49,6 +50,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install tui-design@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
+/plugin install dev-conventions@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
 ```
 
@@ -118,6 +120,11 @@ Once installed, invoke as namespaced slash commands:
 /tui-design                    # Terminal UI design guidance
 /cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
+
+/dev-conventions:python-tooling  # Full uv/orjson conversion tables
+/dev-conventions:bun-tooling     # Full bun conversion tables
+/dev-conventions:tdd-workflow    # Red/green TDD methodology
+/dev-conventions:doc-conventions # Documentation standards
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description

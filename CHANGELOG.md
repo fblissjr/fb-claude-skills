@@ -1,5 +1,13 @@
 # changelog
 
+## 0.19.0
+
+### added
+- **dev-conventions**: SessionStart hook for automatic project-type detection
+  - detects Python/JS markers in cwd, injects uv/orjson/bun/TDD conventions as additionalContext
+  - skills reframed as on-demand references (no longer claim background auto-trigger)
+  - bumped plugin version to 0.2.0
+
 ## 0.18.3
 
 ### fixed

@@ -1,0 +1,15 @@
+{
+  "description": "Dev conventions hook: detect project type at session start and inject relevant tooling conventions",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
