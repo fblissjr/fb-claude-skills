@@ -1,6 +1,10 @@
 ---
-description: "Materialize and start a generated or catalog environment (Phase 2)"
-argument-hint: "<environment name or scenario>"
+name: launch
+description: Materialize and start a generated or catalog environment as a FastAPI+MCP server (Phase 2). Use when user says "launch environment", "start the server", "run the environment", or wants to bring up a materialized env-forge environment.
+metadata:
+  author: Fred Bliss
+  version: 0.2.0
+  last_verified: "2026-03-12"
 ---
 
 # /env-forge:launch

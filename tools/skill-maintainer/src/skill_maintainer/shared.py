@@ -36,7 +36,12 @@ def discover_plugins(root: Path) -> list[Path]:
 
 
 def measure_tokens(skill_dir: Path) -> int:
-    """Estimate total tokens for all text files in a skill directory."""
+    """Estimate total context tokens for markdown files in a skill directory.
+
+    Only counts .md files since those are loaded into context via progressive
+    disclosure. Scripts (.py, .sh) are executed, not loaded. Config files
+    (.json, .yaml) are not part of the skill context window budget.
+    """
     total_chars = 0
     skip = SKIP_DIRS | {"state"}
     for f in skill_dir.rglob("*"):
@@ -44,7 +49,7 @@ def measure_tokens(skill_dir: Path) -> int:
             continue
         if any(s in f.parts for s in skip):
             continue
-        if f.suffix in (".md", ".py", ".yaml", ".yml", ".json", ".txt", ".sh", ".toml"):
+        if f.suffix == ".md":
             try:
                 total_chars += len(f.read_text())
             except (OSError, UnicodeDecodeError):

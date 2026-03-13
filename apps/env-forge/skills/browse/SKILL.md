@@ -1,6 +1,10 @@
 ---
-description: Browse AWM-1K catalog of 1000 pre-built tool environments by category or keyword
-argument-hint: "<category or search keyword>"
+name: browse
+description: Browse AWM-1K catalog of 1000 pre-built tool environments by category or keyword. Use when user says "browse environments", "search AWM catalog", "find a tool environment", "list environment categories", or wants to materialize a pre-built MCP backend.
+metadata:
+  author: Fred Bliss
+  version: 0.2.0
+  last_verified: "2026-03-12"
 ---
 
 # /env-forge:browse

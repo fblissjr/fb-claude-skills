@@ -1,6 +1,6 @@
 # mece-decomposer
 
-last updated: 2026-02-18
+last updated: 2026-03-12
 
 A plugin for Claude Code and Cowork that decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution. Includes an interactive tree visualizer (MCP App).
 
@@ -51,12 +51,12 @@ To rebuild the production bundle:
 bun run build   # outputs dist/index.cjs (self-contained) + dist/mcp-app.html
 ```
 
-## Commands
+## Skills
 
 Invoke these directly as slash commands:
 
-| Command | Purpose |
-|---------|---------|
+| Skill | Purpose |
+|-------|---------|
 | `/decompose` | Break down a goal, process, or workflow into MECE components with SDK mapping |
 | `/interview` | Extract process knowledge from an SME through structured conversation |
 | `/validate` | Check a decomposition for MECE compliance and structural integrity |
@@ -101,12 +101,15 @@ mece-decomposer/
 |   +-- plugin.json                                    # Plugin manifest
 +-- .mcp.json                                          # MCP server auto-configuration
 +-- README.md
-+-- commands/                                          # Slash commands (user-invoked)
-|   +-- decompose.md                                   # /decompose
-|   +-- interview.md                                   # /interview
-|   +-- validate.md                                    # /validate
-|   +-- export.md                                      # /export
 +-- skills/
+|   +-- decompose/
+|   |   +-- SKILL.md                                   # /decompose (user-invocable)
+|   +-- interview/
+|   |   +-- SKILL.md                                   # /interview (user-invocable)
+|   +-- validate/
+|   |   +-- SKILL.md                                   # /validate (user-invocable)
+|   +-- export/
+|   |   +-- SKILL.md                                   # /export (user-invocable)
 |   +-- mece-decomposer/
 |       +-- SKILL.md                                   # Domain knowledge (auto-loaded)
 |       +-- references/

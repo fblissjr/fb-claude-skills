@@ -634,7 +634,7 @@ implementations in this repository.
 | Skills with agents | Plugin-toolkit bundles skills alongside scanner and quality-checker subagents | `skills/plugin-toolkit/agents/` |
 | MCP server in a plugin | mece-decomposer includes `.mcp.json` for stdio server auto-start | `apps/mece-decomposer/.mcp.json` |
 | MCP App with text fallback | mece-decomposer includes React tree visualizer as an MCP App | `apps/mece-decomposer/mcp-app/` |
-| Commands (slash invocation) | mece-decomposer provides decompose, interview, validate, export commands | `apps/mece-decomposer/commands/` |
+| User-invocable skills (slash commands) | mece-decomposer provides decompose, interview, validate, export skills | `apps/mece-decomposer/skills/` |
 | CDC upstream detection | Hash-based upstream doc change detection via llms-full.txt | `tools/skill-maintainer/src/skill_maintainer/upstream.py` |
 | Source pulling | Git-based local repo pulling with change detection | `tools/skill-maintainer/src/skill_maintainer/sources.py` |
 | Quality reporting | Validation, token budget, freshness, description quality | `tools/skill-maintainer/src/skill_maintainer/quality.py` |

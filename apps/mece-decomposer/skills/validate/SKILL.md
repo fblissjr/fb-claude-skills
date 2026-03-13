@@ -1,6 +1,10 @@
 ---
-description: Validate a MECE decomposition for compliance, structural integrity, and SDK readiness
-argument-hint: "<decomposition JSON or file path>"
+name: validate
+description: Validate a MECE decomposition for compliance, structural integrity, and SDK readiness. Use when user says "validate decomposition", "check MECE compliance", "run validation", or wants to verify a decomposition tree passes quality gates.
+metadata:
+  author: Fred Bliss
+  version: 0.3.0
+  last_verified: "2026-03-12"
 ---
 
 # /validate
@@ -49,9 +53,9 @@ Using the scoring rubrics from the **mece-decomposer** skill:
 ## Validation Report
 
 **Status:** PASS / FAIL
-**ME Score:** 0.XX — [interpretation]
-**CE Score:** 0.XX — [interpretation]
-**Overall:** 0.XX — [interpretation]
+**ME Score:** 0.XX -- [interpretation]
+**CE Score:** 0.XX -- [interpretation]
+**Overall:** 0.XX -- [interpretation]
 
 ### Issues
 | Severity | Location | Type | Description |

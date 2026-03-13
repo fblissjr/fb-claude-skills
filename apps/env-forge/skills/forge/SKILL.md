@@ -1,6 +1,10 @@
 ---
-description: Generate a new database-backed MCP tool environment from a scenario description
-argument-hint: "<description of the platform/domain>"
+name: forge
+description: Generate a new database-backed MCP tool environment from a scenario description. Use when user says "forge an environment", "generate tool environment", "create an MCP backend", "scaffold database tools", "build a sandbox", or "synthesize an environment from scratch".
+metadata:
+  author: Fred Bliss
+  version: 0.2.0
+  last_verified: "2026-03-12"
 ---
 
 # /env-forge:forge

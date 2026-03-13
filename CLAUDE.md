@@ -127,7 +127,7 @@ Skills are retrieval. High precision is the constraint, high recall is the goal.
 
 ### Catalog as exemplar
 
-When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See `apps/env-forge/commands/forge.md` step 2.
+When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See the env-forge `forge` skill's step 2.
 
 ### Cross-member imports
 

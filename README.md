@@ -87,15 +87,15 @@ claude plugin list  # verify
 
 Plugins from this repo work across multiple Claude surfaces, but capabilities differ by surface:
 
-| Surface | Skills | Commands | MCP App UI | Transport |
-|---------|--------|----------|------------|-----------|
-| **Claude Code** (terminal) | yes | yes (namespaced) | text fallback | stdio |
-| **Claude Desktop** | yes | yes | text fallback | stdio |
-| **Cowork** (in Claude Desktop) | yes | yes | yes (interactive) | stdio |
-| **Claude.ai** (web) | -- | -- | yes (if hosted) | Streamable HTTP |
+| Surface | Skills (slash commands) | MCP App UI | Transport |
+|---------|------------------------|------------|-----------|
+| **Claude Code** (terminal) | yes (namespaced) | text fallback | stdio |
+| **Claude Desktop** | yes | text fallback | stdio |
+| **Cowork** (in Claude Desktop) | yes | yes (interactive) | stdio |
+| **Claude.ai** (web) | -- | yes (if hosted) | Streamable HTTP |
 
 **Key points:**
-- **Skills and commands** work in Claude Code, Claude Desktop, and Cowork via stdio transport. This is what `.mcp.json` configures with `--stdio`.
+- **Skills** (including user-invocable slash commands) work in Claude Code, Claude Desktop, and Cowork via stdio transport. This is what `.mcp.json` configures with `--stdio`.
 - **MCP App interactive UIs** (like the MECE tree visualizer) render in Cowork and Claude.ai. On CLI/Desktop surfaces, the tools return text summaries instead.
 - **Claude.ai requires HTTP transport.** The web interface can't spawn local processes, so it needs a hosted server using Streamable HTTP (not stdio). See [Claude.ai deployment](#deploying-mcp-apps-to-claudeai) below.
 

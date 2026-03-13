@@ -1,5 +1,28 @@
 # changelog
 
+## 0.18.3
+
+### fixed
+- **skill-maintainer**: `measure_tokens()` now counts only `.md` files (was counting `.py`, `.json`, `.sh`, etc. that are executed, not loaded into context)
+  - mece-decomposer dropped from 23,283 to 16,647 tokens (scripts/validate_mece.py was 6,636 phantom tokens)
+
+## 0.18.2
+
+### changed
+- **mece-decomposer**: converted 4 legacy `commands/*.md` files to proper `skills/<name>/SKILL.md` format
+  - `decompose`, `interview`, `validate`, `export` now use Agent Skills frontmatter (proper `skills/<name>/SKILL.md` layout)
+  - removed `commands/` directory (legacy format caused "Legacy format" separator in Cowork)
+  - all 4 skills have trigger phrases in description, metadata.author/version/last_verified
+- **mece-decomposer**: bumped plugin version to 0.3.0
+- **mece-decomposer**: updated main skill and README references from "commands" to "skills"
+- **env-forge**: converted 4 legacy `commands/*.md` files to proper `skills/<name>/SKILL.md` format
+  - `browse`, `forge`, `launch`, `verify` now use Agent Skills frontmatter
+  - removed `commands/` directory
+  - all 4 skills have trigger phrases in description, metadata.author/version/last_verified
+- **env-forge**: bumped plugin version to 0.2.0
+- **env-forge**: updated main skill and README references from "commands" to "skills"
+- CLAUDE.md: updated stale `apps/env-forge/commands/forge.md` path reference
+
 ## 0.18.1
 
 ### added

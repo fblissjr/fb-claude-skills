@@ -3,15 +3,15 @@ name: mece-decomposer
 description: MECE decomposition methodology, scoring rubrics, and Agent SDK mapping for process analysis. Loaded automatically when decomposing goals, tasks, processes, or workflows into Mutually Exclusive, Collectively Exhaustive components. Provides the domain knowledge used by /decompose, /interview, /validate, and /export commands. Use when user says "decompose", "break down this process", "MECE analysis", "interview me about a workflow", "map process to agents", "validate decomposition", or "export to Agent SDK".
 metadata:
   author: Fred Bliss
-  version: 0.2.0
-  last_verified: 2026-02-25
+  version: 0.3.0
+  last_verified: "2026-03-12"
   mcp-server: mece-decomposer
 allowed-tools: "Bash(uv run *)"
 ---
 
 # MECE Decomposer -- Domain Knowledge
 
-This skill provides the methodology, scoring rubrics, and mapping rules that power the `/decompose`, `/interview`, `/validate`, and `/export` commands. Claude loads this automatically when those commands are invoked or when the conversation involves process decomposition.
+This skill provides the methodology, scoring rubrics, and mapping rules that power the `/decompose`, `/interview`, `/validate`, and `/export` skills. Claude loads this automatically when those skills are invoked or when the conversation involves process decomposition.
 
 ## Core Concept
 

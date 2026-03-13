@@ -1,4 +1,4 @@
-last updated: 2026-02-23
+last updated: 2026-03-12
 
 # env-forge
 
@@ -52,12 +52,7 @@ The server exposes all endpoints as MCP tools at `http://127.0.0.1:8000/mcp`. Po
 
 | Skill | Description |
 |-------|-------------|
-| env-forge | AWM synthesis methodology adapted for interactive use: task-first schema synthesis, API generation, verification patterns |
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
+| env-forge | AWM synthesis methodology adapted for interactive use: task-first schema synthesis, API generation, verification patterns (auto-loaded) |
 | `/env-forge:browse` | Browse AWM-1K catalog by category or keyword, materialize selected environment |
 | `/env-forge:forge` | Interactive environment generation using AWM's synthesis pipeline |
 | `/env-forge:launch` | Materialize and start a generated environment (not yet implemented) |
@@ -158,7 +153,7 @@ Generated environments need (declared in their own pyproject.toml):
 
 ### catalog-as-exemplar
 
-When generating new environments, first search the AWM-1K catalog for a structurally similar domain. Use the closest match as a few-shot reference -- adapt its patterns rather than generating from scratch. See `commands/forge.md` step 2.
+When generating new environments, first search the AWM-1K catalog for a structurally similar domain. Use the closest match as a few-shot reference -- adapt its patterns rather than generating from scratch. See the forge skill's step 2.
 
 ### shared.py
 
