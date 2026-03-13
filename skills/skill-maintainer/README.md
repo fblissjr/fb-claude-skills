@@ -27,6 +27,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 | `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: upstream checks, source pulls, quality report, best practices review |
 | `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, freshness, description quality |
 | `init-maintenance` | `/skill-maintainer:init-maintenance` | Set up persistent maintenance config and state in a repo |
+| `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across all sources atomically |
 
 ## usage examples
 
@@ -39,6 +40,9 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 
 # set up maintenance config in a new skills repo
 /skill-maintainer:init-maintenance
+
+# bump tui-design to 0.3.0 across plugin.json, marketplace, SKILL.md, pyproject
+/skill-maintainer:sync-versions tui-design 0.3.0
 ```
 
 ## relationship to the CLI package

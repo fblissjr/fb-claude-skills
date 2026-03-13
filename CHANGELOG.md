@@ -1,5 +1,30 @@
 # changelog
 
+## 0.21.0
+
+### changed
+- **skill-dashboard**: rebuilt as ext-apps MCP App (TypeScript, React, same pattern as mece-decomposer)
+  - replaced Python rawHtml server with interactive ext-apps UI
+  - `skill-quality-check` tool: discovers skills/plugins, runs 5 per-skill + 3 per-plugin + 5 repo checks
+  - optional `filter` parameter for skill name substring matching
+  - all check logic ported to native TypeScript (gray-matter for frontmatter, no Python dependency)
+  - components: SummaryBar, SkillTable with token budget bars, PluginTable, RepoChecks with status dots
+  - dual transport: stdio + HTTP (port 3002)
+  - version sync check: validates plugin.json, marketplace.json, SKILL.md, pyproject.toml alignment
+  - removed Python files: server.py, templates/dashboard.html, pyproject.toml
+  - removed from uv workspace members (no longer a Python package)
+  - bumped to v1.0.0
+
+### added
+- **skill-maintainer**: `/skill-maintainer:sync-versions <plugin> <version>` -- bump a plugin's version across all sources (plugin.json, marketplace.json, SKILL.md, pyproject.toml) atomically
+
+### fixed
+- **version alignment**: synced plugin.json across 4 plugins that had drifted from marketplace.json
+  - dimensional-modeling: 0.1.0 -> 0.2.0
+  - tui-design: 0.1.0 -> 0.2.0
+  - skill-maintainer: 0.1.0 -> 0.3.0
+  - readwise-reader: marketplace 0.1.0 -> 1.0.0 (aligned with plugin.json/SKILL.md)
+
 ## 0.20.1
 
 ### added

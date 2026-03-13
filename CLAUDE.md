@@ -31,7 +31,7 @@ fb-claude-skills/
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
     mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer
     env-forge/               # Plugin: database-backed MCP tool environment generator
-    skill-dashboard/         # Project-scoped: Python MCP App skill dashboard (rawHtml reference impl)
+    skill-dashboard/         # Project-scoped: ext-apps MCP App quality dashboard (TypeScript)
     heylook-monitor/         # Project-scoped: MCP App dashboard for local LLM server
   tools/                     # CLI packages
     skill-maintainer/        # Installable package: maintenance CLI for any skill repo
@@ -141,10 +141,6 @@ Skills are retrieval. High precision is the constraint, high recall is the goal.
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See the env-forge `forge` skill's step 2.
 
-### Cross-member imports
-
-`skill-dashboard` declares `skill-maintainer` as a workspace dependency. Imports: `from skill_maintainer.tests import test_skills, test_plugins, test_repo_hygiene` and `from skill_maintainer.shared import TOKEN_BUDGET_WARN, TOKEN_BUDGET_CRITICAL`. Budget threshold constants live in `skill_maintainer.shared` and are injected into downstream consumers (dashboard HTML) -- never hardcode them.
-
 ## How to keep things fresh
 
 | Concern | Mechanism | Trigger |
@@ -155,6 +151,7 @@ When generating new artifacts, first search existing catalogs for structurally s
 | Quality/budget/freshness | `/skill-maintainer:quality` or `skill-maintain quality` | On demand |
 | Upstream change detection | `skill-maintain upstream` | On demand |
 | Local source pulls | `skill-maintain sources` | On demand |
+| Version alignment | `/skill-maintainer:sync-versions <plugin> <ver>` | On demand |
 | Change history | `skill-maintain log` | On demand |
 
 Other useful commands:
@@ -199,7 +196,7 @@ Python managed as a **uv workspace**. The root `pyproject.toml` coordinates work
 | `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
 | `agent-state` | `tools/agent-state` | orjson, duckdb; CLI: `agent-state` |
 | `env-forge` | `apps/env-forge` | orjson, huggingface-hub |
-| `skill-dashboard` | `apps/skill-dashboard` | orjson, mcp, mcp-ui-server (git), skill-maintainer (workspace) |
+| `skill-dashboard` | `apps/skill-dashboard/mcp-app` | TypeScript ext-apps MCP App (gray-matter, react, zod); no Python deps |
 | `mece-decomposer` | `apps/mece-decomposer` | orjson |
 | `readwise-reader` | `apps/readwise-reader` | mcp, httpx, duckdb, pydantic, authlib, skill-maintainer (workspace); opt-in, requires Python 3.13+ |
 

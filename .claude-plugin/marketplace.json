@@ -29,19 +29,19 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "tui-design",
       "source": "./skills/tui-design",
       "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "name": "skill-dashboard",
@@ -53,25 +53,25 @@
       "name": "env-forge",
       "source": "./apps/env-forge",
       "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions: language-specific tooling (Python/uv, JS/bun), TDD workflow, and documentation standards",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "0.1.0"
+      "version": "1.0.0"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review",
-      "version": "0.1.0"
+      "version": "0.3.0"
     }
   ]
 }

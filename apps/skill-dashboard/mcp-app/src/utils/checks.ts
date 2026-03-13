@@ -427,6 +427,21 @@ function loadMarketplaceNames(root: string): string[] {
   }
 }
 
+function loadMarketplaceVersions(root: string): Record<string, string> {
+  const mpPath = path.join(root, ".claude-plugin", "marketplace.json");
+  if (!fs.existsSync(mpPath)) return {};
+  try {
+    const data = JSON.parse(fs.readFileSync(mpPath, "utf-8"));
+    const result: Record<string, string> = {};
+    for (const p of data.plugins || []) {
+      if (p.name && p.version) result[p.name] = p.version;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 export function checkPlugins(root: string): PluginResult[] {
   const pluginDirs = discoverPlugins(root);
   const marketplaceNames = loadMarketplaceNames(root);
@@ -625,6 +640,68 @@ export function checkRepoHygiene(root: string): RepoCheckResult[] {
       detail: bpDetail,
     });
   }
+
+  // 6. Version alignment across plugin.json, marketplace.json, SKILL.md, pyproject.toml
+  const pluginDirs = discoverPlugins(root);
+  const marketplaceVersions = loadMarketplaceVersions(root);
+  const misaligned: string[] = [];
+
+  for (const pluginDir of pluginDirs) {
+    const name = path.basename(pluginDir);
+    const versions: Record<string, string> = {};
+
+    // plugin.json version
+    const manifestPath = path.join(pluginDir, ".claude-plugin", "plugin.json");
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      if (manifest.version) versions["plugin.json"] = manifest.version;
+    } catch { /* skip */ }
+
+    // marketplace.json version
+    const mpVersion = marketplaceVersions[name];
+    if (mpVersion) versions["marketplace"] = mpVersion;
+
+    // SKILL.md metadata.version -- only check the "primary" skill (same name as plugin dir)
+    const primarySkillMd = path.join(pluginDir, "skills", name, "SKILL.md");
+    if (fs.existsSync(primarySkillMd)) {
+      try {
+        const content = fs.readFileSync(primarySkillMd, "utf-8");
+        const parsed = matter(content);
+        const meta = parsed.data?.metadata as Record<string, unknown> | undefined;
+        if (meta?.version) {
+          versions["SKILL.md"] = String(meta.version);
+        }
+      } catch { /* skip */ }
+    }
+
+    // pyproject.toml version (if exists at plugin root)
+    const pyprojectPath = path.join(pluginDir, "pyproject.toml");
+    if (fs.existsSync(pyprojectPath)) {
+      try {
+        const pyContent = fs.readFileSync(pyprojectPath, "utf-8");
+        const vMatch = pyContent.match(/^version\s*=\s*"([^"]+)"/m);
+        if (vMatch) versions["pyproject"] = vMatch[1];
+      } catch { /* skip */ }
+    }
+
+    // Check if all versions agree
+    const uniqueVersions = new Set(Object.values(versions));
+    if (uniqueVersions.size > 1) {
+      const detail = Object.entries(versions)
+        .map(([src, ver]) => `${src}=${ver}`)
+        .join(", ");
+      misaligned.push(`${name}: ${detail}`);
+    }
+  }
+
+  results.push({
+    check: "version alignment",
+    passed: misaligned.length === 0,
+    detail:
+      misaligned.length > 0
+        ? misaligned.join("; ")
+        : "",
+  });
 
   return results;
 }

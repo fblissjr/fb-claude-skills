@@ -20,14 +20,14 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [env-forge](apps/env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 | [skill-maintainer](skills/skill-maintainer/) | Skills | Maintenance tools for skill repos: quality checks, freshness, upstream detection, best practices review |
-| [skill-dashboard](apps/skill-dashboard/) | MCP App | Python-native skill dashboard: health, token budgets, freshness |
+| [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
 ### project-scoped
 
 | Module | Description |
 |--------|-------------|
 | [heylook-monitor](apps/heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
-| [skill-dashboard](apps/skill-dashboard/) | Python-native MCP App skill dashboard (reference implementation) |
+| [skill-dashboard](apps/skill-dashboard/) | ext-apps MCP App quality dashboard (TypeScript) |
 
 ### installable as a package (not a Claude plugin)
 
@@ -135,6 +135,7 @@ Once installed, invoke as namespaced slash commands:
 /skill-maintainer:quality tui-design   # Check a specific skill
 /skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:init-maintenance     # Set up maintenance in a new repo
+/skill-maintainer:sync-versions tui-design 0.3.0  # Bump version across all sources
 ```
 
 ### keyword activation
@@ -151,6 +152,7 @@ Plugins with MCP Apps expose tools that the model calls automatically during con
 | `mece-validate` | mece-decomposer | Validate and display score gauges + issues |
 | `mece-refine-node` | mece-decomposer | Edit nodes from the UI (app-only) |
 | `mece-export-sdk` | mece-decomposer | Preview generated Agent SDK code |
+| `skill-quality-check` | skill-dashboard | Quality checks, token budgets, freshness, version alignment |
 
 On Cowork, these render as interactive React UIs. On CLI, they return text.
 
@@ -190,7 +192,7 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 
 Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI package** for CI/headless automation.
 
-**Plugin** (recommended): install via the marketplace (see above), then use `/skill-maintainer:quality`, `/skill-maintainer:maintain`, `/skill-maintainer:init-maintenance`. Skills accept `$ARGUMENTS` for targeting specific skills or directories.
+**Plugin** (recommended): install via the marketplace (see above), then use `/skill-maintainer:quality`, `/skill-maintainer:maintain`, `/skill-maintainer:init-maintenance`, `/skill-maintainer:sync-versions`. Skills accept `$ARGUMENTS` for targeting specific skills or directories.
 
 **CLI**: available after `uv sync --all-packages` in this repo, or git-installable into other repos:
 

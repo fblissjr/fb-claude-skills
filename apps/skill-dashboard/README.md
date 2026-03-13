@@ -1,84 +1,86 @@
-last updated: 2026-03-03
+last updated: 2026-03-13
 
 # skill-dashboard
 
-Project-scoped MCP App that renders a live HTML dashboard of the entire skill ecosystem. Runs the full `run_tests.py` suite and shows pass/fail results for skills, plugins, and repo hygiene.
-
-This is a reference implementation demonstrating the Python-native MCP App pattern using the mcp-ui SDK (rawHtml approach) -- no Node.js or build step required.
+Interactive ext-apps MCP App dashboard for the fb-claude-skills project. Discovers all skills and plugins, runs quality checks, and renders results in an interactive UI with pass/fail indicators, token budget bars, and freshness status.
 
 ## skills
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Renders HTML dashboard with pass/fail indicators |
+| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Interactive quality check dashboard |
 
-## loading the MCP server
+## architecture
 
-The root `.mcp.json` auto-loads the server when Claude Code opens this project. No manual configuration needed.
-
-### Claude Desktop / Cowork
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "skill-dashboard": {
-      "command": "uv",
-      "args": ["run", "python", "apps/skill-dashboard/server.py"],
-      "cwd": "/path/to/fb-claude-skills"
-    }
-  }
-}
-```
-
-Note: use an absolute path for `cwd` -- `${workspaceFolder}` is Claude Code-only.
-
-### Cowork UI rendering
-
-Cowork renders MCP App UIs. Whether the rawHtml format from the mcp-ui SDK renders as an interactive panel (vs falling back to text) depends on whether Cowork recognizes the `ui://` URI scheme from this SDK. The ext-apps SDK is the officially documented approach; mcp-ui is a compatible but separate implementation.
-
-## invocation
+TypeScript MCP App using the ext-apps SDK (same pattern as mece-decomposer). All check logic is native TypeScript -- no Python dependency.
 
 ```
-/skill-dashboard
+mcp-app/
+  main.ts              # Dual transport (stdio + HTTP on port 3002)
+  server.ts            # MCP tools + resource registration
+  src/
+    utils/checks.ts    # Discovery, validation, measurement, hygiene checks
+    skill-dashboard-app.tsx   # Main React view
+    components/        # SummaryBar, SkillTable, PluginTable, RepoChecks, StatusDot, TokenBudgetBar
 ```
 
-Or natural language: "show skill dashboard", "skill status", "which skills are stale?"
+## MCP tools
 
-## what it shows
+### skill-quality-check
 
-### skills (per-skill checks)
-- Spec compliance (skills-ref validation)
-- Description quality (WHAT verb + WHEN trigger)
-- Freshness (days since last_verified)
-- Token budget (warn >4k, critical >8k)
+Discovers all skills and plugins under the repo root, runs checks, returns structured results.
+
+- **Input**: `{ filter?: string }` -- optional skill name substring filter
+- **Output**: structuredContent with skills, plugins, repo checks, summary, meta
+- **Text fallback**: "Quality check: N passed, M failed across X skills, Y plugins"
+
+## building
+
+```bash
+cd apps/skill-dashboard/mcp-app
+bun install
+bun run build
+```
+
+## running
+
+### stdio (for .mcp.json / Claude Code)
+
+```bash
+node apps/skill-dashboard/mcp-app/dist/index.cjs --stdio
+```
+
+### HTTP (for development)
+
+```bash
+node apps/skill-dashboard/mcp-app/dist/index.cjs
+# Server on http://localhost:3002/mcp
+```
+
+### environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3002` | HTTP server port |
+| `SKILL_DASHBOARD_ROOT` | auto-detected | Override repo root path |
+
+## what it checks
+
+### per-skill (5 checks)
+- Spec compliance (name format, required fields, allowed fields, description constraints)
+- Token budget (sum .md chars/4, warn >4000, critical >8000)
 - Body size (line count, warn >500)
+- Freshness (days since metadata.last_verified, warn >30)
+- Description quality (WHAT verb + WHEN trigger presence)
 
-### plugins (per-plugin checks)
+### per-plugin (3 checks)
 - Manifest fields (name, version, description, author, repository)
-- Marketplace listing (in marketplace.json)
+- Marketplace listing (in root marketplace.json)
 - README exists
 
-### repo hygiene
+### repo hygiene (5+ checks)
 - No blanket .claude/ gitignore
-- No broad ambient hooks
+- No broad ambient hooks on high-frequency events
 - State files gitignored
 - No duplicate skill names
 - best_practices.md freshness
-
-## data sources
-
-All data comes from the `skill_maintainer` package -- the server imports and runs `test_skills()`, `test_plugins()`, and `test_repo_hygiene()` from `skill_maintainer.tests` directly.
-
-## Python MCP App pattern
-
-This plugin demonstrates the mcp-ui rawHtml approach:
-
-- Server: pure Python (FastMCP + mcp-ui-server SDK)
-- UI: self-contained HTML with Tailwind CDN + Alpine.js CDN
-- No build step, no Node.js
-- Limitation: no bidirectional tool calls from UI back to server (that requires the ext-apps AppBridge, which is TypeScript-only)
-- Best for: dashboards, reports, explorers -- not interactive forms with server roundtrips
-
-See `docs/analysis/mcp_apps_and_ui_development.md` for the full comparison of MCP App approaches.

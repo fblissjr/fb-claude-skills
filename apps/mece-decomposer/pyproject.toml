@@ -1,6 +1,6 @@
 [project]
 name = "mece-decomposer"
-version = "0.1.0"
+version = "0.3.0"
 description = "MECE decomposition validation"
 requires-python = ">=3.11"
 dependencies = ["orjson>=3.10"]

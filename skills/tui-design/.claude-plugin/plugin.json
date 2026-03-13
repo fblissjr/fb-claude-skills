@@ -1,6 +1,6 @@
 {
   "name": "tui-design",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
   "author": {
     "name": "Fred Bliss"
