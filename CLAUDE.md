@@ -1,5 +1,7 @@
 # fb-claude-skills
 
+> **Read [VISION.md](VISION.md) first.** Skills are retrieval. The same principles that govern search and information retrieval govern how skills, rules, and context should be designed, loaded, and maintained. High precision is the constraint, high recall is the goal.
+
 Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes property-driven maintenance via git hooks, Claude Code hooks, and on-demand CLI tools.
 
 ## Guidelines
