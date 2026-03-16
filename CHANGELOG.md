@@ -9,6 +9,7 @@
 - **CLAUDE.md**: updated blockquote to reference architectural worldview alongside retrieval
 - **CLAUDE.md**: updated "Context as retrieval" subsection to match new VISION.md language
 - **README.md**: updated VISION.md blockquote to match new language, dropped overly specific detail
+- **docs/analysis/memory_and_rules_system.md**: updated auto memory description to reflect VISION.md architecture section
 
 ## 0.22.0
 

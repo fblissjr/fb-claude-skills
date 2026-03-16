@@ -271,7 +271,7 @@ This repository actively uses two levels of the memory hierarchy:
 ### Auto Memory
 
 Claude maintains `~/.claude/projects/.../memory/MEMORY.md` with:
-- Architecture notes (three-repo system, design principles)
+- Architecture notes (three-repo system, architectural worldview and retrieval principles from VISION.md)
 - Dimensional model summary (DuckDB schema, key patterns)
 - Key file paths (store.py, config.yaml, state.json)
 - Gotchas (SCD Type 2 constraints, DuckDB limitations, timezone handling)
