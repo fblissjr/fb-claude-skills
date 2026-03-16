@@ -1,5 +1,15 @@
 # changelog
 
+## 0.22.1
+
+### changed
+- **VISION.md**: added `## the architecture` section (trees not workflows, harness coupling, context isolation, use-before-prepare, structured outputs as state, compound feedback loops)
+- **VISION.md**: broadened intro paragraph to frame both architecture and retrieval
+- **VISION.md**: extended `## what this means for this repo` with 4 new bullets (agent topology, harness-native design, state management, compound feedback)
+- **CLAUDE.md**: updated blockquote to reference architectural worldview alongside retrieval
+- **CLAUDE.md**: updated "Context as retrieval" subsection to match new VISION.md language
+- **README.md**: updated VISION.md blockquote to match new language, dropped overly specific detail
+
 ## 0.22.0
 
 ### added

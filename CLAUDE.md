@@ -1,6 +1,6 @@
 # fb-claude-skills
 
-> **Read [VISION.md](VISION.md) first.** Skills are retrieval. The same principles that govern search and information retrieval govern how skills, rules, and context should be designed, loaded, and maintained. High precision is the constraint, high recall is the goal.
+> **Read [VISION.md](VISION.md) first.** Skills are retrieval, and retrieval serves an architecture. VISION.md covers the architectural worldview and the retrieval system that implements it. High precision is the constraint, high recall is the goal.
 
 Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Includes property-driven maintenance via git hooks, Claude Code hooks, and on-demand CLI tools.
 
@@ -137,7 +137,7 @@ See `docs/analysis/abstraction_analogies.md` for the full treatment.
 
 ### Context as retrieval
 
-Skills are retrieval. High precision is the constraint, high recall is the goal. Every always-loaded line (CLAUDE.md, rules, skill descriptions) must justify its presence. See `VISION.md` for the full design principles.
+Skills are retrieval, and retrieval serves an architecture. High precision is the constraint, high recall is the goal. Every always-loaded line (CLAUDE.md, rules, skill descriptions) must justify its presence. See `VISION.md` for the full design principles and architectural worldview.
 
 ### Catalog as exemplar
 

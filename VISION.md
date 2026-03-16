@@ -1,6 +1,58 @@
 # design principles
 
-Skills are retrieval. The same principles that govern search and information retrieval govern how skills, rules, and context should be designed, loaded, and maintained.
+Skills are retrieval, and retrieval serves an architecture. This document covers both. First, the architectural worldview: agents are trees, the harness is the system, context isolation matters more than context size, and feedback loops compound. Then, the retrieval system that implements it: precision-gated loading, progressive disclosure, and the principles that govern how skills, rules, and context should be designed, loaded, and maintained.
+
+## the architecture
+
+### trees, not workflows
+
+Linear A-B-C workflows compound context at every handoff. By step six, the model treats everything as one big input -- the condition where things go wrong silently. Earlier steps bleed into later ones, contradictions accumulate, and the model has no mechanism to forget what it shouldn't have seen.
+
+The right topology is a tree. The orchestrator decomposes the problem to its lowest useful granularity, spins up focused subagents, they execute and return results to the orchestrator (not to each other), then disappear. Each subagent sees only its slice. The orchestrator synthesizes. This maps directly to the five invariant operations of selection under constraint: decompose, route, prune, synthesize, verify.
+
+Parallelism heuristic: divide work the way you would for humans. If you can't explain a clean division of labor to a team, you can't explain it to agents either.
+
+### the harness is the system
+
+Model and harness (Claude Code, Codex, Gemini CLI) are a single compound AI system that jointly optimizes. The moat is the harness and everything you don't see -- tool orchestration, context management, permission models, caching, retry logic, output formatting.
+
+External wrappers can't optimize at the level the AI lab can. They break when the harness changes. They can't participate in the co-optimization loop between model and tooling.
+
+Build inside the harness. Guide it with data and structure -- skills, rules, metadata, retrieval indexes. New behavior is new data, not new code.
+
+Corollary: don't be model-agnostic for most use cases. The harness optimizes for specific model capabilities. Model-agnostic design sacrifices the tight coupling that makes the system work.
+
+### context isolation over context accumulation
+
+Each subagent gets only the precise context it needs. Precise beats bloated.
+
+This is the memory hierarchy from early computing applied to attention. Fewer things in context means fewer contradictions, less prompt injection surface, less behavioral corruption.
+
+Context isolation motivates the L1/L2/L3 loading hierarchy in the retrieval section below.
+
+### use it, then prepare it
+
+You don't prepare it first and use it second. You use it, and the using prepares it.
+
+LLMs consume semantically rich data -- PDFs, images, unstructured docs -- more efficiently than ETL pipelines can parse them. Don't perpetually "get ready." A subagent extracts structured data from the raw layout. Another writes tests and validates. A human reviews and corrects. The data is ready when it has been used, tested, and refined -- not when a pipeline declares it clean.
+
+The real investment is not bigger context windows but better indexing, richer metadata, and search that returns the right thing instead of everything.
+
+### structured outputs as state
+
+Store agent outputs as structured data. Relational databases are the right substrate -- queryable, versionable, debuggable. Data people understand them intuitively. LLMs are good at SQL.
+
+Knowledge graphs are seductive but brittle. Updates are impossible without breaking existing edges. Granularity changes invalidate the schema. What looks like flexibility is actually fragility at scale.
+
+This repo uses DuckDB star schemas (agent-state) for exactly this reason: append-only facts, slowly changing dimensions, queryable from any language.
+
+### feedback loops compound
+
+Each iteration of the compound system generates signal -- what gets created, what gets discarded, what succeeds, what fails. That signal feeds the next cycle. Coding agents are getting better because this loop exists.
+
+In this repo: pipeline creates skill, agent uses skill, human reviews, pipeline refines skill. The maintenance system (`/maintain`, quality checks, upstream detection) implements this loop explicitly.
+
+Build the feedback mechanism where users already spend their days. Adoption of new systems is hard. Signal that requires switching tools gets ignored.
 
 ## the retrieval problem
 
@@ -135,3 +187,7 @@ These principles govern everything in fb-claude-skills:
 - **Maintenance**: `/maintain` detects when upstream changes affect retrieval quality. The test suite encodes measurable properties. Human review handles the rest (principle 6).
 - **Hooks**: must justify their trigger frequency and context injection. Nothing fires ambiently without documented rationale (principles 2 and 4).
 - **Rules**: unconditional rules are always-on cost. Conditional (path-scoped) rules are precision-gated retrieval (principle 1).
+- **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
+- **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
+- **State management**: agent outputs stored in relational schemas (DuckDB star schema in agent-state), not flat files or KV stores (structured outputs as state).
+- **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).
