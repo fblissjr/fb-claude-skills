@@ -1,4 +1,4 @@
-last updated: 2026-03-13
+last updated: 2026-03-18
 
 # dev-conventions
 
@@ -24,7 +24,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 
 | Hook | Event | What it does |
 |------|-------|--------------|
-| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd, injects uv/orjson/bun/TDD conventions as additionalContext |
+| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd, injects uv/orjson/bun/TDD directives as additionalContext. Detects `internal/` directory and injects session logging directive. |
 
 ## skills
 
@@ -37,4 +37,4 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 
 ## how it works
 
-When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, etc.). If found, it injects a compact conventions summary into Claude's context as `additionalContext` -- no manual invocation needed. The injected context covers the correct package manager, JSON library, and TDD basics. For full conversion tables or detailed methodology, invoke the skills directly.
+When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, etc.). If found, it injects conventions and behavioral directives as `additionalContext` -- no manual invocation needed. The injected context covers the correct package manager, JSON library, and TDD as a directive (not a suggestion). If an `internal/` or `internal/log/` directory exists, it also injects a session logging directive. For full conversion tables or detailed methodology, invoke the skills directly.

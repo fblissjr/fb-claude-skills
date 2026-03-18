@@ -1,5 +1,11 @@
 # changelog
 
+## 0.22.2
+
+### changed
+- **dev-conventions**: SessionStart hook now injects TDD as a directive (not a hint) and adds session logging directive when `internal/` directory exists
+- **dev-conventions**: bumped plugin to v0.3.0
+
 ## 0.22.1
 
 ### changed

@@ -27,7 +27,7 @@ fb-claude-skills/
     cogapp-markdown/         # Plugin: auto-generate markdown sections
     tui-design/              # Plugin: terminal UI design principles
     dimensional-modeling/    # Plugin: Kimball star schema patterns
-    dev-conventions/         # Plugin: development conventions (SessionStart hook + skills for tooling, TDD, docs)
+    dev-conventions/         # Plugin: development conventions (SessionStart hook for tooling, TDD, session logging + on-demand skills)
     skill-maintainer/        # Plugin: maintenance tools (quality, freshness, upstream, best practices)
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
@@ -138,6 +138,10 @@ See `docs/analysis/abstraction_analogies.md` for the full treatment.
 ### Context as retrieval
 
 Skills are retrieval, and retrieval serves an architecture. High precision is the constraint, high recall is the goal. Every always-loaded line (CLAUDE.md, rules, skill descriptions) must justify its presence. See `VISION.md` for the full design principles and architectural worldview.
+
+### Hooks as directives
+
+Hooks inject behavioral directives (what to do). Skills provide reference material (how to do it in detail). If something must always be active, it belongs in a hook, not a skill. Skills are on-demand only -- they load when triggered by keywords or explicit invocation.
 
 ### Catalog as exemplar
 

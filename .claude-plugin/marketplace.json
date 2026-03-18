@@ -59,7 +59,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions: language-specific tooling (Python/uv, JS/bun), TDD workflow, and documentation standards",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "name": "readwise-reader",

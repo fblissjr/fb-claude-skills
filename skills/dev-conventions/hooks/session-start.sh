@@ -38,6 +38,11 @@ for marker in package.json tsconfig.json bun.lockb; do
   fi
 done
 
+HAS_SESSION_LOG=false
+if [ -d "$CWD/internal/log" ] || [ -d "$CWD/internal" ]; then
+  HAS_SESSION_LOG=true
+fi
+
 if [ "$HAS_PYTHON" = false ] && [ "$HAS_JS" = false ]; then
   exit 0
 fi
@@ -73,9 +78,17 @@ if [ "$HAS_JS" = true ]; then
 fi
 
 PARTS+=("## TDD workflow (auto-loaded)")
-PARTS+=("- Red/green cycle: write a failing test first, then implement until it passes, then refactor.")
-PARTS+=("- Run tests after every change. Keep tests focused and fast.")
+PARTS+=("- TDD: ALWAYS write a failing test first, then implement, then refactor. No exceptions for behavioral changes.")
+PARTS+=("- Run tests after every change. Never skip the red step.")
 PARTS+=("- For full TDD methodology, invoke /dev-conventions:tdd-workflow.")
+
+if [ "$HAS_SESSION_LOG" = true ]; then
+  PARTS+=("")
+  PARTS+=("## Session logging (auto-loaded)")
+  PARTS+=("- ALWAYS update internal/log/log_YYYY-MM-DD.md before finishing a session or iteration of work.")
+  PARTS+=("- Capture: what was done, decisions made, open questions.")
+  PARTS+=("- For full doc conventions, invoke /dev-conventions:doc-conventions.")
+fi
 
 # Join array with real newlines, then let python json.dumps produce proper \n escapes
 CONTEXT=$(printf '%s\n' "${PARTS[@]}")
