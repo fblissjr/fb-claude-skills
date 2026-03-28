@@ -234,3 +234,4 @@ models/
 
 # Internal logs (separate repo)
 internal/
+research/schema-processing/results/

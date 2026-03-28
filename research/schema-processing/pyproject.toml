@@ -1,0 +1,20 @@
+[project]
+name = "schema-bench"
+version = "0.1.0"
+description = "Benchmark harness for evaluating jsongrep claims vs jq, jaq, gron, jmespath"
+requires-python = ">=3.11"
+dependencies = [
+    "orjson>=3.10",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+]
+
+[project.scripts]
+schema-bench = "schema_bench.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/schema_bench"]
