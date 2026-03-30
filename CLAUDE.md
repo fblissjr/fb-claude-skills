@@ -29,6 +29,7 @@ fb-claude-skills/
     dimensional-modeling/    # Plugin: Kimball star schema patterns
     dev-conventions/         # Plugin: development conventions (SessionStart hook for tooling, TDD, session logging + on-demand skills)
     skill-maintainer/        # Plugin: maintenance tools (quality, freshness, upstream, best practices)
+    json-query/              # Plugin: JSON query tool selection (jg vs jq)
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
     mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer
@@ -48,7 +49,7 @@ fb-claude-skills/
     best_practices.md        # Machine-parseable best practices checklist
     state/                   # upstream_hashes.json, changes.jsonl (auto-generated, gitignored)
   docs/
-    analysis/                # 16 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
+    analysis/                # 15 domain reports (skills, plugins, MCP, hooks, agents, memory, etc.)
     reports/                 # Synthesis reports
     claude-docs/             # Captured Claude Code official docs (20 files)
   coderef/
@@ -57,6 +58,7 @@ fb-claude-skills/
     mcp/                     # MCP protocol spec, SDKs, inspector, registry, servers
     mcp-ui/                  # MCP UI SDK reference
   internal/log/              # Session logs (log_YYYY-MM-DD.md)
+  research/                  # Benchmark suites and research artifacts (schema-processing)
 ```
 
 ## Installation
@@ -77,6 +79,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
 /plugin install readwise-reader@fb-claude-skills
+/plugin install json-query@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/mece-decomposer:decompose`).
@@ -141,7 +144,7 @@ Skills are retrieval, and retrieval serves an architecture. High precision is th
 
 ### Hooks as directives
 
-Hooks inject behavioral directives (what to do). Skills provide reference material (how to do it in detail). If something must always be active, it belongs in a hook, not a skill. Skills are on-demand only -- they load when triggered by keywords or explicit invocation.
+Hooks inject behavioral directives (what to do). Skills provide reference material (how to do it in detail). If something must always be active, it belongs in a hook, not a skill. Skills are on-demand only -- they load when triggered by keywords or explicit invocation. Corollary: domain-specific conventions (e.g., tool selection for a particular task) belong in skills with trigger phrases, not hooks. Only universal directives (package manager, TDD, session logging) justify hook injection.
 
 ### Catalog as exemplar
 
@@ -181,7 +184,7 @@ All commands accept `--dir <path>` to target a different repo.
 
 ## Documentation index
 
-See [docs/README.md](docs/README.md) for the full documentation index (16 domain reports, synthesis, internals, captured docs).
+See [docs/README.md](docs/README.md) for the full documentation index (15 domain reports, synthesis, internals, captured docs).
 
 ## Cross-repo references
 
@@ -189,7 +192,7 @@ See [docs/README.md](docs/README.md) for the full documentation index (16 domain
 
 ## Conventions
 
-Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are author-side only -- they do not distribute with marketplace plugin installs.
+Conventions are in `.claude/rules/` and auto-loaded by Claude Code. These are author-side only -- they do not distribute with marketplace plugin installs. Note: shell hooks use `jq` for JSON parsing (not python3/orjson) since they run outside the project venv.
 
 ## Dependencies
 

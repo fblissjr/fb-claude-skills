@@ -1,4 +1,4 @@
-last updated: 2026-03-16
+last updated: 2026-03-30
 
 # documentation
 
@@ -21,7 +21,7 @@ See also the root [README.md](../README.md) for plugin installation, surface com
 
 ## domain reports (`analysis/`)
 
-Design documents and research created during development. 16 reports covering the full Claude extension ecosystem.
+Design documents and research created during development. 15 reports covering the full Claude extension ecosystem.
 
 | Document | Description |
 |----------|-------------|

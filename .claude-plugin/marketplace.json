@@ -72,6 +72,12 @@
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review",
       "version": "0.3.0"
+    },
+    {
+      "name": "json-query",
+      "source": "./skills/json-query",
+      "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
+      "version": "0.1.0"
     }
   ]
 }

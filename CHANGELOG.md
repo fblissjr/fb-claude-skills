@@ -1,5 +1,16 @@
 # changelog
 
+## 0.22.3
+
+### added
+- **json-query**: added to marketplace -- installable plugin for jg/jq tool selection and syntax guidance (from schema-bench research)
+
+### changed
+- **dev-conventions**: SessionStart hook now detects project markers up to 2 levels deep for monorepo layouts (e.g., `backend/pyproject.toml`, `web/frontend-app/package.json`). Skips `node_modules`, `.venv`, `.git`, etc.
+
+### fixed
+- **dev-conventions**: replaced bare `python3` calls in SessionStart hook with `jq` -- eliminates stdlib json usage and bare python3 convention violations
+
 ## 0.22.2
 
 ### changed

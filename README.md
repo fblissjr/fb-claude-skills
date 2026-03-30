@@ -1,4 +1,4 @@
-last updated: 2026-03-16
+last updated: 2026-03-30
 
 # fb-claude-skills
 
@@ -17,10 +17,11 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
 | [tui-design](skills/tui-design/) | Skill | Terminal UI design principles for Rich, Questionary, and Click |
 | [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
-| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/orjson/bun/TDD conventions into context |
+| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start (root + 2 levels deep for monorepos), injects uv/orjson/bun/TDD conventions into context |
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas |
 | [env-forge](apps/env-forge/) | Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline: browse 1000 pre-built tool environments or forge new ones |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
+| [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [skill-maintainer](skills/skill-maintainer/) | Skills | Maintenance tools for skill repos: quality checks, freshness, upstream detection, best practices review |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
@@ -56,6 +57,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install dev-conventions@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
+/plugin install json-query@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -129,6 +131,8 @@ Once installed, invoke as namespaced slash commands:
 /dev-conventions:bun-tooling     # Full bun conversion tables
 /dev-conventions:tdd-workflow    # Red/green TDD methodology
 /dev-conventions:doc-conventions # Documentation standards
+
+/json-query                      # JSON query tool selection + jg syntax
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description

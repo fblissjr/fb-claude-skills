@@ -4,7 +4,7 @@
 # Reads hook input JSON from stdin, extracts cwd.
 # Outputs JSON with additionalContext if dev markers found, silent exit 0 otherwise.
 
-CWD=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null)
+CWD=$(jq -r '.cwd // ""' 2>/dev/null)
 
 if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
   exit 0
@@ -37,6 +37,33 @@ for marker in package.json tsconfig.json bun.lockb; do
     break
   fi
 done
+
+# Fallback: check up to 2 levels deep for monorepo layouts
+# (e.g., frontend/package.json, web/app/pyproject.toml)
+SKIP_DIRS="node_modules|.venv|venv|.git|__pycache__|dist|build|.next|.output"
+if [ "$HAS_PYTHON" = false ] || [ "$HAS_JS" = false ]; then
+  while IFS= read -r subdir; do
+    dirname=$(basename "$subdir")
+    echo "$dirname" | grep -qE "^($SKIP_DIRS)$" && continue
+    if [ "$HAS_PYTHON" = false ]; then
+      for marker in pyproject.toml setup.py setup.cfg Pipfile; do
+        if [ -f "$subdir/$marker" ]; then
+          HAS_PYTHON=true
+          break
+        fi
+      done
+    fi
+    if [ "$HAS_JS" = false ]; then
+      for marker in package.json tsconfig.json bun.lockb; do
+        if [ -f "$subdir/$marker" ]; then
+          HAS_JS=true
+          break
+        fi
+      done
+    fi
+    [ "$HAS_PYTHON" = true ] && [ "$HAS_JS" = true ] && break
+  done < <(find "$CWD" -mindepth 1 -maxdepth 2 -type d 2>/dev/null)
+fi
 
 HAS_SESSION_LOG=false
 if [ -d "$CWD/internal/log" ] || [ -d "$CWD/internal" ]; then
@@ -90,13 +117,10 @@ if [ "$HAS_SESSION_LOG" = true ]; then
   PARTS+=("- For full doc conventions, invoke /dev-conventions:doc-conventions.")
 fi
 
-# Join array with real newlines, then let python json.dumps produce proper \n escapes
+# Join array with real newlines, then JSON-escape for output
 CONTEXT=$(printf '%s\n' "${PARTS[@]}")
 
-JSON_CONTEXT=$(python3 -c "
-import json, sys
-print(json.dumps(sys.stdin.read().rstrip('\n')))
-" <<< "$CONTEXT")
+JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
 {
