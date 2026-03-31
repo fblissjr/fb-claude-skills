@@ -3,7 +3,7 @@ name: interview
 description: Extract process knowledge from an SME through structured MECE interview. Use when user says "interview me about a workflow", "help me map this process", "extract process knowledge", or wants to build a decomposition through guided conversation.
 metadata:
   author: Fred Bliss
-  version: 0.3.0
+  version: 0.4.0
   last_verified: "2026-03-12"
 ---
 

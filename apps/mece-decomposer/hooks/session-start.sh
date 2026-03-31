@@ -12,15 +12,15 @@ fi
 
 HAS_MECE=false
 
-# Check for Agent SDK imports
-if grep -rqE "from claude_agent_sdk|import claude_agent_sdk|from agents import|from agents\." "$CWD" --include="*.py" \
-  $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
+# Cheap checks first: known files/directories
+if [ -f "$CWD/decomposition.json" ] || [ -d "$CWD/.mece" ]; then
   HAS_MECE=true
 fi
 
-# Check for MECE decomposition files
+# Check for Agent SDK imports (expensive -- last)
 if [ "$HAS_MECE" = false ]; then
-  if [ -f "$CWD/decomposition.json" ] || [ -d "$CWD/.mece" ]; then
+  if grep -rqE "from claude_agent_sdk|import claude_agent_sdk|from agents import|from agents\." "$CWD" --include="*.py" \
+    $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
     HAS_MECE=true
   fi
 fi

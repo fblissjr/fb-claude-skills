@@ -13,7 +13,6 @@ fi
 HAS_TUI=false
 
 # Check for Rich/Textual/Questionary/Click imports in Python files
-SKIP_DIRS="node_modules|.venv|venv|.git|__pycache__|dist|build"
 TUI_PATTERN="from (rich|textual|questionary|click)|import (rich|textual|questionary|click)"
 
 if grep -rqE "$TUI_PATTERN" "$CWD" --include="*.py" \

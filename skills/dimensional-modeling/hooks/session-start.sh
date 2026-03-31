@@ -12,25 +12,22 @@ fi
 
 HAS_DUCKDB=false
 
-# Check for duckdb imports in Python files
-if grep -rqE "import duckdb|from duckdb" "$CWD" --include="*.py" \
-  $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
+# Cheap checks first: .duckdb files (bounded find, no grep)
+if find "$CWD" -maxdepth 3 -name "*.duckdb" -not -path "*/.git/*" -print -quit 2>/dev/null | grep -q .; then
   HAS_DUCKDB=true
-fi
-
-# Check for .duckdb files
-if [ "$HAS_DUCKDB" = false ]; then
-  for f in "$CWD"/*.duckdb "$CWD"/**/*.duckdb; do
-    if [ -f "$f" ] 2>/dev/null; then
-      HAS_DUCKDB=true
-      break
-    fi
-  done
 fi
 
 # Check for SQL files with fact_/dim_ table patterns
 if [ "$HAS_DUCKDB" = false ]; then
   if grep -rqE "CREATE TABLE.*(fact_|dim_)" "$CWD" --include="*.sql" \
+    $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
+    HAS_DUCKDB=true
+  fi
+fi
+
+# Check for duckdb imports in Python files (most expensive -- last)
+if [ "$HAS_DUCKDB" = false ]; then
+  if grep -rqE "import duckdb|from duckdb" "$CWD" --include="*.py" \
     $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
     HAS_DUCKDB=true
   fi

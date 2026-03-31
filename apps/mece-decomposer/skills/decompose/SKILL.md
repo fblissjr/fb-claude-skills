@@ -3,7 +3,7 @@ name: decompose
 description: Break down a goal, process, or workflow into MECE components with Agent SDK mapping. Use when user says "decompose", "break down this process", "MECE analysis", "create a decomposition tree", or pastes a JSON/YAML/CSV workflow export to analyze.
 metadata:
   author: Fred Bliss
-  version: 0.3.0
+  version: 0.4.0
   last_verified: "2026-03-12"
 ---
 
