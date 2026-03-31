@@ -499,13 +499,12 @@ This repository contains 10 installable plugins plus 1 project-scoped module (sk
 
 ### Observations across all plugins
 
-1. **No plugin uses hooks or LSP servers.** The hook and LSP component types are available but unused in this repo.
+1. **Five plugins use SessionStart hooks with composable directives.** dev-conventions, tui-design, dimensional-modeling, mece-decomposer, and env-forge each have a `hooks/session-start.sh` that detects project markers and assembles directives from `hooks/directives/*.md` files. Each directive file declares `# trigger: <signal>` on line 1. No plugin uses LSP servers.
 2. **Only mece-decomposer uses MCP servers.** It bundles a full Node.js application with a build step.
 3. **Only plugin-toolkit uses agents.** Its two agents form a scanner-then-evaluator pipeline.
 4. **All plugin.json files are minimal.** None use component path overrides -- all rely on auto-discovery in default locations.
 5. **Backup directories** (`.backup/`) appear in multiple plugins, suggesting the skill-maintainer creates backups during update cycles.
-6. **Version uniformity**: 6 of 7 plugins are at 0.1.0. Only mece-decomposer has advanced to 0.2.0.
-7. **All plugins share the same repository URL** in their manifests, pointing to the monorepo.
+6. **All plugins share the same repository URL** in their manifests, pointing to the monorepo.
 
 ### Marketplace configuration
 
