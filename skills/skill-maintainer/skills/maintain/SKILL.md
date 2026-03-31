@@ -7,7 +7,7 @@ description: >-
   Invoke with /skill-maintainer:maintain.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.3.0
   last_verified: 2026-03-13
 ---
 

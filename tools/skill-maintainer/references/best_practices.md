@@ -1,4 +1,4 @@
-last updated: 2026-03-03
+last updated: 2026-03-31
 
 # best practices checklist
 
@@ -22,6 +22,7 @@ Descriptions are reverse queries. They determine when a skill loads. Vague descr
 
 - [ ] Description includes WHAT the skill does (action verbs: handles, generates, validates, designs)
 - [ ] Description includes WHEN to use it (trigger phrases: "use when user says...", "when the user wants to...")
+- [ ] First 250 characters contain the core use case (descriptions may be truncated in skill listings)
 - [ ] Description is specific enough to avoid matching unrelated queries
 - [ ] Description includes negative scope if needed ("do NOT use for...")
 - [ ] No duplicate or near-duplicate descriptions across skills (causes ambiguous routing)
@@ -31,7 +32,7 @@ Descriptions are reverse queries. They determine when a skill loads. Vague descr
 Everything in this list loads on every session. Each line is a fixed cost.
 
 - [ ] CLAUDE.md: only operational instructions, no reference material
-- [ ] `.claude/rules/`: unconditional rules are minimal; use path globs to scope rules that don't apply everywhere
+- [ ] `.claude/rules/`: unconditional rules are minimal; use `paths` frontmatter to scope rules that don't apply everywhere
 - [ ] Skill descriptions (all installed): each must justify its presence in the 2% budget
 - [ ] `settings.json`: no ambient hooks that fire on high-frequency events without documented justification
 - [ ] Auto-memory (MEMORY.md): under 200 lines, no session-specific or stale entries
@@ -39,9 +40,21 @@ Everything in this list loads on every session. Each line is a fixed cost.
 ### hooks
 
 - [ ] No hooks that fire on every tool call, file read, or other high-frequency event without documented justification
+- [ ] Hook `type` is one of: `command`, `http`, `prompt`, `agent`
+- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning)
 - [ ] Hook purpose and trigger documented in README or inline comments
 - [ ] Hook output is minimal (one-line stderr, not paragraphs of context)
 - [ ] All hooks exit 0 (non-blocking) unless they are intentional gates (like pre-commit validation)
+
+### composable directive pattern
+
+For plugins with behavioral content that should persist across sessions:
+
+- [ ] `hooks/` directory with `hooks.json` (event -> command) and `session-start.sh`
+- [ ] Directives in `hooks/directives/*.md`, each with `# trigger: <signal>` on line 1
+- [ ] Detection logic orders cheap checks (file/dir stat) before expensive checks (grep)
+- [ ] Adding a new convention = dropping a `.md` file in `directives/`, no shell editing
+- [ ] Behavioral content in hook directives; detailed reference in on-demand skills
 
 ## skill structure
 
@@ -65,7 +78,7 @@ Source: Anthropic skills guide (PDF, Jan 2026)
 - [ ] `license` field: present if open source (MIT, Apache-2.0)
 - [ ] `compatibility` field: under 500 characters, lists env requirements
 - [ ] `metadata` field: key-value pairs only (author, version, mcp-server)
-- [ ] No unexpected fields in frontmatter (allowed: name, description, license, allowed-tools, metadata, compatibility)
+- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable
 
 ### instructions quality
 
@@ -98,14 +111,17 @@ Source: Claude Code official docs
 - [ ] `$ARGUMENTS` for all arguments passed to skill
 - [ ] `$ARGUMENTS[N]` or `$N` for positional arguments
 - [ ] `${CLAUDE_SESSION_ID}` for session tracking
+- [ ] `${CLAUDE_SKILL_DIR}` for the directory containing SKILL.md
 - [ ] Dynamic context via `!`command`` syntax (preprocessed)
 
 ### distribution
 
 - [ ] Personal skills: `~/.claude/skills/<name>/SKILL.md`
 - [ ] Project skills: `.claude/skills/<name>/SKILL.md`
-- [ ] Plugin skills: `<plugin>/skills/<name>/SKILL.md`
-- [ ] Skill descriptions budget: 2% of context window (fallback 16k chars)
+- [ ] Plugin skills: `<plugin>/skills/<name>/SKILL.md` (prefer `skills/` over legacy `commands/`)
+- [ ] Skill descriptions budget: 2% of context window (fallback 16k chars). Override via `SLASH_COMMAND_TOOL_CHAR_BUDGET`
+- [ ] Use `paths` frontmatter to scope skill auto-activation to relevant file types
+- [ ] Use `${CLAUDE_PLUGIN_DATA}` for persistent plugin state (survives updates); `${CLAUDE_PLUGIN_ROOT}` for bundled read-only assets
 
 ## spec compliance
 
