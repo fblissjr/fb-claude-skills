@@ -208,7 +208,7 @@ wheels = [
 
 [[package]]
 name = "env-forge"
-version = "0.2.0"
+version = "0.3.0"
 source = { virtual = "apps/env-forge" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -223,7 +223,7 @@ requires-dist = [
 
 [[package]]
 name = "fb-claude-skills"
-version = "0.18.0"
+version = "0.22.4"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -607,7 +607,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.3.0"
+version = "0.4.0"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
