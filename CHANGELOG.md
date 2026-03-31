@@ -1,5 +1,12 @@
 # changelog
 
+## 0.22.4
+
+### changed
+- **dev-conventions**: refactored SessionStart hook to composable directive files (`hooks/directives/*.md`). Each directive declares its trigger signal (`python`, `javascript`, `docs`, `any`) on line 1. Adding a new convention = dropping a file, no shell editing.
+- **dev-conventions**: promoted doc-conventions (last-updated dates, lowercase filenames, document-the-why) to auto-loaded directive alongside TDD and session logging
+- **dev-conventions**: bumped plugin to v0.4.0
+
 ## 0.22.3
 
 ### added

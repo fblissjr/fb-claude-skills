@@ -74,51 +74,26 @@ if [ "$HAS_PYTHON" = false ] && [ "$HAS_JS" = false ]; then
   exit 0
 fi
 
-# Build context parts in an array, then join with real newlines for proper JSON escaping
-PARTS=()
+# Assemble context from directive files
+# Each file has "# trigger: <signal>" on line 1. Signals: python, javascript, docs, any
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTEXT=""
 
-if [ "$HAS_PYTHON" = true ]; then
-  PARTS+=("## Python conventions (auto-detected)")
-  PARTS+=("- Package manager: ALWAYS use uv. NEVER use pip, pip3, python -m pip, or bare python/python3.")
-  PARTS+=("  - Install packages: uv add <pkg>")
-  PARTS+=("  - Run scripts: uv run <script.py>")
-  PARTS+=("  - Run tools: uv run pytest, uv run ruff, etc.")
-  PARTS+=("  - Sync deps: uv sync")
-  PARTS+=("  - Create venv: uv venv")
-  PARTS+=("  - Lock: uv lock (use pyproject.toml + uv.lock, not requirements.txt)")
-  PARTS+=("- JSON: ALWAYS use orjson, NEVER stdlib json.")
-  PARTS+=("  - import orjson (not import json)")
-  PARTS+=("  - orjson.dumps(data).decode() / orjson.loads(text)")
-  PARTS+=("")
-fi
+for f in "$SCRIPT_DIR"/directives/*.md; do
+  [ -f "$f" ] || continue
+  trigger=$(head -1 "$f" | sed 's/^# trigger: //')
+  case "$trigger" in
+    python)     [ "$HAS_PYTHON" = true ] || continue ;;
+    javascript) [ "$HAS_JS" = true ] || continue ;;
+    docs)       [ "$HAS_SESSION_LOG" = true ] || continue ;;
+    any)        ;;
+    *)          continue ;;
+  esac
+  [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
+  CONTEXT+=$(tail -n +2 "$f")
+done
 
-if [ "$HAS_JS" = true ]; then
-  PARTS+=("## JavaScript/TypeScript conventions (auto-detected)")
-  PARTS+=("- Package manager: ALWAYS use bun. NEVER use npm, yarn, pnpm, or npx.")
-  PARTS+=("  - Install: bun install / bun add <pkg>")
-  PARTS+=("  - Dev deps: bun add -d <pkg>")
-  PARTS+=("  - Run scripts: bun run <script>")
-  PARTS+=("  - Execute: bunx <tool> (not npx)")
-  PARTS+=("  - Init: bun init")
-  PARTS+=("  - Lock file: bun.lockb (not package-lock.json or yarn.lock)")
-  PARTS+=("")
-fi
-
-PARTS+=("## TDD workflow (auto-loaded)")
-PARTS+=("- TDD: ALWAYS write a failing test first, then implement, then refactor. No exceptions for behavioral changes.")
-PARTS+=("- Run tests after every change. Never skip the red step.")
-PARTS+=("- For full TDD methodology, invoke /dev-conventions:tdd-workflow.")
-
-if [ "$HAS_SESSION_LOG" = true ]; then
-  PARTS+=("")
-  PARTS+=("## Session logging (auto-loaded)")
-  PARTS+=("- ALWAYS update internal/log/log_YYYY-MM-DD.md before finishing a session or iteration of work.")
-  PARTS+=("- Capture: what was done, decisions made, open questions.")
-  PARTS+=("- For full doc conventions, invoke /dev-conventions:doc-conventions.")
-fi
-
-# Join array with real newlines, then JSON-escape for output
-CONTEXT=$(printf '%s\n' "${PARTS[@]}")
+[ -z "$CONTEXT" ] && exit 0
 
 JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
 
