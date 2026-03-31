@@ -1,12 +1,13 @@
 ---
 name: bun-tooling
 description: >-
-  Detailed bun conversion reference for JavaScript and TypeScript projects. Core conventions auto-loaded
-  via SessionStart hook; invoke /dev-conventions:bun-tooling for full conversion tables and lock file
-  migration steps.
+  Convert JavaScript and TypeScript projects to use bun instead of npm/yarn/pnpm. Use when user asks to
+  "migrate from npm to bun", "convert to bun", "switch package managers", "replace npm", or "use bun
+  instead". Includes conversion tables and lock file migration. Core conventions auto-loaded via
+  SessionStart hook; invoke /dev-conventions:bun-tooling for full reference.
 metadata:
   author: Fred Bliss
-  version: 0.2.0
+  version: 0.4.0
   last_verified: 2026-03-13
 ---
 

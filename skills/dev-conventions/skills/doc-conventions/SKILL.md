@@ -7,7 +7,7 @@ description: >-
   "document this", "add a design doc", "session log".
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.4.0
   last_verified: 2026-03-03
 ---
 

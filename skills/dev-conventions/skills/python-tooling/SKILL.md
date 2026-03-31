@@ -6,7 +6,7 @@ description: >-
   Use when you need the complete uv command mapping or orjson migration patterns.
 metadata:
   author: Fred Bliss
-  version: 0.2.0
+  version: 0.4.0
   last_verified: 2026-03-13
 ---
 

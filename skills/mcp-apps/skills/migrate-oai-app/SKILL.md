@@ -4,7 +4,7 @@ description: Converts OpenAI Apps SDK applications to MCP Apps SDK with step-by-
 metadata:
   author: MCP Apps (adapted by Fred Bliss)
   version: 0.1.0
-  last_verified: 2026-02-25
+  last_verified: 2026-03-31
 allowed-tools: "Bash(bun *), Bash(bunx *)"
 ---
 

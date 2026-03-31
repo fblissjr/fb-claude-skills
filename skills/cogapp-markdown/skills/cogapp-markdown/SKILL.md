@@ -4,7 +4,7 @@ description: Auto-generate and keep markdown documentation in sync with code usi
 metadata:
   author: Simon Willison (adapted by Fred Bliss)
   version: 0.1.0
-  last_verified: 2026-02-25
+  last_verified: 2026-03-31
 allowed-tools: "Bash(uv run *)"
 ---
 
