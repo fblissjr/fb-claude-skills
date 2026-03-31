@@ -28,20 +28,20 @@
     {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
-      "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
-      "version": "0.2.0"
+      "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
+      "version": "0.3.0"
     },
     {
       "name": "tui-design",
       "source": "./skills/tui-design",
-      "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
-      "version": "0.2.0"
+      "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
+      "version": "0.3.0"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
-      "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer",
-      "version": "0.3.0"
+      "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
+      "version": "0.4.0"
     },
     {
       "name": "skill-dashboard",
@@ -52,14 +52,14 @@
     {
       "name": "env-forge",
       "source": "./apps/env-forge",
-      "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog",
-      "version": "0.2.0"
+      "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog. SessionStart hook auto-injects principles when .env-forge or fastapi-mcp detected.",
+      "version": "0.3.0"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
-      "description": "Development conventions: language-specific tooling (Python/uv, JS/bun), TDD workflow, and documentation standards",
-      "version": "0.3.0"
+      "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, orjson, bun, TDD directives, doc conventions, and session logging into context. Skills provide detailed reference on demand.",
+      "version": "0.4.0"
     },
     {
       "name": "readwise-reader",

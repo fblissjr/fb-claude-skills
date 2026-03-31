@@ -1,4 +1,4 @@
-last updated: 2026-02-15
+last updated: 2026-03-31
 
 # tui-design
 
@@ -19,6 +19,22 @@ For development/testing without installing:
 ```bash
 claude --plugin-dir /path/to/fb-claude-skills/tui-design
 ```
+
+## hooks
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| `session-start.sh` | SessionStart | Detects TUI library usage in cwd, injects design principles as additionalContext. |
+
+### detection markers
+
+The hook scans `.py` files in the project for imports of `rich`, `textual`, `questionary`, or `click`. If any are found, it injects `hooks/directives/tui-principles.md` -- core design principles for terminal UI work.
+
+### composable directives
+
+All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
+
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
 
 ## skills
 

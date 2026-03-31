@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-03-31
 
 # dimensional-modeling
 
@@ -19,6 +19,22 @@ For development/testing without installing:
 ```bash
 claude --plugin-dir /path/to/fb-claude-skills/dimensional-modeling
 ```
+
+## hooks
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| `session-start.sh` | SessionStart | Detects DuckDB or dimensional modeling usage in cwd, injects Kimball principles as additionalContext. |
+
+### detection markers
+
+The hook looks for: `duckdb` imports in `.py` files, `.duckdb` files in the project, or SQL files containing `fact_` / `dim_` table patterns. If any match, it injects `hooks/directives/kimball-principles.md` -- core Kimball dimensional modeling principles.
+
+### composable directives
+
+All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
+
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
 
 ## skills
 

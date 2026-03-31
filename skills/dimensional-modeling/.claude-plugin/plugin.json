@@ -1,7 +1,7 @@
 {
   "name": "dimensional-modeling",
-  "version": "0.2.0",
-  "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems",
+  "version": "0.3.0",
+  "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
   "author": {
     "name": "Fred Bliss"
   },

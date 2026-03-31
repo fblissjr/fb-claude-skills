@@ -1,7 +1,7 @@
 {
   "name": "tui-design",
-  "version": "0.2.0",
-  "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout",
+  "version": "0.3.0",
+  "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
   "author": {
     "name": "Fred Bliss"
   },

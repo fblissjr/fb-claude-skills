@@ -1,4 +1,4 @@
-last updated: 2026-03-12
+last updated: 2026-03-31
 
 # env-forge
 
@@ -47,6 +47,22 @@ Or use the slash commands:
 ```
 
 The server exposes all endpoints as MCP tools at `http://127.0.0.1:8000/mcp`. Point any MCP client at that URL and the agent has typed, documented tools backed by real state.
+
+## Hooks
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| `session-start.sh` | SessionStart | Detects env-forge or fastapi-mcp usage in cwd, injects environment generation principles as additionalContext. |
+
+### Detection markers
+
+The hook looks for: a `.env-forge` directory in the project, or `fastapi-mcp` / `fastapi_mcp` imports in `.py` files. If either matches, it injects `hooks/directives/env-forge-principles.md` -- core principles for environment generation and the AWM synthesis pipeline.
+
+### Composable directives
+
+All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
+
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
 
 ## Skills
 

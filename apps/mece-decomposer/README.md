@@ -1,6 +1,6 @@
 # mece-decomposer
 
-last updated: 2026-03-12
+last updated: 2026-03-31
 
 A plugin for Claude Code and Cowork that decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution. Includes an interactive tree visualizer (MCP App).
 
@@ -50,6 +50,22 @@ To rebuild the production bundle:
 ```bash
 bun run build   # outputs dist/index.cjs (self-contained) + dist/mcp-app.html
 ```
+
+## Hooks
+
+| Hook | Event | What it does |
+|------|-------|--------------|
+| `session-start.sh` | SessionStart | Detects Agent SDK or decomposition usage in cwd, injects MECE principles as additionalContext. |
+
+### Detection markers
+
+The hook looks for: `claude_agent_sdk` or `agents` imports in `.py` files, a `decomposition.json` file, or a `.mece` directory. If any match, it injects `hooks/directives/mece-principles.md` -- core MECE decomposition and Agent SDK mapping principles.
+
+### Composable directives
+
+All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
+
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
 
 ## Skills
 

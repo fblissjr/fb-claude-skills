@@ -105,6 +105,10 @@ plugin-name/
   skills/
     skill-name/
       SKILL.md             # frontmatter: name, description, metadata.author/version
+  hooks/                   # optional: SessionStart/PreToolUse hooks
+    hooks.json             # hook registration (event -> command)
+    session-start.sh       # detection logic + directive assembly
+    directives/            # composable directive files (# trigger: <signal>)
   agents/                  # optional: agent .md files
   references/              # optional: supporting docs loaded on demand
 ```
@@ -144,7 +148,11 @@ Skills are retrieval, and retrieval serves an architecture. High precision is th
 
 ### Hooks as directives
 
-Hooks inject behavioral directives (what to do). Skills provide reference material (how to do it in detail). If something must always be active, it belongs in a hook, not a skill. Skills are on-demand only -- they load when triggered by keywords or explicit invocation. Corollary: domain-specific conventions (e.g., tool selection for a particular task) belong in skills with trigger phrases, not hooks. Only universal directives (package manager, TDD, session logging) justify hook injection.
+Hooks inject behavioral directives (what to do). Skills provide reference material (how to do it in detail). If something must always be active when a project matches certain markers, it belongs in a hook directive, not just a skill. Skills are on-demand only -- they load when triggered by keywords or explicit invocation.
+
+**Composable directive pattern**: Each plugin with behavioral content should have a `hooks/` directory containing a `session-start.sh` that detects project markers and assembles directives from `hooks/directives/*.md` files. Each directive file declares `# trigger: <signal>` on line 1. Adding a new convention = dropping a file, no shell editing. Signals are plugin-specific (e.g., `python`, `duckdb`, `tui`, `envforge`).
+
+Plugins using this pattern: dev-conventions, tui-design, dimensional-modeling, mece-decomposer, env-forge.
 
 ### Catalog as exemplar
 

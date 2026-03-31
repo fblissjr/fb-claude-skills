@@ -2,6 +2,12 @@
 
 ## 0.22.4
 
+### added
+- **tui-design**: SessionStart hook auto-injects Five Principles when Rich/Textual/Questionary/Click imports detected. Directive: `hooks/directives/tui-principles.md`. Bumped to v0.3.0.
+- **dimensional-modeling**: SessionStart hook auto-injects Kimball principles when DuckDB imports, .duckdb files, or fact_/dim_ SQL patterns detected. Directive: `hooks/directives/kimball-principles.md`. Bumped to v0.3.0.
+- **mece-decomposer**: SessionStart hook auto-injects MECE principles when Agent SDK imports or decomposition files detected. Directive: `hooks/directives/mece-principles.md`. Bumped to v0.4.0.
+- **env-forge**: SessionStart hook auto-injects task-first design principles when `.env-forge/` directory or fastapi-mcp usage detected. Directive: `hooks/directives/env-forge-principles.md`. Bumped to v0.3.0.
+
 ### changed
 - **dev-conventions**: refactored SessionStart hook to composable directive files (`hooks/directives/*.md`). Each directive declares its trigger signal (`python`, `javascript`, `docs`, `any`) on line 1. Adding a new convention = dropping a file, no shell editing.
 - **dev-conventions**: promoted doc-conventions (last-updated dates, lowercase filenames, document-the-why) to auto-loaded directive alongside TDD and session logging

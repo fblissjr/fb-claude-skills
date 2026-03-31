@@ -1,7 +1,7 @@
 {
   "name": "mece-decomposer",
-  "version": "0.3.0",
-  "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer",
+  "version": "0.4.0",
+  "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
   "author": {
     "name": "Fred Bliss"
   },
