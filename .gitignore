@@ -225,7 +225,7 @@ __marimo__/
 # Skill maintainer auto-generated state
 tools/skill-maintainer/state/upstream_hashes.json
 tools/skill-maintainer/state/changes.jsonl
-.skill-maintainer/state/
+**/.skill-maintainer/state/
 *.backup/
 
 # readwise-reader local artifacts
