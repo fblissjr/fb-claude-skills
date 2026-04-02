@@ -4,7 +4,7 @@ description: MECE decomposition methodology, scoring rubrics, and Agent SDK mapp
 metadata:
   author: Fred Bliss
   version: 0.4.0
-  last_verified: "2026-03-31"
+  last_verified: "2026-04-02"
   mcp-server: mece-decomposer
 allowed-tools: "Bash(uv run *)"
 ---

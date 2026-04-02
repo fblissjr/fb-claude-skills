@@ -4,7 +4,7 @@ description: Decomposes natural language queries into targeted searches across R
 metadata:
   author: Fred Bliss
   version: 1.0.0
-  last_verified: "2026-03-06"
+  last_verified: "2026-04-02"
 ---
 
 # Library Search

@@ -4,7 +4,7 @@ description: Validate a MECE decomposition for compliance, structural integrity,
 metadata:
   author: Fred Bliss
   version: 0.4.0
-  last_verified: "2026-03-12"
+  last_verified: "2026-04-02"
 ---
 
 # /validate

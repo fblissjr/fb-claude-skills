@@ -35,14 +35,20 @@ def discover_plugins(root: Path) -> list[Path]:
     return results
 
 
-def measure_tokens(skill_dir: Path) -> int:
-    """Estimate total context tokens for markdown files in a skill directory.
+def measure_tokens(skill_dir: Path) -> dict[str, int]:
+    """Estimate context tokens for markdown files in a skill directory.
+
+    Returns a dict with:
+      - skill_tokens: tokens from SKILL.md (always-loaded when skill triggers)
+      - ref_tokens: tokens from references/ and other .md files (on-demand)
+      - total: sum of both (for backward compat / informational)
 
     Only counts .md files since those are loaded into context via progressive
     disclosure. Scripts (.py, .sh) are executed, not loaded. Config files
     (.json, .yaml) are not part of the skill context window budget.
     """
-    total_chars = 0
+    skill_chars = 0
+    ref_chars = 0
     skip = SKIP_DIRS | {"state"}
     for f in skill_dir.rglob("*"):
         if f.is_dir() or f.name.startswith("."):
@@ -51,10 +57,18 @@ def measure_tokens(skill_dir: Path) -> int:
             continue
         if f.suffix == ".md":
             try:
-                total_chars += len(f.read_text())
+                chars = len(f.read_text())
             except (OSError, UnicodeDecodeError):
-                pass
-    return total_chars // 4
+                continue
+            if f.name == "SKILL.md":
+                skill_chars += chars
+            else:
+                ref_chars += chars
+    return {
+        "skill_tokens": skill_chars // 4,
+        "ref_tokens": ref_chars // 4,
+        "total": (skill_chars + ref_chars) // 4,
+    }
 
 
 def get_last_verified(metadata: dict) -> tuple[str | None, int | None]:

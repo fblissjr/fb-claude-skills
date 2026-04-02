@@ -4,7 +4,7 @@ description: Generate Claude Agent SDK Python code scaffolding from a validated 
 metadata:
   author: Fred Bliss
   version: 0.4.0
-  last_verified: "2026-03-12"
+  last_verified: "2026-04-02"
 ---
 
 # /export

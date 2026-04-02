@@ -4,7 +4,7 @@ description: Manages the read-it-later lifecycle with decision frameworks for in
 metadata:
   author: Fred Bliss
   version: 1.0.0
-  last_verified: "2026-03-06"
+  last_verified: "2026-04-02"
 ---
 
 # Content Triage

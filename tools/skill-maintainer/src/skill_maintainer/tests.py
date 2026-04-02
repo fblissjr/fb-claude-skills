@@ -68,15 +68,16 @@ def test_skills(root: Path) -> list[Result]:
             "; ".join(errors) if errors else "",
         ))
 
-        # 2. Token budget
-        tokens = measure_tokens(skill_dir)
-        budget_pass = tokens < TOKEN_BUDGET_WARN
-        detail = f"{tokens:,}"
+        # 2. Token budget (skill_tokens only; refs are on-demand)
+        token_info = measure_tokens(skill_dir)
+        skill_tokens = token_info["skill_tokens"]
+        budget_pass = skill_tokens < TOKEN_BUDGET_WARN
+        detail = f"{skill_tokens:,} (refs: {token_info['ref_tokens']:,})"
         if not budget_pass:
-            if tokens >= TOKEN_BUDGET_CRITICAL:
-                detail = f"{tokens:,} > {TOKEN_BUDGET_CRITICAL:,}"
+            if skill_tokens >= TOKEN_BUDGET_CRITICAL:
+                detail = f"{skill_tokens:,} > {TOKEN_BUDGET_CRITICAL:,} (refs: {token_info['ref_tokens']:,})"
             else:
-                detail = f"{tokens:,} > {TOKEN_BUDGET_WARN:,}"
+                detail = f"{skill_tokens:,} > {TOKEN_BUDGET_WARN:,} (refs: {token_info['ref_tokens']:,})"
         results.append(Result("skill", name, "token budget", budget_pass, detail))
 
         # 3. Body size

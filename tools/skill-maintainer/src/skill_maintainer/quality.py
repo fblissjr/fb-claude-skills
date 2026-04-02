@@ -43,12 +43,14 @@ def analyze_skill(skill_dir: Path) -> dict:
     result["valid"] = len(errors) == 0
     result["errors"] = errors
 
-    # Token budget
-    tokens = measure_tokens(skill_dir)
-    result["tokens"] = tokens
-    if tokens > TOKEN_BUDGET_CRITICAL:
+    # Token budget (apply thresholds to skill_tokens only, not references)
+    token_info = measure_tokens(skill_dir)
+    result["tokens"] = token_info["skill_tokens"]
+    result["ref_tokens"] = token_info["ref_tokens"]
+    result["total_tokens"] = token_info["total"]
+    if token_info["skill_tokens"] > TOKEN_BUDGET_CRITICAL:
         result["budget_status"] = "CRITICAL"
-    elif tokens > TOKEN_BUDGET_WARN:
+    elif token_info["skill_tokens"] > TOKEN_BUDGET_WARN:
         result["budget_status"] = "OVER"
 
     # Parse frontmatter
@@ -102,17 +104,18 @@ def main(args=None):
         results.append(result)
 
     # Table header
-    print(f"{'Skill':<25} {'Valid':>5} {'Tokens':>7} {'Budget':>8} {'Verified':>12} {'Age':>5}  Desc Issues")
-    print("-" * 95)
+    print(f"{'Skill':<25} {'Valid':>5} {'Skill':>7} {'Refs':>7} {'Budget':>8} {'Verified':>12} {'Age':>5}  Desc Issues")
+    print("-" * 105)
 
     for r in results:
         valid_str = "OK" if r["valid"] else "FAIL"
         age_str = str(r["days_ago"]) + "d" if r["days_ago"] is not None else "n/a"
         verified_str = r["last_verified"] or "n/a"
         desc_str = ", ".join(r["desc_issues"]) if r["desc_issues"] else "OK"
+        ref_tokens = r.get("ref_tokens", 0)
 
         print(
-            f"{r['name']:<25} {valid_str:>5} {r['tokens']:>7,} {r['budget_status']:>8} "
+            f"{r['name']:<25} {valid_str:>5} {r['tokens']:>7,} {ref_tokens:>7,} {r['budget_status']:>8} "
             f"{verified_str:>12} {age_str:>5}  {desc_str}"
         )
 

@@ -97,13 +97,18 @@ def measure_skill(skill_name: str, skill_path: Path) -> dict:
             "tokens": estimated_tokens,
         })
 
+    skill_md_tokens = sum(f["tokens"] for f in file_measurements if f["type"] == "skill_md")
+    ref_tokens = sum(f["tokens"] for f in file_measurements if f["type"] == "reference")
+
     return {
         "skill_name": skill_name,
         "skill_path": str(skill_path),
         "file_count": len(files),
         "total_tokens": total_tokens,
-        "over_budget": total_tokens > TOKEN_BUDGET_WARN,
-        "critical": total_tokens > TOKEN_BUDGET_CRITICAL,
+        "skill_md_tokens": skill_md_tokens,
+        "ref_tokens": ref_tokens,
+        "over_budget": skill_md_tokens > TOKEN_BUDGET_WARN,
+        "critical": skill_md_tokens > TOKEN_BUDGET_CRITICAL,
         "files": file_measurements,
     }
 
@@ -113,10 +118,11 @@ def generate_report(results: list[dict]) -> str:
         "# Token Budget Report",
         "",
         f"Budget threshold: {TOKEN_BUDGET_WARN} tokens (warn), {TOKEN_BUDGET_CRITICAL} tokens (critical)",
+        "Budget applies to SKILL.md only; reference tokens are informational.",
         "Estimate: 1 token ~ 4 characters",
         "",
-        "| Skill | Files | Tokens | Status |",
-        "|-------|-------|--------|--------|",
+        "| Skill | Files | Skill | Refs | Total | Status |",
+        "|-------|-------|-------|------|-------|--------|",
     ]
 
     for r in results:
@@ -126,7 +132,9 @@ def generate_report(results: list[dict]) -> str:
             status = "OVER"
         else:
             status = "OK"
-        lines.append(f"| {r['skill_name']} | {r['file_count']} | {r['total_tokens']:,} | {status} |")
+        skill_t = r.get("skill_md_tokens", 0)
+        ref_t = r.get("ref_tokens", 0)
+        lines.append(f"| {r['skill_name']} | {r['file_count']} | {skill_t:,} | {ref_t:,} | {r['total_tokens']:,} | {status} |")
 
     lines.append("")
 
