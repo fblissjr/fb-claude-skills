@@ -44,11 +44,11 @@ Mark as PASS or FAIL.
 
 ### 2. Token budget
 
-Count total characters across all `.md` files in the skill directory (SKILL.md + any references/ content). Divide by 4 for token estimate.
+Count characters in SKILL.md only (always-loaded when skill triggers). Divide by 4 for token estimate. Reference files (`references/`, other `.md`) are tracked separately and reported but do not count against the budget.
 
-- Under 4,000: OK
-- 4,000-8,000: WARN
-- Over 8,000: CRITICAL
+- SKILL.md under 4,000: OK
+- SKILL.md 4,000-8,000: WARN
+- SKILL.md over 8,000: CRITICAL
 
 ### 3. Body size
 

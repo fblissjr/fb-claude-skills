@@ -1,4 +1,4 @@
-last updated: 2026-03-31
+last updated: 2026-04-02
 
 # best practices checklist
 
@@ -10,10 +10,13 @@ These checks enforce the retrieval principles in `VISION.md`. The context window
 
 ### token budget
 
-- [ ] Skill directory total under 4,000 tokens (2% of 200k context window). Estimation: chars / 4
-- [ ] Skill directory total under 8,000 tokens (hard ceiling -- above this degrades attention on other context)
+Budget thresholds apply to SKILL.md only (always-loaded when skill triggers). Reference files (`references/`, other `.md`) are on-demand and tracked separately -- they do not count against the budget. This prevents penalizing skills for having thorough reference material, which is exactly what progressive disclosure encourages.
+
+- [ ] SKILL.md under 4,000 tokens (2% of 200k context window). Estimation: chars / 4
+- [ ] SKILL.md under 8,000 tokens (hard ceiling -- above this degrades attention on other context)
 - [ ] SKILL.md body under 500 lines
 - [ ] Heavy reference material in `references/` directory, not inline in SKILL.md
+- [ ] Reference tokens tracked and reported but do not trigger budget warnings
 - [ ] Token estimation is approximate (chars / 4). Real tokenization varies by content type. Treat as a budget heuristic, not exact measurement
 
 ### description precision

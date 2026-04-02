@@ -294,7 +294,31 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 "missing or unparseable 'last updated' date",
             ))
 
+    # 6. best_practices.md copies in sync
+    #    Canonical: skills/skill-maintainer/references/best_practices.md
+    #    Per-repo:  .skill-maintainer/best_practices.md
+    #    Only checked when both exist (i.e., within the skill-maintainer repo itself).
+    canonical_bp = _find_canonical_best_practices(root)
+    if canonical_bp and bp_path.exists() and canonical_bp != bp_path:
+        in_sync = canonical_bp.read_text() == bp_path.read_text()
+        results.append(Result(
+            "repo", "", "best_practices.md copies in sync",
+            in_sync,
+            "" if in_sync else f"{canonical_bp.relative_to(root)} != {bp_path.relative_to(root)}",
+        ))
+
     return results
+
+
+def _find_canonical_best_practices(root: Path) -> Path | None:
+    """Find the plugin-bundled best_practices.md (canonical copy).
+
+    Searches for skills/skill-maintainer/references/best_practices.md
+    relative to root. Returns None if not found (i.e., not in the
+    skill-maintainer source repo).
+    """
+    candidate = root / "skills" / "skill-maintainer" / "references" / "best_practices.md"
+    return candidate if candidate.exists() else None
 
 
 # ---------------------------------------------------------------------------
