@@ -1,7 +1,15 @@
-[
-  {
-    "event": "SessionStart",
-    "type": "command",
-    "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+{
+  "description": "Dimensional modeling hook: detect DuckDB/star schema projects at session start and inject Kimball modeling principles",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
   }
-]
+}

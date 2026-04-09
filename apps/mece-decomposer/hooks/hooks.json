@@ -1,7 +1,15 @@
-[
-  {
-    "event": "SessionStart",
-    "type": "command",
-    "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+{
+  "description": "MECE decomposer hook: detect Agent SDK or decomposition projects at session start and inject MECE principles",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
   }
-]
+}
