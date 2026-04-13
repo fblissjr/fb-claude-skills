@@ -1,5 +1,16 @@
 # changelog
 
+## 0.22.5
+
+### added
+- **dev-conventions**: new `dep-audit` skill -- dependency security auditing via `uv audit` (Python) and `bun audit` (JS/TS), transitive analysis, remediation workflow, CI integration
+- **dev-conventions**: version pinning conventions in python.md and javascript.md directives -- applications pin exact, libraries use floors/caret ranges
+- **dev-conventions**: dependency change tracking in doc-conventions -- session logs now include a structured table of package changes
+
+### changed
+- **dev-conventions**: bumped plugin to v0.5.0
+- Global rule (`.claude/rules/general.md`) now includes version pinning guidance for both uv and bun
+
 ## 0.22.4
 
 ### added

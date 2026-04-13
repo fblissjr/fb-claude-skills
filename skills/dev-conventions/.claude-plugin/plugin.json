@@ -1,7 +1,7 @@
 {
   "name": "dev-conventions",
-  "version": "0.4.0",
-  "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, orjson, bun, TDD directives, doc conventions, and session logging into context. Skills provide detailed reference on demand.",
+  "version": "0.5.0",
+  "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, orjson, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
   "author": {
     "name": "Fred Bliss"
   },

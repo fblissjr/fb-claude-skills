@@ -7,8 +7,8 @@ description: >-
   "document this", "add a design doc", "session log".
 metadata:
   author: Fred Bliss
-  version: 0.4.0
-  last_verified: 2026-04-02
+  version: 0.5.0
+  last_verified: 2026-04-13
 ---
 
 # Documentation Conventions
@@ -32,3 +32,31 @@ Use `./internal/` for documentation that isn't meant to be shared (design notes,
 ## Session logs
 
 Daily session logs go in `./internal/log/log_YYYY-MM-DD.md`. These capture what was done, decisions made, and open questions. Useful for continuity across sessions.
+
+## Dependency change tracking
+
+When a session adds, removes, or bumps package versions, include a dependency changes section in the session log. This is the only place dependency changes are recorded outside the source-of-truth files (pyproject.toml, package.json, uv.lock, bun.lockb).
+
+### Format
+
+```markdown
+## Dependency changes
+
+| Action | Package | Old | New | Type |
+|--------|---------|-----|-----|------|
+| added | httpx | -- | 0.27.2 | direct |
+| bumped | orjson | 3.10.0 | 3.10.5 | direct |
+| removed | requests | 2.31.0 | -- | direct |
+```
+
+### How to generate
+
+- Python: `git diff pyproject.toml` for direct deps, `git diff uv.lock` for transitives
+- JavaScript: `git diff package.json` for direct deps
+- If many transitive changes, summarize with count: "12 transitive dependencies updated (see uv.lock diff)"
+
+### What NOT to do
+
+- Do NOT create a `deps.md`, `dependencies.json`, or any separate manifest
+- Do NOT dump full `uv tree` or `bun pm ls` output -- only report changes
+- The source of truth is always pyproject.toml / package.json / lock files

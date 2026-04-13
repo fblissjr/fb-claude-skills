@@ -7,8 +7,8 @@ description: >-
   SessionStart hook; invoke /dev-conventions:bun-tooling for full reference.
 metadata:
   author: Fred Bliss
-  version: 0.4.0
-  last_verified: 2026-04-02
+  version: 0.5.0
+  last_verified: 2026-04-13
 ---
 
 # Bun Tooling Conventions
@@ -24,6 +24,16 @@ Always use `bun` for JavaScript and TypeScript package management and script exe
 | `npx create-react-app` | `bunx create-react-app` |
 | `yarn add X` | `bun add X` |
 | `pnpm install` | `bun install` |
+
+## Version pinning
+
+| Project type | Strategy | Example |
+|-------------|----------|---------|
+| Application (deployed, standalone) | Exact pin | `bun add express@5.1.0` |
+| Library (published npm package) | Caret range | `bun add express@^5.1.0` |
+| Dev dependency | Caret range | `bun add -d typescript@^5.9.3` |
+
+When in doubt, pin exact. In CI, verify with `bun install --frozen-lockfile`.
 
 ## Lock files
 

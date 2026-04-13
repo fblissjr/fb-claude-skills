@@ -27,7 +27,7 @@ fb-claude-skills/
     cogapp-markdown/         # Plugin: auto-generate markdown sections
     tui-design/              # Plugin: terminal UI design principles
     dimensional-modeling/    # Plugin: Kimball star schema patterns
-    dev-conventions/         # Plugin: development conventions (SessionStart hook for tooling, TDD, session logging + on-demand skills)
+    dev-conventions/         # Plugin: development conventions (SessionStart hook for tooling, TDD, version pinning, session logging, dep-audit + on-demand skills)
     skill-maintainer/        # Plugin: maintenance tools (quality, freshness, upstream, best practices)
     json-query/              # Plugin: JSON query tool selection (jg vs jq)
   apps/                      # MCP server applications
@@ -36,7 +36,8 @@ fb-claude-skills/
     env-forge/               # Plugin: database-backed MCP tool environment generator
     skill-dashboard/         # Project-scoped: ext-apps MCP App quality dashboard (TypeScript)
     heylook-monitor/         # Project-scoped: MCP App dashboard for local LLM server
-  tools/                     # CLI packages
+  tools/                     # CLI packages and scripts
+    dep-audit-scan.sh        # Standalone: scan macOS for projects with dependency vulnerabilities
     skill-maintainer/        # Installable package: maintenance CLI for any skill repo
       src/skill_maintainer/  # Python package (cli, shared, tests, quality, validate, freshness, measure, upstream, sources, log)
       references/            # Best practices
@@ -170,6 +171,7 @@ When generating new artifacts, first search existing catalogs for structurally s
 | Local source pulls | `skill-maintain sources` | On demand |
 | Version alignment | `/skill-maintainer:sync-versions <plugin> <ver>` | On demand |
 | Change history | `skill-maintain log` | On demand |
+| Dependency security | `/dev-conventions:dep-audit` (per-project) or `./tools/dep-audit-scan.sh` (cross-project) | On demand |
 
 Other useful commands:
 

@@ -1,4 +1,4 @@
-last updated: 2026-03-31
+last updated: 2026-04-13
 
 # dev-conventions
 
@@ -48,7 +48,8 @@ To add a new directive: drop a `.md` file in `hooks/directives/` and add a detec
 | `python-tooling` | `/dev-conventions:python-tooling` | Full uv/orjson conversion tables (detailed reference) |
 | `bun-tooling` | `/dev-conventions:bun-tooling` | Full bun conversion tables and lock file migration |
 | `tdd-workflow` | `/dev-conventions:tdd-workflow` | Red/green TDD: write failing test, implement, refactor |
-| `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, document the "why" |
+| `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, dependency change tracking, document the "why" |
+| `dep-audit` | `/dev-conventions:dep-audit` | Dependency security audit: uv audit, bun audit, transitive analysis, remediation workflow |
 
 ## how it works
 

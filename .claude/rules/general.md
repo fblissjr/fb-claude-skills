@@ -9,12 +9,14 @@ Python: always `uv`. Never use `pip` or `python` directly.
 - Install: `uv add <package>`
 - Run: `uv run <script.py>`
 - Sync: `uv sync`
+- Version pinning: always specify versions. Applications: exact (`uv add pkg==1.2.3`). Libraries: floor (`uv add 'pkg>=1.2'`). When unsure, pin exact.
 
 JavaScript/TypeScript: always `bun`. Never use `npm` or `yarn`.
 
 - Install: `bun add <package>`
 - Run: `bun run <script>`
 - Init: `bun init`
+- Version pinning: always specify versions. Applications: exact (`bun add pkg@1.2.3`). Libraries: caret (`bun add pkg@^1.2.3`). When unsure, pin exact.
 
 ## JSON
 
