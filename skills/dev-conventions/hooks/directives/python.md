@@ -7,6 +7,7 @@
   - Sync deps: uv sync
   - Create venv: uv venv
   - Lock: uv lock (use pyproject.toml + uv.lock, not requirements.txt)
+- Lock file: NEVER edit uv.lock directly. It is machine-generated. Run `uv lock` or `uv sync` to update it.
 - JSON: ALWAYS use orjson, NEVER stdlib json.
   - import orjson (not import json)
   - orjson.dumps(data).decode() / orjson.loads(text)
