@@ -155,6 +155,14 @@ Hooks inject behavioral directives (what to do). Skills provide reference materi
 
 Plugins using this pattern: dev-conventions, tui-design, dimensional-modeling, mece-decomposer, env-forge.
 
+### Plugin versioning
+
+Any change to plugin content (hooks, scripts, directives, references) requires a version bump or `marketplace update` won't refresh the cache. Always use `/skill-maintainer:sync-versions <plugin> <version>` for version bumps -- it updates all 5 sources atomically (plugin.json, marketplace.json, SKILL.md, pyproject.toml, CHANGELOG.md). Manual bumps miss sources.
+
+### Pre-commit hook
+
+`.git/hooks/pre-commit` validates staged SKILL.md files (via agentskills), checks version alignment across all sources, and warns when plugin content changes are staged without a version bump. Not tracked by git -- must be re-applied on fresh clones.
+
 ### Catalog as exemplar
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See the env-forge `forge` skill's step 2.
@@ -164,6 +172,7 @@ When generating new artifacts, first search existing catalogs for structurally s
 | Concern | Mechanism | Trigger |
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
+| Unbumped content changes | Pre-commit git hook (warning) | Automatic on commit |
 | Red/green tests | `skill-maintain test` | On demand |
 | Full maintenance pass | `/skill-maintainer:maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
 | Quality/budget/freshness | `/skill-maintainer:quality` or `skill-maintain quality` | On demand |
