@@ -1,5 +1,13 @@
 # changelog
 
+## 0.22.6
+
+### fixed
+- **mece-decomposer**: bump to v0.4.1 so marketplace update refreshes stale hooks.json cache (array->object fix from v0.22.4 was never picked up)
+- **dimensional-modeling**: bump to v0.3.1 (same stale cache issue)
+- **env-forge**: bump to v0.3.1 (same stale cache issue)
+- **tui-design**: bump to v0.3.1 (same stale cache issue)
+
 ## 0.22.5
 
 ### added

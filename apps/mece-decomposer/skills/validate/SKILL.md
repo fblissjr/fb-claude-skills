@@ -3,7 +3,7 @@ name: validate
 description: Validate a MECE decomposition for compliance, structural integrity, and SDK readiness. Use when user says "validate decomposition", "check MECE compliance", "run validation", or wants to verify a decomposition tree passes quality gates.
 metadata:
   author: Fred Bliss
-  version: 0.4.0
+  version: 0.4.1
   last_verified: "2026-04-02"
 ---
 

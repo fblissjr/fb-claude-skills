@@ -3,7 +3,7 @@ name: browse
 description: Browse AWM-1K catalog of 1000 pre-built tool environments by category or keyword. Use when user says "browse environments", "search AWM catalog", "find a tool environment", "list environment categories", or wants to materialize a pre-built MCP backend.
 metadata:
   author: Fred Bliss
-  version: 0.3.0
+  version: 0.3.1
   last_verified: "2026-04-02"
 ---
 

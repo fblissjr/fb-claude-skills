@@ -29,19 +29,19 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "tui-design",
       "source": "./skills/tui-design",
       "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "skill-dashboard",
@@ -53,7 +53,7 @@
       "name": "env-forge",
       "source": "./apps/env-forge",
       "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog. SessionStart hook auto-injects principles when .env-forge or fastapi-mcp detected.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "dev-conventions",

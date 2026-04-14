@@ -3,7 +3,7 @@ name: env-forge
 description: Generate database-backed MCP tool environments from scenario descriptions or browse 1000 pre-built environments. Use when user says "generate a tool environment", "create an MCP backend", "scaffold database tools", "build a sandbox", "synthesize an environment", "launch an environment", "browse environments", "AWM catalog", "create API tools", "generate test tools", "tool environment for", "database-backed tools", "sandbox for agent testing", or "create tools for".
 metadata:
   author: Fred Bliss
-  version: 0.3.0
+  version: 0.3.1
   last_verified: "2026-04-02"
 allowed-tools: "Bash(uv run *), Bash(mkdir *), Bash(sqlite3 *), Read, Write, Glob, Grep, Edit"
 ---
