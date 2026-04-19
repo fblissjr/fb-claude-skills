@@ -232,11 +232,13 @@ def get_run_messages_tool(
         return _empty_with_hint(started, MISSING_DB_HINT)
 
     limit = max(1, min(int(limit), 5000))
+    # Fetch one extra row so we can detect truncation without a separate COUNT.
     with _open_db(db_path) as db:
-        rows = get_run_messages(db, run_id, level=level)
+        rows = get_run_messages(db, run_id, level=level, limit=limit + 1)
     truncated = len(rows) > limit
-    rows = rows[:limit]
-    extra = {"truncated": True, "total_unbounded": "unknown"} if truncated else None
+    if truncated:
+        rows = rows[:limit]
+    extra = {"truncated": True} if truncated else None
     return _envelope(rows=rows, started=started, extra_meta=extra)
 
 

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from agent_state.database import AgentStateDB
+from agent_state.models import RunStatus
 
 
 def get_recent_runs(
@@ -47,18 +49,31 @@ def get_run_detail(db: AgentStateDB, run_id: str) -> dict[str, Any] | None:
 
 
 def get_run_messages(
-    db: AgentStateDB, run_id: str, level: str | None = None
+    db: AgentStateDB,
+    run_id: str,
+    level: str | None = None,
+    limit: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Get messages for a run."""
+    """Get messages for a run, optionally filtered by level and capped at ``limit``.
+
+    When ``limit`` is passed, it's enforced in SQL (``LIMIT ?``) rather than
+    by slicing in Python, so verbose runs don't transfer tens of thousands
+    of rows across the connection only to be discarded.
+    """
+    conditions = ["run_id = ?"]
+    params: list[Any] = [run_id]
     if level:
-        return db.fetchall_dicts(
-            "SELECT * FROM fact_run_message WHERE run_id = ? AND level = ? ORDER BY message_id",
-            [run_id, level],
-        )
-    return db.fetchall_dicts(
-        "SELECT * FROM fact_run_message WHERE run_id = ? ORDER BY message_id",
-        [run_id],
+        conditions.append("level = ?")
+        params.append(level)
+    sql = (
+        "SELECT * FROM fact_run_message WHERE "
+        + " AND ".join(conditions)
+        + " ORDER BY message_id"
     )
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
+    return db.fetchall_dicts(sql, params)
 
 
 def get_run_tree(db: AgentStateDB, root_run_id: str | None = None) -> list[dict[str, Any]]:
@@ -124,16 +139,17 @@ def get_run_stats(db: AgentStateDB) -> dict[str, Any]:
     by_type = db.fetchall(
         "SELECT run_type, COUNT(*) FROM fact_run GROUP BY run_type ORDER BY COUNT(*) DESC"
     )
-    total_runs, active_watermarks, tracked_skills, total_messages = (
-        scalars if scalars else (0, 0, 0, 0)
-    )
+    # COUNT(*) on real tables never returns NULL, but keep a tuple-level
+    # fallback in case the outer scalar subquery somehow short-circuits
+    # (e.g. table dropped mid-query).
+    total_runs, active_watermarks, tracked_skills, total_messages = scalars or (0, 0, 0, 0)
     return {
-        "total_runs": total_runs or 0,
+        "total_runs": total_runs,
         "by_status": {row[0]: row[1] for row in by_status},
         "by_type": {row[0]: row[1] for row in by_type},
-        "active_watermarks": active_watermarks or 0,
-        "tracked_skills": tracked_skills or 0,
-        "total_messages": total_messages or 0,
+        "active_watermarks": active_watermarks,
+        "tracked_skills": tracked_skills,
+        "total_messages": total_messages,
     }
 
 
@@ -150,31 +166,42 @@ def get_failed_runs(
     ``dim_skill_version``). All user values bind via ``?`` placeholders --
     never string-interpolated into SQL.
     """
+    # Compute the cutoff timestamp in Python to sidestep DuckDB's type
+    # inference on `? * INTERVAL 1 DAY` -- multiple mixed-type bindings
+    # in the same statement trip the BIGINT/DOUBLE overload resolver.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=since_days)
+
+    # Params bind positionally in SQL-text order. The optional CTE appears
+    # first in the text, so its parameter must lead the list when present.
+    cte = ""
+    cte_params: list[Any] = []
     where: list[str] = [
-        "fr.status IN ('failure', 'partial')",
-        "fr.started_at >= CURRENT_TIMESTAMP - (? * INTERVAL 1 DAY)",
+        "fr.status IN (?, ?)",
+        "fr.started_at >= ?",
     ]
-    params: list[Any] = [since_days]
+    body_params: list[Any] = [RunStatus.FAILURE.value, RunStatus.PARTIAL.value, cutoff]
     if skill_name:
+        # Hoist the dim_skill_version lookup into a CTE so the planner sees
+        # one scan that both IN clauses reference.
+        cte = "WITH sv AS (SELECT skill_version_id FROM dim_skill_version WHERE skill_name = ?) "
+        cte_params.append(skill_name)
         where.append(
             "(fr.run_name = ? "
-            "OR fr.consumes_skill_version_id IN "
-            "(SELECT skill_version_id FROM dim_skill_version WHERE skill_name = ?) "
-            "OR fr.produces_skill_version_id IN "
-            "(SELECT skill_version_id FROM dim_skill_version WHERE skill_name = ?))"
+            "OR fr.consumes_skill_version_id IN (SELECT skill_version_id FROM sv) "
+            "OR fr.produces_skill_version_id IN (SELECT skill_version_id FROM sv))"
         )
-        params.extend([skill_name, skill_name, skill_name])
-    params.append(limit)
+        body_params.append(skill_name)
 
     sql = (
-        "SELECT fr.run_id, fr.run_type, fr.run_name, fr.status, fr.started_at, "
+        cte
+        + "SELECT fr.run_id, fr.run_type, fr.run_name, fr.status, fr.started_at, "
         "fr.ended_at, fr.duration_ms, fr.error_count, "
         "fr.consumes_skill_version_id, fr.produces_skill_version_id, "
         "fr.is_restartable, fr.parent_run_id, fr.correlation_id "
         "FROM fact_run fr WHERE " + " AND ".join(where) + " "
         "ORDER BY fr.started_at DESC LIMIT ?"
     )
-    return db.fetchall_dicts(sql, params)
+    return db.fetchall_dicts(sql, [*cte_params, *body_params, limit])
 
 
 def get_tracked_domains(db: AgentStateDB) -> list[dict[str, Any]]:

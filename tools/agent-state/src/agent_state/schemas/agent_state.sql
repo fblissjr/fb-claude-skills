@@ -157,19 +157,11 @@ CREATE INDEX IF NOT EXISTS idx_watermark_run ON fact_watermark(run_id);
 -- ============================================================
 
 -- v_latest_watermark: current watermark per source (replaces upstream_hashes.json reads)
--- Uses ROW_NUMBER over partition instead of a correlated MAX subquery so DuckDB
--- can resolve the latest row per source in a single pass over fact_watermark.
+-- ROW_NUMBER over partition avoids the correlated MAX subquery the old view used.
+-- EXCLUDE (rn) keeps the outer projection in lockstep with the inner SELECT so
+-- adding a column inside `ranked` automatically flows through.
 CREATE OR REPLACE VIEW v_latest_watermark AS
-SELECT
-    watermark_source_key,
-    source_type,
-    identifier,
-    display_name,
-    current_value,
-    watermark_type,
-    checked_at,
-    run_id,
-    changed
+SELECT * EXCLUDE (rn)
 FROM (
     SELECT
         fw.watermark_source_key,

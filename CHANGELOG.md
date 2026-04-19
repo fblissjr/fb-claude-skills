@@ -1,5 +1,18 @@
 # changelog
 
+## 0.22.13
+
+### fixed
+- **agent-state 0.2.0 -> 0.2.1**: /simplify pass findings.
+  - `get_run_messages` gained an optional `limit` parameter that pushes `LIMIT ?` into the SQL. Previously the MCP layer fetched all rows for a run and sliced in Python (`rows[:limit]`), transferring unbounded data from DuckDB only to discard most of it. `get_run_messages_tool` in the MCP layer now requests `limit + 1` rows and uses overflow as the truncation signal -- no extra COUNT round-trip needed.
+  - `get_failed_runs` now binds statuses via `RunStatus.FAILURE.value` / `RunStatus.PARTIAL.value` instead of literal strings, so the `models.RunStatus` enum remains the single source of truth. If enum values ever change, the query fails loudly at load time rather than silently returning zero rows.
+  - `get_failed_runs` `dim_skill_version` subquery is now a CTE (`WITH sv AS ...`), binding `skill_name` once (not three times) and giving the planner one scan to reference from both IN clauses.
+  - `get_failed_runs` bug: CTE parameter must come first in the params list (SQL-text order, not insertion order). Fixed by splitting into `cte_params` + `body_params` and assembling at the call site. Previous code was positionally shifted when `skill_name` was supplied, causing DuckDB to interpret status strings as CTE lookups and cutoff timestamps as status values -- a silent correctness bug this /simplify pass caught before it reached production.
+  - `get_failed_runs` now computes the `since_days` cutoff as a Python datetime and binds it directly instead of `CURRENT_TIMESTAMP - (? * INTERVAL 1 DAY)`. Multi-typed parameter binding in that expression tripped DuckDB's BIGINT/DOUBLE overload resolver.
+  - `get_run_stats` dropped the redundant per-field `or 0` guards -- the tuple fallback already covers the only case where COUNT(*) could yield NULL (table dropped mid-query).
+- **agent-state-mcp 0.1.2 -> 0.1.3**: `get_run_messages_tool` passes `limit` through to the underlying query helper; no in-Python slicing. Behavior unchanged when under the limit; with the previous code, memory-bound. `_envelope` `extra_meta` still surfaces `truncated: true` when the overflow row is seen.
+- **agent_state.sql**: `v_latest_watermark` outer projection switched from an explicit 9-column list to `SELECT * EXCLUDE (rn)`. Removes a maintenance hazard where adding a column inside the inner `ranked` subquery would silently drop from the view output.
+
 ## 0.22.12
 
 ### changed
