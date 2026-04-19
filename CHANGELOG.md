@@ -1,5 +1,10 @@
 # changelog
 
+## 0.22.10
+
+### changed
+- **skill-maintainer 0.5.0 -> 0.5.1**: README now documents the v0.5.0 skills (sync-bundled-ref, finish-session), the session-log-drafter agent, and the PostToolUse bundled-ref sync hook. Version bump is doc-only; no behavioral changes. `tools/skill-maintainer/README.md` also picked up the per-page snapshot note on the `upstream` subcommand row (behavior landed in 0.4.0, never reflected).
+
 ## 0.22.9
 
 ### added

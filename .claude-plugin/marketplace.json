@@ -59,7 +59,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, orjson, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "readwise-reader",
@@ -77,7 +77,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "json-query",
