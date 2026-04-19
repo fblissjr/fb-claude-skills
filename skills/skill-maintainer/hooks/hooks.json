@@ -1,5 +1,5 @@
 {
-  "description": "skill-maintainer hook: auto-sync working-copy best_practices.md to plugin-bundled reference on Edit/Write",
+  "description": "skill-maintainer hooks: auto-sync bundled best_practices.md on Edit/Write; nudge session-log-drafter on Stop for substantive sessions",
   "hooks": {
     "PostToolUse": [
       {
@@ -8,6 +8,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sync-bundled-ref.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/maybe-draft-session-log.sh"
           }
         ]
       }

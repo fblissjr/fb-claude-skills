@@ -1,5 +1,11 @@
 # changelog
 
+## 0.22.15
+
+### added
+- **skill-maintainer 0.5.2 -> 0.6.0**: new `Stop` hook `maybe-draft-session-log.sh`. When the model tries to stop, checks whether the session touched >= 3 "substantive" files (excluding log files, lock files, and `.skill-maintainer/state/`) AND today's `internal/log/log_YYYY-MM-DD.md` doesn't exist or wasn't modified today. If both true, prints a one-line stderr nudge pointing Claude at `/skill-maintainer:finish-session`. Never blocks (exit 0 always). Honors `stop_hook_active=true` so repeated stops don't loop-nudge.
+- **agent-state-mcp 0.1.3 -> 0.2.0**: new `/agent-state-mcp:enable` skill. One-shot `.mcp.json` promotion that moves the `agent-state` entry from `_available_servers` (opt-in convention) into `mcpServers` (active), using an idempotent `jq` transform that no-ops on double-runs. Verifies with `uv run agent-state-mcp --list-tools`, tells the user to restart Claude Code, never commits. Closes the "easy to miss the opt-in" friction called out in 0.22.8.
+
 ## 0.22.14
 
 ### added
