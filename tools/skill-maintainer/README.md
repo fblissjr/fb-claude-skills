@@ -1,4 +1,4 @@
-last updated: 2026-03-13
+last updated: 2026-04-19
 
 # skill-maintainer (CLI package)
 
@@ -81,7 +81,7 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 | `freshness` | Check `metadata.last_verified` staleness across all skills |
 | `measure` | Token budget measurement with per-file breakdown |
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
-| `upstream` | Fetch Claude Code docs via llms-full.txt, detect page changes |
+| `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
 | `sources` | Pull tracked git repos, detect changes since last run |
 | `log` | Query the `.skill-maintainer/state/changes.jsonl` audit log |
 
