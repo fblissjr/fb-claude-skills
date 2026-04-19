@@ -39,6 +39,23 @@ def changes_log(root: Path) -> Path:
     return state_dir(root) / "changes.jsonl"
 
 
+def pages_dir(root: Path) -> Path:
+    """Directory holding last-seen content snapshots of watched upstream pages."""
+    return state_dir(root) / "pages"
+
+
+def url_to_slug(url: str) -> str:
+    """Convert an upstream URL to a filesystem-safe slug.
+
+    >>> url_to_slug("https://code.claude.com/docs/en/skills")
+    'skills'
+    >>> url_to_slug("https://code.claude.com/docs/en/hooks-guide")
+    'hooks-guide'
+    """
+    tail = url.rstrip("/").rsplit("/", 1)[-1]
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in tail)
+
+
 def best_practices_file(root: Path) -> Path:
     return config_dir(root) / "best_practices.md"
 

@@ -10,7 +10,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["tools/skill-maintainer", "tools/agent-state", "apps/env-forge", "apps/mece-decomposer", "research/schema-processing"]
+members = ["tools/skill-maintainer", "tools/agent-state", "apps/agent-state-mcp", "apps/env-forge", "apps/mece-decomposer", "research/schema-processing"]
 exclude = ["apps/readwise-reader"]
 
 [dependency-groups]

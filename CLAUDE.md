@@ -32,6 +32,7 @@ fb-claude-skills/
     json-query/              # Plugin: JSON query tool selection (jg vs jq)
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
+    agent-state-mcp/         # MCP server: read-only tools over ~/.claude/agent_state.duckdb (thin layer on tools/agent-state)
     mece-decomposer/         # Plugin: MECE decomposition + MCP App tree visualizer
     env-forge/               # Plugin: database-backed MCP tool environment generator
     skill-dashboard/         # Project-scoped: ext-apps MCP App quality dashboard (TypeScript)
@@ -80,6 +81,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
 /plugin install readwise-reader@fb-claude-skills
+/plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 ```
 
@@ -157,7 +159,17 @@ Plugins using this pattern: dev-conventions, tui-design, dimensional-modeling, m
 
 ### Plugin versioning
 
-Any change to plugin content (hooks, scripts, directives, references) requires a version bump or `marketplace update` won't refresh the cache. Always use `/skill-maintainer:sync-versions <plugin> <version>` for version bumps -- it updates all 5 sources atomically (plugin.json, marketplace.json, SKILL.md, pyproject.toml, CHANGELOG.md). Manual bumps miss sources.
+Any change to plugin content (hooks, scripts, directives, references) requires a version bump or `marketplace update` won't refresh the cache. Always use `/skill-maintainer:sync-versions <plugin> <version>` for version bumps -- it updates the core sources atomically (plugin.json, marketplace.json, primary SKILL.md, pyproject.toml, CHANGELOG.md). For plugins with multiple sub-skills (e.g. skill-maintainer has 4 sub-skills), every sub-skill SKILL.md also has its own `metadata.version` + `metadata.last_verified` that must be bumped -- the sync-versions playbook only touches the primary SKILL.md, so additional sub-skills need manual edits. Manual bumps miss sources.
+
+### Canonical best_practices.md
+
+Two copies exist: `.skill-maintainer/best_practices.md` (this repo's working copy, read by `skill-maintain`) and `skills/skill-maintainer/references/best_practices.md` (seed for `skill-maintain init` in new repos). When updating rules, edit the working copy and `cp` it to the bundled reference -- otherwise new inits pull stale rules. A `sync-best-practices` subcommand or symlink would close this loop but hasn't been implemented.
+
+### Security hook gotcha
+
+The `security-guidance` plugin ships a PreToolUse hook (`security_reminder_hook.py`) that substring-matches several English tokens that appear in doc prose (code-evaluation builtins with parens, serialization lib names, DOM sink method names, OS exec function names). No path or context awareness. Fires on MLX docs and session logs routinely.
+
+Disabled for this repo via `.claude/settings.json` -> `env.ENABLE_SECURITY_REMINDER=0`. Upstream fix: path-aware exemption for .md files. Trade-off: this repo gives up all of the plugin's checks, but since content here is mostly markdown and Python without those patterns in source code, and the repo's own pre-commit + TDD workflow provide other safety nets, the trade is worth it. If you need the checks back, flip the env var.
 
 ### Pre-commit hook
 
@@ -197,6 +209,7 @@ All commands accept `--dir <path>` to target a different repo.
 ## State
 
 - `.skill-maintainer/state/upstream_hashes.json` -- page content hashes for upstream detection (auto-generated)
+- `.skill-maintainer/state/pages/<slug>.md` -- per-page content snapshots so `skill-maintain upstream` can compute line/char deltas on subsequent runs (auto-generated, v0.4.0+)
 - `.skill-maintainer/state/changes.jsonl` -- append-only audit log of quality reports and upstream checks
 - `metadata.last_verified` in each SKILL.md frontmatter -- date the skill was last reviewed
 - `~/.claude/agent_state.duckdb` -- global DuckDB for run audit and state tracking (schema v2, see `tools/agent-state/README.md` for full schema docs)
@@ -223,6 +236,7 @@ Python managed as a **uv workspace**. The root `pyproject.toml` coordinates work
 |--------|------|-----------------|
 | `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref (PyPI); CLI: `skill-maintain` |
 | `agent-state` | `tools/agent-state` | orjson, duckdb; CLI: `agent-state` |
+| `agent-state-mcp` | `apps/agent-state-mcp` | mcp, duckdb, orjson, agent-state (workspace); CLI: `agent-state-mcp` (stdio MCP server) |
 | `env-forge` | `apps/env-forge` | orjson, huggingface-hub |
 | `skill-dashboard` | `apps/skill-dashboard/mcp-app` | TypeScript ext-apps MCP App (gray-matter, react, zod); no Python deps |
 | `mece-decomposer` | `apps/mece-decomposer` | orjson |

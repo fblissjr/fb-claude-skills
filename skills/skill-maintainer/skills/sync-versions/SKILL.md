@@ -7,8 +7,8 @@ description: >-
   Pass plugin name and target version as arguments.
 metadata:
   author: fblissjr
-  version: 0.3.0
-  last_verified: 2026-04-02
+  version: 0.5.0
+  last_verified: 2026-04-19
 ---
 
 # Sync Versions
@@ -71,6 +71,22 @@ metadata:
   version: X.Y.Z
 ```
 
+### 3c-alt. Sub-skill SKILL.md files (for multi-skill plugins)
+
+Some plugins ship multiple sub-skills under `<plugin>/skills/<sub-skill>/` rather than (or in addition to) a primary SKILL.md matching the plugin name. Each sub-skill has its own `metadata.version` + `metadata.last_verified` that also must be bumped, or version alignment checks will flag drift.
+
+Discover them:
+
+```bash
+find skills/<plugin>/skills apps/<plugin>/skills -name "SKILL.md" 2>/dev/null
+```
+
+For every SKILL.md found, update `metadata.version` AND `metadata.last_verified` in frontmatter. The primary SKILL.md is the one whose directory name matches the plugin name (if it exists); all others are sub-skills.
+
+**Plugins known to have sub-skills (as of 2026-04-19)**: skill-maintainer (4 sub-skills: init-maintenance, maintain, quality, sync-versions, sync-bundled-ref, finish-session), dev-conventions (5 sub-skills), mlx-skills (4 sub-skills), env-forge, mece-decomposer, document-skills.
+
+If the plugin has no sub-skills (single SKILL.md matching plugin name), this step is a no-op.
+
 ### 3d. pyproject.toml (if present)
 
 If the plugin has a `pyproject.toml`, update:
@@ -80,7 +96,7 @@ version = "X.Y.Z"
 
 ## Step 4 -- Update last_verified
 
-Set `metadata.last_verified` to today's date (YYYY-MM-DD) in the primary SKILL.md.
+Set `metadata.last_verified` to today's date (YYYY-MM-DD) in the primary SKILL.md AND every sub-skill SKILL.md discovered in step 3c-alt.
 
 ## Step 5 -- Report
 

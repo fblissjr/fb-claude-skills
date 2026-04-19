@@ -10,6 +10,3 @@
   - Lock: uv lock (use pyproject.toml + uv.lock, not requirements.txt)
   - After adding/upgrading packages: `uv lock --check` to verify lock consistency.
 - Lock file: NEVER edit uv.lock directly. It is machine-generated. Run `uv lock` or `uv sync` to update it.
-- JSON: ALWAYS use orjson, NEVER stdlib json.
-  - import orjson (not import json)
-  - orjson.dumps(data).decode() / orjson.loads(text)

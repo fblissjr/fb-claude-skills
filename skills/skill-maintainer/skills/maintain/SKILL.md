@@ -7,8 +7,8 @@ description: >-
   Invoke with /skill-maintainer:maintain.
 metadata:
   author: Fred Bliss
-  version: 0.3.0
-  last_verified: 2026-04-02
+  version: 0.5.0
+  last_verified: 2026-04-19
 ---
 
 # Full Maintenance Pass

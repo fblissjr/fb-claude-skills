@@ -1,0 +1,24 @@
+[project]
+name = "agent-state-mcp"
+version = "0.1.0"
+description = "MCP server exposing ~/.claude/agent_state.duckdb to Claude Code as ergonomic tools"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.26.0",
+    "duckdb>=1.2.0",
+    "orjson>=3.10.0",
+    "agent-state",
+]
+
+[project.scripts]
+agent-state-mcp = "agent_state_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_state_mcp"]
+
+[tool.uv.sources]
+agent-state = { workspace = true }

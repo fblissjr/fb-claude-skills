@@ -1,3 +1,12 @@
 {
+  "_comment": "Root MCP server config. Servers here are loaded automatically by Claude Code when running in this repo. Uncomment entries below to enable them. Global MCP servers live in ~/.claude/mcp.json; keep this file scoped to this repo.",
+  "_available_servers": {
+    "agent-state": {
+      "_note": "Read-only MCP over ~/.claude/agent_state.duckdb. Enable by copying this block into mcpServers below. Provided by apps/agent-state-mcp/.",
+      "command": "uv",
+      "args": ["run", "agent-state-mcp"],
+      "type": "stdio"
+    }
+  },
   "mcpServers": {}
 }

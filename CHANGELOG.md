@@ -1,5 +1,41 @@
 # changelog
 
+## 0.22.9
+
+### added
+- **skill-maintainer v0.5.0**: three new pieces for end-of-session workflow.
+  - `sync-bundled-ref` skill: manual mirror of `.skill-maintainer/best_practices.md` -> `skills/skill-maintainer/references/best_practices.md` (the seed copied by `skill-maintain init` in new repos). Fixes the silent drift gap documented this session.
+  - `sync-bundled-ref.sh` PostToolUse hook at `skills/skill-maintainer/hooks/`: fires on Edit/Write/MultiEdit of the working copy and auto-mirrors. `cmp -s` gated so no-op edits are silent; exits 0 always.
+  - `finish-session` composed skill: orchestrates `session-log-drafter` subagent -> bundled-ref sync check -> version-bump detection -> quality scan. Single entrypoint before commits.
+  - `session-log-drafter` agent (at `skills/skill-maintainer/agents/`): forked subagent that reads conversation + `git diff` and drafts a house-style entry for `internal/log/log_YYYY-MM-DD.md`. Returns content only; main session writes to disk.
+- **skill-maintainer**: `sync-versions` skill gained step 3c-alt for multi-skill plugins -- discovers all sub-skill SKILL.md files under the plugin and bumps each `metadata.version` + `metadata.last_verified`. Closes the gap that required manual sub-skill bumps for skill-maintainer itself.
+
+### changed
+- **skill-maintainer**: bumped plugin + Python package to v0.5.0. All six SKILL.md files (init-maintenance, maintain, quality, sync-versions, sync-bundled-ref, finish-session) carry `metadata.version: 0.5.0`.
+- Root `.claude/settings.json`: added `env.ENABLE_SECURITY_REMINDER=0` to disable the `security-guidance` plugin's PreToolUse hook for this repo. Hook substring-matches on tokens that appear in prose (code-eval builtin names, serialization libs, DOM sinks) with no path awareness; false-positive rate on docs is high. Trade-off documented in CLAUDE.md "Security hook gotcha" section.
+- Root `CLAUDE.md`: added "Canonical best_practices.md" subsection, "Security hook gotcha" subsection, and a `state/pages/<slug>.md` bullet to the State section. Updated plugin versioning paragraph to flag sub-skill bump requirement.
+
+## 0.22.8
+
+### added
+- **agent-state-mcp** (new plugin, v0.1.0): stdio MCP server at `apps/agent-state-mcp/` that exposes `~/.claude/agent_state.duckdb` to Claude Code as 18 read-only tools (`list_recent_runs`, `get_run_tree`, `find_failed_runs`, `get_watermark_status`, `list_skills_by_domain`, `get_flywheel_metrics`, etc.). Thin wrapper over the existing `agent-state` Python package; designed so Claude reaches for MCP tools instead of shelling out to the `agent-state` CLI. Structured return envelopes (`{rows, _meta}` with row_count, duration_ms, schema_version), parameterized queries, graceful fallback when the DB is missing. Includes a single `agent-state-mcp` skill teaching Claude the question-to-tool mapping.
+- Root `.mcp.json` now documents an opt-in `agent-state` server entry under `_available_servers` (commented out by default; copy into `mcpServers` to enable).
+
+### changed
+- Root `pyproject.toml` workspace now includes `apps/agent-state-mcp`.
+- Root `.claude-plugin/marketplace.json` registers the new plugin.
+- Root `CLAUDE.md` repo structure and workspace dependencies table updated.
+
+## 0.22.7
+
+### added
+- **skill-maintainer**: `upstream` command now retains per-page content snapshots under `.skill-maintainer/state/pages/<slug>.md`, so subsequent runs report concrete `+added / -removed lines, ±chars` deltas instead of just "changed". Delta metadata is also persisted in `changes.jsonl`.
+- **skill-maintainer**: `.skill-maintainer/best_practices.md` gains HTML-comment source anchors (`<!-- source: <url> | last_verified: <date> -->`) under each section, routing upstream doc changes to the specific rules they affect. Grep by URL to find rules to re-verify.
+
+### changed
+- **skill-maintainer**: bumped plugin + Python package to v0.4.0. Bundled reference (`skills/skill-maintainer/references/best_practices.md`) re-synced from this repo's working copy so new inits pull the latest rules (AGENTS.md compat, 1% description budget, `when_to_use` frontmatter field, corrected hook exit codes, 25KB MEMORY.md cap, 1536-char skill-listing truncation, compaction budget details).
+- **mlx-skills** (sibling repo): bootstrapped with `skill-maintain init`, seeded best_practices.md, tracked_repos configured for mlx/mlx-lm/mlx-vlm/mlx-embeddings/mlx-examples, baseline page snapshots captured.
+
 ## 0.22.6
 
 ### fixed

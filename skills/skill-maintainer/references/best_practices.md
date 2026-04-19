@@ -1,4 +1,4 @@
-last updated: 2026-04-02
+last updated: 2026-04-19
 
 # best practices checklist
 
@@ -10,6 +10,8 @@ These checks enforce the retrieval principles in `VISION.md`. The context window
 
 ### token budget
 
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+
 Budget thresholds apply to SKILL.md only (always-loaded when skill triggers). Reference files (`references/`, other `.md`) are on-demand and tracked separately -- they do not count against the budget. This prevents penalizing skills for having thorough reference material, which is exactly what progressive disclosure encourages.
 
 - [ ] SKILL.md under 4,000 tokens (2% of 200k context window). Estimation: chars / 4
@@ -18,36 +20,48 @@ Budget thresholds apply to SKILL.md only (always-loaded when skill triggers). Re
 - [ ] Heavy reference material in `references/` directory, not inline in SKILL.md
 - [ ] Reference tokens tracked and reported but do not trigger budget warnings
 - [ ] Token estimation is approximate (chars / 4). Real tokenization varies by content type. Treat as a budget heuristic, not exact measurement
+- [ ] On auto-compaction, only the first 5,000 tokens of each re-attached skill are kept; all re-attached skills share a combined 25,000-token budget. SKILL.md over ~5,000 tokens gets truncated when it survives compaction
 
 ### description precision
+
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
 
 Descriptions are reverse queries. They determine when a skill loads. Vague descriptions cause overtriggering (low precision). Missing trigger phrases cause undertriggering (low recall).
 
 - [ ] Description includes WHAT the skill does (action verbs: handles, generates, validates, designs)
 - [ ] Description includes WHEN to use it (trigger phrases: "use when user says...", "when the user wants to...")
-- [ ] First 250 characters contain the core use case (descriptions may be truncated in skill listings)
+- [ ] Combined `description` + `when_to_use` truncated at 1,536 characters in the skill listing. Front-load the core use case so it survives truncation
 - [ ] Description is specific enough to avoid matching unrelated queries
 - [ ] Description includes negative scope if needed ("do NOT use for...")
 - [ ] No duplicate or near-duplicate descriptions across skills (causes ambiguous routing)
 
 ### always-loaded context
 
+<!-- source: https://code.claude.com/docs/en/memory | last_verified: 2026-04-19 -->
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+
 Everything in this list loads on every session. Each line is a fixed cost.
 
 - [ ] CLAUDE.md: only operational instructions, no reference material
 - [ ] `.claude/rules/`: unconditional rules are minimal; use `paths` frontmatter to scope rules that don't apply everywhere
-- [ ] Skill descriptions (all installed): each must justify its presence in the 2% budget
+- [ ] Skill descriptions (all installed): each must justify its presence in the 1% budget
 - [ ] `settings.json`: no ambient hooks that fire on high-frequency events without documented justification
-- [ ] Auto-memory (MEMORY.md): under 200 lines, no session-specific or stale entries
+- [ ] Auto-memory `MEMORY.md`: under 200 lines OR 25KB, whichever comes first -- content past the cap is not loaded at session start. No session-specific or stale entries. Detailed topic files sit beside `MEMORY.md` and load on demand
+- [ ] If the repo has an `AGENTS.md`, the project `CLAUDE.md` should `@AGENTS.md` import it rather than duplicating content. Claude Code does not read `AGENTS.md` directly
+- [ ] `disableSkillShellExecution: true` in settings disables `` !`cmd` `` preprocessing in user/project/plugin/add-dir skills. Bundled/managed skills unaffected. Use when distributing skills where shell preprocessing is not safe
 
 ### hooks
 
+<!-- source: https://code.claude.com/docs/en/hooks | last_verified: 2026-04-19 -->
+<!-- source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-04-19 -->
+
 - [ ] No hooks that fire on every tool call, file read, or other high-frequency event without documented justification
 - [ ] Hook `type` is one of: `command`, `http`, `prompt`, `agent`
-- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning)
+- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning). `if` only applies to tool events (PreToolUse, PostToolUse, PermissionRequest/Denied, FileChanged). Silently ignored on UserPromptSubmit, Stop, SessionStart, CwdChanged, and other non-tool events
 - [ ] Hook purpose and trigger documented in README or inline comments
 - [ ] Hook output is minimal (one-line stderr, not paragraphs of context)
-- [ ] All hooks exit 0 (non-blocking) unless they are intentional gates (like pre-commit validation)
+- [ ] Exit code semantics: exit 0 = success (JSON output processed). Exit 2 = blocking error (stderr shown to user). Any other non-zero = non-blocking error. Do not use exit 1 to gate -- use exit 2
+- [ ] `once: true` in hook blocks is only honored inside skill or agent frontmatter (auto-removes after first run). Ignored in `settings.json` or plugin `hooks.json`
 
 ### composable directive pattern
 
@@ -60,6 +74,9 @@ For plugins with behavioral content that should persist across sessions:
 - [ ] Behavioral content in hook directives; detailed reference in on-demand skills
 
 ## skill structure
+
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- source: https://agentskills.io | last_verified: 2026-04-19 -->
 
 Source: Anthropic skills guide (PDF, Jan 2026)
 
@@ -81,7 +98,8 @@ Source: Anthropic skills guide (PDF, Jan 2026)
 - [ ] `license` field: present if open source (MIT, Apache-2.0)
 - [ ] `compatibility` field: under 500 characters, lists env requirements
 - [ ] `metadata` field: key-value pairs only (author, version, mcp-server)
-- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable
+- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable, when_to_use
+- [ ] `when_to_use` field (optional) is appended to `description` in the skill listing and counts toward the 1,536-character truncation cap
 
 ### instructions quality
 
@@ -102,6 +120,8 @@ Source: Anthropic skills guide (PDF, Jan 2026)
 
 ## invocation control
 
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+
 Source: Claude Code official docs
 
 - [ ] `disable-model-invocation: true` for side-effect workflows (deploy, commit)
@@ -119,14 +139,19 @@ Source: Claude Code official docs
 
 ### distribution
 
+<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- source: https://code.claude.com/docs/en/plugins | last_verified: 2026-04-19 -->
+
 - [ ] Personal skills: `~/.claude/skills/<name>/SKILL.md`
 - [ ] Project skills: `.claude/skills/<name>/SKILL.md`
 - [ ] Plugin skills: `<plugin>/skills/<name>/SKILL.md` (prefer `skills/` over legacy `commands/`)
-- [ ] Skill descriptions budget: 2% of context window (fallback 16k chars). Override via `SLASH_COMMAND_TOOL_CHAR_BUDGET`
+- [ ] Skill descriptions budget: 1% of context window (fallback 8,000 chars). Override via `SLASH_COMMAND_TOOL_CHAR_BUDGET`
 - [ ] Use `paths` frontmatter to scope skill auto-activation to relevant file types
 - [ ] Use `${CLAUDE_PLUGIN_DATA}` for persistent plugin state (survives updates); `${CLAUDE_PLUGIN_ROOT}` for bundled read-only assets
 
 ## spec compliance
+
+<!-- source: https://agentskills.io | last_verified: 2026-04-19 -->
 
 Source: Agent Skills spec (agentskills.io). Enforced by `agentskills validate`.
 

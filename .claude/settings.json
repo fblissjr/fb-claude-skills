@@ -1,1 +1,5 @@
-{}
+{
+  "env": {
+    "ENABLE_SECURITY_REMINDER": "0"
+  }
+}
