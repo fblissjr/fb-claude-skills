@@ -1,4 +1,4 @@
-last updated: 2026-03-31
+last updated: 2026-04-19
 
 # fb-claude-skills
 
@@ -21,8 +21,9 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
+| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `~/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
-| [skill-maintainer](skills/skill-maintainer/) | Skills | Maintenance tools for skill repos: quality checks, freshness, upstream detection, best practices review |
+| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
 ### project-scoped
@@ -57,6 +58,8 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install dev-conventions@fb-claude-skills
 /plugin install env-forge@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
+/plugin install readwise-reader@fb-claude-skills
+/plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 ```
 

@@ -189,14 +189,19 @@ For local DBs in this repo (`~/.claude/agent_state.duckdb`, readwise-reader's Du
 |---------|-----------|---------|
 | Spec compliance | Pre-commit git hook | Automatic on commit |
 | Unbumped content changes | Pre-commit git hook (warning) | Automatic on commit |
+| Bundled best_practices.md drift | skill-maintainer PostToolUse hook (`sync-bundled-ref.sh`) | Automatic on Edit/Write of working copy |
+| Forgotten session log | skill-maintainer Stop hook (`maybe-draft-session-log.sh`) | Automatic on session stop when substantive work + no log |
+| End-of-session wrap-up | `/skill-maintainer:finish-session` (orchestrates drafter -> sync -> version bumps -> quality) | On demand |
 | Red/green tests | `skill-maintain test` | On demand |
 | Full maintenance pass | `/skill-maintainer:maintain` (pulls sources, checks upstream, runs quality report, proposes best_practices.md updates) | On demand |
 | Quality/budget/freshness | `/skill-maintainer:quality` or `skill-maintain quality` | On demand |
 | Upstream change detection | `skill-maintain upstream` | On demand |
 | Local source pulls | `skill-maintain sources` | On demand |
 | Version alignment | `/skill-maintainer:sync-versions <plugin> <ver>` | On demand |
+| Bundled reference manual sync | `/skill-maintainer:sync-bundled-ref` (fallback when hook didn't fire) | On demand |
 | Change history | `skill-maintain log` | On demand |
 | Dependency security | `/dev-conventions:dep-audit` (per-project) or `./tools/dep-audit-scan.sh` (cross-project) | On demand |
+| Enable agent-state MCP server | `/agent-state-mcp:enable` (promotes `.mcp.json` `_available_servers` -> `mcpServers`) | On demand |
 
 Other useful commands:
 
