@@ -1,5 +1,11 @@
 # changelog
 
+## 0.22.14
+
+### added
+- **dimensional-modeling 0.3.1 -> 0.3.2**: kimball-principles directive gains the "facts don't join to facts" rule. Route through a conformed dimension instead of joining two fact tables on a shared FK. Auto-injected via SessionStart hook when DuckDB markers are detected, so any session touching star-schema work sees the rule without having to re-state it.
+- **CLAUDE.md**: new "Schema evolution: greenfield default" subsection under Key patterns. Captures the user's stated preference to prefer `CREATE OR REPLACE VIEW` + schema re-init over migration bridges for local/dev DBs (agent_state, readwise-reader, etc.). Production-facing schemas (marketplace, published plugins) remain the exception.
+
 ## 0.22.13
 
 ### fixed

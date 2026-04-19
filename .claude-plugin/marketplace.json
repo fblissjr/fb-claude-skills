@@ -29,7 +29,7 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     },
     {
       "name": "tui-design",

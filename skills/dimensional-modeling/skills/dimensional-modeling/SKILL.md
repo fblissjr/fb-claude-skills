@@ -3,8 +3,8 @@ name: dimensional-modeling
 description: Design and implement Kimball-style star schemas in DuckDB for LLM agent state persistence. Use when user needs to track agent execution, model operational data, design fact/dimension tables, implement SCD Type 2, generate surrogate keys, or build analytical views. Also triggers on "star schema", "dimensional model", "DuckDB schema", "fact table", "dimension table", "SCD Type 2", "surrogate keys", "data warehouse for agents", "design a schema for", "help me track agent state", "store execution data in DuckDB", "I need to persist agent history", or "how do I model".
 metadata:
   author: Fred Bliss
-  version: 0.3.1
-  last_verified: 2026-03-31
+  version: 0.3.2
+  last_verified: 2026-04-19
 allowed-tools: "Read"
 ---
 

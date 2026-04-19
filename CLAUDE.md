@@ -179,6 +179,10 @@ Disabled for this repo via `.claude/settings.json` -> `env.ENABLE_SECURITY_REMIN
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference -- adapt patterns, don't copy verbatim. See the env-forge `forge` skill's step 2.
 
+### Schema evolution: greenfield default
+
+For local DBs in this repo (`~/.claude/agent_state.duckdb`, readwise-reader's DuckDB, future ones), the preferred evolution pattern is `CREATE OR REPLACE VIEW` + schema re-init on next connection. Don't write migration bridges or backward-compat shims unless explicitly asked. "OK to drop data, greenfield is fine" is the working default for non-production state. Production-facing schemas (marketplace, published plugins) are the exception.
+
 ## How to keep things fresh
 
 | Concern | Mechanism | Trigger |
