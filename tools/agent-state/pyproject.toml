@@ -1,6 +1,6 @@
 [project]
 name = "agent-state"
-version = "0.1.0"
+version = "0.2.0"
 description = "DuckDB audit and state tracking for agent and pipeline runs"
 requires-python = ">=3.11"
 dependencies = ["orjson>=3.10", "duckdb>=1.2"]

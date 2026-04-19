@@ -157,24 +157,39 @@ CREATE INDEX IF NOT EXISTS idx_watermark_run ON fact_watermark(run_id);
 -- ============================================================
 
 -- v_latest_watermark: current watermark per source (replaces upstream_hashes.json reads)
+-- Uses ROW_NUMBER over partition instead of a correlated MAX subquery so DuckDB
+-- can resolve the latest row per source in a single pass over fact_watermark.
 CREATE OR REPLACE VIEW v_latest_watermark AS
 SELECT
-    fw.watermark_source_key,
-    dws.source_type,
-    dws.identifier,
-    dws.display_name,
-    fw.current_value,
-    fw.watermark_type,
-    fw.checked_at,
-    fw.run_id,
-    fw.changed
-FROM fact_watermark fw
-JOIN dim_watermark_source dws ON fw.watermark_source_key = dws.watermark_source_key
-WHERE fw.watermark_id = (
-    SELECT MAX(fw2.watermark_id)
-    FROM fact_watermark fw2
-    WHERE fw2.watermark_source_key = fw.watermark_source_key
-);
+    watermark_source_key,
+    source_type,
+    identifier,
+    display_name,
+    current_value,
+    watermark_type,
+    checked_at,
+    run_id,
+    changed
+FROM (
+    SELECT
+        fw.watermark_source_key,
+        dws.source_type,
+        dws.identifier,
+        dws.display_name,
+        fw.current_value,
+        fw.watermark_type,
+        fw.checked_at,
+        fw.run_id,
+        fw.changed,
+        ROW_NUMBER() OVER (
+            PARTITION BY fw.watermark_source_key
+            ORDER BY fw.watermark_id DESC
+        ) AS rn
+    FROM fact_watermark fw
+    JOIN dim_watermark_source dws
+      ON fw.watermark_source_key = dws.watermark_source_key
+) ranked
+WHERE rn = 1;
 
 -- v_run_tree: recursive CTE for hierarchical run display
 CREATE OR REPLACE VIEW v_run_tree AS

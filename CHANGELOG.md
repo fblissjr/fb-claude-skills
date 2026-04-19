@@ -1,5 +1,19 @@
 # changelog
 
+## 0.22.12
+
+### changed
+- **agent-state 0.1.0 -> 0.2.0**: cleanup of the three findings deferred in 0.22.11.
+  - `agent_state.query` gained four functions previously carried as inline SQL in the MCP layer: `get_failed_runs(db, since_days, skill_name, limit)`, `get_tracked_domains(db)`, `get_run_sources(db)`, `get_watermark_sources(db)`. Now reachable from the CLI package too, and testable directly against the schema rather than only through the MCP transport.
+  - `get_run_stats` consolidated four scalar counts (total_runs, active_watermarks, tracked_skills, total_messages) into one query via scalar subqueries. The two GROUP BYs (by_status, by_type) remain separate because PIVOT / UNION-with-discriminator hurts readability more than it saves round-trips. 6 queries -> 3.
+  - `v_latest_watermark` view rewritten from a correlated `MAX(watermark_id)` subquery to `ROW_NUMBER() OVER (PARTITION BY watermark_source_key ORDER BY watermark_id DESC)`. DuckDB now resolves the latest row per source in a single pass.
+  - **Bug fix along the way**: `dim_run_source` query in `list_run_sources` was GROUPing on columns that don't exist (`identifier`, `display_name` -- those live on `dim_watermark_source`). Fixed to use the actual columns (`source_name`, `source_version`, `config_hash`, `first_seen_at`, `last_seen_at`). The bug was latent because the function was never exercised before this refactor.
+- **agent-state-mcp 0.1.1 -> 0.1.2**: `tools.py` no longer carries inline SQL for `find_failed_runs`, `list_tracked_domains`, `list_run_sources`, `list_watermark_sources`. Each delegates to the corresponding `agent_state.query` function.
+
+### notes
+- The view rewrite uses `CREATE OR REPLACE VIEW` so existing databases pick up the change automatically on next schema init. No migration required.
+- Dimensional-modeling discipline verified: all new queries route fact -> dim or dim -> fact; no fact-to-fact joins introduced.
+
 ## 0.22.11
 
 ### fixed

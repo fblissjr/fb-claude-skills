@@ -26,13 +26,17 @@ import orjson
 
 from agent_state.database import DEFAULT_DB_PATH, SCHEMA_VERSION, AgentStateDB
 from agent_state.query import (
+    get_failed_runs,
     get_flywheel,
     get_recent_runs,
     get_restartable_failures,
     get_run_detail,
     get_run_messages,
+    get_run_sources,
     get_run_stats,
     get_run_tree,
+    get_tracked_domains,
+    get_watermark_sources,
 )
 from agent_state.skill_versions import (
     get_active_skill,
@@ -249,33 +253,10 @@ def find_failed_runs(
 
     since_days = max(1, min(int(since_days), 3650))
     limit = max(1, min(int(limit), 500))
-
-    where: list[str] = [
-        "fr.status IN ('failure', 'partial')",
-        "fr.started_at >= CURRENT_TIMESTAMP - (? * INTERVAL 1 DAY)",
-    ]
-    params: list[Any] = [since_days]
-    if skill_name:
-        where.append(
-            "(fr.run_name = ? "
-            "OR fr.consumes_skill_version_id IN "
-            "(SELECT skill_version_id FROM dim_skill_version WHERE skill_name = ?) "
-            "OR fr.produces_skill_version_id IN "
-            "(SELECT skill_version_id FROM dim_skill_version WHERE skill_name = ?))"
-        )
-        params.extend([skill_name, skill_name, skill_name])
-    params.append(limit)
-
-    sql = (
-        "SELECT fr.run_id, fr.run_type, fr.run_name, fr.status, fr.started_at, "
-        "fr.ended_at, fr.duration_ms, fr.error_count, "
-        "fr.consumes_skill_version_id, fr.produces_skill_version_id, "
-        "fr.is_restartable, fr.parent_run_id, fr.correlation_id "
-        "FROM fact_run fr WHERE " + " AND ".join(where) + " "
-        "ORDER BY fr.started_at DESC LIMIT ?"
-    )
     with _open_db(db_path) as db:
-        rows = db.fetchall_dicts(sql, params)
+        rows = get_failed_runs(
+            db, since_days=since_days, skill_name=skill_name, limit=limit
+        )
     return _envelope(rows=rows, started=started)
 
 
@@ -446,18 +427,7 @@ def list_tracked_domains(db_path: Path | None = None) -> dict[str, Any]:
         return _empty_with_hint(started, MISSING_DB_HINT)
 
     with _open_db(db_path) as db:
-        rows = db.fetchall_dicts(
-            """
-            SELECT domain,
-                   COUNT(DISTINCT skill_name) AS skill_count,
-                   COUNT(*) AS version_count
-            FROM dim_skill_version
-            WHERE domain IS NOT NULL
-              AND status = 'active'
-            GROUP BY domain
-            ORDER BY skill_count DESC
-            """
-        )
+        rows = get_tracked_domains(db)
     return _envelope(rows=rows, started=started)
 
 
@@ -482,16 +452,7 @@ def list_run_sources(db_path: Path | None = None) -> dict[str, Any]:
         return _empty_with_hint(started, MISSING_DB_HINT)
 
     with _open_db(db_path) as db:
-        rows = db.fetchall_dicts(
-            """
-            SELECT drs.*, COUNT(fr.run_id) AS run_count
-            FROM dim_run_source drs
-            LEFT JOIN fact_run fr ON fr.source_key = drs.source_key
-            GROUP BY drs.source_key, drs.source_type, drs.identifier,
-                     drs.display_name, drs.metadata
-            ORDER BY run_count DESC
-            """
-        )
+        rows = get_run_sources(db)
     return _envelope(rows=rows, started=started)
 
 
@@ -502,7 +463,5 @@ def list_watermark_sources(db_path: Path | None = None) -> dict[str, Any]:
         return _empty_with_hint(started, MISSING_DB_HINT)
 
     with _open_db(db_path) as db:
-        rows = db.fetchall_dicts(
-            "SELECT * FROM dim_watermark_source ORDER BY watermark_source_key"
-        )
+        rows = get_watermark_sources(db)
     return _envelope(rows=rows, started=started)
