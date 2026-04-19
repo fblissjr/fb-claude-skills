@@ -1,6 +1,6 @@
 [project]
 name = "agent-state-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server exposing ~/.claude/agent_state.duckdb to Claude Code as ergonomic tools"
 requires-python = ">=3.11"
 dependencies = [

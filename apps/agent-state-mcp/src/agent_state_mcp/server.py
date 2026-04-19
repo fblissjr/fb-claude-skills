@@ -13,6 +13,7 @@ All tools are read-only: writes happen via the existing ``agent-state`` CLI or
 from __future__ import annotations
 
 import argparse
+import atexit
 import logging
 import os
 import sys
@@ -120,8 +121,8 @@ def _register_tools(mcp: FastMCP) -> None:  # noqa: C901 - tool descriptions, no
         Pass run_id to show a subtree; omit it for the full forest.
 
         Returns:
-            `{rows: [...]}` ordered by started_at with a `depth` column for
-            indentation.
+            `{rows: [...], _meta: {...}}` -- rows ordered by started_at with
+            a `depth` column for indentation.
         """
         return T.get_run_tree_tool(run_id=run_id, db_path=db_path)
 
@@ -129,6 +130,7 @@ def _register_tools(mcp: FastMCP) -> None:  # noqa: C901 - tool descriptions, no
     def get_run_messages(
         run_id: str,
         level: str | None = None,
+        limit: int = 500,
     ) -> dict[str, Any]:
         """Structured log messages for a run (fact_run_message).
 
@@ -138,9 +140,12 @@ def _register_tools(mcp: FastMCP) -> None:  # noqa: C901 - tool descriptions, no
         Args:
             run_id: target run.
             level: optional filter ('DEBUG', 'INFO', 'WARNING', 'ERROR').
+            limit: max rows to return (default 500, max 5000). If truncated,
+                `_meta.truncated=true` is set so the caller can page or
+                narrow the filter.
         """
         return T.get_run_messages_tool(
-            run_id=run_id, level=level, db_path=db_path
+            run_id=run_id, level=level, limit=limit, db_path=db_path
         )
 
     @mcp.tool()
@@ -372,6 +377,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.db:
         os.environ["AGENT_STATE_DB"] = str(args.db)
+
+    # Cached DuckDB connections should close cleanly on server exit so
+    # stray .wal files don't pile up. atexit survives normal EOF and
+    # FastMCP's SIGTERM path; we intentionally don't install signal
+    # handlers because FastMCP already does.
+    atexit.register(T.close_all_dbs)
 
     mcp = build_server()
 

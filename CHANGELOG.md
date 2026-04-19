@@ -1,5 +1,18 @@
 # changelog
 
+## 0.22.11
+
+### fixed
+- **agent-state-mcp 0.1.0 -> 0.1.1**: three post-review fixes.
+  - Connection cache: `_open_db` now yields a singleton `AgentStateDB` per `db_path` for the life of the server instead of opening+closing on every tool call. Schema DDL (15 CREATE TABLE, 10 CREATE INDEX, 4 CREATE VIEW) no longer re-executes per invocation. `atexit` hook closes cached connections on server shutdown.
+  - Envelope consistency for single-row tools: `get_run`, `get_active_skill_version`, `resolve_skill_version_by_hash` now return `{data: null, _meta: {...}}` on not-found/missing-DB paths, matching their docstring contract. Previously returned `rows: []` which would `KeyError` callers expecting `data`.
+  - `find_failed_runs` SQL: replaced the f-string WHERE-clause interpolation (structurally unsafe, though not currently exploitable because the interpolated fragment was literal) with list-concatenation construction where every user value binds via `?`.
+  - `get_run_messages_tool` gained an explicit `limit: int = 500` param (max 5000) with a `_meta.truncated=true` flag when the cap is hit. Previously returned unbounded rows.
+  - `get_run_tree` server-side docstring now mentions `_meta` in its Returns line, matching the SERVER_INSTRUCTIONS envelope contract.
+- **skill-maintainer 0.5.1 -> 0.5.2**: `hooks/sync-bundled-ref.sh` bug fixes.
+  - `jq` extractor now picks up `tool_input.edits[].file_path` (MultiEdit shape) in addition to the Edit/Write `tool_input.file_path`. Previously MultiEdit touches to `best_practices.md` silently skipped the sync.
+  - `repo_root` derivation now handles relative paths correctly by resolving absolute first. Previously `.skill-maintainer/best_practices.md` as a relative path derived `repo_root` as `$PWD` (the `dirname/..` of `.skill-maintainer` is the current directory, not the repo root), which happened to work when CWD was already the repo root but would break otherwise.
+
 ## 0.22.10
 
 ### changed

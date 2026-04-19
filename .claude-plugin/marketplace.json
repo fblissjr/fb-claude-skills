@@ -71,13 +71,13 @@
       "name": "agent-state-mcp",
       "source": "./apps/agent-state-mcp",
       "description": "Read-only MCP server over ~/.claude/agent_state.duckdb -- query run history, watermarks, skill versions, and flywheel metrics instead of shelling out to the agent-state CLI.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review",
-      "version": "0.5.1"
+      "version": "0.5.2"
     },
     {
       "name": "json-query",
