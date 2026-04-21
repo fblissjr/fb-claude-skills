@@ -1,4 +1,4 @@
-last updated: 2026-04-19
+last updated: 2026-04-21
 
 # fb-claude-skills
 
@@ -23,6 +23,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 | [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `~/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
+| [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
 | [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
@@ -61,6 +62,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install readwise-reader@fb-claude-skills
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
+/plugin install scan-for-secrets@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -136,6 +138,7 @@ Once installed, invoke as namespaced slash commands:
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax
+/scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description
@@ -238,6 +241,7 @@ Highlights:
 
 - Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
 - cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
+- scan-for-secrets built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets) (Apache 2.0) — all literal-matching and escape-variant logic is his work
 - MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
 - env-forge synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs

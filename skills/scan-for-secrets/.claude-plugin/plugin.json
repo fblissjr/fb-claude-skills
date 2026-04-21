@@ -1,0 +1,9 @@
+{
+  "name": "scan-for-secrets",
+  "version": "0.1.0",
+  "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches and composes a ripgrep regex pass to catch leaked secrets and privacy-sensitive paths",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.23.0
+
+### added
+- **scan-for-secrets 0.1.0** (new plugin): pre-share scanner that wraps [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets) (Apache 2.0) for literal matching with JSON/URL/HTML/backslash/unicode-escape variants, and composes a bundled ripgrep wrapper (`regex-scan.sh`) for shape-based patterns the literal pass can't express. Two shipped scripts: `privacy-tokens.sh` emits identity literals from the environment (HOME, USER, git email/name, macOS ComputerName/LocalHostName, Linux GECOS, Apple ID, SSH pubkeys, gh/npm/aws/gcloud logins) as a ready-made `scan-for-secrets -c` config; `regex-scan.sh` sweeps for other users' home paths, emails, IPv4, MAC addresses, SSH fingerprints, and (via `--api-keys`) common API-token shapes (OpenAI/Anthropic/GitHub/AWS/Google/JWT/Slack/PEM). Invoked via `uvx scan-for-secrets` (no install pollution). Skill triggers on "scan for secrets", "pre-share scan", "redact home paths", "PII scan", and similar. Simon's tool stays unmodified; all extension work is composition.
+
 ## 0.22.15
 
 ### added
