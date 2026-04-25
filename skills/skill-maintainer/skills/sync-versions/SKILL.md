@@ -7,8 +7,8 @@ description: >-
   Pass plugin name and target version as arguments.
 metadata:
   author: fblissjr
-  version: 0.6.0
-  last_verified: 2026-04-19
+  version: 0.6.1
+  last_verified: 2026-04-25
 ---
 
 # Sync Versions

@@ -47,7 +47,7 @@ log_path="$repo_root/internal/log/log_${today}.md"
 if [ -f "$log_path" ]; then
   # stat -f is macOS; Linux uses stat -c. Prefer -f, fall back.
   mtime=$(stat -f "%Sm" -t "%Y-%m-%d" "$log_path" 2>/dev/null \
-          || stat -c "%y" "$log_path" 2>/dev/null | cut -dc -f1)
+          || stat -c "%y" "$log_path" 2>/dev/null | cut -d' ' -f1)
   if [ "$mtime" = "$today" ]; then
     exit 0
   fi
@@ -61,7 +61,7 @@ changed=$(
     git -C "$repo_root" diff --name-only HEAD 2>/dev/null || true
     git -C "$repo_root" ls-files --others --exclude-standard 2>/dev/null || true
   } \
-  | grep -Ev "^(internal/log/|uv\.lock$|bun\.lockb$|package-lock\.json$|\.skill-maintainer/state/)" \
+  | { grep -Ev "^(internal/log/|uv\.lock$|bun\.lockb$|package-lock\.json$|\.skill-maintainer/state/)" || true; } \
   | sort -u \
   | wc -l \
   | tr -d ' '

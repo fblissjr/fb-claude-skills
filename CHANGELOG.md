@@ -1,5 +1,10 @@
 # changelog
 
+## 0.24.1
+
+### fixed
+- **skill-maintainer 0.6.0 -> 0.6.1**: two bugs in the `Stop` hook `maybe-draft-session-log.sh`. (1) The Linux-fallback branch parsed `stat -c "%y"` output with `cut -dc -f1`, which uses `c` as the delimiter -- a no-op on `2026-04-25 14:45:10.123 -0500`-style output, returning the entire timestamp string and never matching `today`. So on Linux the "log already updated today, exit early" short-circuit never fired and the hook always proceeded to the count step. Fixed to `cut -d' ' -f1`. (2) The substantive-files counter pipeline ended `... | grep -Ev "^(internal/log/|...)"` -- when the input pipeline produced no lines (e.g., a session with no diffs and no untracked files, or a session that touched only excluded paths), `grep -Ev` exits 1 because nothing matched the negation. Combined with the script's `set -euo pipefail`, that exit-1 killed the script before the trailing `exit 0`, surfacing as a non-zero hook exit on Stop. Fixed by wrapping the grep in `{ ... || true; }` so an empty pipeline doesn't propagate. Both reproduced on macOS by feeding `{}` on stdin into a fresh repo with no changes; both pass after the fix. Also bumped `last_verified` on all six sub-skills to today since the plugin content changed.
+
 ## 0.24.0
 
 ### added
