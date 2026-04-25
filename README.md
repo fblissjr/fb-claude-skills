@@ -1,4 +1,4 @@
-last updated: 2026-04-21
+last updated: 2026-04-25
 
 # fb-claude-skills
 
@@ -24,6 +24,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `~/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
+| [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
 | [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
@@ -63,6 +64,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
+/plugin install path-privacy@fb-claude-skills
 ```
 
 Or from the terminal:

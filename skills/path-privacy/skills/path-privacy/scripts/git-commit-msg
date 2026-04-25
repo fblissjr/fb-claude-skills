@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# path-privacy: skip-file
+# git-commit-msg (path-privacy)
+# Hard-blocks commits whose message or current branch name references paths
+# resolving outside the repo root.
+#
+# Git invokes commit-msg hooks with the path to the message file as $1.
+set -u
+
+MSG_FILE="${1:-}"
+if [ -z "$MSG_FILE" ] || [ ! -f "$MSG_FILE" ]; then
+  exit 0
+fi
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCANNER="$SELF_DIR/find-external-paths.sh"
+
+if [ -n "${PATH_PRIVACY_SCRIPT_DIR:-}" ]; then
+  SCANNER="$PATH_PRIVACY_SCRIPT_DIR/find-external-paths.sh"
+fi
+
+if [ ! -x "$SCANNER" ]; then
+  echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
+  exit 0
+fi
+
+FAILED=0
+
+# Strip comment lines (lines beginning with #) from the message before scanning;
+# git templates inject "# Please enter the commit message..." which we shouldn't false-flag.
+MSG_BODY=$(grep -v '^#' "$MSG_FILE" 2>/dev/null || true)
+
+if [ -n "$MSG_BODY" ]; then
+  if ! "$SCANNER" --text "$MSG_BODY" --lax-boundary; then
+    echo "path-privacy: external path detected in commit message." >&2
+    FAILED=1
+  fi
+fi
+
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+if [ -n "$BRANCH" ]; then
+  if ! "$SCANNER" --text "$BRANCH" --lax-boundary --quiet; then
+    echo "path-privacy: external path detected in branch name: $BRANCH" >&2
+    FAILED=1
+  fi
+fi
+
+if [ $FAILED -eq 1 ]; then
+  echo "" >&2
+  echo "path-privacy: commit blocked by commit-msg hook." >&2
+  echo "Rewrite the message (or rename the branch) to use repo-relative or generic references." >&2
+  exit 1
+fi
+
+exit 0

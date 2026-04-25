@@ -31,6 +31,7 @@ fb-claude-skills/
     skill-maintainer/        # Plugin: maintenance tools (quality, freshness, upstream, best practices)
     json-query/              # Plugin: JSON query tool selection (jg vs jq)
     scan-for-secrets/        # Plugin: pre-share scanner (simonw/scan-for-secrets literal pass + ripgrep regex pass)
+    path-privacy/            # Plugin: enforces repo-relative paths via SessionStart directive + pre-commit / commit-msg git hooks
   apps/                      # MCP server applications
     readwise-reader/         # MCP server: Readwise Reader library (OAuth, DuckDB, FTS)
     agent-state-mcp/         # MCP server: read-only tools over ~/.claude/agent_state.duckdb (thin layer on tools/agent-state)
@@ -85,6 +86,7 @@ This repo is a plugin marketplace. Add it and install plugins:
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
+/plugin install path-privacy@fb-claude-skills
 ```
 
 After installing, skills are available as namespaced slash commands (e.g., `/mcp-apps:create-mcp-app`, `/mece-decomposer:decompose`).

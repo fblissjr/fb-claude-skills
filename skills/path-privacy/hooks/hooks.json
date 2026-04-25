@@ -1,0 +1,15 @@
+{
+  "description": "path-privacy hook: when a session starts in a git repo, inject the rule (paths must be repo-relative; never advertise leak-fixing).",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# path-privacy: skip-file
+# git-pre-commit (path-privacy)
+# Hard-blocks commits whose staged files contain paths resolving outside the repo root.
+# Designed to be invoked from a repo's .git/hooks/pre-commit (chained or standalone).
+set -u
+
+# Resolve plugin scripts dir from this file's location.
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCANNER="$SELF_DIR/find-external-paths.sh"
+
+# If installed into .git/hooks/, the script may be a copy; allow override via env.
+if [ -n "${PATH_PRIVACY_SCRIPT_DIR:-}" ]; then
+  SCANNER="$PATH_PRIVACY_SCRIPT_DIR/find-external-paths.sh"
+fi
+
+if [ ! -x "$SCANNER" ]; then
+  echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
+  exit 0  # don't block commits if the plugin is misconfigured -- fail open by design
+fi
+
+if ! "$SCANNER" --staged; then
+  echo ""
+  echo "path-privacy: commit blocked by pre-commit hook." >&2
+  echo "Remove the path or replace it with a repo-relative or generic reference, then re-stage." >&2
+  exit 1
+fi
+
+exit 0

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.24.0
+
+### added
+- **path-privacy 0.1.0** (new plugin): enforces a single rule -- every path written into a repo must be relative to the repo root. Anything that resolves outside the repo (other repos on disk, `~/.claude/<plan>`, `/Users/<name>/...`, `/home/<name>/...`, `$HOME`-based paths) is treated as a leak. Three layers of enforcement: (1) a `SessionStart` hook that injects the rule into Claude's context whenever a session opens in a git repo, so paths outside the repo are never written in the first place; (2) a `pre-commit` git hook that hard-blocks any commit whose staged file content contains a leak; (3) a `commit-msg` git hook that hard-blocks any commit whose message body or current branch name contains one. Single shared scanner script (`find-external-paths.sh`, ripgrep-based) backs all three. Pattern shapes mirror `scan-for-secrets/regex-scan.sh` for `/Users/`, `/home/`, `~/`, and `$HOME`-anchored paths; placeholder usernames (`USERNAME`, `<user>`, `$USER`, `me`, `you`, etc.) are skipped so documentation snippets like `/Users/USERNAME/foo` don't false-flag. Per-line opt-out via the literal token `path-privacy: ignore`. Hooks installer (`install-git-hooks.sh`) writes wrappers into `.git/hooks/` and preserves any pre-existing hook as `.local`. Skill triggers on "scan for path leaks", "check for leaked paths", "are we leaking my home path", "scrub external paths", "install path-privacy hooks", and similar. Sibling to `scan-for-secrets`: that plugin scans for arbitrary secret shapes; this one enforces the narrower repo-scoped-paths rule at commit time with a hard block.
+
 ## 0.23.0
 
 ### added

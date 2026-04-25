@@ -390,7 +390,7 @@ requires-dist = [
 
 [[package]]
 name = "fb-claude-skills"
-version = "0.22.4"
+version = "0.24.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

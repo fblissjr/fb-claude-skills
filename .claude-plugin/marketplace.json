@@ -90,6 +90,12 @@
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
       "version": "0.1.0"
+    },
+    {
+      "name": "path-privacy",
+      "source": "./skills/path-privacy",
+      "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
+      "version": "0.1.0"
     }
   ]
 }
