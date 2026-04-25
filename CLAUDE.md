@@ -187,6 +187,10 @@ When generating new artifacts, first search existing catalogs for structurally s
 
 For local DBs in this repo (`~/.claude/agent_state.duckdb`, readwise-reader's DuckDB, future ones), the preferred evolution pattern is `CREATE OR REPLACE VIEW` + schema re-init on next connection. Don't write migration bridges or backward-compat shims unless explicitly asked. "OK to drop data, greenfield is fine" is the working default for non-production state. Production-facing schemas (marketplace, published plugins) are the exception.
 
+### Bash portability for plugin scripts
+
+Plugin scripts use `#!/usr/bin/env bash` and may run on macOS system bash (3.2). Avoid bash 4+ features: `mapfile`/`readarray`, `declare -A` (associative arrays), and `[[ =~ ]]` when a `case` will do. For per-line file reads use `while IFS= read -r line; do arr[$i]="$line"; i=$((i+1)); done < "$f"` with indexed arrays. The pre-commit hook (`jq`-based) and `regex-scan.sh`/`find-external-paths.sh` all stick to this subset.
+
 ## How to keep things fresh
 
 | Concern | Mechanism | Trigger |

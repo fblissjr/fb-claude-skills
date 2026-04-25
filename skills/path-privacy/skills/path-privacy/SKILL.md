@@ -10,7 +10,7 @@ description: >-
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.1.1
   last_verified: 2026-04-25
 allowed-tools: "Bash,Read,Edit"
 ---
@@ -60,7 +60,8 @@ The privacy guarantee fails the moment the activity is advertised.
 | Audit a repo | `bash <plugin-root>/skills/path-privacy/scripts/find-external-paths.sh -d .` | Read-only sweep of the working tree |
 | Audit a single file | `... -f path/to/file` | One file |
 | Audit staged changes | `... --staged` | Same logic as the pre-commit hook |
-| Audit a string | `... --text 'fix path /Users/jamie/proj'` | For commit messages, branch names |
+| Audit a string (file-content tone) | `... --text 'see /Users/jamie/proj'` | Strict boundary; mirrors the file-content scan |
+| Audit a commit message or branch name | `... --text 'fix/Users/jamie/path' --lax-boundary` | Lax boundary catches `/Users/` segments embedded right after a word char (e.g. `fix/Users/...`). Used by the commit-msg hook for both message body and branch name. |
 | Install git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh` | Adds pre-commit + commit-msg into the current repo, preserving existing hooks |
 | Uninstall git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --uninstall` | Restores any preserved `.local` hook |
 

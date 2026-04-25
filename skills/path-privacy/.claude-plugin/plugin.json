@@ -1,6 +1,6 @@
 {
   "name": "path-privacy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Enforces a single rule: every path written into the repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
   "author": {
     "name": "Fred Bliss"
