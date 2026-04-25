@@ -32,11 +32,7 @@ fi
 
 # Bail early if we're not inside a git repo -- this hook only makes
 # sense where session logs are tracked.
-if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
-  exit 0
-fi
-
-repo_root=$(git rev-parse --show-toplevel)
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 
 # Today's session log path (must match the convention in CLAUDE.md and
 # .claude/rules/general.md: internal/log/log_YYYY-MM-DD.md).
@@ -45,9 +41,12 @@ log_path="$repo_root/internal/log/log_${today}.md"
 
 # If the log exists and was modified today, assume it's being maintained.
 if [ -f "$log_path" ]; then
-  # stat -f is macOS; Linux uses stat -c. Prefer -f, fall back.
+  # stat -f is macOS (returns YYYY-MM-DD directly via -t).
+  # Linux uses stat -c "%y" which emits "YYYY-MM-DD HH:MM:SS.ns +TZ"; cut to the date.
+  # The `{ ... ; }` group on the Linux branch makes the operator precedence explicit:
+  # `cut` only runs after the Linux stat, never paired with the macOS one.
   mtime=$(stat -f "%Sm" -t "%Y-%m-%d" "$log_path" 2>/dev/null \
-          || stat -c "%y" "$log_path" 2>/dev/null | cut -d' ' -f1)
+          || { stat -c "%y" "$log_path" 2>/dev/null | cut -d' ' -f1; })
   if [ "$mtime" = "$today" ]; then
     exit 0
   fi

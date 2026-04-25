@@ -390,7 +390,7 @@ requires-dist = [
 
 [[package]]
 name = "fb-claude-skills"
-version = "0.24.1"
+version = "0.24.2"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -1591,7 +1591,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.6.1"
+version = "0.6.2"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

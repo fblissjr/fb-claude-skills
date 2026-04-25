@@ -1,5 +1,10 @@
 # changelog
 
+## 0.24.2
+
+### changed
+- **skill-maintainer 0.6.1 -> 0.6.2**: code-clarity polish in `hooks/maybe-draft-session-log.sh` (no behavior change). Combined the test-then-capture pair `if ! git rev-parse ...; then exit 0; fi; repo_root=$(git rev-parse ...)` into one capture-with-fallback `repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0` -- saves one fork in the hot path and removes the small worktree-changed-between-calls TOCTOU window. Wrapped the Linux `stat -c "%y" | cut` branch in `{ ... ; }` so the `||` / `|` operator precedence is unambiguous to a future reader; the macOS branch never paired with `cut` at runtime, but the unwrapped form looked like `cut` was a shared post-process for both branches. Same five-scenario regression suite from 0.6.1 still passes. last_verified bumped on all six sub-skills.
+
 ## 0.24.1
 
 ### fixed

@@ -1,6 +1,6 @@
 [project]
 name = "fb-claude-skills"
-version = "0.24.1"
+version = "0.24.2"
 description = "Plugin marketplace and extension system for Claude Code"
 license = "MIT"
 requires-python = ">=3.11"
