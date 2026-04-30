@@ -1,5 +1,5 @@
 {
-  "description": "path-privacy hook: when a session starts in a git repo, inject the rule (paths must be repo-relative; never advertise leak-fixing).",
+  "description": "path-privacy hooks: SessionStart injects the rule directive into a git-repo session; PreToolUse Write/Edit blocks would-be leaks before bytes hit disk (the git pre-commit hook remains the authoritative gate).",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,18 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh",
+            "timeout": 3000
           }
         ]
       }
