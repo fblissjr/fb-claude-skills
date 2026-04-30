@@ -10,7 +10,7 @@ description: >-
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
   author: Fred Bliss
-  version: 0.1.2
+  version: 0.1.3
   last_verified: 2026-04-30
 allowed-tools: "Bash,Read,Edit"
 ---
@@ -63,6 +63,8 @@ The privacy guarantee fails the moment the activity is advertised.
 | Audit a string (file-content tone) | `... --text 'see /Users/jamie/proj'` | Strict boundary; mirrors the file-content scan |
 | Audit a commit message or branch name | `... --text 'fix/Users/jamie/path' --lax-boundary` | Lax boundary catches `/Users/` segments embedded right after a word char (e.g. `fix/Users/...`). Used by the commit-msg hook for both message body and branch name. |
 | Use a custom suggestion config | `... --config path/to/config.json` | Override the auto-resolved `<repo-root>/.path-privacy.local.json`. See "Per-repo suggestions" below. |
+| Scrub (preview) | `bash <plugin-root>/skills/path-privacy/scripts/scrub-paths.sh -d .` | Dry-run by default; prints unified diff per file. Reads same `.path-privacy.local.json` config. |
+| Scrub (write) | `... --apply` | Apply the substitutions in place. |
 | Install git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh` | Adds pre-commit + commit-msg into the current repo, preserving existing hooks |
 | Uninstall git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --uninstall` | Restores any preserved `.local` hook |
 
@@ -81,8 +83,9 @@ A line containing the literal token `path-privacy: ignore` is skipped by the sca
 Drop a `.path-privacy.local.json` at the repo root (gitignore it!) to enrich
 each finding with an actionable replacement specific to your machine. With it,
 a finding line is followed by `→ use: <substituted form>` instead of the
-generic "use a relative path" message. The scanner auto-loads the file when
-present; absent, behavior is unchanged.
+generic "use a relative path" message. The same config drives the
+`scrub-paths.sh` script (see "Scrubbing" below). The scanner auto-loads the
+file when present; absent, behavior is unchanged.
 
 ```json
 {
@@ -104,12 +107,41 @@ scanner.
 
 A starter template lives at `references/path-privacy.local.json.example`.
 
+## Scrubbing
+
+Once a `.path-privacy.local.json` is in place, `scrub-paths.sh` applies the
+same substitutions to files in the working tree. Two-phase: dry-run by
+default (prints `diff -u`), `--apply` writes.
+
+```bash
+# Preview what would change across the repo
+bash <plugin-root>/skills/path-privacy/scripts/scrub-paths.sh -d .
+
+# Preview a single file
+bash <plugin-root>/skills/path-privacy/scripts/scrub-paths.sh -f docs/foo.md
+
+# Preview the staged set (same selection as the pre-commit hook)
+bash <plugin-root>/skills/path-privacy/scripts/scrub-paths.sh --staged
+
+# Once the diff looks right, write
+... --apply
+```
+
+The scrub honors the same `path-privacy: skip-file` marker as the scanner
+(file-level opt-out via the first 30 lines), and is a no-op on files that
+contain none of the configured `match` substrings. Substitutions are applied
+longest-first so a more-specific entry wins over a less-specific one.
+
+This is a literal substring substitution; it does not rewrite quoted strings,
+escape paths in code, or do any AST-aware transformation. Always review the
+diff before `--apply`.
+
 ## Workflow when a leak is found
 
 ### Pre-commit hook fired
 
 1. The hook prints `<file>:<lineno>: <match>` for each finding.
-2. Open the file, replace the absolute portion with a repo-relative path or a generic name.
+2. Open the file, replace the absolute portion with a repo-relative path or a generic name. (Or: `scrub-paths.sh --staged` to preview a config-driven fix.)
 3. Re-stage. Re-commit. Use a vague commit message — not "remove leaked path".
 4. Move on.
 
@@ -123,10 +155,9 @@ History rewrites are out of scope for v0.1.0. If you must:
 
 ## What this plugin does NOT do
 
-- It does not auto-redact found leaks. Removal is manual — that is intentional, since auto-replace can mangle code.
+- It does not auto-apply fixes without explicit `--apply`. Default is dry-run with diff preview, since auto-replace can mangle code.
 - It does not scan for arbitrary secrets (API keys, JWTs, etc.). For that, use the `scan-for-secrets` plugin.
 - It does not rewrite git history.
-- It does not run as a `PreToolUse` hook on `Edit`/`Write`. The git hooks plus the SessionStart directive are sufficient.
 
 ## References
 
