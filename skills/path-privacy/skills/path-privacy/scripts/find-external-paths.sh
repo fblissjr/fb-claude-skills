@@ -101,11 +101,11 @@ SKIPS=(
 
 # Strict pattern: requires non-word-non-slash on the left so identifiers like
 # `myUsers/...` don't match. Used for file content.
-PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z._-]+>)*)'
+PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
 # Lax pattern: no left boundary. Used for commit messages and branch names where
 # the embedding context (e.g., `fix/Users/jamie`) puts a word char immediately
 # before the path segment.
-PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z._-]+>)*)'
+PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
 
 IGNORE_MARKER='path-privacy: ignore'
 FILE_SKIP_MARKER='path-privacy: skip-file'
