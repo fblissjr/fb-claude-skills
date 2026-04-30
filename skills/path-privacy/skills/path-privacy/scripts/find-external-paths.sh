@@ -81,7 +81,12 @@ if [ $STAGED -eq 1 ]; then
   done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
 fi
 
-if [ ${#DIRS[@]} -eq 0 ] && [ ${#FILES[@]} -eq 0 ] && [ -z "$TEXT" ]; then
+# Default to scanning the cwd ONLY if no explicit target mode was selected.
+# `--staged` is an explicit target mode even when its file list comes back
+# empty (e.g. `git commit` is forming, the staged set has no
+# matching-pattern paths) — in that case we want a clean exit, not a
+# whole-tree scan that surfaces unrelated unstaged leaks.
+if [ $STAGED -eq 0 ] && [ ${#DIRS[@]} -eq 0 ] && [ ${#FILES[@]} -eq 0 ] && [ -z "$TEXT" ]; then
   DIRS=(".")
 fi
 
