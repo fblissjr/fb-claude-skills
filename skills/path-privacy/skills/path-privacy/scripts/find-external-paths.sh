@@ -8,9 +8,23 @@
 #
 # Usage:
 #   find-external-paths.sh [-d <dir>]... [-f <file>]... [--staged] [--text <string>]
-#                          [--lax-boundary] [--against-root <path>] [--quiet]
+#                          [--lax-boundary] [--against-root <path>] [--config <path>]
+#                          [--quiet]
 #
 # Exit 0 = clean, 1 = at least one leak, 2 = bad usage.
+#
+# Optional config (--config or auto-loaded from <ROOT>/.path-privacy.local.json):
+#   {
+#     "suggestions": [
+#       {"match": "/home/foo/ComfyUI/", "suggest": "<comfyui>/"},
+#       {"match": "/home/foo/",         "suggest": "<home>/"}
+#     ]
+#   }
+# Each finding whose matched text contains a `match` substring gets an
+# additional `→ use: ...` line showing the substituted form. Suggestions
+# are auto-sorted longest-match-first so specific entries win over general
+# ones; the user does not need to order them by hand. Requires jq;
+# silently no-ops if jq is missing or the config is malformed.
 #
 # `set -u` only (not `set -eu`): per-file errors (unreadable file, malformed
 # content) should not abort the rest of the scan.
@@ -29,8 +43,9 @@ TEXT=""
 ROOT=""
 QUIET=0
 LAX=0
+CONFIG_PATH=""
 
-usage() { sed -n '2,15p' "$0"; }
+usage() { sed -n '2,21p' "$0"; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,6 +55,7 @@ while [ $# -gt 0 ]; do
     --text)            TEXT="$2"; shift 2 ;;
     --lax-boundary)    LAX=1; shift ;;
     --against-root)    ROOT="$2"; shift 2 ;;
+    --config)          CONFIG_PATH="$2"; shift 2 ;;
     --quiet)           QUIET=1; shift ;;
     -h|--help)         usage; exit 0 ;;
     *) echo "find-external-paths: unknown arg: $1" >&2; usage; exit 2 ;;
@@ -108,6 +124,50 @@ is_placeholder_user() {
   return 1
 }
 
+# --- Suggestion config: parallel arrays of (match-substring, suggested-replacement).
+# Loaded from --config or auto-resolved <ROOT>/.path-privacy.local.json.
+# Sorted longest-match-first so specific entries win over more general ones.
+SUGGEST_MATCH=()
+SUGGEST_TO=()
+
+load_suggestions() {
+  local cfg="${CONFIG_PATH:-$ROOT/.path-privacy.local.json}"
+  [ -f "$cfg" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  # jq sorts by match-length descending so we don't burden the user with ordering.
+  local m s
+  while IFS=$'\t' read -r m s; do
+    [ -z "$m" ] && continue
+    SUGGEST_MATCH+=("$m")
+    SUGGEST_TO+=("$s")
+  done < <(jq -r '
+    .suggestions // []
+    | sort_by(.match | length) | reverse
+    | .[]
+    | "\(.match)\t\(.suggest // "")"
+  ' "$cfg" 2>/dev/null || true)
+}
+
+# Return 0 + print substituted form on stdout if a suggestion matches; else return 1.
+lookup_suggestion() {
+  local matched="$1"
+  local i m s
+  for (( i=0; i<${#SUGGEST_MATCH[@]}; i++ )); do
+    m="${SUGGEST_MATCH[$i]}"
+    s="${SUGGEST_TO[$i]}"
+    case "$matched" in
+      *"$m"*)
+        printf '%s\n' "${matched/$m/$s}"
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+load_suggestions
+
 inside_root() {
   case "$1" in
     "$ROOT"|"$ROOT"/*) return 0 ;;
@@ -142,7 +202,12 @@ resolve_path() {
 }
 
 emit_finding() {
-  [ $QUIET -eq 0 ] && printf '%s:%s: %s\n' "$1" "$2" "$3"
+  [ $QUIET -eq 1 ] && return
+  printf '%s:%s: %s\n' "$1" "$2" "$3"
+  local sug
+  if sug=$(lookup_suggestion "$3"); then
+    printf '  → use: %s\n' "$sug"
+  fi
 }
 
 FOUND=0

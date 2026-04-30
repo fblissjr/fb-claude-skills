@@ -1,0 +1,11 @@
+{
+  "_comment": "path-privacy: skip-file — Starter template. Copy to <your-repo>/.path-privacy.local.json (gitignore it!), then edit the entries below for your machine. The scanner auto-loads the file and emits '→ use: <substituted form>' lines after each leak finding. Each `match` is a literal substring (not a regex). Entries are auto-sorted longest-first, so list them in any order — the most specific one wins.",
+  "suggestions": [
+    {"match": "/Users/USERNAME/code/PROJECT/", "suggest": "<repo>/"},
+    {"match": "/Users/USERNAME/",              "suggest": "<home>/"},
+    {"match": "/home/USERNAME/CODE/PROJECT/",  "suggest": "<repo>/"},
+    {"match": "/home/USERNAME/",               "suggest": "<home>/"},
+    {"match": "~/Library/Caches/",             "suggest": "<cache>/"},
+    {"match": "~/.claude/",                    "suggest": "<claude-config>/"}
+  ]
+}
