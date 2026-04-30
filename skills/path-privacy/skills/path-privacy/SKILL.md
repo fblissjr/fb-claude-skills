@@ -10,8 +10,8 @@ description: >-
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
   author: Fred Bliss
-  version: 0.1.1
-  last_verified: 2026-04-25
+  version: 0.1.2
+  last_verified: 2026-04-30
 allowed-tools: "Bash,Read,Edit"
 ---
 
@@ -62,6 +62,7 @@ The privacy guarantee fails the moment the activity is advertised.
 | Audit staged changes | `... --staged` | Same logic as the pre-commit hook |
 | Audit a string (file-content tone) | `... --text 'see /Users/jamie/proj'` | Strict boundary; mirrors the file-content scan |
 | Audit a commit message or branch name | `... --text 'fix/Users/jamie/path' --lax-boundary` | Lax boundary catches `/Users/` segments embedded right after a word char (e.g. `fix/Users/...`). Used by the commit-msg hook for both message body and branch name. |
+| Use a custom suggestion config | `... --config path/to/config.json` | Override the auto-resolved `<repo-root>/.path-privacy.local.json`. See "Per-repo suggestions" below. |
 | Install git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh` | Adds pre-commit + commit-msg into the current repo, preserving existing hooks |
 | Uninstall git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --uninstall` | Restores any preserved `.local` hook |
 
@@ -74,6 +75,34 @@ Each finding is one line: `<file>:<lineno>: <matched-token>`. After all findings
 ## Per-line opt-out
 
 A line containing the literal token `path-privacy: ignore` is skipped by the scanner. Use sparingly — only on lines that are themselves examples or placeholders that legitimately need to mention an external-looking path (e.g., the regex source, a doc snippet showing what the rule catches).
+
+## Per-repo suggestions (optional)
+
+Drop a `.path-privacy.local.json` at the repo root (gitignore it!) to enrich
+each finding with an actionable replacement specific to your machine. With it,
+a finding line is followed by `→ use: <substituted form>` instead of the
+generic "use a relative path" message. The scanner auto-loads the file when
+present; absent, behavior is unchanged.
+
+```json
+{
+  "suggestions": [
+    {"match": "/Users/foo/code/myrepo/", "suggest": "<repo>/"},
+    {"match": "/Users/foo/",             "suggest": "<home>/"},
+    {"match": "~/Library/Caches/",       "suggest": "<cache>/"}
+  ]
+}
+```
+
+Each entry's `match` is a literal substring (not a regex); `suggest` is the
+text that replaces it. Entries are auto-sorted longest-match-first so the
+most specific entry wins regardless of how you order them. Requires `jq`;
+silently no-ops if `jq` is missing or the file is malformed.
+
+To use a config file at a non-default path, pass `--config <path>` to the
+scanner.
+
+A starter template lives at `references/path-privacy.local.json.example`.
 
 ## Workflow when a leak is found
 
@@ -103,4 +132,5 @@ History rewrites are out of scope for v0.1.0. If you must:
 
 - `references/patterns.md` — exact regex shapes, placeholder allowlist, edge cases
 - `references/scrub_workflow.md` — how to remove leaks quietly (current changes and historical commits)
+- `references/path-privacy.local.json.example` — starter suggestion config
 - Sister plugin: `scan-for-secrets` (broader privacy/secret sweep)
