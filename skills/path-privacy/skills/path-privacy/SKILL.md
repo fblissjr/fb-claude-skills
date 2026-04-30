@@ -10,7 +10,7 @@ description: >-
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
   author: Fred Bliss
-  version: 0.1.3
+  version: 0.1.4
   last_verified: 2026-04-30
 allowed-tools: "Bash,Read,Edit"
 ---

@@ -101,11 +101,11 @@ SKIPS=(
 
 # Strict pattern: requires non-word-non-slash on the left so identifiers like
 # `myUsers/...` don't match. Used for file content.
-PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))[^[:space:]"'"'"'`<>()\[\]\\]*)'
+PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z._-]+>)*)'
 # Lax pattern: no left boundary. Used for commit messages and branch names where
 # the embedding context (e.g., `fix/Users/jamie`) puts a word char immediately
 # before the path segment.
-PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))[^[:space:]"'"'"'`<>()\[\]\\]*)'
+PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z._-]+>)*)'
 
 IGNORE_MARKER='path-privacy: ignore'
 FILE_SKIP_MARKER='path-privacy: skip-file'
@@ -215,6 +215,25 @@ FOUND=0
 # Decide whether a candidate path is a leak; emit + flag if so.
 check_candidate() {
   local label="$1" lineno="$2" cand="$3"
+
+  # Bare leak-prefix with no segment after (e.g. "/home/", "/Users/", "~/")
+  # is not a real leak. The pattern matches these when it terminates early
+  # against an excluded char like `<` (so a doc reference such as
+  # "/home/<user>/foo" yields a candidate of just "/home/" which would
+  # otherwise resolve outside the repo and falsely flag). The bare prefix
+  # is also benign in shell-history-style references like "cd /home/".
+  case "$cand" in
+    /Users/|/home/|'~/') return 0 ;;
+  esac
+
+  # Any path containing a <placeholder> segment is treated as documentation,
+  # not a real path. Covers cases like "~/.claude/<plan-name>.md" and
+  # "/Users/<your-name>/code/x" without enumerating every placeholder
+  # word in PLACEHOLDER_USERS.
+  case "$cand" in
+    *'<'*'>'*) return 0 ;;
+  esac
+
   local user_seg=""
   case "$cand" in
     /Users/*) user_seg="${cand#/Users/}"; user_seg="${user_seg%%/*}" ;;
