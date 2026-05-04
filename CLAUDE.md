@@ -8,7 +8,6 @@ Plugin marketplace and extension system for Claude Code. Bundles skills, agents,
 
 ## Working agreements
 
-- TDD red/green for behavioral changes.
 - At session end, update what's actually relevant: `internal/log/log_YYYY-MM-DD.md`, this file (only if a hub-level rule changed), READMEs of impacted units, `pyproject.toml` of impacted units. Don't bulk-update untouched files.
 - `.claude/rules/` plus the SessionStart hooks from `dev-conventions`, `path-privacy`, `dimensional-modeling`, `mece-decomposer`, and `env-forge` already inject language tooling (uv, bun, orjson), TDD, doc conventions, path-privacy, MECE, and dimensional modeling rules. Don't restate those here.
 
