@@ -63,6 +63,8 @@ The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~2
 
 ## Count drift across files
 
-Three places in the repo claim file/report counts that drift independently: `README.md` (root), `docs/README.md`, and (historically) `CLAUDE.md`. The fix: don't include numbers. Say "domain reports" or "sub-skills", not "16 domain reports" or "6 sub-skills". The filesystem is the source of truth; descriptions that don't claim a count never go stale.
+Multiple places in the repo (root `README.md`, `docs/README.md`, historically `CLAUDE.md`) have at various times asserted counts of files — domain reports, captured docs, sub-skills, plugins. These drift independently as the filesystem evolves, and any single number falls out of sync within a release or two.
 
-This rule will be partially enforced once `skill-maintain lint` ships (planned next minor): orphan + count-drift detection across the doc tree.
+The fix: don't include numbers in prose. Say "domain reports" rather than a hardcoded count. The filesystem is the source of truth; descriptions that don't claim a count never go stale.
+
+`skill-maintain lint` enforces this. It scans `README.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for count assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem reality. Soft finding (exit 0); not a CI block.

@@ -1,0 +1,128 @@
+"""Lint the doc tree: orphan detection in docs/analysis/, count drift across READMEs and CLAUDE.md.
+
+This is the wiki-sanity pass: catches files that exist on disk but aren't linked from any
+index, and prose claims like "16 reports" that disagree with the filesystem. Both are
+soft findings -- exit 0 always. The lint pass runs on demand (`skill-maintain lint`),
+not on every commit. Cross-reference and stale-claim heuristics are deferred to v2.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+
+ANALYSIS_DIR = Path("docs/analysis")
+INDEX_FILES = [Path("docs/README.md"), Path("docs/analysis/index.md")]
+
+
+def find_orphans(root: Path) -> list[str]:
+    """Files in docs/analysis/ not linked from any index file."""
+    analysis_dir = root / ANALYSIS_DIR
+    if not analysis_dir.exists():
+        return []
+
+    candidates = sorted(p.name for p in analysis_dir.glob("*.md"))
+    candidates = [f for f in candidates if f not in {"index.md", "log.md"}]
+
+    linked: set[str] = set()
+    for index_path in INDEX_FILES:
+        full = root / index_path
+        if not full.exists():
+            continue
+        text = full.read_text(encoding="utf-8")
+        for match in re.finditer(r"analysis/([\w_-]+\.md)", text):
+            linked.add(match.group(1))
+
+    return [f for f in candidates if f not in linked]
+
+
+COUNT_PATTERNS = [
+    (
+        re.compile(r"\b(\d+)\s+domain reports\b", re.IGNORECASE),
+        "domain reports",
+        lambda root: sum(
+            1 for p in (root / "docs/analysis").glob("*.md")
+            if p.name not in {"index.md", "log.md"}
+        ),
+    ),
+    (
+        re.compile(r"\b(\d+)\s+captured (?:upstream )?docs\b", re.IGNORECASE),
+        "captured docs",
+        lambda root: sum(1 for _ in (root / "docs/claude-docs").glob("*.md")),
+    ),
+    (
+        re.compile(r"\b(\d+)\s+reports covering\b", re.IGNORECASE),
+        "reports covering",
+        lambda root: sum(
+            1 for p in (root / "docs/analysis").glob("*.md")
+            if p.name not in {"index.md", "log.md"}
+        ),
+    ),
+]
+
+
+def find_count_drift(root: Path, scan_files: list[Path]) -> list[tuple[Path, int, str, int, int]]:
+    """Return (file, line_no, label, claimed, actual) tuples where counts disagree."""
+    findings = []
+    for path in scan_files:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for line_no, line in enumerate(text.splitlines(), 1):
+            for pattern, label, counter in COUNT_PATTERNS:
+                m = pattern.search(line)
+                if not m:
+                    continue
+                claimed = int(m.group(1))
+                actual = counter(root)
+                if claimed != actual:
+                    findings.append((path, line_no, label, claimed, actual))
+    return findings
+
+
+def main(args=None):
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Lint the doc tree: orphan detection + count drift. Soft findings only -- exit 0 always."
+    )
+    parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory (default: .)")
+    parsed = parser.parse_args(args)
+
+    root = parsed.dir.resolve()
+
+    print(f"# skill-maintain lint -- {root}\n")
+
+    orphans = find_orphans(root)
+    print("## Orphans in docs/analysis/\n")
+    if orphans:
+        for f in orphans:
+            print(f"  - {f} (not linked from docs/README.md or docs/analysis/index.md)")
+    else:
+        print("  (none)")
+    print()
+
+    scan_files = [
+        root / "README.md",
+        root / "CLAUDE.md",
+        root / "docs/README.md",
+    ]
+    internals = root / "docs/internals"
+    if internals.exists():
+        scan_files += sorted(internals.glob("*.md"))
+
+    findings = find_count_drift(root, scan_files)
+    print("## Count drift\n")
+    if findings:
+        for path, line_no, label, claimed, actual in findings:
+            rel = path.relative_to(root)
+            print(f"  - {rel}:{line_no} -- claims {claimed} {label}, filesystem has {actual}")
+    else:
+        print("  (none)")
+    print()
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

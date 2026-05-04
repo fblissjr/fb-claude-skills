@@ -12,6 +12,7 @@ COMMANDS = {
     "sources": "skill_maintainer.sources",
     "test": "skill_maintainer.tests",
     "log": "skill_maintainer.log",
+    "lint": "skill_maintainer.lint",
     "init": None,  # handled inline
 }
 
@@ -30,6 +31,7 @@ Commands:
   upstream    Check for upstream doc changes (llms-full.txt)
   sources     Pull tracked git repos and detect changes
   log         Query the append-only changes log
+  lint        Wiki sanity: orphan detection in docs/analysis/, count drift across READMEs
 
 All commands accept --dir <path> to target a different directory (default: .)
 
@@ -41,6 +43,7 @@ Examples:
   skill-maintain upstream
   skill-maintain sources --no-pull
   skill-maintain log --days 7
+  skill-maintain lint
 """
 
 

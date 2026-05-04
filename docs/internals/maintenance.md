@@ -30,6 +30,7 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Bump version across plugin.json + marketplace.json + primary SKILL.md + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
 | Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `/skill-maintainer:sync-bundled-ref` |
 | Append-only audit log query | `skill-maintain log` |
+| Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
 | Cross-project dependency scan (macOS) | `./tools/dep-audit-scan.sh` |
 | Promote `agent-state` MCP server from `_available_servers` → `mcpServers` | `/agent-state-mcp:enable` |

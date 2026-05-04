@@ -1,5 +1,17 @@
 # changelog
 
+## 0.24.6
+
+### added
+- **skill-maintainer 0.6.5 -> 0.7.0**: new `skill-maintain lint` subcommand (wiki-sanity pass) plus the wiki layer it operates on.
+  - `skill_maintainer/lint.py` implements two checks today: (1) **orphan detection** in `docs/analysis/` — files on disk not linked from `docs/README.md` or `docs/analysis/index.md`; (2) **count drift** — scans `README.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem. Soft findings (exit 0); not a CI block. Cross-reference and stale-claim heuristics deferred to a future minor.
+  - `docs/analysis/index.md` (new): wiki-style index tagged by kind (entity / concept / audit / synthesis). Complements `docs/README.md`'s umbrella index by retrieving by intent.
+  - `docs/analysis/log.md` (new): append-only narrative log of ingests, updates, and audits with verb-prefixed `H2` headers (`ingest | update | audit`). Complements `.skill-maintainer/state/changes.jsonl` (operational, machine-readable) with the human-readable why behind significant updates.
+  - `docs/internals/maintenance.md` gains a `skill-maintain lint` row in the on-demand commands table.
+  - `cli.py` registers `lint` in `COMMANDS`, lists it in `--help`.
+  - Inspired by [Karpathy's LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — the model is appropriate specifically for `docs/analysis/` (an accumulating knowledge corpus about external systems) and not for CLAUDE.md / READMEs / SKILL.md (which have other purposes).
+- The lint pass paid for itself on its first run: caught a "16 domain reports" example I'd written into `docs/internals/gotchas.md` while documenting the rule that prose shouldn't include hardcoded counts. Rephrased without a count.
+
 ## 0.24.5
 
 ### changed
