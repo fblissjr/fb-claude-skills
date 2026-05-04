@@ -1,5 +1,16 @@
 # changelog
 
+## 0.24.7
+
+### added
+- **skill-maintainer 0.7.0 -> 0.8.0**: two new capabilities, both closing real gaps surfaced by the hub-and-spoke restructure.
+
+  **(1) Pre-commit hook is now a tracked, installable artifact.** The hook source moved from `.git/hooks/pre-commit` (untracked, lost on every fresh clone) to `tools/skill-maintainer/src/skill_maintainer/templates/pre-commit.sample` (bundled with the Python package). New `scaffold.py` module exposes `install_pre_commit_hook(root, force)`. `skill-maintain init` now calls it on every run: idempotent (skip if up-to-date), refuses to clobber a divergent existing hook unless `--force-hook` is passed (which preserves the prior hook as `.git/hooks/pre-commit.local` first), and degrades gracefully (`skipped: not a git repository`) outside git repos. The bundled hook is portable: version-alignment checks no-op in repos without `.claude-plugin/plugin.json`, the CLAUDE.md size guard no-ops if CLAUDE.md isn't staged. Replaces the brittle "copy from a teammate's clone" instruction in `docs/internals/gotchas.md`. The `init-maintenance` SKILL is refactored to delegate to `skill-maintain init` instead of writing its own minimal hook.
+
+  **(2) Lint v2 -- markdown link-rot detection.** `skill-maintain lint` gains a third pass: scans `README.md`, `CLAUDE.md`, `docs/README.md`, `docs/internals/*.md`, `docs/analysis/*.md`, and `VISION.md` for `[text](path)` links resolving to files that don't exist. Skips `http(s)://`, `mailto:`, and pure anchor (`#section`) links. Anchor fragments are stripped before existence checks. Links escaping the repo root are skipped (don't flag legitimate sibling-repo references). Caught one real broken link on its first run -- `docs/analysis/cross_surface_compatibility.md:401` pointed at `abstraction_analogies.md` which lives in sibling repo `star-schema-llm-context`, not here. Replaced with a path-privacy-clean prose reference.
+
+- `docs/analysis/log.md` seeded with two real entries (the wiki layer bootstrap and the 2026-05-04 upstream delta); accumulates forward from here. Historical operational events stay in `.skill-maintainer/state/changes.jsonl` (machine-readable) and are not backfilled into the narrative.
+
 ## 0.24.6
 
 ### added

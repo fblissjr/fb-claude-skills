@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Pre-commit hook: validate staged SKILL.md files + check version consistency
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM || true)
+
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+is_staged() { echo "$staged" | grep -qxF "$1"; }
+
+claude_md_size_check() {
+    if is_staged "CLAUDE.md" && [ -f "CLAUDE.md" ]; then
+        lines=$(wc -l < CLAUDE.md | tr -d ' ')
+        chars=$(wc -c < CLAUDE.md | tr -d ' ')
+        approx_tokens=$((chars / 4))
+        if [ "$lines" -gt 150 ] || [ "$approx_tokens" -gt 4000 ]; then
+            echo ""
+            echo "WARNING: CLAUDE.md size creep ($lines lines, ~$approx_tokens tokens)."
+            echo "  Soft limits: 150 lines / 4000 tokens. Move detail into docs/internals/<topic>.md spokes."
+            echo ""
+        fi
+    fi
+}
+
+failed=0
+
+# --- 1. Validate staged SKILL.md files with agentskills ---
+staged_skills=$(echo "$staged" | grep 'SKILL\.md$' || true)
+
+if [ -n "$staged_skills" ]; then
+    for skill_md in $staged_skills; do
+        skill_dir=$(dirname "$skill_md")
+        echo "Validating $skill_md..."
+        if ! uv run agentskills validate "$skill_dir" 2>&1; then
+            echo "FAIL: $skill_md did not pass skills-ref validation"
+            failed=1
+        fi
+    done
+fi
+
+# --- 2. Check version consistency + warn on unbumped content changes ---
+# Find unique plugin roots touched by staged files
+plugin_roots_str=""
+
+for f in $staged; do
+    dir="$f"
+    while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+        dir=$(dirname "$dir")
+        if [ -f "$dir/.claude-plugin/plugin.json" ]; then
+            if ! echo "$plugin_roots_str" | grep -qxF "$dir"; then
+                plugin_roots_str="${plugin_roots_str:+$plugin_roots_str
+}$dir"
+            fi
+            break
+        fi
+    done
+done
+
+if [ -z "$plugin_roots_str" ]; then
+    claude_md_size_check
+    exit "$failed"
+fi
+
+marketplace=".claude-plugin/marketplace.json"
+
+while IFS= read -r root; do
+    pjson="$root/.claude-plugin/plugin.json"
+    name=$(jq -r '.name' "$pjson")
+    truth=$(jq -r '.version' "$pjson")
+
+    # Track whether any version-bearing file is staged
+    version_file_staged=0
+
+    # Check marketplace.json version matches
+    if [ -f "$marketplace" ]; then
+        mp_ver=$(jq -r --arg n "$name" '.plugins[] | select(.name == $n) | .version // empty' "$marketplace")
+        if [ -n "$mp_ver" ] && [ "$mp_ver" != "$truth" ]; then
+            if is_staged "$marketplace"; then
+                echo "VERSION MISMATCH: $name marketplace.json=$mp_ver vs plugin.json=$truth"
+            else
+                echo "VERSION MISMATCH: $name plugin.json=$truth but marketplace.json ($mp_ver) is not staged"
+            fi
+            failed=1
+        fi
+    fi
+
+    # Check pyproject.toml version matches
+    if [ -f "$root/pyproject.toml" ]; then
+        pp_ver=$(grep -m1 '^version' "$root/pyproject.toml" | sed 's/.*= *"\(.*\)"/\1/')
+        if [ -n "$pp_ver" ] && [ "$pp_ver" != "$truth" ]; then
+            echo "VERSION MISMATCH: $name pyproject.toml=$pp_ver vs plugin.json=$truth"
+            failed=1
+        fi
+    fi
+
+    # Check SKILL.md metadata.version matches + track staged version files
+    if is_staged "$pjson"; then version_file_staged=1; fi
+    if is_staged "$marketplace"; then version_file_staged=1; fi
+    if [ -f "$root/pyproject.toml" ] && is_staged "$root/pyproject.toml"; then
+        version_file_staged=1
+    fi
+
+    if [ -d "$root/skills" ]; then
+        for skill_md in "$root"/skills/*/SKILL.md; do
+            [ -f "$skill_md" ] || continue
+            case "$skill_md" in *.backup/*) continue ;; esac
+            sk_ver=$(sed -n '/^---$/,/^---$/p' "$skill_md" | grep '^ *version:' | head -1 | sed 's/.*version: *//; s/[" ]//g')
+            if [ -n "$sk_ver" ] && [ "$sk_ver" != "$truth" ]; then
+                skill_name=$(basename "$(dirname "$skill_md")")
+                echo "VERSION MISMATCH: $name/$skill_name SKILL.md=$sk_ver vs plugin.json=$truth"
+                failed=1
+            fi
+            if is_staged "$skill_md"; then version_file_staged=1; fi
+        done
+    fi
+
+    # Warn if content changed but no version file staged
+    if [ "$version_file_staged" -eq 0 ]; then
+        echo ""
+        echo "WARNING: plugin '$name' has content changes but no version bump staged."
+        echo "  Installed users won't get these changes until the version is bumped."
+        echo "  Run: /skill-maintainer:sync-versions $name <new-version>"
+        echo ""
+    fi
+done <<< "$plugin_roots_str"
+
+claude_md_size_check
+
+if [ "$failed" -ne 0 ]; then
+    echo ""
+    echo "Commit blocked: fix errors above and try again."
+    echo "Version sync: /skill-maintainer:sync-versions <plugin> <version>"
+    exit 1
+fi

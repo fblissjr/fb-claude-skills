@@ -38,12 +38,18 @@ If you reset settings or clone fresh, re-disable. Trade-off: this repo gives up 
 
 ## Pre-commit hook is not tracked by git
 
-`.git/hooks/pre-commit` validates staged SKILL.md files (via `agentskills validate`), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** — must be re-applied on fresh clones.
+`.git/hooks/pre-commit` validates staged SKILL.md files (via `agentskills validate`), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** (git refuses to track `.git/`) — must be re-applied on fresh clones.
 
-To install on a fresh clone, until a scaffolding command is wired in:
+To install on a fresh clone:
 
-1. Copy the hook from a teammate's clone (`.git/hooks/pre-commit`), or
-2. Re-create from this repo's history — the most recent committed plugin source for the hook lives in skill-maintainer's release notes (search CHANGELOG.md for "pre-commit").
+```bash
+uv sync --all-packages           # installs the skill-maintainer package
+uv run skill-maintain init       # writes .skill-maintainer/config.json + installs the pre-commit hook
+```
+
+`skill-maintain init` is idempotent: re-running on a repo that already has the hook prints `already up to date`. To replace an existing hook (e.g., after a hook update), use `skill-maintain init --force-hook` — the prior hook is preserved as `.git/hooks/pre-commit.local` before the new one is written.
+
+The hook source lives in the Python package at `tools/skill-maintainer/src/skill_maintainer/templates/pre-commit.sample`, copied into `.git/hooks/pre-commit` by the installer. Updating the bundled hook is a normal plugin content change — bump skill-maintainer, refresh the sample, run `skill-maintain init --force-hook` in any clone that needs the new version.
 
 The hook uses `jq` for JSON parsing (not python3/orjson) since it runs outside the project venv. Bash 3.2 portability rules apply (see [plugin-patterns.md](plugin-patterns.md)).
 

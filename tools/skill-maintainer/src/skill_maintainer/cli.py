@@ -37,6 +37,7 @@ All commands accept --dir <path> to target a different directory (default: .)
 
 Examples:
   skill-maintain init
+  skill-maintain init --force-hook       # overwrite existing .git/hooks/pre-commit (preserves prior as .local)
   skill-maintain quality
   skill-maintain test --verbose
   skill-maintain validate --all
@@ -66,8 +67,10 @@ def main():
         from pathlib import Path
 
         from skill_maintainer.config import init_config
+        from skill_maintainer.scaffold import install_pre_commit_hook
 
         root = Path(".")
+        force_hook = "--force-hook" in sys.argv
         # Check for --dir
         if "--dir" in sys.argv:
             idx = sys.argv.index("--dir")
@@ -77,6 +80,9 @@ def main():
         cfg_path = init_config(root)
         print(f"Initialized {cfg_path}")
         print(f"Edit {cfg_path} to configure upstream URLs and tracked repos.")
+
+        hook_status = install_pre_commit_hook(root, force=force_hook)
+        print(f"Pre-commit hook: {hook_status}")
         sys.exit(0)
 
     # Dynamic import and dispatch

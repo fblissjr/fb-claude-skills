@@ -1,9 +1,10 @@
-"""Lint the doc tree: orphan detection in docs/analysis/, count drift across READMEs and CLAUDE.md.
+"""Lint the doc tree: orphan detection, count drift, and link-rot.
 
 This is the wiki-sanity pass: catches files that exist on disk but aren't linked from any
-index, and prose claims like "16 reports" that disagree with the filesystem. Both are
-soft findings -- exit 0 always. The lint pass runs on demand (`skill-maintain lint`),
-not on every commit. Cross-reference and stale-claim heuristics are deferred to v2.
+index, prose claims like "16 reports" that disagree with the filesystem, and markdown
+links pointing at files that don't exist. All three are soft findings -- exit 0 always.
+The lint pass runs on demand (`skill-maintain lint`), not on every commit.
+Cross-reference suggestions and stale-claim heuristics are deferred to a future minor.
 """
 
 import re
@@ -59,6 +60,40 @@ COUNT_PATTERNS = [
         ),
     ),
 ]
+
+
+MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+
+
+def find_broken_links(root: Path, scan_files: list[Path]) -> list[tuple[Path, int, str]]:
+    """Markdown links pointing at files that don't exist on disk.
+
+    Skips URLs (`http://`, `https://`, `mailto:`) and pure anchor links (`#section`).
+    Resolves relative links against the file containing them. Anchor fragments are
+    stripped before existence checks.
+    """
+    findings = []
+    for path in scan_files:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for line_no, line in enumerate(text.splitlines(), 1):
+            for m in MARKDOWN_LINK.finditer(line):
+                target = m.group(1).strip()
+                if target.startswith(("http://", "https://", "mailto:", "#")):
+                    continue
+                target_path = target.split("#", 1)[0]
+                if not target_path:
+                    continue
+                resolved = (path.parent / target_path).resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError:
+                    # Link escapes the repo root; skip rather than flag.
+                    continue
+                if not resolved.exists():
+                    findings.append((path, line_no, target))
+    return findings
 
 
 def find_count_drift(root: Path, scan_files: list[Path]) -> list[tuple[Path, int, str, int, int]]:
@@ -117,6 +152,22 @@ def main(args=None):
         for path, line_no, label, claimed, actual in findings:
             rel = path.relative_to(root)
             print(f"  - {rel}:{line_no} -- claims {claimed} {label}, filesystem has {actual}")
+    else:
+        print("  (none)")
+    print()
+
+    link_scan_files = list(scan_files)
+    analysis = root / "docs/analysis"
+    if analysis.exists():
+        link_scan_files += sorted(analysis.glob("*.md"))
+    link_scan_files += [root / "VISION.md"]
+
+    broken = find_broken_links(root, link_scan_files)
+    print("## Broken markdown links\n")
+    if broken:
+        for path, line_no, target in broken:
+            rel = path.relative_to(root)
+            print(f"  - {rel}:{line_no} -- {target}")
     else:
         print("  (none)")
     print()

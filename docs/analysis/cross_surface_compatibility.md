@@ -398,7 +398,7 @@ No automated cross-surface testing framework exists. Cowork and Claude.ai intera
 
 Analysis reports in this repository:
 
-- [abstraction_analogies.md](abstraction_analogies.md) -- Selection under constraint framework
+- `abstraction_analogies.md` (in sibling repo `star-schema-llm-context`) -- Selection-under-constraint framework
 - [claude_skills_best_practices_guide_full_report.md](claude_skills_best_practices_guide_full_report.md) -- Skill authoring best practices
 - [skills_guide_structured.md](skills_guide_structured.md) -- Structured extraction from Anthropic skills guide
 - [skills_guide_analysis.md](skills_guide_analysis.md) -- Gap analysis of skills capabilities
