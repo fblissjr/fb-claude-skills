@@ -1,5 +1,10 @@
 # changelog
 
+## 0.24.3
+
+### fixed
+- **skill-maintainer 0.6.2 -> 0.6.3**: `skill-maintain log` crashed with `AttributeError: 'dict' object has no attribute 'split'` whenever the tail window included an `upstream_check` event written by v0.4.0+. Background: in v0.4.0, `upstream._log_event` was upgraded to record each changed page as a dict (`{"url", "status", "lines_added", "lines_removed", "chars_delta"}`) so subsequent `upstream` runs could compute deltas; `log.py` was not updated and still treated `changed_pages` entries as bare URL strings, calling `.split('/')` on the dict. The log file now mixes both shapes (older entries are strings, post-0.4.0 entries are dicts), so the formatter has to handle both. Fixed in `log.py:62-64` by extracting `url` if the entry is a dict, otherwise using the value directly, then taking the basename via `rstrip('/').split('/')[-1]`. Verified by re-running `skill-maintain log --tail 5` on this repo's `changes.jsonl`, which contains both shapes.
+
 ## 0.24.2
 
 ### changed

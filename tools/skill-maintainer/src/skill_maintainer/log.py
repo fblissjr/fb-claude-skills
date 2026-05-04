@@ -60,7 +60,8 @@ def main(args=None):
             pages = event.get("changed_pages", [])
             detail = f"{n} pages changed" if n else "no changes"
             if pages:
-                detail += f": {', '.join(p.split('/')[-1] for p in pages[:3])}"
+                urls = [p["url"] if isinstance(p, dict) else p for p in pages[:3]]
+                detail += f": {', '.join(u.rstrip('/').split('/')[-1] for u in urls)}"
         elif event_type == "source_pull":
             n = event.get("repos_changed", 0)
             repos = [c["repo"].replace("coderef/", "") for c in event.get("changes", [])]

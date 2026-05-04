@@ -8,8 +8,8 @@ description: >-
   work session. Invoke with /skill-maintainer:finish-session.
 metadata:
   author: Fred Bliss
-  version: 0.6.2
-  last_verified: 2026-04-25
+  version: 0.6.3
+  last_verified: 2026-05-04
 ---
 
 # Finish Session

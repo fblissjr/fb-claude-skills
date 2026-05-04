@@ -1,4 +1,4 @@
-last updated: 2026-04-19
+last updated: 2026-05-04
 
 # skill-maintainer
 
@@ -42,6 +42,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 | Event | What | When |
 |-------|------|------|
 | `PostToolUse` (`Edit`/`Write`/`MultiEdit`) | `sync-bundled-ref.sh` | Auto-mirrors `.skill-maintainer/best_practices.md` -> `skills/skill-maintainer/references/best_practices.md` so fresh `skill-maintain init` in new repos pulls the latest rules. `cmp -s` gated; silent no-ops; exit 0 always. |
+| `Stop` | `maybe-draft-session-log.sh` | When the session touched >= 3 substantive files (excluding logs, lock files, `.skill-maintainer/state/`) AND today's `internal/log/log_YYYY-MM-DD.md` doesn't exist or wasn't modified today, prints a one-line stderr nudge pointing at `/skill-maintainer:finish-session`. Honors `stop_hook_active=true`; never blocks; exit 0 always. |
 
 ## usage examples
 

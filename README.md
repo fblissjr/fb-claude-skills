@@ -1,4 +1,4 @@
-last updated: 2026-04-25
+last updated: 2026-05-04
 
 # fb-claude-skills
 
@@ -150,6 +150,8 @@ Once installed, invoke as namespaced slash commands:
 /skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:init-maintenance     # Set up maintenance in a new repo
 /skill-maintainer:sync-versions tui-design 0.3.0  # Bump version across all sources
+/skill-maintainer:sync-bundled-ref     # Mirror working-copy best_practices.md to bundled ref
+/skill-maintainer:finish-session       # Orchestrate end-of-session: log -> sync -> bumps -> quality
 ```
 
 ### keyword activation
@@ -214,17 +216,17 @@ Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI pac
 
 ```bash
 uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer
-skill-maintain init
+uv run skill-maintain init
 ```
 
 Common CLI commands:
 
 ```bash
-skill-maintain test              # red/green test suite
-skill-maintain quality           # validation + budget + freshness report
-skill-maintain upstream          # check Claude Code docs for changes
-skill-maintain sources           # pull tracked repos, detect changes
-skill-maintain log --tail 5      # query audit log
+uv run skill-maintain test              # red/green test suite
+uv run skill-maintain quality           # validation + budget + freshness report
+uv run skill-maintain upstream          # check Claude Code docs for changes
+uv run skill-maintain sources           # pull tracked repos, detect changes
+uv run skill-maintain log --tail 5      # query audit log
 ```
 
 The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources -> upstream -> quality -> review`. See [skill-maintainer CLI README](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.
