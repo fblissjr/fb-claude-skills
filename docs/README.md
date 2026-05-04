@@ -1,4 +1,4 @@
-last updated: 2026-03-30
+last updated: 2026-05-04
 
 # documentation
 
@@ -12,6 +12,17 @@ Authoritative index for all documentation in this repository.
 
 See also the root [README.md](../README.md) for plugin installation, surface compatibility, and usage instructions.
 
+## internals (`internals/`)
+
+Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md) hub.
+
+| Document | Description |
+|----------|-------------|
+| [plugin-versioning.md](internals/plugin-versioning.md) | Full version cascade for plugin content changes; `sync-versions` coverage gaps; worked example |
+| [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; agents; bash 3.2 portability |
+| [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
+| [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
+
 ## package documentation
 
 | Document | Description |
@@ -21,7 +32,7 @@ See also the root [README.md](../README.md) for plugin installation, surface com
 
 ## domain reports (`analysis/`)
 
-Design documents and research created during development. 15 reports covering the full Claude extension ecosystem.
+Design documents and research created during development. Cover the full Claude extension ecosystem.
 
 | Document | Description |
 |----------|-------------|

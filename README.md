@@ -233,7 +233,7 @@ The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources 
 
 ## documentation
 
-See [docs/README.md](docs/README.md) for the full documentation index: 16 domain reports, ecosystem synthesis, internals reference, and 18 captured upstream docs.
+See [docs/README.md](docs/README.md) for the full documentation index: domain reports, ecosystem synthesis, internals reference, and captured upstream docs.
 
 Highlights:
 - [Claude Ecosystem Synthesis](docs/reports/claude_ecosystem_synthesis.md) -- full ecosystem overview, decision tree, maturity assessment

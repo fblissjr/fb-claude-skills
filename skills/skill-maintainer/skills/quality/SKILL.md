@@ -6,7 +6,7 @@ description: >-
   "validate skills", "skill health", "are my skills ok". Invoke with /skill-maintainer:quality.
 metadata:
   author: Fred Bliss
-  version: 0.6.4
+  version: 0.6.5
   last_verified: 2026-05-04
 ---
 

@@ -1,5 +1,19 @@
 # changelog
 
+## 0.24.5
+
+### changed
+- **CLAUDE.md restructured to hub-and-spoke.** Trimmed root `CLAUDE.md` from ~270 lines to ~60 by lifting four content domains into `docs/internals/` spokes loaded by reference:
+  - `docs/internals/plugin-versioning.md` — full version cascade, sync-versions coverage gaps, sub-skill alignment block, worked example using the most recent skill-maintainer 0.6.4 bump.
+  - `docs/internals/plugin-patterns.md` — required structure, hooks-vs-skills, composable directives, agents, catalog-as-exemplar, bash 3.2 portability, greenfield-vs-production schema evolution.
+  - `docs/internals/maintenance.md` — full keep-fresh table, on-demand commands, state files, workspace member table.
+  - `docs/internals/gotchas.md` — best_practices.md duality, security-guidance hook disable, pre-commit hook re-installation, path-privacy interaction, CLAUDE.md size creep rule, count-drift rule.
+- The new CLAUDE.md is a hub: identity + working agreements + 5 repo invariants (the rules that bite on first edit) + a "Where to find what" index pointing at the spokes + state + cross-repo. Path leaks scrubbed (`~/.claude/...` → `<HOME>/.claude/...`; `~/claude/agentskills` description genericized).
+- Companion fix: the `last updated` date on `docs/README.md` refreshed and the "15 reports covering..." count claim dropped (the filesystem is the source of truth; counts in prose are drift surfaces). Same fix on root README's "16 domain reports" claim — was the wrong number anyway.
+
+### added
+- **skill-maintainer 0.6.4 -> 0.6.5**: pre-commit hook gains a CLAUDE.md size guard. When CLAUDE.md is staged AND its size exceeds 150 lines OR ~4000 tokens (chars/4 heuristic), the hook prints a stderr warning recommending the author move detail into a `docs/internals/<topic>.md` spoke. Warning only — does not block. Same exit semantics as the existing "unbumped content changes" warning. Implemented as a function `claude_md_size_check()` invoked in both exit paths of the hook so it fires regardless of whether plugin content was also staged. Bash 3.2 portable; uses `wc -l` and `wc -c` only.
+
 ## 0.24.4
 
 ### changed
