@@ -37,32 +37,34 @@ def find_orphans(root: Path) -> list[str]:
     return [f for f in candidates if f not in linked]
 
 
+def _count_analysis_reports(root: Path) -> int:
+    return sum(
+        1 for p in (root / "docs/analysis").glob("*.md")
+        if p.name not in {"index.md", "log.md"}
+    )
+
+
+def _count_captured_docs(root: Path) -> int:
+    return sum(1 for _ in (root / "docs/claude-docs").glob("*.md"))
+
+
 COUNT_PATTERNS = [
-    (
-        re.compile(r"\b(\d+)\s+domain reports\b", re.IGNORECASE),
-        "domain reports",
-        lambda root: sum(
-            1 for p in (root / "docs/analysis").glob("*.md")
-            if p.name not in {"index.md", "log.md"}
-        ),
-    ),
-    (
-        re.compile(r"\b(\d+)\s+captured (?:upstream )?docs\b", re.IGNORECASE),
-        "captured docs",
-        lambda root: sum(1 for _ in (root / "docs/claude-docs").glob("*.md")),
-    ),
-    (
-        re.compile(r"\b(\d+)\s+reports covering\b", re.IGNORECASE),
-        "reports covering",
-        lambda root: sum(
-            1 for p in (root / "docs/analysis").glob("*.md")
-            if p.name not in {"index.md", "log.md"}
-        ),
-    ),
+    (re.compile(r"\b(\d+)\s+domain reports\b", re.IGNORECASE), "domain reports", _count_analysis_reports),
+    (re.compile(r"\b(\d+)\s+captured (?:upstream )?docs\b", re.IGNORECASE), "captured docs", _count_captured_docs),
+    (re.compile(r"\b(\d+)\s+reports covering\b", re.IGNORECASE), "reports covering", _count_analysis_reports),
 ]
 
 
 MARKDOWN_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+
+
+def _safe_read(path: Path) -> str | None:
+    """Read file text or return None on any I/O failure. Honors the lint contract that
+    unreadable files don't crash the pass (exit 0 always)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def find_broken_links(root: Path, scan_files: list[Path]) -> list[tuple[Path, int, str]]:
@@ -74,9 +76,9 @@ def find_broken_links(root: Path, scan_files: list[Path]) -> list[tuple[Path, in
     """
     findings = []
     for path in scan_files:
-        if not path.exists():
+        text = _safe_read(path)
+        if text is None:
             continue
-        text = path.read_text(encoding="utf-8")
         for line_no, line in enumerate(text.splitlines(), 1):
             for m in MARKDOWN_LINK.finditer(line):
                 target = m.group(1).strip()
@@ -97,19 +99,24 @@ def find_broken_links(root: Path, scan_files: list[Path]) -> list[tuple[Path, in
 
 
 def find_count_drift(root: Path, scan_files: list[Path]) -> list[tuple[Path, int, str, int, int]]:
-    """Return (file, line_no, label, claimed, actual) tuples where counts disagree."""
+    """Return (file, line_no, label, claimed, actual) tuples where counts disagree.
+
+    Counter results are memoized per-call: a single glob per distinct counter, regardless
+    of how many lines or files match the pattern bound to it.
+    """
     findings = []
+    actual_cache: dict[int, int] = {}
     for path in scan_files:
-        if not path.exists():
+        text = _safe_read(path)
+        if text is None:
             continue
-        text = path.read_text(encoding="utf-8")
         for line_no, line in enumerate(text.splitlines(), 1):
             for pattern, label, counter in COUNT_PATTERNS:
                 m = pattern.search(line)
                 if not m:
                     continue
                 claimed = int(m.group(1))
-                actual = counter(root)
+                actual = actual_cache.setdefault(id(counter), counter(root))
                 if claimed != actual:
                     findings.append((path, line_no, label, claimed, actual))
     return findings

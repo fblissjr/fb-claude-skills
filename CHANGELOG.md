@@ -1,5 +1,19 @@
 # changelog
 
+## 0.24.8
+
+### changed
+- **skill-maintainer 0.8.0 -> 0.8.1**: `/simplify` follow-up pass on the three commits that landed today.
+  - `lint.py`: extracted `_count_analysis_reports` and `_count_captured_docs` named functions, replacing two byte-identical lambdas in `COUNT_PATTERNS`. Drift surface eliminated -- if the exclusion set changes (e.g., `_index.md` is added later), only one place to update.
+  - `lint.py`: added `_safe_read(path)` helper that returns `None` on `OSError` / `UnicodeDecodeError`. `find_count_drift` and `find_broken_links` use it instead of bare `path.read_text()`. Honors the documented "exit 0 always" contract -- a dangling symlink or non-UTF-8 file in the doc tree no longer crashes the pass.
+  - `lint.py`: `find_count_drift` memoizes counter results per call (`actual_cache: dict[int, int]` keyed by `id(counter)`). A file with multiple lines matching the same pattern now triggers one filesystem glob, not N. Real concern only on duplicated prose in long files; cheap fix.
+  - `pre-commit.sample` (and the live `.git/hooks/pre-commit`): inline comment in `claude_md_size_check` documenting that the `4000`-token threshold mirrors `shared.TOKEN_BUDGET_WARN`. The shell can't import Python; the comment is the only available drift signal.
+- **README.md**: skill-maintainer plugin row gains the new `lint` capability and the tracked pre-commit hook scaffolding (both shipped today). agent-state-mcp row scrubbed of `~/.claude/...` path leak (now `<HOME>/.claude/...`). The `docs/internals/` line in the documentation highlights was wrong -- said "API reference, DuckDB schema, troubleshooting"; replaced with the actual contents (versioning cascade, plugin patterns, maintenance commands, gotchas) plus a new pointer to `docs/analysis/index.md` since that's now a real wiki-style index. The skill-maintainer CLI section gains the new `init` hook-scaffolding behavior and `lint` in the example commands.
+- **CLAUDE.md**: added missing `last updated:` line at top. Caught by the docs-staleness sweep -- root CLAUDE.md was the only file in the active doc tree without one.
+
+### notes
+- The staleness sweep across the doc tree (38 files with `last updated:` dates older than 30 days) found **no date-vs-content drift** -- every file's commit date aligns with its stated `last updated:` line within 7 days. The dates are accurate signals of when content was last touched. Did not blind-bump the 36 stable analysis/reference files; doing so would make the dates *less* accurate as audit signals. The two real audit candidates (`apps/readwise-reader/CLAUDE.md` and `README.md`, 88 days) remain deferred -- they need someone with that codebase's context.
+
 ## 0.24.7
 
 ### added

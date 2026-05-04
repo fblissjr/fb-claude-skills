@@ -11,6 +11,8 @@ fi
 is_staged() { echo "$staged" | grep -qxF "$1"; }
 
 claude_md_size_check() {
+    # Soft thresholds duplicated from skill_maintainer/shared.py (TOKEN_BUDGET_WARN=4000).
+    # Shell can't import Python; if you change the canonical value there, change here too.
     if is_staged "CLAUDE.md" && [ -f "CLAUDE.md" ]; then
         lines=$(wc -l < CLAUDE.md | tr -d ' ')
         chars=$(wc -c < CLAUDE.md | tr -d ' ')

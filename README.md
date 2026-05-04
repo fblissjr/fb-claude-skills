@@ -21,11 +21,11 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
-| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `~/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
+| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
 | [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
-| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
+| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
 ### project-scoped
@@ -216,8 +216,10 @@ Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI pac
 
 ```bash
 uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer
-uv run skill-maintain init
+uv run skill-maintain init     # writes .skill-maintainer/config.json + installs the bundled pre-commit hook
 ```
+
+`skill-maintain init` is idempotent — re-running on a repo that already has the hook prints `already up to date`. Pass `--force-hook` to replace an existing hook (the prior is preserved as `.git/hooks/pre-commit.local`).
 
 Common CLI commands:
 
@@ -226,6 +228,7 @@ uv run skill-maintain test              # red/green test suite
 uv run skill-maintain quality           # validation + budget + freshness report
 uv run skill-maintain upstream          # check Claude Code docs for changes
 uv run skill-maintain sources           # pull tracked repos, detect changes
+uv run skill-maintain lint              # wiki sanity: orphans, count drift, broken links
 uv run skill-maintain log --tail 5      # query audit log
 ```
 
@@ -238,7 +241,8 @@ See [docs/README.md](docs/README.md) for the full documentation index: domain re
 Highlights:
 - [Claude Ecosystem Synthesis](docs/reports/claude_ecosystem_synthesis.md) -- full ecosystem overview, decision tree, maturity assessment
 - [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
-- [docs/internals/](docs/internals/) -- API reference, DuckDB schema, troubleshooting
+- [docs/internals/](docs/internals/) -- repo-specific operating reference (plugin versioning cascade, plugin patterns, maintenance commands, gotchas)
+- [docs/analysis/index.md](docs/analysis/index.md) -- wiki-style index of domain reports tagged by kind (entity / concept / audit / synthesis)
 - Each plugin has its own README with detailed usage
 
 ## credits

@@ -1,3 +1,5 @@
+last updated: 2026-05-04
+
 # fb-claude-skills
 
 > **Read [VISION.md](VISION.md) first.** Skills are retrieval, and retrieval serves an architecture. High precision is the constraint, high recall is the goal.
