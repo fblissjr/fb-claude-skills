@@ -7,7 +7,7 @@ description: >-
   session", "log today's work", or at the end of a substantive working session.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # Session Log Drafter
@@ -18,17 +18,16 @@ Forked subagent that reads the active conversation context and drafts an entry f
 
 This repo's conventions (CLAUDE.md + `.claude/rules/general.md`) require updating `internal/log/` at the end of every working session. Writing the log manually at the end is tedious and often skipped; the author just did the work and is fatigued. Delegating to a forked subagent keeps the main conversation focused on the task while the log gets drafted in parallel.
 
-## House style (follow exactly)
+## House style
 
-1. **First line**: `last updated: YYYY-MM-DD` (today's ISO date).
-2. **Heading**: `# session log YYYY-MM-DD`.
-3. **Sections for substantive work**: lowercase headers, e.g. `## maintenance pass`, `## part 2: gap analysis + improvements`, `## findings`.
-4. **Narrative tone, not a transcript**. Don't quote the user or recite prompts. Describe what changed and why.
-5. **Explain WHY, not just WHAT**. A reader six months from now should understand the motivation. Git log shows what changed; the session log explains why.
-6. **Include a `## follow-ups` section** at the bottom with concrete next steps or open questions. Never empty -- if there are no follow-ups, say "None identified."
-7. **No emojis. No filler.** Direct language.
-8. **Explicit file paths** for changes, e.g. `tools/skill-maintainer/src/skill_maintainer/upstream.py`, not "the upstream module".
-9. **Date-stamp any relative time references.** "Next week" -> "2026-04-26".
+Follows `/dev-conventions:doc-conventions` for the shared doc rules (last-updated date on line 1, document the why not just the what, lowercase filenames, session logs live in `internal/log/log_YYYY-MM-DD.md`) plus CLAUDE.md global behavior (no emojis, no filler, direct language). Session-log-specific conventions on top of those:
+
+1. **Heading**: `# session log YYYY-MM-DD`.
+2. **Section headers**: lowercase, descriptive of the work topic, e.g. `## maintenance pass`, `## part 2: gap analysis + improvements`, `## findings`.
+3. **Narrative tone, not a transcript.** Don't quote the user or recite prompts. Describe what changed and why.
+4. **Include a `## follow-ups` section** at the bottom with concrete next steps or open questions. Never empty -- if there are no follow-ups, say "None identified."
+5. **Explicit file paths** for changes, e.g. `tools/skill-maintainer/src/skill_maintainer/upstream.py`, not "the upstream module".
+6. **Date-stamp any relative time references.** "Next week" -> a concrete ISO date.
 
 ## What to include
 

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.24.4
+
+### changed
+- **skill-maintainer 0.6.3 -> 0.6.4**: deduplicated `agents/session-log-drafter.md` "house style" against `dev-conventions/doc-conventions` and CLAUDE.md global rules. Four of the nine numbered items in the drafter's house-style block (last-updated date, document-the-why, no-emojis-no-filler, session-log file location) were verbatim restatements of rules already codified elsewhere -- effectively turning the drafter into a third source of truth for the same rules and creating a drift surface every time doc-conventions evolves. Replaced with a one-line pointer to `/dev-conventions:doc-conventions` plus the six remaining session-log-specific rules (heading format, lowercase section headers, narrative-not-transcript, mandatory follow-ups section, explicit file paths, date-stamping relative time references). Behavior of generated logs is unchanged -- the deleted rules still apply via doc-conventions and CLAUDE.md, the drafter just no longer carries its own copy. last_verified bumped on all six sub-skills.
+
 ## 0.24.3
 
 ### fixed
