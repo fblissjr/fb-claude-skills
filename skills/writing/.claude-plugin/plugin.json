@@ -1,0 +1,9 @@
+{
+  "name": "writing",
+  "version": "0.1.0",
+  "description": "Writing skills for clear, accessible prose — starting with GOV.UK / GDS house style",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

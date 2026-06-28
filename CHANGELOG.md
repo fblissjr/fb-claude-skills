@@ -1,5 +1,10 @@
 # changelog
 
+## 0.25.0
+
+### added
+- **writing 0.1.0** (new plugin): the repo's first writing-skills bundle. Ships one skill, `govuk-style`, which applies the GOV.UK / Government Digital Service house style — plain English, active voice, front-loaded content, sentence case, and no bold or italics for emphasis. Pure markdown skill (no Python), so it stays out of the uv workspace. Registered in `marketplace.json` and the root README plugins table, install list, and invocation examples. Adapted from a skill shared by [@fofr](https://twitter.com/fofr); credited in the SKILL.md `metadata.credit` field, the skill body, and the README.
+
 ## 0.24.8
 
 ### changed

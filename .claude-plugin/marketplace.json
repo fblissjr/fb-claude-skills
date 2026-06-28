@@ -96,6 +96,12 @@
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
       "version": "0.1.1"
+    },
+    {
+      "name": "writing",
+      "source": "./skills/writing",
+      "description": "Writing skills for clear, accessible prose — starting with GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis).",
+      "version": "0.1.0"
     }
   ]
 }
