@@ -49,8 +49,6 @@ Apply it to reports, research write-ups, guidance and any prose meant to be read
 - Links: use descriptive link text that says where the link goes — front-load the key words. Never write "click here" or "read more". The link text should make sense out of context.
 - Do not use Latin abbreviations. Write "for example" not "eg", "that is" not "ie", "and so on" or "such as" not "etc". They confuse screen readers and some readers.
 - Ampersands: write "and", not "&" (except in a registered name or logo).
-- Numbers: write "one" but use numerals from 2 upwards (2, 9, 25). Use the % symbol with numerals (50%). Use £ with no decimals unless there are pence (£75, £75.50). Spell out millions and billions (£5 million, not £5m). Write ranges with "to", not a hyphen (10 to 20, Monday to Friday).
-- Dates and times: write "4 June 2026" (no comma, no "th"). Use "to" for ranges ("4 to 8 June"). Write times as "10am to 11.30am"; use "midday" and "midnight".
 - Do not use FAQs. If you have answered the user need in the content, you do not need them. Do not use exclamation marks. Do not use ALL CAPS for emphasis.
 
 ## Before you finish: self-check
@@ -65,7 +63,3 @@ Apply it to reports, research write-ups, guidance and any prose meant to be read
 ## Note on this skill's own scope
 
 The "no bold" and formatting rules apply to the prose you produce (reports, guidance, summaries). Code, data tables and direct quotations keep their own conventions. Markdown headings and lists are fine — they are structure, not emphasis.
-
-## Credit
-
-Adapted from a GOV.UK style skill shared by [@fofr](https://twitter.com/fofr). Based on the [GOV.UK style guide](https://www.gov.uk/guidance/style-guide) and GDS content design principles.
