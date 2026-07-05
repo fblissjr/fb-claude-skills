@@ -89,7 +89,7 @@
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "path-privacy",

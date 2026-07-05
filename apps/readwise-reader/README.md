@@ -170,4 +170,4 @@ Readwise has two APIs: Reader v3 (documents with UUID-style IDs) and Core v2 (hi
 ## planned
 
 - PyLate multi-vector embeddings for semantic search (model: `lightonai/GTE-ModernColBERT-v1`)
-- Structured extraction pipeline (structure-it pattern)
+- Structured extraction pipeline

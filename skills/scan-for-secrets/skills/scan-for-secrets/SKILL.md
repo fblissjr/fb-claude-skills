@@ -9,8 +9,8 @@ description: >-
   "check before sharing", "audit before commit", "find leaked API keys", "scan agent transcript".
 metadata:
   author: Fred Bliss
-  version: 0.1.0
-  last_verified: 2026-04-21
+  version: 0.1.1
+  last_verified: 2026-07-05
 allowed-tools: "Bash,Read"
 ---
 
@@ -130,5 +130,4 @@ Full pattern catalog + false-positive notes: see `references/regex_patterns.md`.
 
 - Upstream: https://github.com/simonw/scan-for-secrets (Apache 2.0)
 - PyPI: https://pypi.org/project/scan-for-secrets/
-- Local fork: `~/workspace/scan-for-secrets`
 - Examples: `references/examples.md` — pre-share log audit, pre-publish repo, CI integration

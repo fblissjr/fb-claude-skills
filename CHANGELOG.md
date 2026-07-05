@@ -1,5 +1,11 @@
 # changelog
 
+## 0.28.1
+
+### changed
+- **Path-privacy cleanup** ahead of a repo push: replaced a few external path references with generic forms across `tools/agent-state/BACKLOG.md`, `apps/readwise-reader/.../enrichment/pipeline.py` (stub comment), and `skills/scan-for-secrets/.../SKILL.md` (References list). Functional behavior unchanged.
+- **scan-for-secrets 0.1.0 -> 0.1.1**: version cascade for the SKILL.md content change above (plugin.json, marketplace entry, sub-skill `metadata.version`, `last_verified`). No functional change.
+
 ## 0.28.0
 
 ### changed

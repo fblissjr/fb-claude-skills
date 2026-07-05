@@ -6,9 +6,9 @@ Planned enrichments:
   variable-length multi-vector representations. When ready, consider a separate
   embeddings table or DuckDB array similarity functions.
 
-- structure-it style structured extraction: Extract article content into
+- structured extraction: Extract article content into
   Pydantic models (like WebArticle) and shred into atomic facts for
-  granular retrieval. See ~/workspace/structure-it for patterns.
+  granular retrieval.
 """
 
 from __future__ import annotations
@@ -67,12 +67,12 @@ class EmbeddingPipeline(EnrichmentPipeline):
 
 
 class StructuredExtractionPipeline(EnrichmentPipeline):
-    """Stub: Structured extraction pipeline (structure-it pattern).
+    """Stub: Structured extraction pipeline.
 
     When implemented, this will:
     1. Parse document HTML/content
     2. Extract structured data into Pydantic models
-    3. Shred into atomic facts (fact_items pattern from structure-it)
+    3. Shred into atomic facts (fact_items pattern)
     4. Store in DuckDB for granular querying
     """
 
