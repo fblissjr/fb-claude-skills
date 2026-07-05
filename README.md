@@ -127,6 +127,20 @@ claude plugin uninstall mece-decomposer@fb-claude-skills
 claude plugin list  # verify
 ```
 
+### updating
+
+Installed plugins auto-update at Claude Code startup when a newer version is published to the marketplace. To pull updates immediately, without waiting for a restart:
+
+```bash
+# refresh the marketplace catalog from GitHub
+claude plugin marketplace update fb-claude-skills
+
+# update a plugin to its latest version (repeat per plugin)
+claude plugin update dev-conventions@fb-claude-skills
+```
+
+`claude plugin list` shows installed plugins and versions. To sweep every plugin from this marketplace at once, loop `claude plugin update` over its `@fb-claude-skills` entries. On a multi-machine setup, wrap the marketplace-update + per-plugin-update in a small script and run it after each push to keep every machine current.
+
 ## where things work
 
 > **New to MCP?** See [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) for a field guide to the full MCP ecosystem -- protocols, transports, tools, apps, connectors, and how they all relate.

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.29.2
+
+### changed
+- **README**: added an `### updating` section under installation — how to pull plugin updates (`claude plugin marketplace update` + `claude plugin update`), the startup auto-update behavior, and a note on scripting a one-command sweep across machines. Closes the gap where install/uninstall were documented but keeping plugins current was not.
+
 ## 0.29.1
 
 ### changed
