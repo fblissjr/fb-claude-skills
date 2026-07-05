@@ -1,13 +1,13 @@
 ---
 name: python-tooling
 description: >-
-  Detailed Python/uv/orjson conversion reference. Core conventions auto-loaded via SessionStart hook;
+  Detailed Python/uv conversion reference. Core conventions auto-loaded via SessionStart hook;
   invoke /dev-conventions:python-tooling for full conversion tables.
-  Use when you need the complete uv command mapping or orjson migration patterns.
+  Use when you need the complete uv command mapping, version pinning strategy, or lock file workflow.
 metadata:
   author: Fred Bliss
-  version: 0.5.0
-  last_verified: 2026-04-13
+  version: 0.6.0
+  last_verified: 2026-07-05
 ---
 
 # Python Tooling Conventions
@@ -35,13 +35,8 @@ Always use `uv` for Python package and environment management. Never use `pip`, 
 
 When in doubt, pin exact. After adding any dependency, run `uv lock --check` to verify the lock file is consistent.
 
-## JSON: orjson
+## Lock file
 
-Always use `orjson` instead of the stdlib `json` module.
+`uv.lock` is machine-generated. Never hand-edit it. Update it only through `uv lock` or `uv sync`, and commit it alongside `pyproject.toml`. Use `pyproject.toml` + `uv.lock`, not `requirements.txt`.
 
-| Instead of | Use |
-|------------|-----|
-| `import json` | `import orjson` |
-| `json.dumps(data)` | `orjson.dumps(data).decode()` |
-| `json.loads(text)` | `orjson.loads(text)` |
-| `json.dump(data, f)` | `f.write(orjson.dumps(data))` |
+> JSON library choice (stdlib `json` vs `orjson`, etc.) is a per-project preference, not a universal convention — set it in the project's own `CLAUDE.md` or `.claude/rules/` rather than assuming it here.

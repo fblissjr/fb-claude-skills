@@ -7,8 +7,8 @@ description: >-
   Invoke with /dev-conventions:dep-audit.
 metadata:
   author: Fred Bliss
-  version: 0.5.0
-  last_verified: 2026-04-13
+  version: 0.6.0
+  last_verified: 2026-07-05
 ---
 
 # Dependency Security Audit

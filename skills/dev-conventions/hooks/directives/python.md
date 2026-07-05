@@ -1,12 +1,7 @@
 # trigger: python
 ## Python conventions (auto-detected)
-- Package manager: ALWAYS use uv. NEVER use pip, pip3, python -m pip, or bare python/python3.
-  - Install packages: uv add <pkg>
-  - Version pinning: applications pin exact (`uv add httpx==0.27.2`), libraries use floors (`uv add 'httpx>=0.27'`). When unsure, pin exact.
-  - Run scripts: uv run <script.py>
-  - Run tools: uv run pytest, uv run ruff, etc. (on-demand only -- do NOT auto-run linters or formatters after edits unless explicitly asked)
-  - Sync deps: uv sync
-  - Create venv: uv venv
-  - Lock: uv lock (use pyproject.toml + uv.lock, not requirements.txt)
-  - After adding/upgrading packages: `uv lock --check` to verify lock consistency.
-- Lock file: NEVER edit uv.lock directly. It is machine-generated. Run `uv lock` or `uv sync` to update it.
+- Package manager: ALWAYS use uv, NEVER pip/pip3/`python -m pip`/bare python (`uv add`, `uv run`, `uv sync`).
+- Pinning: applications pin exact (`uv add httpx==0.27.2`), libraries use floors (`uv add 'httpx>=0.27'`). When unsure, pin exact.
+- Do NOT auto-run linters, formatters, or tests after edits unless asked.
+- Lock file: never hand-edit `uv.lock` (machine-generated); update via `uv lock`/`uv sync`, verify with `uv lock --check`.
+- Full reference: /dev-conventions:python-tooling.

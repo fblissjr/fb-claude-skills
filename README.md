@@ -17,7 +17,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
 | [tui-design](skills/tui-design/) | Hook + Skill | Terminal UI design principles for Rich, Questionary, and Click. Hook detects TUI library imports. |
 | [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
-| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/orjson/bun/TDD/doc conventions via composable directive files |
+| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
@@ -138,7 +138,7 @@ Once installed, invoke as namespaced slash commands:
 /cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
 
-/dev-conventions:python-tooling  # Full uv/orjson conversion tables
+/dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
 /dev-conventions:bun-tooling     # Full bun conversion tables
 /dev-conventions:tdd-workflow    # Red/green TDD methodology
 /dev-conventions:doc-conventions # Documentation standards

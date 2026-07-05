@@ -6,8 +6,8 @@ description: >-
   "write a test", "test-driven". Invoke with /dev-conventions:tdd-workflow.
 metadata:
   author: Fred Bliss
-  version: 0.5.0
-  last_verified: 2026-04-13
+  version: 0.6.0
+  last_verified: 2026-07-05
 ---
 
 # Test-Driven Development Workflow

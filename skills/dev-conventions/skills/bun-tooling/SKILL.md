@@ -7,8 +7,8 @@ description: >-
   SessionStart hook; invoke /dev-conventions:bun-tooling for full reference.
 metadata:
   author: Fred Bliss
-  version: 0.5.0
-  last_verified: 2026-04-13
+  version: 0.6.0
+  last_verified: 2026-07-05
 ---
 
 # Bun Tooling Conventions
@@ -37,7 +37,7 @@ When in doubt, pin exact. In CI, verify with `bun install --frozen-lockfile`.
 
 ## Lock files
 
-Use `bun.lockb` instead of `package-lock.json` or `yarn.lock`. If migrating an existing project, delete the old lock file and run `bun install` to generate `bun.lockb`.
+Use `bun.lock` instead of `package-lock.json` or `yarn.lock`. If migrating an existing project, delete the old lock file and run `bun install` to generate `bun.lock`. `bun.lock` is a text-based lockfile and the default since bun 1.2 (earlier versions produced a binary `bun.lockb`; migrate by running `bun install` on 1.2+). Commit the lockfile; never hand-edit it.
 
 ## Init
 

@@ -1,5 +1,14 @@
 # changelog
 
+## 0.28.0
+
+### changed
+- **dev-conventions 0.5.0 -> 0.6.0**: refresh for current tooling and scope.
+  - **Lock file fix**: `bun.lockb` -> `bun.lock` everywhere (javascript directive, `bun-tooling` and `doc-conventions` skills, README, and the hook's marker detection). Bun switched to the text-based `bun.lock` in 1.2 (default since); every bun project in this repo already uses it, so the plugin now matches reality. The hook detects both `bun.lock` and legacy `bun.lockb`.
+  - **Slimmed directives to policy**: the `python.md` and `javascript.md` SessionStart directives no longer teach `uv add`/`uv run`/`bun add`/`bunx` command mappings (current models default to these unprompted). They now carry only the non-inferable policy: which manager is mandated, the pinning strategy, no-auto-lint, and don't-hand-edit-lockfiles, plus a pointer to the L2 skill for full tables.
+  - **Dropped orjson from the plugin**: `python-tooling` no longer mandates `orjson` over stdlib `json`, and the plugin/marketplace descriptions drop it from the injected list. JSON-library choice is a per-project preference, not a near-universal default like uv/bun/TDD; the skill now says so and points to the project's own `CLAUDE.md`/`.claude/rules/`. This repo keeps its orjson rule in `.claude/rules/general.md`, where it belongs and is genuinely used.
+  - All five sub-skills bumped to 0.6.0 / `last_verified` 2026-07-05.
+
 ## 0.27.0
 
 ### added

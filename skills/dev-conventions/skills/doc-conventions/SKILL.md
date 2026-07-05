@@ -7,8 +7,8 @@ description: >-
   "document this", "add a design doc", "session log".
 metadata:
   author: Fred Bliss
-  version: 0.5.0
-  last_verified: 2026-04-13
+  version: 0.6.0
+  last_verified: 2026-07-05
 ---
 
 # Documentation Conventions
@@ -35,7 +35,7 @@ Daily session logs go in `./internal/log/log_YYYY-MM-DD.md`. These capture what 
 
 ## Dependency change tracking
 
-When a session adds, removes, or bumps package versions, include a dependency changes section in the session log. This is the only place dependency changes are recorded outside the source-of-truth files (pyproject.toml, package.json, uv.lock, bun.lockb).
+When a session adds, removes, or bumps package versions, include a dependency changes section in the session log. This is the only place dependency changes are recorded outside the source-of-truth files (pyproject.toml, package.json, uv.lock, bun.lock).
 
 ### Format
 

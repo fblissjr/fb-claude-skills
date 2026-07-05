@@ -31,7 +31,7 @@ if [ "$HAS_PYTHON" = false ]; then
 fi
 
 # JS/TS markers
-for marker in package.json tsconfig.json bun.lockb; do
+for marker in package.json tsconfig.json bun.lock bun.lockb; do
   if [ -f "$CWD/$marker" ]; then
     HAS_JS=true
     break
@@ -54,7 +54,7 @@ if [ "$HAS_PYTHON" = false ] || [ "$HAS_JS" = false ]; then
       done
     fi
     if [ "$HAS_JS" = false ]; then
-      for marker in package.json tsconfig.json bun.lockb; do
+      for marker in package.json tsconfig.json bun.lock bun.lockb; do
         if [ -f "$subdir/$marker" ]; then
           HAS_JS=true
           break
