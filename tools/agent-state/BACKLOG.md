@@ -26,17 +26,17 @@ When `get_or_create_skill_version()` is called during migration or maintenance r
 
 Blocked on: defining the domain taxonomy. The columns exist but the vocabulary is open.
 
-## bridge to freudagent meta-framework schema
+## bridge to sibling meta-framework schema
 
-The `dim_skill_version` columns (`domain`, `task_type`, `status`) were derived from the freudagent meta-framework schema (`~/workspace/freudagent/internal/20260312-meta_framework_schema.md`). If freudagent materializes as a standalone system, agent-state should be able to export or sync skill versions into the freudagent `skills` table. The column mapping is direct:
+The `dim_skill_version` columns (`domain`, `task_type`, `status`) were derived from a sibling project's meta-framework schema (an internal design doc kept outside this repo). If that framework materializes as a standalone system, agent-state should be able to export or sync skill versions into its `skills` table. The column mapping is direct:
 
-| agent-state | freudagent |
-|-------------|------------|
+| agent-state | sibling framework |
+|-------------|-------------------|
 | `skill_name` | `id` (or name lookup) |
 | `domain` | `domain` |
 | `task_type` | `task_type` |
 | `status` | `status` |
-| `version_hash` | (no equivalent -- freudagent uses integer version) |
+| `version_hash` | (no equivalent -- the framework uses integer version) |
 
 ## v_active_skills view
 
