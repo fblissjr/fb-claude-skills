@@ -17,8 +17,21 @@ For data-processing, routine coding, and similar well-specified tasks, use your 
 
 ## How to delegate
 
-- Spawn a subagent with a `model` override. Illustrative tiers as of mid-2026: haiku for mechanical work, sonnet for standard coding and data tasks. Tier names change; the principle is fixed — pick the cheapest model you judge capable of the slice.
+- If this project has pre-shaped delegation agents in `.claude/agents/` (`fast-executor` for mechanical work, `task-coder` for standard coding and data tasks), delegate to those. Otherwise spawn a generic subagent with a `model` override. Illustrative tiers as of mid-2026: haiku for mechanical work, sonnet for standard coding and data tasks. Tier names change; the principle is fixed — pick the cheapest model you judge capable of the slice.
 - Give the subagent a complete, self-contained task spec: exact files, expected output, constraints, and how the result will be verified. A subagent sees none of the conversation.
 - Independent delegable tasks go to parallel subagents.
 
 When unsure whether a task is delegable, keep it in the main loop.
+
+## Record outcomes (if agent-state is available)
+
+After verifying a delegated result, if the `agent-state` CLI is on PATH, record the outcome so delegation criteria can be tuned from data:
+
+```
+agent-state delegation record --task "<short summary>" --model <tier> \
+  --outcome <accepted|revised|redone|escalated> \
+  --verification <tests|diff_review|schema_validation|spot_check|none> \
+  --domain <coding|data|docs|...> --orchestrator-model <your tier>
+```
+
+If the CLI is not installed, skip silently — never block work on recording. Review with `agent-state delegation stats`: a model/domain pair with a low acceptance rate means tasks of that shape should stay up-tier.

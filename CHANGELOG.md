@@ -1,5 +1,14 @@
 # changelog
 
+## 0.27.0
+
+### added
+- **agent-state 0.2.1 -> 0.3.0**: delegation feedback loop. Schema v3 adds `fact_delegation` (append-only; grain: one row per delegated subagent task, recorded when the orchestrator verifies the result; deterministic MD5 surrogate key so re-recording identical inputs is a no-op) and `v_delegation_stats` (acceptance rate per model/domain). New `delegations.py` module (`record_delegation`, `get_delegation_stats`, `get_recent_delegations`), `DelegationOutcome` enum (accepted / revised / redone / escalated), and `agent-state delegation record|stats|list` CLI. TDD: 10 new tests in `test_delegations.py`; existing schema-version assertions updated to v3; suite at 45 passing.
+
+### changed
+- **model-routing 0.1.0 -> 0.2.0**: the installer now optionally copies pre-shaped agent definitions into the target project's `.claude/agents/` — `fast-executor` (haiku, mechanical execute-to-spec) and `task-coder` (sonnet, implement-to-spec with verification), both templated verbatim in the skill's `references/agents/`. The installed rule prefers those agents when present and, when the `agent-state` CLI is on PATH, records each verified delegation outcome (`agent-state delegation record ...`) so acceptance rates can tune delegation criteria from data; recording is optional and never blocks work.
+- **agent-state BACKLOG**: captured follow-up to expose `fact_delegation` through agent-state-mcp's read-only tools.
+
 ## 0.26.0
 
 ### added

@@ -2,6 +2,10 @@
 
 Items for future development. Not prioritized -- just captured.
 
+## expose fact_delegation via agent-state-mcp
+
+The MCP server (`apps/agent-state-mcp/`) has 18 read-only tools but predates `fact_delegation` (schema v3). Candidates: a `delegation_stats` tool mirroring `v_delegation_stats` and a `recent_delegations` tool. Low effort once wanted -- both are single-view queries.
+
 ## CLI subcommands for routing and lifecycle
 
 The `domain`, `task_type`, and `status` columns are queryable via the Python API but have no CLI exposure yet. Candidates:

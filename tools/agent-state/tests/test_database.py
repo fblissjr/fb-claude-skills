@@ -54,8 +54,8 @@ def test_init_creates_views(db: AgentStateDB) -> None:
 
 
 def test_schema_version(db: AgentStateDB) -> None:
-    """Schema version is 2 after init."""
-    assert db.schema_version() == 2
+    """Schema version is 3 after init."""
+    assert db.schema_version() == 3
 
 
 def test_idempotent_init(tmp_path: Path) -> None:
@@ -64,7 +64,7 @@ def test_idempotent_init(tmp_path: Path) -> None:
     db1 = AgentStateDB(db_path)
     db1.close()
     db2 = AgentStateDB(db_path)
-    assert db2.schema_version() == 2
+    assert db2.schema_version() == 3
     db2.close()
 
 
@@ -86,7 +86,7 @@ def test_context_manager(tmp_path: Path) -> None:
     """DB works as context manager."""
     db_path = tmp_path / "test.duckdb"
     with AgentStateDB(db_path) as db:
-        assert db.schema_version() == 2
+        assert db.schema_version() == 3
 
 
 def test_v1_to_v2_migration(tmp_path: Path) -> None:
@@ -125,9 +125,9 @@ def test_v1_to_v2_migration(tmp_path: Path) -> None:
     )
     conn.close()
 
-    # Open with updated code -- should migrate
+    # Open with updated code -- should migrate all the way to current
     db = AgentStateDB(db_path)
-    assert db.schema_version() == 2
+    assert db.schema_version() == 3
 
     # Verify new columns exist and old data preserved
     rows = db.fetchall_dicts("SELECT * FROM dim_skill_version WHERE skill_name = 'test-skill'")

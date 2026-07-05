@@ -1,4 +1,4 @@
-last updated: 2026-03-12
+last updated: 2026-07-05
 
 # agent-state
 
@@ -22,7 +22,7 @@ Single global DuckDB at `~/.claude/agent_state.duckdb`. Created automatically on
 
 ## schema
 
-Schema version: **2** (see `src/agent_state/schemas/agent_state.sql` for full DDL).
+Schema version: **3** (see `src/agent_state/schemas/agent_state.sql` for full DDL).
 
 ### tables
 
@@ -35,6 +35,7 @@ Schema version: **2** (see `src/agent_state/schemas/agent_state.sql` for full DD
 | `fact_run` | fact | Core audit table (one row per execution) |
 | `fact_run_message` | fact | Structured log per run |
 | `fact_watermark` | fact | Watermark state history (append-only) |
+| `fact_delegation` | fact | Down-tier delegation outcomes (append-only; grain: one row per delegated subagent task, recorded at verification) |
 
 ### views
 
@@ -44,6 +45,7 @@ Schema version: **2** (see `src/agent_state/schemas/agent_state.sql` for full DD
 | `v_run_tree` | Recursive CTE for hierarchical run display |
 | `v_flywheel` | Producer run -> skill version -> consumer run |
 | `v_restartable_failures` | Failed runs eligible for retry |
+| `v_delegation_stats` | Acceptance rate per (model, domain) for down-tier delegations |
 
 ### dim_skill_version columns
 
@@ -79,6 +81,7 @@ The CREATE TABLE statements include all columns for fresh databases; the ALTER T
 |---------|-------------|
 | 1 | Initial schema |
 | 2 | Add `domain`, `task_type`, `status` to `dim_skill_version` |
+| 3 | Add `fact_delegation` and `v_delegation_stats` (new objects only -- no ALTER needed, just the version stamp) |
 
 ## CLI
 
@@ -90,7 +93,14 @@ agent-state tree [run_id] # Show hierarchical run tree
 agent-state watermarks    # Show current watermarks
 agent-state flywheel      # Show producer -> skill -> consumer chain
 agent-state migrate       # Import from changes.jsonl / upstream_hashes.json
+
+agent-state delegation record --task "convert csv to parquet" --model haiku \
+  --outcome accepted --domain data --verification schema_validation
+agent-state delegation stats [--model haiku] [--domain data]
+agent-state delegation list [-n 20]
 ```
+
+The `delegation` subcommands are the feedback loop for the model-routing plugin: the installed rule tells Claude to record each verified delegation, and `stats` reports acceptance rates per model/domain so delegation criteria can be tuned from data.
 
 All commands accept `--db <path>` to use a non-default database.
 

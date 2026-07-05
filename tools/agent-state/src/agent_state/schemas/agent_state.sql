@@ -152,9 +152,47 @@ CREATE TABLE IF NOT EXISTS fact_watermark (
 CREATE INDEX IF NOT EXISTS idx_watermark_source ON fact_watermark(watermark_source_key);
 CREATE INDEX IF NOT EXISTS idx_watermark_run ON fact_watermark(run_id);
 
+-- fact_delegation: down-tier delegation outcomes (append-only)
+-- Grain: one row per delegated subagent task, recorded when the
+-- orchestrator verifies the result. model_name/outcome/verification are
+-- degenerate dimensions -- the value is the only attribute.
+CREATE TABLE IF NOT EXISTS fact_delegation (
+    delegation_key VARCHAR PRIMARY KEY,       -- deterministic MD5 of task|model|outcome|session|recorded_at
+    run_id VARCHAR,                           -- loose FK to fact_run (optional)
+    session_id VARCHAR,
+    task_summary VARCHAR NOT NULL,
+    task_domain VARCHAR,                      -- 'coding', 'data', 'docs', ...
+    model_name VARCHAR NOT NULL,              -- tier delegated to
+    orchestrator_model VARCHAR,               -- tier that delegated and verified
+    outcome VARCHAR NOT NULL,                 -- 'accepted', 'revised', 'redone', 'escalated'
+    verification VARCHAR,                     -- 'tests', 'diff_review', 'schema_validation', 'spot_check', 'none'
+    recorded_at TIMESTAMP NOT NULL,
+    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    record_source VARCHAR DEFAULT 'cli',
+    metadata JSON
+);
+CREATE INDEX IF NOT EXISTS idx_delegation_model ON fact_delegation(model_name);
+CREATE INDEX IF NOT EXISTS idx_delegation_outcome ON fact_delegation(outcome);
+
 -- ============================================================
 -- VIEWS
 -- ============================================================
+
+-- v_delegation_stats: acceptance rate per (model, domain) -- the signal
+-- for tuning down-tier delegation criteria from data rather than intuition
+CREATE OR REPLACE VIEW v_delegation_stats AS
+SELECT
+    model_name,
+    task_domain,
+    COUNT(*) AS delegations,
+    SUM(CASE WHEN outcome = 'accepted' THEN 1 ELSE 0 END) AS accepted,
+    SUM(CASE WHEN outcome = 'revised' THEN 1 ELSE 0 END) AS revised,
+    SUM(CASE WHEN outcome = 'redone' THEN 1 ELSE 0 END) AS redone,
+    SUM(CASE WHEN outcome = 'escalated' THEN 1 ELSE 0 END) AS escalated,
+    ROUND(SUM(CASE WHEN outcome = 'accepted' THEN 1 ELSE 0 END) * 1.0 / COUNT(*), 3) AS acceptance_rate,
+    MAX(recorded_at) AS last_delegation_at
+FROM fact_delegation
+GROUP BY model_name, task_domain;
 
 -- v_latest_watermark: current watermark per source (replaces upstream_hashes.json reads)
 -- ROW_NUMBER over partition avoids the correlated MAX subquery the old view used.
@@ -262,3 +300,9 @@ WHERE NOT EXISTS (SELECT 1 FROM meta_schema_version WHERE version = 2);
 CREATE INDEX IF NOT EXISTS idx_skill_version_domain ON dim_skill_version(domain);
 CREATE INDEX IF NOT EXISTS idx_skill_version_task_type ON dim_skill_version(task_type);
 CREATE INDEX IF NOT EXISTS idx_skill_version_status ON dim_skill_version(status);
+
+-- v2 -> v3: fact_delegation + v_delegation_stats (created above via IF NOT EXISTS /
+-- CREATE OR REPLACE -- new objects need no ALTER, only the version stamp)
+INSERT INTO meta_schema_version (version, description)
+SELECT 3, 'Add fact_delegation and v_delegation_stats for down-tier delegation outcomes'
+WHERE NOT EXISTS (SELECT 1 FROM meta_schema_version WHERE version = 3);

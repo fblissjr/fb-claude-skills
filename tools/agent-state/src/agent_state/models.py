@@ -34,6 +34,13 @@ class MessageLevel(str, Enum):
     ERROR = "ERROR"
 
 
+class DelegationOutcome(str, Enum):
+    ACCEPTED = "accepted"      # result used as returned
+    REVISED = "revised"        # orchestrator fixed minor issues, kept the work
+    REDONE = "redone"          # thrown away, re-executed up-tier
+    ESCALATED = "escalated"    # subagent gave up or orchestrator took over mid-task
+
+
 @dataclass
 class RunRecord:
     run_id: str

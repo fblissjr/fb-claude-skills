@@ -26,7 +26,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
 | [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
-| [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Implements VISION.md "route to the cheapest capable model". |
+| [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs `.claude/rules/model-delegation.md` (and optionally pre-shaped `fast-executor` / `task-coder` agent definitions) telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Records outcomes via `agent-state delegation` when available. Implements VISION.md "route to the cheapest capable model". |
 | [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
@@ -42,7 +42,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | Module | Description |
 |--------|-------------|
 | [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
-| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage with routing metadata and lifecycle management. |
+| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage with routing metadata and lifecycle management, delegation outcome tracking (acceptance rates per model/domain). |
 
 ## installation
 

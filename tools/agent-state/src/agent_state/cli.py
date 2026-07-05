@@ -119,6 +119,52 @@ def cmd_flywheel(args: argparse.Namespace) -> None:
         print(f"  {producer:<25} -> [{skill}] -> {consumer}")
 
 
+def cmd_delegation(args: argparse.Namespace) -> None:
+    """Record or report down-tier delegation outcomes."""
+    from agent_state.delegations import (
+        get_delegation_stats,
+        get_recent_delegations,
+        record_delegation,
+    )
+
+    db = AgentStateDB(args.db)
+    try:
+        if args.delegation_command == "record":
+            key = record_delegation(
+                db,
+                task_summary=args.task,
+                model_name=args.model,
+                outcome=args.outcome,
+                task_domain=args.domain,
+                verification=args.verification,
+                orchestrator_model=args.orchestrator_model,
+                session_id=args.session_id,
+                run_id=args.run_id,
+            )
+            print(f"Recorded delegation {key[:12]} ({args.model} -> {args.outcome})")
+        elif args.delegation_command == "stats":
+            stats = get_delegation_stats(db, model_name=args.model, task_domain=args.domain)
+            if not stats:
+                print("No delegations recorded.")
+                return
+            print(f"  {'model':<10} {'domain':<12} {'n':>4} {'accept':>7} {'revise':>7} "
+                  f"{'redo':>5} {'escal':>6} {'rate':>6}")
+            for s in stats:
+                print(f"  {s['model_name']:<10} {s['task_domain'] or '---':<12} "
+                      f"{s['delegations']:>4} {s['accepted']:>7} {s['revised']:>7} "
+                      f"{s['redone']:>5} {s['escalated']:>6} {s['acceptance_rate']:>6}")
+        else:
+            delegations = get_recent_delegations(db, limit=args.limit)
+            if not delegations:
+                print("No delegations recorded.")
+                return
+            for d in delegations:
+                print(f"  [{d['outcome']:<9}] {d['model_name']:<8} "
+                      f"{d['task_summary'][:50]:<50} {d['recorded_at']}")
+    finally:
+        db.close()
+
+
 def cmd_migrate(args: argparse.Namespace) -> None:
     """Import data from skill-maintainer's changes.jsonl and upstream_hashes.json."""
     from agent_state.migration import migrate_from_jsonl
@@ -166,6 +212,31 @@ def main() -> None:
     flywheel_parser = sub.add_parser("flywheel", help="Show flywheel view")
     flywheel_parser.add_argument("--skill", help="Filter by skill name")
 
+    delegation_parser = sub.add_parser(
+        "delegation", help="Record or report down-tier delegation outcomes"
+    )
+    delegation_sub = delegation_parser.add_subparsers(dest="delegation_command")
+    record_parser = delegation_sub.add_parser("record", help="Record one delegation outcome")
+    record_parser.add_argument("--task", required=True, help="Short task summary")
+    record_parser.add_argument("--model", required=True, help="Model tier delegated to")
+    record_parser.add_argument(
+        "--outcome", required=True,
+        choices=["accepted", "revised", "redone", "escalated"],
+    )
+    record_parser.add_argument("--domain", help="Task domain (coding, data, docs, ...)")
+    record_parser.add_argument(
+        "--verification",
+        help="How the result was verified (tests, diff_review, schema_validation, spot_check, none)",
+    )
+    record_parser.add_argument("--orchestrator-model", help="Model tier that delegated")
+    record_parser.add_argument("--session-id", help="Session identifier")
+    record_parser.add_argument("--run-id", help="Associated fact_run run_id")
+    stats_parser = delegation_sub.add_parser("stats", help="Acceptance rates per model/domain")
+    stats_parser.add_argument("--model", help="Filter by model tier")
+    stats_parser.add_argument("--domain", help="Filter by task domain")
+    list_parser = delegation_sub.add_parser("list", help="Recent delegation records")
+    list_parser.add_argument("-n", "--limit", type=int, default=20)
+
     migrate_parser = sub.add_parser("migrate", help="Import from changes.jsonl")
     migrate_parser.add_argument("--dir", type=Path, default=Path("."),
                                 help="Repo directory with .skill-maintainer/state/")
@@ -190,6 +261,7 @@ def main() -> None:
         "tree": cmd_tree,
         "watermarks": cmd_watermarks,
         "flywheel": cmd_flywheel,
+        "delegation": cmd_delegation,
         "migrate": cmd_migrate,
     }
     cmd_map[args.command](args)
