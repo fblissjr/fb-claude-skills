@@ -22,16 +22,3 @@ For data-processing, routine coding, and similar well-specified tasks, use your 
 - Independent delegable tasks go to parallel subagents.
 
 When unsure whether a task is delegable, keep it in the main loop.
-
-## Record outcomes (if agent-state is available)
-
-After verifying a delegated result, if the `agent-state` CLI is on PATH, record the outcome so delegation criteria can be tuned from data:
-
-```
-agent-state delegation record --task "<short summary>" --model <tier> \
-  --outcome <accepted|revised|redone|escalated> \
-  --verification <tests|diff_review|schema_validation|spot_check|none> \
-  --domain <coding|data|docs|...> --orchestrator-model <your tier>
-```
-
-If the CLI is not installed, skip silently — never block work on recording. Review with `agent-state delegation stats`: a model/domain pair with a low acceptance rate means tasks of that shape should stay up-tier.

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.29.0
+
+### changed
+- **model-routing 0.2.0 -> 0.3.0**: made the base rule genuinely standalone and split the agent-state coupling into an opt-in layer. The `agent-state` recording block moved out of `references/model-delegation.md` into a new `references/feedback-addon.md`, which the installer appends only when the user asks for it ("with feedback" / "with agent-state"). The base `.claude/rules/model-delegation.md` now has zero external-tool references — it loads into every session of every project where it's installed, so the feedback text (which only pays off when the CLI is present) shouldn't ride along by default. Three independent install layers now: base rule (always), agents (opt-in), feedback (opt-in). SKILL.md, plugin/marketplace descriptions, and READMEs updated; no change to `fast-executor` / `task-coder`.
+
 ## 0.28.1
 
 ### changed

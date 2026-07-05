@@ -1,7 +1,7 @@
 {
   "name": "model-routing",
-  "version": "0.2.0",
-  "description": "Opt a project into down-tier model delegation: installs a .claude/rules/ file (and optionally pre-shaped .claude/agents/ definitions) telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, recording outcomes via agent-state when available",
+  "version": "0.3.0",
+  "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, with optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer",
   "author": {
     "name": "Fred Bliss"
   },
