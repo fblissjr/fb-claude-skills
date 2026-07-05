@@ -1,6 +1,10 @@
 # changelog
 
-## 0.29.0
+## 0.29.1
+
+### changed
+- **README plugins section**: regrouped the flat 17-row plugin table into six purpose-based categories (development conventions & authoring; decomposition & model routing; plugin & skill maintenance; MCP servers & apps; privacy & pre-share safety; environment synthesis). Every plugin preserved verbatim; project-scoped and package sections unchanged.
+- **VISION.md restructure**: reordered so the concrete loading model leads — retrieval problem, then "what gets loaded and when", then principles, then the architecture worldview (was architecture-first). Intro rewritten to match. Validated the L1/L2/L3 loading table against the captured `docs/analysis/memory_and_rules_system.md` and upstream docs: all existing rows accurate (incl. the "~2% of context" SKILL.md frontmatter figure); added a note on three L1 sources present in Claude Code but unused here (managed-policy CLAUDE.md, `CLAUDE.local.md`, user-level `<HOME>/.claude/rules/`). Added an ASCII tree-topology diagram to the architecture section; fixed a now-stale "below" -> "above" cross-reference. Both edits produced by down-tier subagents (sonnet) and verified in the main loop — a dogfood of the model-routing pattern.
 
 ### changed
 - **model-routing 0.2.0 -> 0.3.0**: made the base rule genuinely standalone and split the agent-state coupling into an opt-in layer. The `agent-state` recording block moved out of `references/model-delegation.md` into a new `references/feedback-addon.md`, which the installer appends only when the user asks for it ("with feedback" / "with agent-state"). The base `.claude/rules/model-delegation.md` now has zero external-tool references — it loads into every session of every project where it's installed, so the feedback text (which only pays off when the CLI is present) shouldn't ride along by default. Three independent install layers now: base rule (always), agents (opt-in), feedback (opt-in). SKILL.md, plugin/marketplace descriptions, and READMEs updated; no change to `fast-executor` / `task-coder`.

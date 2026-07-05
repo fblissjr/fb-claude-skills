@@ -8,27 +8,54 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 
 ## plugins
 
-Each plugin addresses a different layer of building with AI: planning and decomposition (mece-decomposer), tool environment infrastructure (env-forge), interactive UIs (mcp-apps), development workflows (dev-conventions, tui-design, cogapp-markdown, dimensional-modeling), and plugin management (plugin-toolkit).
+Grouped by purpose: development conventions & authoring, decomposition & model routing, plugin & skill maintenance, MCP servers & apps, privacy & pre-share safety, and environment synthesis.
+
+### development conventions & authoring
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
+| [tui-design](skills/tui-design/) | Hook + Skill | Terminal UI design principles for Rich, Questionary, and Click. Hook detects TUI library imports. |
+| [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
+| [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
+| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
+| [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
+
+### decomposition & model routing
 
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
-| [mcp-apps](skills/mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
-| [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [tui-design](skills/tui-design/) | Hook + Skill | Terminal UI design principles for Rich, Questionary, and Click. Hook detects TUI library imports. |
-| [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
-| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
-| [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
-| [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
-| [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
-| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
-| [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
-| [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
-| [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
-| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional layers: pre-shaped `fast-executor` / `task-coder` agents, and an `agent-state` feedback loop. Implements VISION.md "route to the cheapest capable model". |
+
+### plugin & skill maintenance
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
 | [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
+
+### MCP servers & apps
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [mcp-apps](skills/mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
+| [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
+| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
+
+### privacy & pre-share safety
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). <!-- path-privacy: ignore --> |
+| [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
+
+### environment synthesis
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
 
 ### project-scoped
 
