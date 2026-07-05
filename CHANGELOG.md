@@ -1,5 +1,13 @@
 # changelog
 
+## 0.26.0
+
+### added
+- **model-routing 0.1.0** (new plugin): opt-in per-project model delegation. One skill, `model-routing`, installs `.claude/rules/model-delegation.md` into the current project by verbatim copy from the skill's `references/model-delegation.md` template (diff-and-confirm if a local copy exists; removal is deleting the file). The rule routes well-specified, mechanical, verifiable data/coding tasks to the cheapest capable model in a subagent and keeps design, ambiguity, user interaction, and verification of returned work in the main loop; model tiers appear only as examples so the rule survives lineup changes. Pure markdown skill, stays out of the uv workspace. Registered in `marketplace.json` and the root README plugins table, install list, and invocation examples.
+
+### changed
+- **VISION.md**: new architecture subsection "route to the cheapest capable model" — routing has two axes (context a subagent sees, model tier that executes it); decomposition quality and model tiering are complements; delegation rules should be stated as task properties with tiers as examples. Matching bullet in "what this means for this repo" pointing at the model-routing plugin as the implementation. The L1/L2/L3 loading table gains a `Type` column (Instructions / Memory / Rule / Skill / Settings / Reference / Script) so each loaded artifact is named by kind, not just by path.
+
 ## 0.25.0
 
 ### added

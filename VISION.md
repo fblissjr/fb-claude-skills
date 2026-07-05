@@ -12,6 +12,14 @@ The right topology is a tree. The orchestrator decomposes the problem to its low
 
 Parallelism heuristic: divide work the way you would for humans. If you can't explain a clean division of labor to a team, you can't explain it to agents either.
 
+### route to the cheapest capable model
+
+Routing has two axes: what context a subagent sees, and which model executes it. The tree topology above covers the first. The second is model tiering: a well-decomposed leaf task -- mechanical edits, data transformation, well-specified coding -- is precisely the thing that doesn't need the frontier model. Decomposition quality and model tiering are complements: the better the orchestrator scopes a subtask, the lower the tier that can execute it.
+
+Cost is a constraint alongside attention, with the same asymmetric failure modes: over-tiering wastes money silently; under-tiering produces wrong work that must be detected and redone. So the split follows judgment density. Design decisions, ambiguity resolution, user interaction, and verification of delegated results stay in the orchestrator on the strongest model. Execution of scoped, verifiable work routes down-tier, and the orchestrator checks what comes back.
+
+Tier names change with the model lineup; the principle doesn't. State delegation rules in terms of task properties (well-specified, mechanical, verifiable) with current tiers as examples, not as a fixed task-to-model table.
+
 ### the harness is the system
 
 Model and harness (Claude Code, Codex, Gemini CLI) are a single compound AI system that jointly optimizes. The moat is the harness and everything you don't see -- tool orchestration, context management, permission models, caching, retry logic, output formatting.
@@ -72,18 +80,18 @@ This is precision and recall applied to context:
 
 Three loading levels, each gated by increasing specificity. Analogous to how a search engine works: index -> snippet -> full page.
 
-| Level | What | When | Control |
-|-------|------|------|---------|
-| **L1** | `~/.claude/CLAUDE.md` (global instructions) | Always | Edit the file |
-| **L1** | `./CLAUDE.md` (project instructions) | Always | Edit the file |
-| **L1** | `MEMORY.md` (auto-memory, first 200 lines) | Always | Edit the file |
-| **L1** | `.claude/rules/general.md` (unconditional rules) | Always | Edit or delete |
-| **L1**\* | `.claude/rules/skills.md`, `plugins.md` (conditional rules) | When matching files are in context | Path globs in frontmatter |
-| **L1** | All installed SKILL.md frontmatter (~2% of context) | Always | Install/uninstall plugins |
-| **L1** | `.claude/settings.json` | Always | Edit the file |
-| **L2** | SKILL.md body | Intent matches frontmatter description | Description quality |
-| **L3** | `references/*.md` | Skill body links to them | Explicit link in SKILL.md |
-| **L3** | `scripts/*.py` | Skill invokes them | `uv run` or subprocess call |
+| Level | Type | What | When | Control |
+|-------|------|------|------|---------|
+| **L1** | Instructions | `<HOME>/.claude/CLAUDE.md` (global) | Always | Edit the file |
+| **L1** | Instructions | `./CLAUDE.md` (project) | Always | Edit the file |
+| **L1** | Memory | `MEMORY.md` (auto-memory, first 200 lines) | Always | Edit the file |
+| **L1** | Rule | `.claude/rules/general.md` (unconditional) | Always | Edit or delete |
+| **L1**\* | Rule | `.claude/rules/skills.md`, `plugins.md` (conditional) | When matching files are in context | Path globs in frontmatter |
+| **L1** | Skill | All installed SKILL.md frontmatter (~2% of context) | Always | Install/uninstall plugins |
+| **L1** | Settings | `.claude/settings.json` | Always | Edit the file |
+| **L2** | Skill | SKILL.md body | Intent matches frontmatter description | Description quality |
+| **L3** | Reference | `references/*.md` | Skill body links to them | Explicit link in SKILL.md |
+| **L3** | Script | `scripts/*.py` | Skill invokes them | `uv run` or subprocess call |
 
 *\* Conditional rules use the same static-load mechanism but are gated by path globs -- they only appear when matching files are in context.*
 
@@ -188,6 +196,7 @@ These principles govern everything in fb-claude-skills:
 - **Hooks**: must justify their trigger frequency and context injection. Nothing fires ambiently without documented rationale (principles 2 and 4).
 - **Rules**: unconditional rules are always-on cost. Conditional (path-scoped) rules are precision-gated retrieval (principle 1).
 - **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
+- **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
 - **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
 - **State management**: agent outputs stored in relational schemas (DuckDB star schema in agent-state), not flat files or KV stores (structured outputs as state).
 - **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).

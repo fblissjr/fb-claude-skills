@@ -102,6 +102,12 @@
       "source": "./skills/writing",
       "description": "Writing skills for clear, accessible prose — starting with GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis).",
       "version": "0.1.0"
+    },
+    {
+      "name": "model-routing",
+      "source": "./skills/model-routing",
+      "description": "Opt a project into down-tier model delegation: installs a .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop.",
+      "version": "0.1.0"
     }
   ]
 }

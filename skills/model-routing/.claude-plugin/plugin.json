@@ -1,0 +1,9 @@
+{
+  "name": "model-routing",
+  "version": "0.1.0",
+  "description": "Opt a project into down-tier model delegation: installs a .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent",
+  "author": {
+    "name": "Fred Bliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

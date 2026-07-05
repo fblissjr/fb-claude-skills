@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-05
 
 # fb-claude-skills
 
@@ -26,6 +26,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). |
 | [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
+| [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Implements VISION.md "route to the cheapest capable model". |
 | [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
 
@@ -67,6 +68,7 @@ Each plugin addresses a different layer of building with AI: planning and decomp
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
+/plugin install model-routing@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -144,6 +146,7 @@ Once installed, invoke as namespaced slash commands:
 /json-query                      # JSON query tool selection + jg syntax
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:govuk-style             # Write or rewrite prose in GOV.UK / GDS house style
+/model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description
