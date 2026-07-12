@@ -1,5 +1,10 @@
 # changelog
 
+## 0.30.0
+
+### added
+- **pyright-autoconfig 0.1.0** (new plugin): a one-hook plugin that makes the Claude Code Pyright LSP quiet and useful across all Python projects without per-repo setup. On SessionStart, if cwd is a Python project (`pyproject.toml`/`setup.py`/`setup.cfg`/`.venv`) with no existing Pyright config, it drops a personal `pyrightconfig.json` pointing Pyright at the uv `.venv` (`venvPath`/`venv` -> imports resolve -> real cross-file type intel) and setting `reportMissingImports`/`reportMissingModuleSource` to `none` (kills the dominant noise; Claude Code surfaces all severities, so only `none` actually removes a diagnostic). Registers the file in the repo's `.git/info/exclude` so it never commits and never shows in `git status` -- no global git config, nothing to replicate by hand on other machines. Idempotent (exits once a config exists), non-destructive (never overwrites an existing `pyrightconfig.json` or `[tool.pyright]` block), silent (no injected context), and a fast no-op outside Python projects. Solves the flood that pyright-lsp produces when it can't find the venv (worst on files it can't root: sibling repos, `/tmp` scratch). Prerequisite: the official `pyright-lsp` plugin + `pyright-langserver` on PATH.
+
 ## 0.29.2
 
 ### changed

@@ -108,6 +108,12 @@
       "source": "./skills/model-routing",
       "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer.",
       "version": "0.3.0"
+    },
+    {
+      "name": "pyright-autoconfig",
+      "source": "./skills/pyright-autoconfig",
+      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Idempotent, non-destructive, no-op outside Python projects.",
+      "version": "0.1.0"
     }
   ]
 }
