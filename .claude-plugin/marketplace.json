@@ -112,8 +112,8 @@
     {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
-      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), idempotent, non-destructive, no-op outside Python projects.",
-      "version": "0.1.1"
+      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
+      "version": "0.1.2"
     }
   ]
 }

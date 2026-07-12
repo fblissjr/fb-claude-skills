@@ -1,5 +1,10 @@
 # changelog
 
+## 0.30.2
+
+### changed
+- **pyright-autoconfig 0.1.1 -> 0.1.2**: code-review fix for a config-overwrite regression. 0.1.1's "is this config ours?" test was a loose `grep reportMissingModuleSource`, so a user's OWN hand-written `pyrightconfig.json` that set that key would be misclassified as ours and silently overwritten (losing their other settings). Ownership is now **exact**: the hook only ever recognizes/rewrites its own byte-for-byte template output (venv or venv-less), and self-heals only its exact venv-less template once `.venv` appears. Any other config is left completely untouched. Verified: a user config containing `reportMissingModuleSource` is now preserved; self-heal + idempotency still pass. (Unrelated but same session: hardened the user-scope `block-network-exfil.sh` PreToolUse hook against full-path curl and `<(curl)`/`$(curl)`/`| xargs sh` bypasses -- that hook is a personal `~/.claude/hooks/` file, not part of this repo.)
+
 ## 0.30.1
 
 ### changed

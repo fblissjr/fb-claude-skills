@@ -7,10 +7,15 @@
 # registered in the repo's .git/info/exclude, so it is never committed and
 # never appears in `git status`.
 #
-# Self-healing: if a venv-less config was written before `.venv` existed (the
-# clone-then-`uv sync` order), a later session adds the venv pointer once
-# `.venv` appears. It never overwrites a config it did not write, and never
-# shadows a project's own [tool.pyright] -- bare header OR any subtable.
+# Ownership is exact: the hook only ever writes, recognizes, or rewrites its
+# OWN byte-for-byte output (the two templates below). Any other pyrightconfig.json
+# -- hand-written or shared, even one that happens to set the same keys -- is
+# left completely untouched. It also never shadows a project's own
+# [tool.pyright] (bare header OR any subtable).
+#
+# Self-healing: if it wrote the venv-less template before `.venv` existed (the
+# clone-then-`uv sync` order), a later session upgrades THAT exact file to the
+# venv template once `.venv` appears.
 #
 # Idempotent, silent (no stdout -> no injected context), a fast no-op outside
 # Python projects. Reads the session cwd from the hook's JSON stdin (.cwd);
@@ -37,28 +42,32 @@ if [ -f pyproject.toml ] && grep -qE '^[[:space:]]*\[tool\.pyright(\]|\.)' pypro
   exit 0
 fi
 
-# --- Desired config, built once (venv pointer only when a local .venv exists) --
-if [ -d .venv ]; then
-  desired='{
+# --- Our exact config templates (used to WRITE and to recognize our own output).
+# The venv pointer is included only when a local .venv exists, so conda/pyenv
+# projects avoid a "venv not found" diagnostic.
+tmpl_novenv='{
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}'
+tmpl_venv='{
   "venvPath": ".",
   "venv": ".venv",
   "reportMissingImports": "none",
   "reportMissingModuleSource": "none"
 }'
-else
-  desired='{
-  "reportMissingImports": "none",
-  "reportMissingModuleSource": "none"
-}'
-fi
+if [ -d .venv ]; then desired="$tmpl_venv"; else desired="$tmpl_novenv"; fi
 
 # --- Decide whether to (re)write -----------------------------------------------
 if [ -f pyrightconfig.json ]; then
-  # Not ours (lacks our marker) -> respect it, do nothing.
-  grep -q 'reportMissingModuleSource' pyrightconfig.json 2>/dev/null || exit 0
-  # Ours and already up to date -> nothing to do.
-  [ "$(cat pyrightconfig.json 2>/dev/null)" = "$desired" ] && exit 0
-  # Ours but stale (e.g. .venv appeared after `uv sync`) -> fall through, rewrite.
+  cur="$(cat pyrightconfig.json 2>/dev/null)"
+  # Already exactly what we want -> nothing to do.
+  [ "$cur" = "$desired" ] && exit 0
+  # Self-heal ONLY our own exact venv-less output once .venv appears. Anything
+  # else -- a user/shared config, or one we can't positively identify as ours --
+  # is left untouched.
+  if ! { [ "$cur" = "$tmpl_novenv" ] && [ -d .venv ]; }; then
+    exit 0
+  fi
 fi
 
 # Write; only touch version control if the write actually succeeded.
