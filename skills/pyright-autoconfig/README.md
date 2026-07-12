@@ -55,10 +55,15 @@ replicate by hand on another machine.
 
 ### Guarantees
 
-- **Idempotent** — exits early once a config exists; safe to fire every session.
-- **Non-destructive** — never overwrites an existing `pyrightconfig.json` or a
-  `[tool.pyright]` block in `pyproject.toml` (respects shared/team configs).
-- **Silent** — emits no stdout, so it injects nothing into context.
+- **Idempotent + self-healing** — exits early when its config is already
+  up to date; but if it wrote a venv-less config before `.venv` existed (the
+  clone-then-`uv sync` order), a later session adds the venv pointer once
+  `.venv` appears.
+- **Non-destructive** — never overwrites a `pyrightconfig.json` it didn't write,
+  and never shadows a project's own `[tool.pyright]` — a bare header *or* any
+  `[tool.pyright.<subtable>]` (respects shared/team configs).
+- **Silent** — emits no stdout, so it injects nothing into context (a missing
+  `jq` is the one exception: one stderr line, then it skips).
 - **Scoped** — a fast no-op outside Python projects (a few `stat`s, then exit).
 
 ## Install

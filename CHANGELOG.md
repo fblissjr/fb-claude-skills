@@ -1,5 +1,15 @@
 # changelog
 
+## 0.30.1
+
+### changed
+- **pyright-autoconfig 0.1.0 -> 0.1.1**: post-review hardening of the SessionStart hook.
+  - **Self-healing venv pointer (real bug fix)**: previously, a config written before `.venv` existed (the clone-then-`uv sync` order) was venv-less and the idempotent early-exit meant it never gained `venvPath`/`venv` -- so imports never resolved, defeating the plugin's main purpose. The hook now rewrites its own config once `.venv` appears (verified: venv-less on first run, venv pointer added on the next).
+  - **Subtable-aware config detection**: the "respect an existing pyright config" guard now matches a bare `[tool.pyright]` header OR any `[tool.pyright.<subtable>]` (e.g. `executionEnvironments`) -- a subtable alone is valid TOML and a written `pyrightconfig.json` would otherwise shadow it.
+  - **Write-gated exclude**: `.git/info/exclude` is only touched after the config write actually succeeds (no more orphan exclude entry on a failed write).
+  - **jq-missing signal**: a missing `jq` now emits one stderr line instead of a fully silent no-op.
+  - **De-duplicated the config builder** (single `desired` string, was two near-identical heredocs). SessionStart matcher intentionally omitted (repo convention is no-matcher; the hook is idempotent + cheap, and an unverified matcher risks the hook never firing).
+
 ## 0.30.0
 
 ### added
