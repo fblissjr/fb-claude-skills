@@ -117,8 +117,48 @@ white. Every first render comes out overexposed. In order of effectiveness:
   `sin(t*ω) * ramp`, a screw-in is position + rotation both driven by the same
   ss() ramp.
 
-## Performance envelope (cloud container, SwiftShader software GL)
+## Performance envelope
 
-1080p renders at roughly 1 fps — a 20s/30fps film is ~10 minutes of frame
-capture. Keep polycounts modest (spheres at 24×16, one 2048 shadow map, no
-postprocessing). Sample frames during iteration are cheap (~1s each).
+Depends entirely on whether you have a real GPU, so know which case you're in
+before you budget time:
+
+| Environment | 1080p capture | 20s @ 30fps |
+|---|---|---|
+| Cloud container, SwiftShader software GL | ~1 fps | ~10 min |
+| Local machine, hardware GL | ~5 fps (measured: 288 frames in 54s) | ~2 min |
+
+The software-GL number is the one that shapes the design — keep polycounts modest
+(spheres at 24×16, one 2048 shadow map, no postprocessing). But do not let it
+scare you off a local render that finishes while you read this. Sample frames are
+cheap in both cases.
+
+Capture is embarrassingly parallel, and that falls straight out of determinism:
+frames are independent, so N headless pages can each shoot 1/N of the range with
+zero correctness risk. Not implemented yet — the obvious fix if long pieces start
+hurting.
+
+## Delivering inline on GitHub
+
+GitHub renders animated WebP and GIF inline; it does **not** render a
+repo-relative mp4 as a player, and it strips `<script>`, so the HTML artifact is
+inert on github.com (Pages or a published Artifact both run it fine).
+
+WebP's cost is driven by how much of the frame changes per frame, which makes the
+camera decision a file-size decision:
+
+| Scene | 12s template, 960px/24fps | 8s held-camera diagram, 720px/12fps |
+|---|---|---|
+| mp4 | 0.52 MB | 0.23 MB |
+| gif | 12.08 MB | — |
+| **webp** | **15.56 MB** | **0.17 MB** |
+
+Same encoder, same pipeline, 90x apart. The template's default sway
+(`CONFIG.sway = 0.06`) moves every pixel every frame and defeats inter-frame
+compression entirely; the held-camera scene's WebP comes in smaller than its own
+mp4. So: hold the camera and `build.js loop` is nearly free, or let the camera
+move and ship `build.js poster` — a still linking to the mp4 — instead. Do not
+shrink a moving-camera loop until it squeezes under the 10MB cap; you get a
+degraded artifact that also shows different content than the video.
+
+`loop` needs `img2webp` (`brew install webp`). Homebrew's ffmpeg ships without
+libwebp, so `-c:v libwebp` fails with "Encoder not found".

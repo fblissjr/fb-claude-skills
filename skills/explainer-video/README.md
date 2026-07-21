@@ -12,6 +12,12 @@ independently and identically, which is why one scene file drives both the
 interactive HTML loop and the headless MP4 render. There is never a second copy
 to keep in sync.
 
+![skills are retrieval](skills/explainer-video/examples/skill-retrieval.webp)
+
+*Built with this plugin and committed as a 175 KB animated WebP — the format
+GitHub actually renders inline. 8s, held camera, two beats. Source:
+[`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
+
 ## Installation
 
 ```bash
@@ -38,6 +44,7 @@ into a 30-second video".
 
 - `bun`
 - `ffmpeg` on PATH
+- `img2webp` for inline loops (macOS: `brew install webp`) — Homebrew's ffmpeg has no libwebp
 - Chromium — resolved from `CHROMIUM_PATH`, playwright's cache, or system
   Chrome; `bunx playwright install chromium` if none
 
@@ -65,8 +72,9 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/SKILL.md` | The skill: workflow, contract, style quick-reference |
 | `skills/explainer-video/templates/scene.template.html` | Runnable scaffold with the full recorder contract |
 | `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range) |
-| `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video |
+| `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video, loop, poster |
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, source and bundled |
 | `skills/explainer-video/references/method.md` | Design method, procedural-asset cookbook, r185 API notes |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/pelican-implant.html` | Worked example: 20s, 5 beats, two worlds |
+| `skills/explainer-video/examples/pelican-implant.html` | Worked example: 20s, 5 beats, two worlds, moving camera |
+| `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 8s, 2 beats, held camera, diagrammatic — the one shown above |

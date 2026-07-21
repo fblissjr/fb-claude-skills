@@ -1,5 +1,20 @@
 # changelog
 
+## 0.33.0
+
+### added
+- **explainer-video 0.1.1 -> 0.1.2**: two new delivery outputs and a second worked example, driven by verifying how GitHub actually renders things. `build.js loop` produces an animated WebP (the one motion format GitHub renders inline in markdown); `build.js poster` produces a still plus the markdown snippet to paste. `examples/skill-retrieval.html` is an 8s held-camera diagrammatic scene, and its 175 KB WebP is committed and embedded in the plugin README -- the inline story, demonstrated rather than asserted.
+- **explainer-video**: `CONFIG.sway` is now a config value rather than a hardcoded `0.06`, so holding the camera is a one-line edit.
+
+### changed
+- **explainer-video**: delivery is now a step-1 decision, not an encode-time one, because it constrains the camera and therefore the beats. Measured: the 12s template scene at 960px/24fps encodes to 0.52 MB as mp4 but **15.56 MB** as WebP (worse than GIF's 12.08 MB), because the default sway moves every pixel every frame and defeats inter-frame compression. The same pipeline on an 8s held-camera scene yields a 175 KB WebP -- smaller than its own mp4. So the rule is by scene type, not by squeezing under the 10 MB cap: held camera -> inline loop; moving camera -> poster still linking to an attached mp4; authored diagram -> hand-written animated SVG.
+- **explainer-video**: documented that a repo-relative mp4 does **not** render as a player on GitHub (`<video>` is stripped from GFM, and raw serves video as `application/octet-stream`); the working path is an issue/PR attachment URL. Also that `img2webp` is required for loops, since Homebrew's ffmpeg ships without libwebp.
+- **explainer-video**: corrected the render-speed figure in `method.md`. It claimed ~1 fps at 1080p, which is true for software GL in a cloud container but read as universal; measured 5.3 fps on local hardware GL (288 frames in 54s). Both cases are now tabulated, and the parallel-capture opportunity that falls out of determinism is noted.
+
+### fixed
+- **explainer-video**: `smoke.js` asserted `window.THREE` and read pixels from a WebGL context, which would have failed any non-three backend. The contract (`seekTo`/`DURATION`/`stopPlayback`/`sceneReady`) is the actual product -- three.js is one backend, and a 2D canvas or SVG/CSS timeline implementing those four globals should get frame-exact MP4s from the same pipeline. The renderer assertion is gone and the blank-frame check now measures the screenshot instead of the canvas. Verified with a negative control.
+- **README**: `explainer-video` was missing from the root plugins table, install list, and invocation examples -- step 5 of the plugin checklist was skipped when it was added in 0.31.0.
+
 ## 0.32.0
 
 ### fixed

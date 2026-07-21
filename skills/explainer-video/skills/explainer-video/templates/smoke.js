@@ -11,7 +11,8 @@
 //
 // Checks per scene, unbundled AND bundled:
 //   1. the page loads with zero console/page errors (incl. deprecation warnings)
-//   2. window.THREE, seekTo, DURATION, stopPlayback, sceneReady all exist
+//   2. seekTo, DURATION, stopPlayback, sceneReady all exist (the contract only —
+//      the renderer is deliberately not asserted, so any backend can pass)
 //   3. seekTo(t) is deterministic: the same t twice gives byte-identical pixels
 //   4. seekTo renders something — not a blank canvas
 //
@@ -74,7 +75,10 @@ async function checkScene(browser, file) {
     const missing = await page.evaluate(
       `(${JSON.stringify(CONTRACT)}).filter(k => window[k] === undefined)`);
     if (missing.length) fails.push('missing contract: ' + missing.join(', '));
-    if (await page.evaluate('typeof window.THREE') !== 'object') fails.push('window.THREE not set');
+    // Deliberately NOT asserting window.THREE. The contract is the product here;
+    // three.js is one backend. Any scene exposing these four globals — a 2D
+    // canvas, an SVG/CSS timeline, a D3 diagram — gets frame-exact MP4s from the
+    // same pipeline, and this check must not lock that out.
 
     const dur = await page.evaluate('window.DURATION');
     const t = Math.min(1, dur / 3);
@@ -90,17 +94,15 @@ async function checkScene(browser, file) {
     const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
     if (h(a) !== h(b)) fails.push(`seekTo(${t}) not deterministic — scene carries state across frames`);
 
-    // Non-blank: a uniform canvas means the scene rendered nothing.
-    const distinct = await page.evaluate(`(() => {
-      const c = document.getElementById('c');
-      const g = c.getContext('webgl2') || c.getContext('webgl');
-      const px = new Uint8Array(c.width * c.height * 4);
-      g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, px);
-      const seen = new Set();
-      for (let i = 0; i < px.length; i += 4 * 97) seen.add(px[i] << 16 | px[i+1] << 8 | px[i+2]);
-      return seen.size;
-    })()`);
-    if (distinct < 5) fails.push(`canvas is effectively blank (${distinct} distinct colors)`);
+    // Non-blank, measured on the screenshot rather than the canvas, so this works
+    // for any backend (WebGL, 2D canvas, SVG/CSS, plain DOM). PNG compresses a
+    // uniform frame to almost nothing: at 640x360 a flat fill lands around 1-3KB,
+    // while anything with real content is far larger. A heuristic, but it catches
+    // the failure that matters — a pipeline happily shooting 600 empty frames.
+    const BLANK_BYTES = 6000;
+    if (a.length < BLANK_BYTES) {
+      fails.push(`frame looks blank (screenshot only ${a.length} bytes compressed)`);
+    }
   } catch (e) {
     fails.push(e.message.split('\n')[0]);
   }

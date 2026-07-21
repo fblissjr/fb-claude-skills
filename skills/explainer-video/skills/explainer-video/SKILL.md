@@ -13,7 +13,7 @@ description: >
   narration exist but are not yet wired (see references/audio.md).
 metadata:
   author: Fred Bliss
-  version: 0.1.1
+  version: 0.1.2
   last_verified: 2026-07-21
   review_interval_days: 90
 ---
@@ -128,9 +128,36 @@ chromium` if none.
 
 ### 6. Deliver
 
-HTML output: the bundled file is the artifact — it autoplays and loops.
-MP4 output: encode at the fps you shot (30 default), `crf 17`, `yuv420p`.
-Both: they are the same scene by construction; never maintain two files.
+```bash
+bun run build.js loop   <name>.html 12 720   # <name>.webp — plays inline in a README
+bun run build.js poster <name>.html 7.2      # <name>.jpg + the markdown to paste
+```
+
+HTML: the bundled file is the artifact — it autoplays and loops. It does **not**
+run on github.com (script tags are stripped); serve it via Pages or publish it as
+an Artifact, both of which run it fine.
+
+MP4: encode at the fps you shot (30 default), `crf 17`, `yuv420p`. A
+repo-relative mp4 will **not** render as a player — `<video>` is stripped from
+GFM and raw serves video as `application/octet-stream`. To get a real player,
+drag the file into an issue or PR composer and use the
+`github.com/user-attachments/assets/...` URL it returns.
+
+Inline motion: GitHub renders animated **WebP**, so `build.js loop` is the output
+that embeds. Choose by what the scene is, not by what squeezes under the 10MB cap:
+
+| Scene | Inline artifact | Why |
+|---|---|---|
+| Held camera (diagrammatic, architecture, data flow) | `loop` — the WebP | Cheap and lossless-feeling. `examples/skill-retrieval.html`: **175 KB**, smaller than its own 232 KB mp4, same content. |
+| Moving camera (narrative, characters, world cuts) | `poster` — a still linking to the mp4 | A loop here costs megabytes *and* shows different content than the video, so it becomes a second artifact to maintain. A 19 KB still does not. |
+| Authored diagram, motion *is* the explanation | Neither — hand-write an animated SVG | 10-25 KB, inline, no cap. Wrong tool for a rendered 3D scene; right tool for a diagram. |
+
+Measured on the 12s template scene at 960px/24fps, where the default sway moves
+every pixel every frame: mp4 0.52 MB, gif 12.08 MB, webp **15.56 MB**. Sway is
+free in mp4 and ruinous in WebP. That is the whole reason the camera decision
+belongs in step 1.
+
+Whatever you ship, the scene file stays the single source: never maintain two.
 
 ## Style quick-reference
 
