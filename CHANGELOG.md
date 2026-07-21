@@ -1,5 +1,14 @@
 # changelog
 
+## 0.36.3
+
+### added
+- **explainer-video 0.3.2 -> 0.3.3**: `method.md` gains "Where you will be tempted to break this" under the determinism rules. The closed-form requirement is easy to keep until the subject *is* a physical process — any scene depicting momentum, decay, accumulation, charge, wear, growth or trails pulls toward integrating from the previous frame, which breaks `seekTo` purity and beat independence at once. Gives the closed-form replacements (`ω0*exp(-k*(t-t0))` for a coast-down, `count*ramp(...)` for accumulation, N samples of the position function for a trail) and says plainly that physical-metaphor scenes are both the most likely to reach for a simulator and the most likely to expose the divergence on a loop's second pass.
+- **explainer-video**: `method.md` gains "Motion that reads vs causality that reads". A sweep only has to be perceived as motion; a beat whose job is "A drives B" fails if the viewer perceives A moving and B moving. The lever is phase and derivation rather than duration — drive B from A's expression, not independently from `t` — and the verification is a control: break the phase relationship deliberately and confirm the broken version reads differently. Marked untested.
+
+### changed
+- **roadmap**: the caption lint is redesigned rather than dropped. The surviving rule is general — **a proxy can reject, it cannot approve**. Characters-per-second correctly identified a 37 CPS caption as unreadable and was wrong at 27, so the error was granting its whole range decision authority when it has a confident region and an uncertain one. The lint that earns its place is a floor (~35+ CPS), silent below it with no warning band, reporting the effective window rather than "too long". Not built yet: the JS is stable pending review and this adds to it.
+
 ## 0.36.2
 
 ### fixed

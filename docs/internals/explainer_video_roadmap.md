@@ -219,7 +219,41 @@ unwanted dependency.
 
 ---
 
-## 4. Magic-number lint
+## 4. Caption floor lint (replaces the magic-number lint)
+
+**Revised twice, and the second revision is the one to build.**
+
+The original design was a magic-number detector — heuristic, false-positive
+prone, and largely obsoleted when the beats refactor removed the literals
+structurally. It was replaced by a caption reading-speed lint, which was then
+invalidated in practice: the threshold (17-21 CPS) came from arithmetic, and one
+viewer watching three seconds of video read a 27 CPS caption comfortably.
+
+The usable rule that survives is about proxies generally, not captions:
+
+> **A proxy can reject. It cannot approve.**
+
+The characters-per-second metric was not useless — it correctly flagged a caption
+at 37 CPS that was genuinely unreadable. It was wrong at 27, where it had no
+authority. The error was granting its entire range decision power when it only
+has a confident region and an uncertain one. A passing score in the uncertain
+region means nothing and must not read as approval.
+
+So the lint that earns its place is a **floor**, not a pacing tool:
+
+- Hard-fail somewhere around 35+ CPS of effective window — the egregious case,
+  where you do not need to watch it to know it is broken.
+- **Silent everywhere below.** No warning band, no "tight" verdict. A caption
+  that passes has not been judged, and the output must not imply it has.
+- Report the effective window (`1.5s effective, 3.3s needed`), never just
+  "too long" — the cause is often a `capEnd` trim or fade the author forgot,
+  not word count.
+
+Near-zero false positives by construction, which is what makes it safe to gate.
+Deliberately **not built yet**: the JS is stable pending a code review, and this
+adds a new check to it. Build after.
+
+## 4b. Magic-number lint (dropped)
 
 Advisory, and honestly heuristic. After the refactor, warn when `animate()`
 contains a numeric literal as the 2nd or 3rd argument to `ss`/`bump`:

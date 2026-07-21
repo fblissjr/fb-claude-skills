@@ -61,6 +61,26 @@ Overlay fades belong **inside** their beat. The title fade used to be centred on
 the beat boundary, which spilled title pixels 0.3s into the next beat and made
 retiming non-local. Fade out completes at `t1`; fade in starts after `t0`.
 
+## Motion that reads vs causality that reads
+
+These are different problems and the second is harder. A sweep only has to be
+perceived as motion — get the dwell right and it works. But a beat whose job is
+"A drives B" fails if the viewer perceives *A moving and B moving*. Co-occurrence
+is not causation, and no amount of extra beat length fixes it.
+
+The lever is usually **phase and derivation, not duration**. If B's motion is
+visibly locked to A's — same phase, amplified, or offset by a fixed lag — the
+coupling is perceptible. If A and B are animated from independent expressions
+that merely happen to overlap in time, it reads as two unrelated things moving.
+Drive B from A's own expression rather than from `t` separately.
+
+Verify it with a control: deliberately break the phase relationship and watch
+again. If the broken version reads the same as the locked one, the locking was
+not doing the work and the causality is not landing — go find another cue
+(a connecting element, a lag, a colour that propagates).
+
+Untested here; recorded because it is the specific thing to watch a spike for.
+
 ## Beats before geometry
 
 A sequence is a list of beats — (time range, caption, one visible change). Write
@@ -229,6 +249,26 @@ change is the entire problem.
 - Physics is faked with closed forms: a drop is `y0 - k*(t-t0)²`, a wobble is
   `sin(t*ω) * ramp`, a screw-in is position + rotation both driven by the same
   ss() ramp.
+
+### Where you will be tempted to break this
+
+The rule above is easy to keep until the subject *is* a physical process. Any
+scene depicting **momentum, decay, accumulation, charge, wear, growth, or
+trails** pulls toward simulation, because the natural way to write "a flywheel
+coasting down" is to carry velocity from the previous frame. That is state
+across frames, and it breaks two things at once: `seekTo` stops being pure, and
+the beat stops being independent of the beats before it.
+
+Author the closed form instead. A coast-down is `ω0 * exp(-k*(t-t0))` evaluated
+from `t`, never integrated. Accumulation is `count * ramp(t,...)`, not `count++`.
+A trail is N samples of the same position function at `t - i*dt`, not a buffer of
+past positions.
+
+This is where the physical metaphor pulls against the architecture, and it is
+worth knowing *before* writing the beat rather than after `smoke.js` fails the
+determinism check. Physical-metaphor scenes are exactly the ones most likely to
+reach for a simulator — and exactly the ones where a viewer would notice the
+HTML loop and the MP4 disagreeing on the second pass.
 
 ## Performance envelope
 
