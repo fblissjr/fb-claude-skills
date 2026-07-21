@@ -1,0 +1,87 @@
+last updated: 2026-07-21
+
+# Upstream drift backlog
+
+All nine tracked Claude Code doc pages changed between the 2026-05-04 snapshot
+and 2026-07-21 — `hooks` alone by +807/-312 lines, `plugins-reference` by
++380/-106. The corrections that made our own guidance *wrong* were applied to
+`.skill-maintainer/best_practices.md` on 2026-07-21. This file tracks what was
+identified but **not** yet absorbed, so the remainder is visible instead of
+quietly lost.
+
+Re-derive with: `skill-maintain upstream`, then diff
+`.skill-maintainer/state/pages/*.md` against the previous snapshot.
+
+## Already applied (do not redo)
+
+- `allowed-tools` grants pre-approval, does not restrict; `disallowed-tools` restricts
+- `plugin.json` requires only `name` upstream — our five-field rule is a repo convention
+- skill-listing budget: 8,000-char fallback gone; `skillListingBudgetFraction` / `skillListingMaxDescChars`
+- hook `type` gained `mcp_tool`
+- `if` never runs on non-tool events (not "silently ignored"); `FileChanged` is not a tool event; `PostToolUseFailure` is
+- exit 0 = no decision reported, not success; PreToolUse still goes through normal permission flow
+- `once: true` is NOT honored in agent frontmatter
+- frontmatter allow-list gained `disallowed-tools`, `arguments`
+- new `## agent authoring` section
+
+## Not yet absorbed
+
+### hooks
+
+- New event `MessageDisplay` (display-only, no matcher, cannot block)
+- Per-type timeout defaults: 600s command/http/mcp_tool, 30s prompt, 60s agent; `UserPromptSubmit` lowers to 30s, `MessageDisplay` to 10s
+- `args` field / exec form — spawns without a shell; recommended whenever the command references `${CLAUDE_PLUGIN_ROOT}`. **Directly relevant to our composable-directive `session-start.sh` pattern.**
+- `SessionStart` gained `reloadSkills`, `initialUserMessage`, `watchPaths`. `reloadSkills` matters for hook-installed skills going live in the same session
+- `SessionStart` matcher gained `fork`; `Notification` gained `agent_needs_input`, `agent_completed`; `StopFailure` gained `overloaded`, `model_not_found`
+- Tool-name matcher separator: `,` now interchangeable with `|`
+- MCP matcher exact-match set now includes hyphens; plugin-bundled MCP tools need the scoped form `mcp__plugin_<plugin>_<server>__<tool>`
+- Identical handlers are deduplicated (command+args, or URL)
+- Exit 2 with malformed JSON still blocks (v2.1.214+)
+- `Stop` hooks force-overridden after 8 consecutive blocks (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`)
+- Multi-hook merge: all matching hooks run in parallel to completion; precedence `deny` > `defer` > `ask` > `allow`
+- Command hooks have no controlling terminal (macOS/Linux, v2.1.139+)
+- `${user_config.*}` is now **rejected** in shell-form hook commands, monitor commands, and MCP `headersHelper`; read `CLAUDE_CODE_PLUGIN_OPTION_<KEY>` or use exec form
+- `shell` default may be `powershell` on Windows without Git Bash
+
+### skills
+
+- `${CLAUDE_PROJECT_DIR}`, `${CLAUDE_EFFORT}` substitutions
+- `${CLAUDE_SKILL_DIR}` / `${CLAUDE_PROJECT_DIR}` are substituted inside `allowed-tools` Bash rules — the supported way to run a bundled script without a prompt
+- Inline `` !`cmd` `` only fires at line start or after whitespace; substitution runs once and output is not re-scanned
+- Re-invoking an identical skill appends an "already loaded" note rather than a second copy (v2.1.202+)
+- `skillOverrides` (`on` / `name-only` / `user-invocable-only` / `off`), `disableBundledSkills`
+- `context: fork` with `agent: Explore` or `agent: Plan` does NOT load CLAUDE.md; other agent types do
+- Project skills load from `.claude/skills/` in every parent dir up to repo root
+- Name clashes stay available under a directory-qualified name (`/apps/web:deploy`)
+- Skill dirs may be symlinks (followed, de-duplicated)
+- `--add-dir` loads `.claude/skills/`; the `permissions.additionalDirectories` setting does not
+- Cowork/cloud sessions do not read the user-scope skills directory
+- Skill stacking (`/a /b 123`): first skill plus up to five more
+- `skill-creator` plugin provides a documented with/without-skill eval harness — a concrete method for our unmeasured "quality signals" section
+
+### memory
+
+- CLAUDE.md recursive import depth 5 → **4** hops
+- MEMORY.md limit strips frontmatter and block HTML comments before measuring (v2.1.211+)
+- Auto memory scope is per-repository, shared across worktrees (was per working tree)
+- CLAUDE.md import parsing skips code spans and fenced blocks
+- `ln -s AGENTS.md CLAUDE.md` is a documented alternative to `@AGENTS.md`
+- Invalid glob bracket expressions now match nothing instead of breaking Read (v2.1.207+)
+
+### plugins / marketplace
+
+- `experimental.themes` / `experimental.monitors` — top-level still works but warns; a future release will require the nested form
+- `claude plugin validate --strict` — promotes unknown-field warnings to errors. Good CI gate for this repo
+- `claude plugin details <name>` — first-party component inventory + token cost; overlaps skill-maintainer's `measure`
+- `claude plugin init`, `@skills-dir` plugins, `--plugin-url`, `.zip` for `--plugin-dir`
+- A plugin with a root `SKILL.md` and no `skills/` dir auto-loads as a single-skill plugin
+- `skills` path field **adds to** the default scan; `commands`/`agents`/`outputStyles` still **replace**
+- Symlinks within the same marketplace are dereferenced and copied — a supported way to share files, but only for marketplace installs. Relevant to invariant 3 (the `best_practices.md` mirror)
+- Orphaned cache versions pruned after 14 days, not 7
+
+## Repo gaps worth deciding on
+
+- `displayName` — unused across all 19 plugins. `name` is the stable install key; `displayName` is the only way to relabel the `/plugin` picker without breaking installs
+- `renames` — absent from `marketplace.json`. Any future rename/removal gives existing users `plugin-not-found`. Append-only history
+- `defaultEnabled: false` — candidates are the SessionStart-hook plugins that inject context every session (`dev-conventions`, `dimensional-modeling`, `tui-design`, `env-forge`, `mece-decomposer`, `pyright-autoconfig`). Would make ambient cost opt-in
+- Marketplace top-level `description` — we only set `metadata.description`; the validator warns on the top-level field

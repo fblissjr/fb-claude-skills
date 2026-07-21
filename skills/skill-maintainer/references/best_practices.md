@@ -1,4 +1,4 @@
-last updated: 2026-04-19
+last updated: 2026-07-21
 
 # best practices checklist
 
@@ -56,12 +56,16 @@ Everything in this list loads on every session. Each line is a fixed cost.
 <!-- source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-04-19 -->
 
 - [ ] No hooks that fire on every tool call, file read, or other high-frequency event without documented justification
-- [ ] Hook `type` is one of: `command`, `http`, `prompt`, `agent`
-- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning). `if` only applies to tool events (PreToolUse, PostToolUse, PermissionRequest/Denied, FileChanged). Silently ignored on UserPromptSubmit, Stop, SessionStart, CwdChanged, and other non-tool events
+- [ ] Hook `type` is one of: `command`, `http`, `mcp_tool`, `prompt`, `agent`
+- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning). `if` applies only to tool events: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied. `FileChanged` is NOT one of them. On any other event a hook with `if` set **never runs** -- it is not ignored, the hook is skipped entirely
+- [ ] `if` Bash matching is best-effort and **fails open** on unparseable commands. Use the permission system, not a hook, for hard allow/deny
+- [ ] `if` file patterns are rooted at the working directory: `Edit(src/**)` matches only top-level `src`. Use `Edit(**/src/**)` for any depth
 - [ ] Hook purpose and trigger documented in README or inline comments
 - [ ] Hook output is minimal (one-line stderr, not paragraphs of context)
-- [ ] Exit code semantics: exit 0 = success (JSON output processed). Exit 2 = blocking error (stderr shown to user). Any other non-zero = non-blocking error. Do not use exit 1 to gate -- use exit 2
-- [ ] `once: true` in hook blocks is only honored inside skill or agent frontmatter (auto-removes after first run). Ignored in `settings.json` or plugin `hooks.json`
+- [ ] Exit code semantics: exit 0 = **no decision reported** (JSON output processed). For PreToolUse this does NOT approve the call -- the normal permission flow still applies. Exit 2 = blocking error (stderr shown to user). Any other non-zero = non-blocking error. Do not use exit 1 to gate -- use exit 2
+- [ ] Per-event exceptions to the above: `WorktreeCreate` fails creation on ANY non-zero exit; `Setup` surfaces stderr as a hook error on any non-zero exit including 2
+- [ ] Hook output strings (`additionalContext`, `systemMessage`, stdout) are capped at 10,000 characters; overflow is spilled to a file and replaced with a preview plus path
+- [ ] `once: true` in hook blocks is only honored inside **skill** frontmatter (auto-removes after first run). Ignored in `settings.json`, plugin `hooks.json`, AND agent frontmatter
 
 ### composable directive pattern
 
@@ -98,7 +102,7 @@ Source: Anthropic skills guide (PDF, Jan 2026)
 - [ ] `license` field: present if open source (MIT, Apache-2.0)
 - [ ] `compatibility` field: under 500 characters, lists env requirements
 - [ ] `metadata` field: key-value pairs only (author, version, mcp-server)
-- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable, when_to_use
+- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable, when_to_use, disallowed-tools, arguments
 - [ ] `when_to_use` field (optional) is appended to `description` in the skill listing and counts toward the 1,536-character truncation cap
 
 ### instructions quality
@@ -127,7 +131,9 @@ Source: Claude Code official docs
 - [ ] `disable-model-invocation: true` for side-effect workflows (deploy, commit)
 - [ ] `user-invocable: false` for background knowledge skills
 - [ ] `context: fork` for isolated execution (subagent)
-- [ ] `allowed-tools` restricts tool access when skill is active
+- [ ] `allowed-tools` **grants pre-approval**; it does not restrict. Every tool stays callable. The grant is scoped to the invoking turn and clears on the next user message, even though skill content stays in context
+- [ ] `disallowed-tools` is the field that restricts -- it removes tools from the pool while the skill is active, and also clears on the next message
+- [ ] Both accept space- or comma-separated strings, or YAML lists
 
 ### string substitutions
 
@@ -145,9 +151,41 @@ Source: Claude Code official docs
 - [ ] Personal skills: `~/.claude/skills/<name>/SKILL.md`
 - [ ] Project skills: `.claude/skills/<name>/SKILL.md`
 - [ ] Plugin skills: `<plugin>/skills/<name>/SKILL.md` (prefer `skills/` over legacy `commands/`)
-- [ ] Skill descriptions budget: 1% of context window (fallback 8,000 chars). Override via `SLASH_COMMAND_TOOL_CHAR_BUDGET`
+- [ ] Skill descriptions budget: 1% of the model's context window. Override via `skillListingBudgetFraction` (e.g. `0.02`) or `SLASH_COMMAND_TOOL_CHAR_BUDGET` (fixed char count). On overflow, descriptions are dropped starting with the LEAST-invoked skills
+- [ ] The 1,536-char per-entry description cap is configurable via `skillListingMaxDescChars`
 - [ ] Use `paths` frontmatter to scope skill auto-activation to relevant file types
 - [ ] Use `${CLAUDE_PLUGIN_DATA}` for persistent plugin state (survives updates); `${CLAUDE_PLUGIN_ROOT}` for bundled read-only assets
+
+## agent authoring
+
+<!-- source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
+
+Subagents are a separate surface from skills, with their own frontmatter. Only
+`name` and `description` are required.
+
+### frontmatter
+
+- [ ] Full field set: `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`
+- [ ] `model`: `sonnet` | `opus` | `haiku` | `fable` | a full model ID | `inherit` (default)
+- [ ] `effort`: `low` | `medium` | `high` | `xhigh` | `max`
+- [ ] `memory`: `user` | `project` | `local` (`project` is the documented default choice)
+- [ ] `isolation`: `worktree` only -- and it branches from the DEFAULT branch, not the parent session's HEAD
+- [ ] `name` is the identity (the filename need not match) and is what hooks receive as `agent_type`
+- [ ] There is no `when-to-use` field. Delegation triggers belong in `description`
+- [ ] Plugin-shipped agents silently ignore `hooks`, `mcpServers`, and `permissionMode`
+
+### tool restriction
+
+- [ ] `tools` is an allowlist, `disallowedTools` a denylist. If both are set, the denylist applies first; a tool in both is removed
+- [ ] Set `tools` explicitly on read-only agents. Omitting it inherits everything, including Write/Edit and all MCP tools
+- [ ] If NO entry in `tools` resolves, the subagent refuses to launch rather than starting tool-less
+- [ ] The `skills` field only preloads skills; it does not gate access. To block skill invocation, omit `Skill` from `tools` or add it to `disallowedTools`
+- [ ] Never available to subagents regardless: `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless `permissionMode: plan`), `ScheduleWakeup`, `WaitForMcpServers`
+
+### when an agent beats a skill
+
+- [ ] Delegate to isolate high-volume output (test runs, doc fetches, log processing) and for parallel independent investigations
+- [ ] Stay in the main conversation for iterative back-and-forth, shared multi-phase context, quick targeted edits, and latency-sensitive work
 
 ## spec compliance
 
@@ -170,7 +208,7 @@ Source: Agent Skills spec (agentskills.io). Enforced by `agentskills validate`.
 - [ ] `last_verified` date is within 30 days
 - [ ] Plugin listed in root `marketplace.json` (if installable)
 - [ ] Plugin has a README.md with installation instructions
-- [ ] Plugin `plugin.json` has required fields: name, version, description, author, repository
+- [ ] Plugin `plugin.json` has name, version, description, author, repository. NOTE: upstream requires only `name` (and the manifest itself is optional) -- the other four are a convention of THIS repo, enforced by our own test suite, not a Claude Code requirement
 - [ ] `best_practices.md` has a `last updated` date within 30 days
 
 ## quality signals

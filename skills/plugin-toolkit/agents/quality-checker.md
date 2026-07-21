@@ -1,7 +1,8 @@
 ---
 name: quality-checker
 description: Evaluates a Claude Code plugin against the quality checklist and returns structured ratings for metadata completeness, command coverage, hook implementation, documentation quality, and maintenance burden.
-when-to-use: code-review
+tools: Read, Grep, Glob
+model: sonnet
 metadata:
   author: Fred Bliss
   version: 0.1.0

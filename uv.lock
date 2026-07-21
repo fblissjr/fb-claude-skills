@@ -1595,7 +1595,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.9.0"
+version = "0.9.1"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

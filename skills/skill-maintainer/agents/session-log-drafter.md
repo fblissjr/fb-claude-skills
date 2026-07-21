@@ -5,9 +5,10 @@ description: >-
   conversation, following this repo's house style (what changed, why, findings,
   follow-ups). Use when the user says "draft session log", "write up this
   session", "log today's work", or at the end of a substantive working session.
+tools: Read, Grep, Glob, Write, Edit, Bash
 metadata:
   author: Fred Bliss
-  version: 0.1.1
+  version: 0.1.2
 ---
 
 # Session Log Drafter
