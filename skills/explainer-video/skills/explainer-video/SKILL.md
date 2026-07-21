@@ -1,19 +1,21 @@
 ---
 name: explainer-video
 description: >
-  Create animated explainer sequences — 3D or diagrammatic — delivered as a
-  self-contained looping HTML page, an MP4 video, or both. Use when asked to
-  "make a video / animation / walkthrough / explainer / animated sequence" of a
-  topic, process, architecture, or document (e.g. "turn docs/data-flywheel.md
-  into a 30-second video"). Handles topic, audience, duration, visual style,
-  subtitles on/off, and characters. Deterministic by construction: the whole
-  film is a pure function of time t, so the same scene file drives both the
-  live HTML loop and the frame-exact MP4 render. Do NOT use for editing existing
-  video files, screen recordings, or slide decks. Extension points for audio
-  narration exist but are not yet wired (see references/audio.md).
+  Create animated explainer sequences — 3D, diagrammatic, or cross-section — as
+  a self-contained looping HTML page, an MP4, or an animated WebP that plays
+  inline in a GitHub README. Use when asked to "make a video / animation /
+  walkthrough / explainer / animated sequence / motion graphic" of any subject
+  in any field: a process, mechanism, system, architecture, organism, market,
+  supply chain, building, policy, or document (e.g. "turn docs/data-flywheel.md
+  into a 30-second video", "animate how a heat pump works", "show how our
+  approval process flows"). Domain-agnostic — only the geometry and caption
+  register change by field, never the pipeline. Deterministic by construction:
+  the film is a pure function of time t, so one scene file drives the live HTML
+  loop and the frame-exact render alike. Do NOT use for editing existing video
+  files, screen recordings, or slide decks. Audio narration is designed but not
+  wired (see references/audio.md).
 metadata:
   author: Fred Bliss
-  version: 0.2.0
   last_verified: 2026-07-21
   review_interval_days: 90
 ---
@@ -40,8 +42,10 @@ source:     doc/file it's based on, if any (read it FIRST — facts before film)
 audience:   who watches, and what they should understand at the end
 duration_s: 15-40 typical; ~3-4s per beat is the pacing that reads well
 aspect:     16:9 default
-style:      palette (3-5 colors), tone (playful | clinical | technical),
-            characters if any (procedural, built from primitives)
+domain:     what field this is from — it decides the geometry vocabulary, not
+            the pipeline (a pump, a protein, a portfolio, a permit process)
+style:      palette (3-5 colors), tone (playful | neutral | technical),
+            figures if any (procedural, built from primitives)
 subtitles:  on | off  — if on, one caption per beat, <70 chars
 beats:      ordered list of {name, dur, caption, what happens on screen}
             — durations, not absolute times: they accumulate
@@ -186,12 +190,24 @@ Whatever you ship, the scene file stays the single source: never maintain two.
 
 ## Style quick-reference
 
-- **Playful** (characters, story): saturated pastels, soft shadows, big shapes,
-  a character "presenting" — see `examples/pelican-implant.html`.
-- **Technical/diagrammatic** (architecture, data flow): flat planes, labeled
-  boxes, a pulse traveling edges; camera glides between stations rather than
-  cutting between worlds. Same contract, just calmer keyframes and an
-  orthographic-feeling long lens (fov 20-25).
+The skill is domain-agnostic: the subject can be a process, a mechanism, an
+organism, a market, a supply chain, a codebase, a building, a policy. Only two
+things change with domain — the geometry you compose from primitives, and the
+register of the captions. The contract, the beats and the pipeline do not.
+
+- **Playful** (a figure carrying the story — onboarding, explainers for
+  non-specialists, anything with a mascot or a person to follow): saturated
+  pastels, soft shadows, big shapes, a character "presenting". Build the figure
+  procedurally from primitives — recipes in `references/method.md`. No bundled
+  example currently ships for this style; start from the template scaffold.
+- **Technical/diagrammatic** (architecture, data flow, supply chains, org
+  processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
+  edges; camera glides between stations rather than cutting between worlds. Same
+  contract, just calmer keyframes and an orthographic-feeling long lens (fov
+  20-25). See `examples/skill-retrieval.html`.
+- **Cross-section** (geology, buildings, machinery, soil, anything with hidden
+  internals): a frontal cutaway slab. The one rule is that "inside" is invisible
+  — internals must sit proud of the front face. See `references/method.md`.
 - Subtitles off: beats still exist — they discipline pacing even uncaptioned.
 
 ## Environment
@@ -215,4 +231,3 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `templates/smoke.js` — contract + determinism check (run before a full shoot)
 - `references/method.md` — design method, procedural-asset cookbook, gotchas (L3: read when building)
 - `references/audio.md` — narration/music extension design (not yet wired)
-- `examples/pelican-implant.html` — complete worked example, 20s, 5 beats, two worlds

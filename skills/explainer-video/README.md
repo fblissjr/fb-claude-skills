@@ -76,5 +76,4 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, source and bundled |
 | `skills/explainer-video/references/method.md` | Design method, procedural-asset cookbook, r185 API notes |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/pelican-implant.html` | Worked example: 20s, 5 beats, two worlds, moving camera |
 | `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 8s, 2 beats, held camera, diagrammatic — the one shown above |

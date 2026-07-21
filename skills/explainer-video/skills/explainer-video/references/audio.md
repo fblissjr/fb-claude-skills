@@ -12,7 +12,7 @@ Add an `audio` block to the spec, keyed to the same beats:
 ```yaml
 audio:
   narration:            # one clip per beat, or one continuous track
-    - {beat: 1, text: "The loose implant backs out...", voice: "..."}
+    - {beat: 1, text: "The pulse leaves the first station...", voice: "..."}
   music: {file: bed.mp3, gain_db: -18, duck_under_narration: true}
   sfx:
     - {t: 4.95, file: pop.wav}      # timed to animation events, e.g. the drop

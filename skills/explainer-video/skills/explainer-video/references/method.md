@@ -9,14 +9,14 @@
 const BEATS = [
   {name:'title', dur:2.4},
   {name:'scan',  dur:2.4, cap:"…"},
-  {name:'load',  dur:3.2, cap:"…", capEnd:1.85},   // caption ends early, beat does not
+  {name:'load',  dur:3.2, cap:"…", capEnd:2.85},   // caption ends early, beat does not
 ];
 ramp(t,'load',0,.56)      // fraction of the beat — stretches when you retime
-rampS(t,'heal',1.8,2.3)   // seconds from beat start — does NOT stretch
+rampS(t,'load',1.8,2.3)   // seconds from beat start — does NOT stretch
 ```
 
 **Fractions by default; seconds when the duration is physical.** A rise "across
-the first half of the lift" should stretch if the beat grows. A 0.25s flash or a
+the first half of a beat" should stretch if the beat grows. A 0.25s flash or a
 0.06s world cut should not — stretching a cut window uncovers the cut, which is
 the bug below that already cost one re-render. That distinction is the whole
 reason both forms exist.
@@ -38,9 +38,10 @@ Two things this bought immediately, both structural rather than stylistic:
 Shoot the same sample timestamps before and after and compare with
 `ffmpeg -lavfi psnr`. Byte-identical frames mean behavior-preserving; >70 dB is
 imperceptible rounding. Anything lower, go look at a difference image
-(`blend=all_mode=difference`) before assuming it is fine — on the worked
-examples the only sub-70 dB frames were caption-fade boundaries, localized to
-the caption pill, and the precision-critical world cut came out byte-identical.
+(`blend=all_mode=difference`) before assuming it is fine — when this was done on
+the shipped scenes the only sub-70 dB frames were caption-fade boundaries,
+localized to the caption pill, and a precision-critical world cut came out
+byte-identical.
 
 ## Beats before geometry
 
@@ -55,7 +56,7 @@ pull back out → payoff/celebration. The "dive" and "pull out" are world cuts.
 
 ## Worlds and cuts
 
-Model distinct settings (an office and a jaw interior; a datacenter and a
+Model distinct settings (a workshop and a machine's interior; a datacenter and a
 database's insides) as separate Groups offset far apart (y -60). Toggle
 `.visible` per frame in `animate(t)`; jump the camera between them instantly.
 
@@ -71,35 +72,71 @@ before the cut — this exact bug shipped once and cost a re-render.
   segment is what makes it feel filmed rather than programmed.
 - A gentle sin() sway (amplitude ~0.06) keeps held shots alive.
 - Frame for the beat: the thing changing should occupy the middle third. When a
-  new object enters (an implant rising, a pulse arriving), aim where it WILL be.
+  new object enters (a part rising, a pulse arriving), aim where it WILL be.
 - Long lens (fov 20-25) + frontal angles for diagram worlds; normal lens
   (fov 40-45) + three-quarter angles for character worlds.
 
 ## Procedural assets (no files, no downloads)
 
-Everything is composed from primitives. Character recipes that worked:
+Everything is composed from primitives — spheres, boxes, cylinders, planes, tori.
+No model files, no textures, no downloads. That constraint is what keeps a scene a
+single self-contained HTML file, and it is far less limiting than it sounds.
 
-- **Bird/mascot**: body = sphere scaled (0.9, 1.1, 1.15); head sphere on a
-  short neck sphere; beak = cone scaled flat in one axis, rotated forward;
-  wings = spheres scaled (0.22, 0.8, 0.55) in pivot Groups at the shoulders so
-  they can rotate for gestures; legs = thin cylinders + flattened box feet.
-  Costume beats anatomy: a teal half-sphere cap + torus brim reads "surgeon"
-  instantly. Oversize the signature feature ~30% past comfortable (a pelican's
-  beak, a wizard's hat) — the first render is always too timid.
-- **Emoji-face human**: head sphere; eyes = white spheres scaled z≈0.5 sitting
+### The general move
+
+Recipes below are organized by **shape problem**, not by subject, because the same
+geometry serves wildly different domains. Before reaching for one, derive your own:
+
+1. **Decompose to primitives.** Almost anything reads as spheres, boxes and
+   cylinders in a Group hierarchy. Detail is not what makes it legible.
+2. **Silhouette first.** If it does not read as a black shape at thumbnail size,
+   more detail will not save it. Check by squinting at a sample frame.
+3. **Signature feature, oversized ~30%.** Whatever identifies the subject — a
+   beak, a hat, a chimney, a rotor, a spike in a chart — push it past comfortable.
+   The first render is always too timid.
+4. **Costume beats anatomy.** A hard hat makes a figure a builder; a torus brim
+   and a cap make one a surgeon. Role reads instantly from accessories and never
+   from accurate proportions.
+5. **Signal over realism.** Emissive brightness, scale pulses and colour shifts
+   carry meaning. A photoreal object that does not change is worse than a crude
+   one that does.
+
+### Recipes that have actually been built
+
+- **Figure** (creature, mascot, person, robot — anything that presents or
+  reacts): body = sphere scaled ~(0.9, 1.1, 1.15); head sphere on a short neck
+  sphere; limbs = spheres or cylinders in pivot Groups at the shoulder/hip so
+  they rotate for gestures; feet = flattened boxes. A protruding feature (beak,
+  snout, visor) = cone scaled flat in one axis and rotated forward.
+- **Expressive face**: head sphere; eyes = white spheres scaled z≈0.5 sitting
   PROUD of the face (bug-eyed reads at distance), pinpoint pupils, glint dots;
   brows floated slightly off the head; blush = flat circles rotated to the
-  cheeks; open mouth = dark sphere in a Group (portal for dive-ins, scale to
-  0 and swap in a half-torus smile for the finale).
-- **Cutaway diorama** (anatomy, geology, architecture): a flat slab box + bands
-  for layers, viewed frontally. CRITICAL: anything "inside" the slab is
-  invisible — cavities, membranes, and particles must sit PROUD of the front
-  face by 0.1-0.3 units, like a museum diorama. A thin dark torus rim where a
-  cavity meets the surface sells the carved look.
-- **Process pulse** (for data-flow/architecture): stations = labeled boxes on a
-  ground plane; the payload = a bright emissive sphere whose position is a
-  piecewise function of t along the edge path; arrival = bump() scale pulse on
-  the station. Captions carry the semantics.
+  cheeks; open mouth = dark sphere in a Group (doubles as a portal for dive-ins;
+  scale to 0 and swap in a half-torus smile for a finale).
+- **Cutaway / cross-section** (geology strata, building floors, soil horizons,
+  battery internals, an engine block, a seabed): a flat slab box + bands for
+  layers, viewed frontally. CRITICAL: anything "inside" the slab is invisible —
+  cavities, thin layers and particles must sit PROUD of the front face by 0.1-0.3
+  units, like a museum diorama. A thin dark torus rim where a cavity meets the
+  surface sells the carved look.
+- **Network or flow** (data pipelines, supply chains, transit maps, circuits,
+  approval workflows, nutrient cycles): stations = labeled boxes on a ground
+  plane; the payload = a bright emissive sphere whose position is a piecewise
+  function of t along the edge path; arrival = `pulse()` scale bump on the
+  station. Captions carry the semantics; the geometry carries the motion.
+
+### Not yet built, but the shape is obvious
+
+Sketches, not battle-tested — treat them as starting points and add what you
+learn back here.
+
+- **Field of instances** (populations, portfolios, fleets, A/B cohorts): one
+  instanced primitive per item on a grid, driven by a seeded `R[]` offset so the
+  arrangement is deterministic. Colour or height encodes the variable; the beat
+  is a wave passing through the field.
+- **Mechanism** (gears, levers, pumps, linkages): cylinders and boxes in nested
+  Groups where each rotation is a closed form of `t`. Meshing is faked — two
+  gears at a fixed ratio never actually collide, so drive both from one ramp.
 
 Text ON surfaces (posters, station labels): draw to an offscreen canvas2d, use
 as `CanvasTexture` with `tex.colorSpace = THREE.SRGBColorSpace`. Overlay text
@@ -131,7 +168,7 @@ white. Every first render comes out overexposed. In order of effectiveness:
 2. Pick material colors 2 shades darker and more saturated than the target —
    ACES lifts them. A "dark maroon" mouth (0x5e1f28) rendered salmon; 0x24090d
    read as intended. Same for yellows and creams: 0xffd54d not 0xfffbe8.
-3. Big pale surfaces (bone, walls) need speckle/detail dots or they read as
+3. Big pale surfaces (plaster, walls) need speckle/detail dots or they read as
    blank paper at every distance.
 4. Transparent glows (MeshBasic + opacity): opacity 0.5+ and saturated colors,
    else they vanish against light backgrounds.
