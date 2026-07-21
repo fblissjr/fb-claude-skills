@@ -44,18 +44,28 @@
    HTML loop and the MP4 render provably identical.
    ============================================================ */
 
-/* ---------- CONFIG: the spec as data. Edit this first. ---------- */
+/* ============================================================
+   BEATS — the single source of timing truth. Durations, not
+   absolute times: they accumulate, so lengthening one beat
+   shifts every later beat instead of silently overlapping it.
+   That is what makes retiming genuinely a one-line edit.
+
+   NOTHING else in this file may contain a literal timestamp.
+   Camera keyframes, captions and `duration` all derive from
+   here, and animate() addresses beats by NAME via ramp()/pulse().
+   ============================================================ */
+const BEATS = [
+  {name: 'title', dur: 2.8},
+  {name: 'one',   dur: 3.0, cap: "1 · First beat — what the viewer should notice"},
+  {name: 'two',   dur: 3.2, cap: "2 · Second beat"},
+  {name: 'three', dur: 3.0, cap: "3 · Payoff"},
+];
+
+/* ---------- CONFIG: everything that is not timing. ---------- */
 const CONFIG = {
-  duration: 12,                       // seconds
   title: "Your Title Here",
   subtitle: "and a subtitle",
-  titleUntil: 2.6,                    // title card fades out by here
-  captions: [                         // one per beat; [] disables subtitles
-    {a: 2.8, b: 5.8,  s: "1 · First beat — what the viewer should notice"},
-    {a: 6.0, b: 9.0,  s: "2 · Second beat"},
-    {a: 9.2, b: 12.0, s: "3 · Payoff"},
-  ],
-  flashes: [],                        // white-flash midpoints for hidden world cuts, e.g. [3.0]
+  flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
   seed: 20260721,                     // change to reshuffle all seeded randomness
   bg: 0x1a1426,
   exposure: 1.0,                      // if the scene looks washed out, LOWER this first
@@ -63,6 +73,7 @@ const CONFIG = {
                                       // sway moves every pixel every frame, which defeats
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
+  capFade: 0.35,                      // caption fade inset from each beat edge, seconds
 };
 
 /* ---------- deterministic kit ---------- */
@@ -73,6 +84,29 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,u)=>a+(b-a)*u;
 const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
 const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+
+/* ---------- beat addressing (use these, never raw timestamps) ----------
+   Resolve durations into absolute spans once, then address them by name.
+   The a/b arguments are FRACTIONS of the beat, not seconds, so an effect
+   keeps its place when the beat is retimed — which is also what lets
+   narration-driven timing rewrite durations without breaking animate(). */
+const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
+const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
+function span(name,a=0,b=1){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);
+  return[B.t0+a*B.dur,B.t0+b*B.dur];}
+const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
+const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+const during=(t,name)=>t>=BEAT[name].t0&&t<BEAT[name].t1;
+const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
+
+/* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
+   must not stretch when the beat is retimed: a 0.25s flash, a 0.06s world cut,
+   a fixed settle time. Stretching a cut window with its beat would uncover the
+   cut — which is the one bug method.md says already cost a re-render. Fractions
+   for "across this part of the beat", seconds for "this many seconds". */
+const secAt  =(name,s=0)=>BEAT[name].t0+s;
+const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
+const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
 
 /* ---------- renderer ---------- */
 const canvas=document.getElementById('c');
@@ -119,13 +153,15 @@ function buildWorlds(){
 }
 buildWorlds();
 
-/* ---------- camera rail: {t, p:[x,y,z], l:[lookAt]} ---------- */
+/* ---------- camera rail: {beat, at, p:[x,y,z], l:[lookAt]} ----------
+   Keyframes anchor to a beat and a fraction through it, so a keyframe can
+   never drift away from the beat it was framing when timings change. */
 const KEYS=[
-  {t:0,  p:[9,6,12],  l:[0,2.5,0]},
-  {t:4,  p:[5,4,7],   l:[0,3,0]},
-  {t:8,  p:[-6,5,8],  l:[0,3,0]},
-  {t:12, p:[9,7,12],  l:[0,2.5,0]},
-];
+  {beat:'title', at:0,  p:[9,6,12],  l:[0,2.5,0]},
+  {beat:'one',   at:.5, p:[5,4,7],   l:[0,3,0]},
+  {beat:'two',   at:.5, p:[-6,5,8],  l:[0,3,0]},
+  {beat:'three', at:1,  p:[9,7,12],  l:[0,2.5,0]},
+].map(k=>({...k,t:beatAt(k.beat,k.at)}));
 function setCamera(t){
   let a=KEYS[0],b=KEYS[KEYS.length-1];
   for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
@@ -144,7 +180,7 @@ function animate(t){
   demoKnot.rotation.y=t*.6;
   demoKnot.rotation.x=Math.sin(t*.4)*.3;
   demoKnot.position.y=3+Math.sin(t*1.3)*.2;
-  demoKnot.scale.setScalar(1+.3*bump(t,9.2,12));   // beat-3 payoff pulse
+  demoKnot.scale.setScalar(1+.3*pulse(t,'three'));   // payoff pulse, named not numbered
 }
 
 /* ---------- overlay (captions, title, flashes) ---------- */
@@ -154,20 +190,32 @@ titleEl.querySelector('h1').textContent=CONFIG.title;
 titleEl.querySelector('p').textContent=CONFIG.subtitle;
 const flashEl=document.getElementById('flash');
 function setOverlay(t){
-  titleEl.style.opacity=(ss(t,.2,.8)*(1-ss(t,CONFIG.titleUntil-.3,CONFIG.titleUntil+.3))).toFixed(3);
+  // Title card spans the first beat, whatever it is called or how long it runs.
+  const T=BEAT[BEATS[0].name];
+  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.3,T.t1+.3))).toFixed(3);
+
+  // Captions ARE beats — no parallel list to drift out of sync. The fade is
+  // inset from each beat edge, which is what used to be a hand-kept gap.
+  const F=CONFIG.capFade;
   let txt="",op=0;
-  for(const c of CONFIG.captions)if(t>=c.a&&t<=c.b){txt=c.s;op=ss(t,c.a,c.a+.35)*(1-ss(t,c.b-.3,c.b));break;}
+  for(const b of BEATS){
+    if(!b.cap)continue;
+    const B=BEAT[b.name];
+    if(t>=B.t0&&t<=B.t1){txt=b.cap;op=ss(t,B.t0,B.t0+F)*(1-ss(t,B.t1-F,B.t1));break;}
+  }
   if(txt)capEl.textContent=txt;
   capEl.style.opacity=op.toFixed(3);
-  let f=0;for(const m of CONFIG.flashes)f=Math.max(f,bump(t,m-.25,m+.25));
+
+  // Flashes anchor to beats too: {beat,at} instead of a bare timestamp.
+  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0);f=Math.max(f,bump(t,c-.25,c+.25));}
   flashEl.style.opacity=(f*.98).toFixed(3);
 }
 
 /* ---------- driver (the recorder contract) ---------- */
-window.DURATION=CONFIG.duration;
-window.seekTo=function(t){t=clamp(t,0,CONFIG.duration);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
+window.DURATION=TOTAL;                                 // derived from BEATS, cannot disagree
+window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
-function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%CONFIG.duration);requestAnimationFrame(loop);}
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};
 window.sceneReady=true;
 if(!location.search.includes('record'))requestAnimationFrame(loop);else window.seekTo(0);

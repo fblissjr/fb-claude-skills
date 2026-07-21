@@ -13,7 +13,7 @@ description: >
   narration exist but are not yet wired (see references/audio.md).
 metadata:
   author: Fred Bliss
-  version: 0.1.3
+  version: 0.2.0
   last_verified: 2026-07-21
   review_interval_days: 90
 ---
@@ -43,7 +43,8 @@ aspect:     16:9 default
 style:      palette (3-5 colors), tone (playful | clinical | technical),
             characters if any (procedural, built from primitives)
 subtitles:  on | off  — if on, one caption per beat, <70 chars
-beats:      ordered list of {t0, t1, caption, what happens on screen}
+beats:      ordered list of {name, dur, caption, what happens on screen}
+            — durations, not absolute times: they accumulate
 outputs:    html | mp4 | loop | poster (see "Delivery" — decide this HERE, not
             at encode time: it constrains the camera, which constrains the beats)
 ```
@@ -56,7 +57,12 @@ Diagrammatic sequences hold the camera anyway; narrative walkthroughs do not, an
 should not be forced to. See "Delivery".
 
 Get the beats table agreed with the user (or settled yourself) before building.
-Retiming a beat later is a one-line edit; re-planning a scene is not.
+Retiming a beat later really is a one-line edit — the `BEATS` array is the only
+place timing exists, and captions, camera keyframes and `DURATION` all derive
+from it. Re-planning a scene is not.
+
+Beats are **named and contiguous**, and their durations accumulate, so
+lengthening one shifts every later beat instead of silently overlapping it.
 
 ### 2. Scaffold from the template
 
@@ -72,11 +78,17 @@ bun run build.js vendor            # writes three.global.js beside the scene
 The scene is runnable as-is (placeholder scene, 12s) and already contains the
 full contract:
 
-- `CONFIG` — duration, title, style tokens, captions: pure data at the top
+- `BEATS` — the single source of timing truth; nothing else holds a timestamp
+- `CONFIG` — title, style tokens, seed: everything that is *not* timing
 - deterministic kit — seeded PRNG (`R[]` pool), `ss()` smoothstep, `bump()`,
   `lerp()`; **never** call `Math.random()`/`Date.now()` in scene code
-- camera rail — `KEYS[]` keyframes, smoothstep-interpolated, with instant
-  world-cuts hidden under white-flash overlays
+- beat addressing — `ramp(t,'beat',a,b)` and `pulse(t,'beat',a,b)` take
+  **fractions of the beat**, so an effect keeps its place when you retime.
+  `rampS`/`pulseS`/`secAt` take **seconds from the beat start**, for durations
+  that must *not* stretch: a 0.25s flash, a 0.06s world cut. Write
+  `ramp(t,'lift',0,.6)`, never `ss(t, 9.2, 11.4)`
+- camera rail — `KEYS[]` anchored to `{beat, at}`, smoothstep-interpolated, with
+  instant world-cuts hidden under white-flash overlays
 - caption + title overlay as DOM (crisp text in screenshots), styled from CONFIG
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
   `window.sceneReady`: the recorder contract; do not rename these

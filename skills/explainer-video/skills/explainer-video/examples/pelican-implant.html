@@ -36,7 +36,28 @@
    recorder can call seekTo(t) frame-by-frame — same reason we
    use a seeded RNG instead of Math.random().
    ============================================================ */
-const DUR = 20;
+/* Timing lives in BEATS and nowhere else. See SKILL.md step 1. */
+const BEATS = [
+  {name:'intro',   dur:3.2},
+  {name:'backout', dur:2.9, cap:"1 · The loose implant backs out — it had already lost its grip"},
+  {name:'clean',   dur:2.8, cap:"2 · Antibiotics + a deep clean clear the sinus infection"},
+  {name:'lift',    dur:3.8, cap:"3 · Sinus lift — the membrane rises, bone graft fills the space"},
+  {name:'place',   dur:3.0, cap:"4 · A wider implant bites into fresh, untouched bone"},
+  // capEnd: the caption must be gone before the world-cut flash at +2.05s.
+  {name:'heal',    dur:2.2, cap:"5 · Months of healing weld bone to titanium — then the crown", capEnd:1.85},
+  {name:'outro',   dur:2.1, cap:"Healed — see you at the next checkup ✦"},
+];
+
+const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
+const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
+function span(name,a=0,b=1){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);
+  return[B.t0+a*B.dur,B.t0+b*B.dur];}
+const ramp =(t,n,a=0,b=1)=>{const[x,y]=span(n,a,b);return ss(t,x,y);};
+const pulse=(t,n,a=0,b=1)=>{const[x,y]=span(n,a,b);return bump(t,x,y);};
+const secAt =(n,s=0)=>BEAT[n].t0+s;
+const rampS =(t,n,s0,s1)=>ss(t,secAt(n,s0),secAt(n,s1));
+const pulseS=(t,n,s0,s1)=>bump(t,secAt(n,s0),secAt(n,s1));
+const DUR = TOTAL;
 
 // ---------- tiny math kit ----------
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
@@ -354,23 +375,23 @@ let oldImplant,newImplant,membrane,graftG,infect1,infect2,sparkG,crownMesh,glowR
 const mw=(x,y,z)=>[x, y-60, z];
 const KEYS=[
   // office establishing
-  {t:0.0, p:[13,6.5,15],  l:[1.4,3.3,0]},
-  {t:2.2, p:[5.4,5.0,6.0],l:[2.7,3.7,0]},
-  {t:3.05,p:[3.35,4.4,1.7],l:[2.85,3.85,.15]},
+  {b:'intro',s:0.00, p:[13,6.5,15],  l:[1.4,3.3,0]},
+  {b:'intro',s:2.20, p:[5.4,5.0,6.0],l:[2.7,3.7,0]},
+  {b:'intro',s:3.05, p:[3.35,4.4,1.7],l:[2.85,3.85,.15]},
   // CUT (flash) → jaw diorama
-  {t:3.10,p:mw(1.2,.5,26),l:mw(1.2,.7,0)},
-  {t:4.3, p:mw(2.8,-.6,13),l:mw(1.3,0,0)},
-  {t:6.0, p:mw(2.4,0,11.5),l:mw(1.25,.4,0)},
-  {t:8.8, p:mw(2.0,2.1,11.0),l:mw(1.25,2.55,0)},
-  {t:10.6,p:mw(1.0,2.5,11.8),l:mw(1.2,2.85,0)},
-  {t:12.6,p:mw(2.6,-.2,10.5),l:mw(1.3,.2,0)},
-  {t:15.6,p:mw(2.0,-.4,10.5),l:mw(1.25,0,0)},
-  {t:17.0,p:mw(1.2,.4,24),l:mw(1.2,.6,0)},
-  {t:17.72,p:mw(1.2,.4,25),l:mw(1.2,.6,0)},   // hold in-world until the flash covers the cut
+  {b:'intro',s:3.10, p:mw(1.2,.5,26),l:mw(1.2,.7,0)},
+  {b:'backout',s:1.10,p:mw(2.8,-.6,13),l:mw(1.3,0,0)},
+  {b:'backout',s:2.80,p:mw(2.4,0,11.5),l:mw(1.25,.4,0)},
+  {b:'clean',s:2.70, p:mw(2.0,2.1,11.0),l:mw(1.25,2.55,0)},
+  {b:'lift',s:1.70,  p:mw(1.0,2.5,11.8),l:mw(1.2,2.85,0)},
+  {b:'lift',s:3.70,  p:mw(2.6,-.2,10.5),l:mw(1.3,.2,0)},
+  {b:'place',s:2.90, p:mw(2.0,-.4,10.5),l:mw(1.25,0,0)},
+  {b:'heal',s:1.30,  p:mw(1.2,.4,24),l:mw(1.2,.6,0)},
+  {b:'heal',s:2.02,  p:mw(1.2,.4,25),l:mw(1.2,.6,0)},   // hold in-world until the flash covers the cut
   // CUT (flash) → office finale
-  {t:17.78,p:[3.2,5.0,3.8],l:[2.85,3.75,0]},
-  {t:20.0,p:[6.8,7.4,15.5],l:[2.3,3.3,0]},
-];
+  {b:'heal',s:2.08,  p:[3.2,5.0,3.8],l:[2.85,3.75,0]},
+  {b:'outro',s:2.10, p:[6.8,7.4,15.5],l:[2.3,3.3,0]},
+].map(k=>({...k,t:secAt(k.b,k.s)}));   // resolve beat+offset -> absolute t, once
 function setCamera(t){
   let a=KEYS[0],b=KEYS[KEYS.length-1];
   for(let i=0;i<KEYS.length-1;i++){if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}}
@@ -389,24 +410,17 @@ function setCamera(t){
 const capEl=document.getElementById('cap');
 const titleEl=document.getElementById('title');
 const flashEl=document.getElementById('flash');
-const CAPS=[
-  {a:3.2, b:5.9, s:"1 · The loose implant backs out — it had already lost its grip"},
-  {a:6.1, b:8.7, s:"2 · Antibiotics + a deep clean clear the sinus infection"},
-  {a:8.9, b:12.5,s:"3 · Sinus lift — the membrane rises, bone graft fills the space"},
-  {a:12.7,b:15.5,s:"4 · A wider implant bites into fresh, untouched bone"},
-  {a:15.7,b:17.55,s:"5 · Months of healing weld bone to titanium — then the crown"},
-  {a:17.9,b:20.0,s:"Healed — see you at the next checkup ✦"},
-];
 function setOverlay(t){
   // title card
-  titleEl.style.opacity=(ss(t,.2,.8)*(1-ss(t,2.3,2.9))).toFixed(3);
+  titleEl.style.opacity=(rampS(t,'intro',.2,.8)*(1-rampS(t,'intro',2.3,2.9))).toFixed(3);
   // captions
   let txt="",op=0;
-  for(const c of CAPS){if(t>=c.a&&t<=c.b){txt=c.s;op=ss(t,c.a,c.a+.35)*(1-ss(t,c.b-.3,c.b));break;}}
+  for(const b of BEATS){if(!b.cap)continue;const B=BEAT[b.name],e=B.t0+(b.capEnd??b.dur);
+    if(t>=B.t0&&t<=e){txt=b.cap;op=ss(t,B.t0,B.t0+.35)*(1-ss(t,e-.3,e));break;}}
   if(txt)capEl.textContent=txt;
   capEl.style.opacity=op.toFixed(3);
   // white flashes hide the world cuts
-  const f=Math.max(bump(t,2.85,3.35),bump(t,17.5,18.0));
+  const f=Math.max(pulseS(t,'intro',2.85,3.35),pulseS(t,'heal',1.8,2.3));
   flashEl.style.opacity=(f*.98).toFixed(3);
 }
 
@@ -436,12 +450,12 @@ function animate(t){
     pupL.position.x=-.25+dart;pupR.position.x=.25+dart;
 
     if(t>17.7){ // finale: smile, wing raised in triumph, confetti
-      const u=ss(t,17.9,18.6);
+      const u=ramp(t,'outro',0,.333);
       mouthOpen.scale.setScalar(Math.max(.05,1-u));    // mouth closes
       mouthOpen.visible=u<.6;
       smile.visible=u>.45;
       browL.rotation.z=lerp(.15,.05,u);browR.rotation.z=lerp(-.15,-.05,u);
-      wingR.rotation.z=lerp(-.25,1.7,ss(t,18.0,18.7)); // mirror aloft!
+      wingR.rotation.z=lerp(-.25,1.7,ramp(t,'outro',.048,.381)); // mirror aloft!
       pelHead.rotation.z=lerp(0,.22,u);
       confetti.visible=t>18.0;
       for(const c of confettiBits){
@@ -455,7 +469,7 @@ function animate(t){
 
   // --- jaw world ---
   // S1: wobble then drop (3.2–6). Upper jaw ⇒ it falls DOWNWARD out of the socket.
-  const wob=ss(t,3.3,4.6)*(1-ss(t,4.75,4.95));
+  const wob=ramp(t,'backout',.034,.483)*(1-ramp(t,'backout',.534,.603));
   const drop=clamp(t-4.95,0,10);
   oldImplant.rotation.z=Math.sin(t*21)*.14*wob + drop*2.2;
   oldImplant.position.x=IX+drop*1.1;
@@ -463,7 +477,7 @@ function animate(t){
   oldImplant.visible=t<6.2;
 
   // S2: infection fades, sparkles scrub (6–8.8)
-  const inf=(1-ss(t,6.2,8.4));
+  const inf=(1-ramp(t,'clean',.036,.821));
   infect1.material.opacity=.42*inf*(0.8+.2*Math.sin(t*6));
   infect2.material.opacity=.38*inf*(0.8+.2*Math.sin(t*6+1));
   infect1.visible=infect2.visible=t<8.6;
@@ -474,29 +488,29 @@ function animate(t){
   });
 
   // S3: membrane lifts, graft pours in (8.8–12.6)
-  const liftU=ss(t,9.2,11.2);
+  const liftU=ramp(t,'lift',.079,.605);
   membrane.position.y=lerp(2.35,3.45,liftU);
   membrane.scale.y=lerp(.3,.42,liftU);
   graftG.visible=t>9.6;
   graftG.children.forEach(gr=>{
-    const u=ss(t,9.8+gr.userData.d*2.2,10.6+gr.userData.d*2.2);
+    const u=rampS(t,'lift',0.9+gr.userData.d*2.2,1.7+gr.userData.d*2.2);
     gr.scale.setScalar(Math.max(.001,u));
   });
 
   // S4: wider implant screws UP into place (12.6–15.6)
-  const inU=ss(t,12.8,14.6);
+  const inU=ramp(t,'place',.033,.633);
   newImplant.position.y=lerp(-6.5,0.3,inU);
   newImplant.rotation.y=(1-inU)*38 + t*1.2;
   newImplant.visible=t>12.4;
 
   // S5: osseointegration glow + crown (15.6–17.7)
-  const heal=ss(t,15.7,16.6);
+  const heal=ramp(t,'heal',0,.409);
   glowRing.visible=t>15.6&&t<17.6;
   if(glowRing.visible){
     glowRing.material.opacity=.55*heal*(0.6+.4*Math.sin(t*7));
     glowRing.scale.setScalar(1+.15*Math.sin(t*7));
   }
-  const crownU=ss(t,16.5,17.3);
+  const crownU=ramp(t,'heal',.364,.727);
   crownMesh.visible=t>16.4;
   crownMesh.position.y=lerp(-3.8,-2.3,crownU);
   crownMesh.scale.set(1.15*crownU,.85*crownU,.9*crownU);

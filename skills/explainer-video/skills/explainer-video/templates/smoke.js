@@ -119,7 +119,13 @@ async function checkScene(browser, file) {
   if (!scenes.length) { console.error('no scenes to check'); process.exit(1); }
 
   // Bundling is part of what we are testing, so build it rather than trust it.
-  if (!fs.existsSync('three.global.js')) {
+  // Vendor only if a scene actually asks for three — this script tests the
+  // contract, not the renderer, and a 2D or SVG backend must not be forced to
+  // materialize a three bundle it never references.
+  const needsThree = scenes.some(f => {
+    try { return /three\.global\.js/.test(fs.readFileSync(f, 'utf8')); } catch (e) { return false; }
+  });
+  if (needsThree && !fs.existsSync('three.global.js')) {
     execSync(`bun run ${path.join(__dirname, 'build.js')} vendor`, { stdio: 'inherit' });
   }
 

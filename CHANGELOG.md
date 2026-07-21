@@ -1,5 +1,18 @@
 # changelog
 
+## 0.35.0
+
+### changed
+- **explainer-video 0.1.3 -> 0.2.0**: beat timing is now data. A named `BEATS` array is the single source of timing truth; captions, camera keyframes and `DURATION` all derive from it, and `animate()` addresses beats by name. `SKILL.md` has claimed since 0.1.0 that "retiming a beat is a one-line edit" -- it was false, because timing lived in `CONFIG.captions`, in `ss(t, 5.0, 6.9)` literals scattered through `animate()`, and again in the camera rail. It is now true. Durations accumulate rather than being absolute, so lengthening a beat shifts every later beat instead of silently overlapping it.
+- **explainer-video**: two addressing forms, and the distinction is load-bearing. `ramp`/`pulse` take **fractions of a beat** and stretch when the beat is retimed; `rampS`/`pulseS`/`secAt` take **seconds from the beat start** and do not. A rise across half a beat should stretch; a 0.25s flash or a 0.06s world cut must not, because stretching a cut window uncovers the cut -- the one bug `method.md` says already cost a re-render.
+- **explainer-video**: both worked examples migrated. Verified behavior-preserving by shooting identical timestamps before and after and comparing with `ffmpeg psnr`: 7 of 12 pelican frames byte-identical, the rest 61-97 dB (imperceptible), and **the world-cut transition byte-identical at every sampled frame through it**. The only sub-70 dB frames were caption-fade boundaries, confirmed via difference images to be localized to the caption pill and the title -- a consequence of captions now spanning their beat instead of a hand-kept gap. A `capEnd` field covers the one case that genuinely needs an early-ending caption (the pelican's must clear the flash).
+
+### added
+- **explainer-video**: `method.md` gains "Beats are data, not comments" (including how to verify a migration with psnr and difference images) and "Spike the hostile beat first" -- build the beat that is both load-bearing and compression-hostile before committing to the full table, since it answers "does it read" and "does it encode small enough" in a few seconds of work.
+
+### fixed
+- **explainer-video**: `smoke.js` no longer vendors three unconditionally; it only does so if a scene actually references the bundle. The script tests the contract, not the renderer, so a 2D or SVG backend should not be forced to materialize a three bundle it never uses.
+
 ## 0.34.0
 
 ### fixed

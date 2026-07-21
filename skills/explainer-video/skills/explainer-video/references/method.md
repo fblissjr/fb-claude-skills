@@ -1,5 +1,47 @@
 # Method: designing a sequence that reads
 
+## Beats are data, not comments
+
+`BEATS` is the only place a timestamp exists. Captions, camera keyframes and
+`DURATION` all derive from it, and `animate()` addresses beats by name:
+
+```js
+const BEATS = [
+  {name:'title', dur:2.4},
+  {name:'scan',  dur:2.4, cap:"…"},
+  {name:'load',  dur:3.2, cap:"…", capEnd:1.85},   // caption ends early, beat does not
+];
+ramp(t,'load',0,.56)      // fraction of the beat — stretches when you retime
+rampS(t,'heal',1.8,2.3)   // seconds from beat start — does NOT stretch
+```
+
+**Fractions by default; seconds when the duration is physical.** A rise "across
+the first half of the lift" should stretch if the beat grows. A 0.25s flash or a
+0.06s world cut should not — stretching a cut window uncovers the cut, which is
+the bug below that already cost one re-render. That distinction is the whole
+reason both forms exist.
+
+Durations **accumulate**: lengthening `scan` shifts `load` rather than
+overlapping it. Retiming is genuinely one edit.
+
+Two things this bought immediately, both structural rather than stylistic:
+
+- Before it existed, a scene written *in the same session that documented the
+  problem* still restated caption windows as literals in `animate()`. The
+  template made magic numbers the path of least resistance, so no amount of
+  warning fixed it.
+- Narration-driven audio becomes possible at all: you cannot write a measured
+  speech duration back into `ss(t, 5.0, 6.9)`.
+
+### Migrating an existing scene
+
+Shoot the same sample timestamps before and after and compare with
+`ffmpeg -lavfi psnr`. Byte-identical frames mean behavior-preserving; >70 dB is
+imperceptible rounding. Anything lower, go look at a difference image
+(`blend=all_mode=difference`) before assuming it is fine — on the worked
+examples the only sub-70 dB frames were caption-fade boundaries, localized to
+the caption pill, and the precision-critical world cut came out byte-identical.
+
 ## Beats before geometry
 
 A sequence is a list of beats — (time range, caption, one visible change). Write
@@ -93,6 +135,22 @@ white. Every first render comes out overexposed. In order of effectiveness:
    blank paper at every distance.
 4. Transparent glows (MeshBasic + opacity): opacity 0.5+ and saturated colors,
    else they vanish against light backgrounds.
+
+## Spike the hostile beat first
+
+Identify the beat that is both load-bearing and compression-hostile — the one
+carrying the explanation *and* changing every pixel every frame (a wobbling
+mechanism, a whip pan, a particle burst) — and build that beat alone before
+committing to the full table.
+
+A few seconds of work answers two questions at once: does the motion read
+without a caption, and does it encode small enough for the delivery target. Fail
+the first and the premise is wrong. Fail only the second and the delivery plan
+changes, not the film. Discovering either after building six beats is expensive.
+
+This is "iterate by looking" applied to the encode step, which otherwise has no
+early check. It mostly stops mattering if the camera is held, since per-frame
+change is the entire problem.
 
 ## The iteration loop (this is the actual method)
 

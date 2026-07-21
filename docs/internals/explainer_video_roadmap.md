@@ -12,17 +12,24 @@ first means doing it twice.
 
 | # | Item | Status | Blocked by |
 |---|---|---|---|
-| 1 | [Named beats as the timing source](#1-named-beats-as-the-timing-source) | designed | — |
+| 1 | [Named beats as the timing source](#1-named-beats-as-the-timing-source) | **DONE** (0.2.0) | — |
 | 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | designed | 1 |
 | 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed | 1 |
 | 4 | [Magic-number lint](#4-magic-number-lint) | designed, advisory only | 1 |
 | 5 | [Parallel frame capture](#5-parallel-frame-capture) | designed | — |
 | 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | designed | — (not this plugin) |
-| 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | designed, fold into 1 | — |
+| 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
 
 ---
 
 ## 1. Named beats as the timing source
+
+> **Shipped in 0.2.0.** Built as designed, with one addition the design missed:
+> a seconds-from-beat-start form (`rampS`/`pulseS`/`secAt`) alongside the
+> fractional one. Fractions are right for anything that should stretch when a
+> beat is retimed, but a 0.25s flash and a 0.06s world cut are *physical*
+> durations — stretching them uncovers the cut. Also added `capEnd`, for a
+> caption that must end before its beat does. Items 2, 3 and 4 are now unblocked.
 
 ### The problem
 
