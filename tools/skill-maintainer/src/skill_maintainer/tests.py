@@ -235,6 +235,16 @@ def check_version_alignment(root: Path) -> list[Result]:
             # to compare against. Skip rather than invent a failure.
             continue
         source = raw_source.removeprefix("./")
+        # Refuse to follow a source out of the repo. `../x` and absolute paths
+        # were dereferenced, so the audit read manifests outside the tree it
+        # claims to audit -- verified reading /etc via a traversal source.
+        try:
+            (root / source).resolve().relative_to(root.resolve())
+        except (ValueError, OSError):
+            results.append(Result(
+                "repo", name, "version alignment", False,
+                f"marketplace source escapes the repo root: {raw_source!r}"))
+            continue
         pj = root / source / ".claude-plugin" / "plugin.json"
         if not pj.exists():
             results.append(Result(
@@ -290,42 +300,73 @@ def check_version_alignment(root: Path) -> list[Result]:
 _PLACEHOLDER = re.compile(
     # Anything with substitution/regex syntax in the user slot is a template.
     r"[<>${}\[\]*?%]"
-    # `/Users/Shared` is a real macOS system path, never a person.
-    r"|^Shared$"
+    # Real system / CI account names, never a person's home.
+    r"|^(?:Shared|linuxbrew|travis|runner|vagrant|ubuntu|ec2-user)$"
     # Conventional stand-in names used in documentation and fixtures. Broad
     # enough to keep the check quiet on legitimate content -- a check that
     # cries wolf gets bypassed, and this one is meant to gate.
     r"|^(?:someone|someuser|username|user|you|name|me|foo|bar|baz|test|tester"
     r"|example|alice|bob|carol|jane|john|jamie|dev|developer|youruser|yourname)$",
     re.I)
-_HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)/")
+# Trailing slash optional: a bare `cd /Users/<name>` at end of line carries a
+# username just as much as one with a path after it.
+#
+# Deliberately NOT matching ~/, $HOME/ or ${HOME}/. Those carry no username --
+# they are the repo's own sanctioned generic form (`<HOME>/.claude/...`), used
+# 143 times in tracked content. The scanner flags them because it RESOLVES them
+# and checks where they land; this check is about username exposure, and the two
+# rules are different. Adding them here flagged the approved replacement as the
+# thing it replaces.
+_HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)(?:/|\b)")
 
 
 def check_path_privacy(root: Path) -> list[Result]:
     """No tracked file may contain an absolute home path with a real username.
 
-    The path-privacy pre-commit hook scans the *diff*, so it only ever sees
-    added lines. A leak introduced before the hook existed -- or in a file the
-    hook has since seen only banner-level edits to -- survives indefinitely.
-    That is not hypothetical: five absolute paths carrying a username sat in a
-    tracked doc for 157 days and through a full docs triage, because every
-    commit that touched the file added lines elsewhere.
+    This enforces a DIFFERENT rule from the path-privacy scanner, and the
+    difference is the point.
 
-    This is the whole-tree counterpart: it audits content rather than changes,
-    so a pre-existing leak cannot hide behind a clean diff. It honours the same
-    `path-privacy: skip-file` and `path-privacy: ignore` markers the scanner
-    uses, so the plugins that legitimately contain these patterns stay silent.
+    The scanner's rule (find-external-paths.sh, `inside_root`) is: a path leaks
+    if it resolves OUTSIDE the repo root. That is implemented correctly and is
+    exactly what the documented convention says.
+
+    The rule here is: an absolute home path carrying a real username is a leak
+    *even when it resolves inside the repo*, because it exposes the username and
+    the home layout regardless of where it points.
+
+    That gap is why five paths of the form `/Users/<name>/<this-repo>/...` sat in
+    a tracked doc for 157 days. They resolve inside the root, so the scanner
+    passed them by design -- not, as an earlier version of this docstring
+    claimed, because the hook only sees added lines. It scans whole staged files.
+
+    Two rules, two checks. They will disagree in both directions (`/Users/Shared`
+    and documentation examples like `/Users/alice/...` are blocked by the scanner
+    and allowed here), and that is correct, not drift. Do not "reconcile" them
+    without deciding which rule you actually want.
     """
+    # -z because git C-quotes filenames containing non-ASCII, so line-splitting
+    # silently dropped those files from the audit.
     try:
-        tracked = subprocess.run(["git", "-C", str(root), "ls-files"],
-                                 capture_output=True, text=True, timeout=30)
-    except Exception:
-        return []                       # not a git repo, or git unavailable
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                                 capture_output=True, text=True, timeout=60)
+    except FileNotFoundError:
+        return []                       # git not installed: not our business
+    except Exception as e:
+        # Emit a failure rather than nothing. Returning [] printed no row at all,
+        # so the check silently vanished from the suite -- the same
+        # cannot-fire-reports-success shape this file fixes elsewhere.
+        return [Result("repo", "", "no leaked home paths", False,
+                       f"could not list tracked files: {e}")]
     if tracked.returncode != 0:
-        return []
+        if not (root / ".git").exists():
+            return []                   # genuinely not a git repo
+        return [Result("repo", "", "no leaked home paths", False,
+                       f"git ls-files failed: {tracked.stderr.strip()[:120]}")]
 
     hits: list[str] = []
-    for rel in tracked.stdout.splitlines():
+    for rel in tracked.stdout.split("\0"):
+        if not rel:
+            continue
         f = root / rel
         if not f.is_file():
             continue
@@ -333,13 +374,18 @@ def check_path_privacy(root: Path) -> list[Result]:
             text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue                    # binary or unreadable: nothing to leak
-        if "path-privacy: skip-file" in text:
+        # Scope the marker to the head, as find-external-paths.sh does. Matching
+        # it anywhere meant any file that merely QUOTED the marker in prose --
+        # including this repo's CHANGELOG.md and path-privacy's own SKILL.md --
+        # was silently exempt from the entire audit, in the fail-open direction.
+        if "path-privacy: skip-file" in "\n".join(text.splitlines()[:30]):
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if "path-privacy: ignore" in line:
                 continue
             for m in _HOME_PATH.finditer(line):
-                if not _PLACEHOLDER.search(m.group(1)):
+                user = m.group(1)
+                if not _PLACEHOLDER.search(user):
                     hits.append(f"{rel}:{i}")
                     break
 
@@ -383,10 +429,15 @@ def check_changelog_version(root: Path) -> list[Result]:
                        f"unreadable pyproject.toml: {e}")]
     pyver = data.get("project", {}).get("version")
     if not isinstance(pyver, str):
+        # Poetry and other non-PEP-621 layouts keep the version elsewhere. The
+        # regex this replaced found them by accident; hard-failing them turned a
+        # correct changelog into a permanent red row, which is precisely the
+        # cry-wolf failure this file argues against two functions above.
+        pyver = data.get("tool", {}).get("poetry", {}).get("version")
+    if not isinstance(pyver, str):
         if "version" in data.get("project", {}).get("dynamic", []):
             return []          # dynamic versioning is a legitimate shape
-        return [Result("repo", "", "changelog version", False,
-                       "pyproject.toml has no [project] version to compare against")]
+        return []              # no declared version anywhere: nothing to compare
 
     text = changelog.read_text(encoding="utf-8")
     # Accept keep-a-changelog `## [1.2.3] - 2024-01-01` and prerelease suffixes
@@ -402,11 +453,16 @@ def check_changelog_version(root: Path) -> list[Result]:
     # Anything other than the title before the first version heading means an
     # entry was written without one -- the exact failure this exists to catch.
     preamble = text[: heading.start()]
-    # An `## Unreleased` section above the top version is conventional, not a
-    # defect. Only non-heading prose indicates an entry written without one.
-    stray = [ln for ln in preamble.splitlines()
-             if ln.strip() and not ln.startswith("# ")
-             and not re.match(r"^##+\s+\[?Unreleased\]?", ln, re.I)]
+    # Drop the whole Unreleased SECTION, not just its heading. Exempting only the
+    # heading line meant a populated `## [Unreleased]` -- which is the entire
+    # point of the convention -- still failed on its own `### Added` bullets, so
+    # only an empty (unconventional) section passed.
+    lines = preamble.splitlines()
+    if any(re.match(r"^##+\s+\[?Unreleased\]?", ln, re.I) for ln in lines):
+        start = next(i for i, ln in enumerate(lines)
+                     if re.match(r"^##+\s+\[?Unreleased\]?", ln, re.I))
+        lines = lines[:start]
+    stray = [ln for ln in lines if ln.strip() and not ln.startswith("# ")]
     if stray:
         return [Result("repo", "", "changelog version", False,
                        f"content above the first version heading: {stray[0][:60]!r}")]

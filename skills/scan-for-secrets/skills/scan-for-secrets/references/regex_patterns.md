@@ -20,7 +20,7 @@ Matches `/Users/<anyuser>/...` not immediately preceded by a word character or s
 ```
 Matches `/home/<anyuser>/...`. Same guard logic.
 
-**False positives:** Some distro paths (`/home/linuxbrew`, `/home/travis`) will match. Review before acting.
+**False positives:** Some distro paths (`/home/linuxbrew`, `/home/travis`) will match. Review before acting.  <!-- path-privacy: ignore -->
 
 ### email
 ```

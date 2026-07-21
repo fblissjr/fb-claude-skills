@@ -81,7 +81,7 @@ Every plugin hook in this repo runs a bundled `.sh` and therefore references
 Not shell form (`"command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"` with
 no `args`). Shell form hands the whole string to `sh -c`, so a plugin root
 containing a space — a user account named `First Last`, for instance — splits at
-the space and the hook dies with `sh: /Users/First: No such file or directory`.
+the space and the hook dies with `sh: /Users/First: No such file or directory`.  <!-- path-privacy: ignore -->
 Exec form passes each `args` element as exactly one argument, no shell, no
 quoting rules.
 

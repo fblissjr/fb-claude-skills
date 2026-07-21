@@ -100,7 +100,13 @@ function frames(scene, fps = 30, dir = 'frames') {
 
 function video(name, fps = 30) {
   const out = name.replace(/(\.bundled)?\.html$/, '') + '.mp4';
-  run('ffmpeg', ['-y', '-framerate', String(fps), '-i', 'frames/f%05d.png',
+  // Honour the same override shoot.js does. video() hardcoded 'frames/' while
+  // shoot.js read FRAMES_DIR, so a hand-run `FRAMES_DIR=shots shoot.js ... full`
+  // followed by `build.js video` silently encoded the STALE frames/ from a
+  // previous render -- shipping the old film, which is the exact failure the
+  // stale-tail fix exists to prevent.
+  const dir = process.env.FRAMES_DIR || 'frames';
+  run('ffmpeg', ['-y', '-framerate', String(fps), '-i', path.join(dir, 'f%05d.png'),
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart', out]);
   console.log('encoded -> ' + out);

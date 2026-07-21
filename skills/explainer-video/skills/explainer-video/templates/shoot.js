@@ -22,13 +22,18 @@ const url = require('url');
 // so `full 3O` printed "done: NaN frames", exited 0, and wrote nothing. A mode
 // that reports success while doing nothing is the worst failure available here,
 // because the next encode silently reuses whatever frames were already there.
-function num(v, dflt, label) {
+function num(v, dflt, label, { allowZero = false } = {}) {
   if (v === undefined || v === '') {
     if (dflt === null) throw new Error(`missing ${label}`);
     return dflt;
   }
   const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0) throw new Error(`invalid ${label}: ${JSON.stringify(v)}`);
+  // allowZero because frames are 0-based: `range 0 60` re-shoots the opening,
+  // which is the documented purpose of the mode. Rejecting 0 there conflated
+  // "not a number" with "zero", and fps legitimately wants n > 0.
+  if (!Number.isFinite(n) || n < 0 || (!allowZero && n === 0)) {
+    throw new Error(`invalid ${label}: ${JSON.stringify(v)}`);
+  }
   return n;
 }
 
@@ -97,7 +102,10 @@ function chromiumPath() {
   };
 
   if (mode === 'sample') {
-    for (const t of (rest[0] || '0').split(',').map(Number)) {
+    // sample was left out of the num() hardening: `sample 3O` produced NaN,
+    // drove the scene with t=NaN and wrote sample_NaN.png with exit 0 -- the
+    // exact typo cited as num()'s motivation, in the one mode it skipped.
+    for (const t of (rest[0] || '0').split(',').map((x, i) => num(x, null, `sample time #${i + 1}`, { allowZero: true }))) {
       await shot(t, `sample_${String(t).replace('.', '_')}.png`);
       console.log('sample', t);
     }
@@ -109,8 +117,14 @@ function chromiumPath() {
     // film. This silently corrupted a shipped artifact: an 11s scene encoded to
     // 22.8s of animation. `range` deliberately does NOT clear, since partial
     // re-shooting is its whole purpose.
-    fs.rmSync(outDir, { recursive: true, force: true });
+    // Delete only the frames WE own. The previous rmSync(outDir, {recursive})
+    // deleted the whole directory, and outDir comes straight from FRAMES_DIR --
+    // so `FRAMES_DIR=. shoot.js ... full` erased the scene file and everything
+    // beside it. The stale-tail bug only ever needed f#####.png gone.
     fs.mkdirSync(outDir, { recursive: true });
+    for (const f of fs.readdirSync(outDir)) {
+      if (/^f\d{5}\.png$/.test(f)) fs.rmSync(path.join(outDir, f), { force: true });
+    }
     const t0 = Date.now();
     for (let i = 0; i < n; i++) {
       await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
@@ -118,7 +132,7 @@ function chromiumPath() {
     }
     console.log(`done: ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else if (mode === 'range') {
-    const a = num(rest[0], null, 'start frame'), b = num(rest[1], null, 'end frame'),
+    const a = num(rest[0], null, 'start frame', { allowZero: true }), b = num(rest[1], null, 'end frame'),
           fps = num(rest[2], 30, 'fps');
     fs.mkdirSync(outDir, { recursive: true });
     for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));

@@ -16,7 +16,14 @@ fi
 
 if [ ! -x "$SCANNER" ]; then
   echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
-  exit 0  # don't block commits if the plugin is misconfigured -- fail open by design
+  # Fail CLOSED, matching the installed wrapper. This used to exit 0 "by design",
+  # which quietly defeated the wrapper's guarantee one level down: the wrapper
+  # carefully selects an executable entry script, that script finds its own
+  # delegate missing, and the commit sails through with no gate and no error.
+  # A silent bypass on a privacy gate is unrecoverable; a block is loud and fixable.
+  echo "  The leak gate is NOT running, so this commit is blocked rather than" >&2
+  echo "  allowed through unchecked. Reinstall with /path-privacy:path-privacy." >&2
+  exit 1
 fi
 
 if ! "$SCANNER" --staged; then

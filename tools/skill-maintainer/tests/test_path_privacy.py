@@ -1,5 +1,9 @@
 """Whole-tree path audit.
 
+path-privacy: skip-file -- this file is fixtures for the leak check itself, so it
+contains deliberately leak-shaped paths. Without this marker the plugin's own
+scanner hard-blocks any commit that stages it.
+
 The pre-commit hook scans the diff, so a leak introduced before it existed --
 or in a file since touched only elsewhere -- survives indefinitely. Five
 absolute paths carrying a username sat in a tracked doc for 157 days that way.

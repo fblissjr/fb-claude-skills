@@ -36,20 +36,44 @@ if [ -z "$TARGET_REPO" ] || ! git -C "$TARGET_REPO" rev-parse --git-dir >/dev/nu
   exit 2
 fi
 
-# Honour core.hooksPath. Writing to .git/hooks in a repo that sets it produces a
-# successful-looking install whose hooks git never runs -- every husky/lefthook
-# repo, silently ungated. That is the exact fail-open the wrapper works hard to
-# avoid, one level up, so it must not be silent here either.
-CUSTOM_HOOKS_PATH=$(git -C "$TARGET_REPO" config --get core.hooksPath 2>/dev/null || echo "")
-if [ -n "$CUSTOM_HOOKS_PATH" ]; then
-  case "$CUSTOM_HOOKS_PATH" in
-    /*) HOOKS_DIR="$CUSTOM_HOOKS_PATH" ;;
-    *)  HOOKS_DIR="$TARGET_REPO/$CUSTOM_HOOKS_PATH" ;;
-  esac
-  echo "note: core.hooksPath is set; installing into $HOOKS_DIR (not .git/hooks)" >&2
-else
-  HOOKS_DIR="$TARGET_REPO/.git/hooks"
+# Ask git where hooks live rather than assembling the path ourselves. This one
+# call is correct for every case we previously got wrong by hand: a subdirectory
+# of a repo (we used to fabricate a dead .git/hooks under it and report success),
+# a worktree or submodule (.git is a FILE there, so mkdir -p died), and any
+# core.hooksPath including the tilde form git expands and we did not (we created
+# a directory literally named "~" inside the work tree).
+HOOKS_DIR=$(git -C "$TARGET_REPO" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+if [ -z "$HOOKS_DIR" ]; then
+  echo "install-git-hooks: could not determine the hooks directory for $TARGET_REPO" >&2
+  exit 2
 fi
+
+# A core.hooksPath from GLOBAL config makes a per-repo install machine-wide:
+# every repo you own starts running this gate, and --uninstall from any one of
+# them mutates that shared state. Refuse rather than surprise.
+HOOKS_SCOPE=$(git -C "$TARGET_REPO" config --show-scope --get core.hooksPath 2>/dev/null | awk '{print $1}' || echo "")
+if [ -n "$HOOKS_SCOPE" ] && [ "$HOOKS_SCOPE" != "local" ] && [ "$HOOKS_SCOPE" != "worktree" ]; then
+  echo "install-git-hooks: core.hooksPath is set in $HOOKS_SCOPE config -> $HOOKS_DIR" >&2
+  echo "  Installing there would gate EVERY repo on this machine, and --uninstall" >&2
+  echo "  from any repo would remove it for all of them. Refusing." >&2
+  echo "  Set a repo-local hooks path first: git -C \"$TARGET_REPO\" config --local core.hooksPath <dir>" >&2
+  exit 2
+fi
+
+# A hooks dir inside the work tree is usually tracked (.husky/, .githooks/). The
+# wrapper embeds this machine's absolute plugin-cache path, so committing it
+# would plant the very leak class this plugin polices and hand teammates a dead
+# path that fails closed on their machines.
+case "$HOOKS_DIR" in
+  "$TARGET_REPO"/*)
+    if git -C "$TARGET_REPO" ls-files --error-unmatch "$HOOKS_DIR" >/dev/null 2>&1 \
+       || [ -n "$(git -C "$TARGET_REPO" ls-files -- "$HOOKS_DIR" 2>/dev/null)" ]; then
+      echo "install-git-hooks: $HOOKS_DIR is inside the work tree and tracked by git." >&2
+      echo "  The generated wrapper embeds a machine-specific absolute path; committing" >&2
+      echo "  it would leak that path and break the hook for everyone else. Refusing." >&2
+      exit 2
+    fi ;;
+esac
 mkdir -p "$HOOKS_DIR"
 
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -146,12 +170,23 @@ if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
       done
     }
   }
-  # Groups are tried IN ORDER rather than merged. sort -V over a merged list
-  # compares the marketplace directory before the version component, so a stale
-  # copy under cache/zz-other/ outranks a newer one from your own tree.
-  CAND="\$(newest_exec "\${FROZEN_ROOT%/*}"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
-  [ -z "\$CAND" ] && CAND="\$(newest_exec "\$FROZEN_ROOT"/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
-  [ -z "\$CAND" ] && CAND="\$(newest_exec "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
+  # Group 1 is the frozen tree ITSELF, never its siblings. Globbing the parent
+  # (\${FROZEN_ROOT%/*}/*/...) reached every neighbouring project on disk, so a
+  # broken local checkout at ~/dev/plugin-a silently ran ~/dev/plugin-zzz's
+  # scanner -- an arbitrary sibling repo's code, or on a shared machine another
+  # user's, executed as a commit gate. It also matched <plugin>.backup snapshot
+  # directories, which sort ABOVE the real one.
+  CAND="\$(newest_exec "\$FROZEN_ROOT"/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
+  # Group 2 is the version-stamped cache, which is what actually rotates. Sort by
+  # the VERSION component alone: sort -rV over whole paths compares the
+  # marketplace directory first, so cache/mp-z/0.0.1 beat cache/mp-a/9.9.9.
+  if [ -z "\$CAND" ]; then
+    for _v in \$(ls -1 "\$HOME"/.claude/plugins/cache/*/path-privacy/ 2>/dev/null | sort -rV -u); do
+      for _c in "\$HOME"/.claude/plugins/cache/*/path-privacy/"\$_v"/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
+        if [ -x "\$_c" ]; then CAND="\$_c"; break 2; fi
+      done
+    done
+  fi
   [ -n "\$CAND" ] && PATH_PRIVACY_SCRIPT="\$CAND"
 fi
 

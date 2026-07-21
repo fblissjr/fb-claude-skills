@@ -20,8 +20,15 @@ if [ -n "${PATH_PRIVACY_SCRIPT_DIR:-}" ]; then
 fi
 
 if [ ! -x "$SCANNER" ]; then
+  # Fail CLOSED, matching git-pre-commit and the installed wrapper. Exiting 0
+  # here defeated the wrapper's guarantee one level down: the wrapper selects an
+  # executable entry script, that script finds its own delegate missing, and the
+  # commit proceeds ungated with no error. A silent bypass on a privacy gate is
+  # unrecoverable; a block is loud and fixable.
   echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
-  exit 0
+  echo "  The leak gate is NOT running, so this commit is blocked rather than" >&2
+  echo "  allowed through unchecked. Reinstall with /path-privacy:path-privacy." >&2
+  exit 1
 fi
 
 FAILED=0
