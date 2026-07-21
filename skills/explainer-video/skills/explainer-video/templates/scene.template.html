@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Explainer sequence</title>
+<style>
+  /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
+     and restyles without touching the scene. Colors/fonts come from CONFIG below. */
+  html,body{margin:0;padding:0;overflow:hidden;background:#0e0b14;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  #cap{position:fixed;left:50%;bottom:5.5%;transform:translateX(-50%);
+    font:600 30px/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(20,14,30,.62);padding:14px 34px;border-radius:999px;
+    white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.18);
+    text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #title{position:fixed;left:50%;top:7%;transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
+  #title h1{font-size:44px;margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:24px;margin:6px 0 0;font-weight:500;opacity:.9;}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 58%,rgba(10,6,18,.42) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="title"><h1></h1><p></p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<!-- three is vendored locally, never loaded from a CDN: `bun run build.js vendor`
+     writes three.global.js beside the scene (a single self-contained bundle that
+     sets window.THREE). It MUST stay a classic script, not type="module" —
+     Chrome CORS-blocks ES module imports over file://, and opening the scene
+     directly from disk is the whole point. `build.js bundle` inlines this file. -->
+<script src="./three.global.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   CONTRACT (do not rename): window.seekTo(t), window.DURATION,
+   window.stopPlayback(), window.sceneReady.
+   Everything on screen is a pure function of t — no Math.random(),
+   no Date.now(), no accumulated state. That is what makes the
+   HTML loop and the MP4 render provably identical.
+   ============================================================ */
+
+/* ---------- CONFIG: the spec as data. Edit this first. ---------- */
+const CONFIG = {
+  duration: 12,                       // seconds
+  title: "Your Title Here",
+  subtitle: "and a subtitle",
+  titleUntil: 2.6,                    // title card fades out by here
+  captions: [                         // one per beat; [] disables subtitles
+    {a: 2.8, b: 5.8,  s: "1 · First beat — what the viewer should notice"},
+    {a: 6.0, b: 9.0,  s: "2 · Second beat"},
+    {a: 9.2, b: 12.0, s: "3 · Payoff"},
+  ],
+  flashes: [],                        // white-flash midpoints for hidden world cuts, e.g. [3.0]
+  seed: 20260721,                     // change to reshuffle all seeded randomness
+  bg: 0x1a1426,
+  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+};
+
+/* ---------- deterministic kit ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(CONFIG.seed);
+const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+
+/* ---------- renderer ---------- */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);                            // fixed DPR = identical pixels everywhere
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185
+renderer.outputColorSpace=THREE.SRGBColorSpace;   // r152+ name; outputEncoding is gone
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=CONFIG.exposure;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(CONFIG.bg);
+const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+/* ---------- shared helpers ---------- */
+const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
+const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
+
+/* ---------- lights (a sane default rig; tune per scene) ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
+const key=new THREE.DirectionalLight(0xfff1dd,1.3);
+key.position.set(6,12,8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
+
+/* ============================================================
+   WORLDS — replace this placeholder with your scene.
+   Pattern: one Group per world, offset far apart (e.g. y -60),
+   toggle .visible in animate(t), cut the camera under a flash.
+   ============================================================ */
+let demoKnot;   // handles you need in animate() get declared here
+function buildWorlds(){
+  const world=new THREE.Group();scene.add(world);
+  const floor=mesh(new THREE.PlaneGeometry(60,60),std(0xbfd3d6,{roughness:.9}),world);
+  floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+  demoKnot=mesh(new THREE.TorusKnotGeometry(1.4,.42,120,16),std(0x2a9d8f,{roughness:.35}),world,0,3,0);
+}
+buildWorlds();
+
+/* ---------- camera rail: {t, p:[x,y,z], l:[lookAt]} ---------- */
+const KEYS=[
+  {t:0,  p:[9,6,12],  l:[0,2.5,0]},
+  {t:4,  p:[5,4,7],   l:[0,3,0]},
+  {t:8,  p:[-6,5,8],  l:[0,3,0]},
+  {t:12, p:[9,7,12],  l:[0,2.5,0]},
+];
+function setCamera(t){
+  let a=KEYS[0],b=KEYS[KEYS.length-1];
+  for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
+  const u=ss(t,a.t,b.t),sway=.06;   // slight sway so nothing feels static
+  camera.position.set(lerp(a.p[0],b.p[0],u)+Math.sin(t*.7)*sway,
+                      lerp(a.p[1],b.p[1],u)+Math.sin(t*.9+2)*sway*.6,
+                      lerp(a.p[2],b.p[2],u));
+  camera.lookAt(lerp(a.l[0],b.l[0],u),lerp(a.l[1],b.l[1],u)+Math.sin(t*.8+1)*sway*.4,lerp(a.l[2],b.l[2],u));
+}
+
+/* ============================================================
+   ANIMATE — every property a pure function of t.
+   Use ss(t, start, end) ramps per beat; never accumulate.
+   ============================================================ */
+function animate(t){
+  demoKnot.rotation.y=t*.6;
+  demoKnot.rotation.x=Math.sin(t*.4)*.3;
+  demoKnot.position.y=3+Math.sin(t*1.3)*.2;
+  demoKnot.scale.setScalar(1+.3*bump(t,9.2,12));   // beat-3 payoff pulse
+}
+
+/* ---------- overlay (captions, title, flashes) ---------- */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+titleEl.querySelector('h1').textContent=CONFIG.title;
+titleEl.querySelector('p').textContent=CONFIG.subtitle;
+const flashEl=document.getElementById('flash');
+function setOverlay(t){
+  titleEl.style.opacity=(ss(t,.2,.8)*(1-ss(t,CONFIG.titleUntil-.3,CONFIG.titleUntil+.3))).toFixed(3);
+  let txt="",op=0;
+  for(const c of CONFIG.captions)if(t>=c.a&&t<=c.b){txt=c.s;op=ss(t,c.a,c.a+.35)*(1-ss(t,c.b-.3,c.b));break;}
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=op.toFixed(3);
+  let f=0;for(const m of CONFIG.flashes)f=Math.max(f,bump(t,m-.25,m+.25));
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ---------- driver (the recorder contract) ---------- */
+window.DURATION=CONFIG.duration;
+window.seekTo=function(t){t=clamp(t,0,CONFIG.duration);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
+let playing=true,t0=null;
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%CONFIG.duration);requestAnimationFrame(loop);}
+window.stopPlayback=function(){playing=false;};
+window.sceneReady=true;
+if(!location.search.includes('record'))requestAnimationFrame(loop);else window.seekTo(0);
+</script>
+</body>
+</html>

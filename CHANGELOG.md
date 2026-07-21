@@ -1,5 +1,19 @@
 # changelog
 
+## 0.31.0
+
+### added
+- **explainer-video 0.1.0**: new plugin for deterministic animated explainer sequences (3D or diagrammatic), delivered as a self-contained looping HTML page, a frame-exact MP4, or both. The whole film is a pure function of time `t`, so one scene file drives both the live HTML loop and the headless render — no second copy to keep in sync. Ships a runnable scaffold, a headless frame shooter, a vendor/bundle/frames/video pipeline, a design-method reference, and a worked 20s example.
+
+### changed
+- **explainer-video**: promoted from a bare skill directory to a plugin (`.claude-plugin/plugin.json`, README, `skills/explainer-video/`), added `metadata.version`/`last_verified`, renamed `reference/` -> `references/`, and converted the toolchain from npm/node to bun.
+- **explainer-video**: pinned `three@0.185.1` and `playwright-core@1.61.1` (from `three@0.149.0`, unpinned playwright). This was a migration, not a bump — three removed its UMD build after 0.160, and `outputEncoding`, `sRGBEncoding` and `useLegacyLights` are gone in r185. Because `THREE.<removed>` evaluates to `undefined` rather than throwing, the old code would have rendered with silently wrong colors. three is now vendored locally as an IIFE bundle (`build.js vendor`) instead of loaded from a CDN, so renders never touch the network.
+
+### fixed
+- **explainer-video**: `build.js bundle` corrupted every bundled artifact. The inline step used a string replacement, where `$&` is a substitution pattern, and minified three contains `if($&$.isStackTrace)` — splicing the matched script tag into the middle of the library. Now uses a function replacement. This bug predated the version migration.
+- **explainer-video**: the vendored bundle must be IIFE format. An ESM bundle loaded as a classic script leaks top-level identifiers into global scope, where a minified `MW` collided with a scene variable and broke the worked example.
+- **explainer-video**: `shoot.js` now surfaces page and console errors and fails fast when a scene never becomes ready, instead of silently shooting hundreds of broken frames. Playwright's Chromium cache is scanned by build rather than pinned to a stale build number.
+
 ## 0.30.2
 
 ### changed

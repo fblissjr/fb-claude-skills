@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Dr. Pelican, DDS — Implant Re-do Walkthrough</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#0e0b14;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  /* Caption pill, DOM overlay so text stays crisp in screenshots */
+  #cap{position:fixed;left:50%;bottom:5.5%;transform:translateX(-50%);
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;font-size:30px;font-weight:600;
+    color:#fff;background:rgba(20,14,30,.62);padding:14px 34px;border-radius:999px;
+    letter-spacing:.2px;white-space:nowrap;opacity:0;backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.18);text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #title{position:fixed;left:50%;top:7%;transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
+  #title h1{font-size:44px;margin:0;font-weight:800;letter-spacing:.5px;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:24px;margin:6px 0 0;font-weight:500;opacity:.9;text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 58%,rgba(10,6,18,.42) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="title"><h1>The Implant Re-do, in 20 Seconds</h1><p>starring Dr.&nbsp;Pelican, DDS &nbsp;·&nbsp; upper-right molar edition</p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<script src="./three.global.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   A deterministic 20-second 3D walkthrough.
+   Everything is a pure function of t (seconds) so a headless
+   recorder can call seekTo(t) frame-by-frame — same reason we
+   use a seeded RNG instead of Math.random().
+   ============================================================ */
+const DUR = 20;
+
+// ---------- tiny math kit ----------
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng = mulberry32(20260720);
+const R = []; for(let i=0;i<4000;i++) R.push(rng());   // frozen random pool
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+// smooth 0→1 ramp between t0..t1
+const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};
+// pulse that rises then falls (for flashes / sparkles)
+const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);};
+
+// ---------- renderer ----------
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1a1426);
+const camera=new THREE.PerspectiveCamera(42,16/9,0.1,300);
+
+function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+window.addEventListener('resize',resize);resize();
+
+// ---------- materials ----------
+const M={
+  skin:new THREE.MeshStandardMaterial({color:0xf2bd96,roughness:.65}),
+  hair:new THREE.MeshStandardMaterial({color:0x4a3220,roughness:.9}),
+  eyeWhite:new THREE.MeshStandardMaterial({color:0xffffff,roughness:.25}),
+  pupil:new THREE.MeshStandardMaterial({color:0x18100c,roughness:.2}),
+  glint:new THREE.MeshBasicMaterial({color:0xffffff}),
+  blush:new THREE.MeshBasicMaterial({color:0xf98a80,transparent:true,opacity:.6}),
+  brow:new THREE.MeshStandardMaterial({color:0x2a1a0c,roughness:.95}),
+  mouthDark:new THREE.MeshStandardMaterial({color:0x24090d,roughness:.95}),
+  teeth:new THREE.MeshStandardMaterial({color:0xf7f4ea,roughness:.35}),
+  feather:new THREE.MeshStandardMaterial({color:0xfaf7f0,roughness:.7}),
+  featherShade:new THREE.MeshStandardMaterial({color:0xe8e2d4,roughness:.75}),
+  beak:new THREE.MeshStandardMaterial({color:0xf28c05,roughness:.5}),
+  pouch:new THREE.MeshStandardMaterial({color:0xd97a10,roughness:.55}),
+  scrub:new THREE.MeshStandardMaterial({color:0x2a9d8f,roughness:.7}),
+  scrubDark:new THREE.MeshStandardMaterial({color:0x21867a,roughness:.7}),
+  orange:new THREE.MeshStandardMaterial({color:0xef8c1a,roughness:.6}),
+  chair:new THREE.MeshStandardMaterial({color:0x4f7f95,roughness:.55}),
+  chairDark:new THREE.MeshStandardMaterial({color:0x2f4c5c,roughness:.6}),
+  metal:new THREE.MeshStandardMaterial({color:0xb9c1c9,roughness:.25,metalness:.85}),
+  titanium:new THREE.MeshStandardMaterial({color:0xaeb6bf,roughness:.3,metalness:.9}),
+  floor:new THREE.MeshStandardMaterial({color:0xbfd3d6,roughness:.9}),
+  wall:new THREE.MeshStandardMaterial({color:0xdcebe4,roughness:.95}),
+  wall2:new THREE.MeshStandardMaterial({color:0xcfe0ea,roughness:.95}),
+  bone:new THREE.MeshStandardMaterial({color:0xe9d5ae,roughness:.85}),
+  boneDeep:new THREE.MeshStandardMaterial({color:0x9a8256,roughness:.9}),
+  gum:new THREE.MeshStandardMaterial({color:0xd76e8e,roughness:.65}),
+  sinusHollow:new THREE.MeshStandardMaterial({color:0x33224a,roughness:.95}),
+  membrane:new THREE.MeshStandardMaterial({color:0xf29cb8,roughness:.45,transparent:true,opacity:.96}),
+  graft:new THREE.MeshStandardMaterial({color:0xcda45e,roughness:.8}),
+  infect:new THREE.MeshBasicMaterial({color:0xe6382b,transparent:true,opacity:.5}),
+  sparkle:new THREE.MeshBasicMaterial({color:0xffd54d}),
+  glow:new THREE.MeshBasicMaterial({color:0x7ef0b8,transparent:true,opacity:.5}),
+  mouthBg:new THREE.MeshStandardMaterial({color:0x481a2c,roughness:1}),
+  crown:new THREE.MeshStandardMaterial({color:0xf8f6ee,roughness:.3}),
+};
+
+// geometry shorthands
+const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
+const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
+const key=new THREE.DirectionalLight(0xfff1dd,1.3);
+key.position.set(6,12,8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
+
+/* ============================================================
+   WORLD 1 — the office (origin)
+   ============================================================ */
+const office=new THREE.Group();scene.add(office);
+{
+  const floor=mesh(new THREE.PlaneGeometry(60,60),M.floor,office);floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+  const wallB=mesh(new THREE.PlaneGeometry(60,24),M.wall,office,0,12,-8);wallB.castShadow=false;
+  const wallL=mesh(new THREE.PlaneGeometry(60,24),M.wall2,office,-14,12,0);wallL.rotation.y=Math.PI/2;wallL.castShadow=false;
+  // window with soft light
+  mesh(B(6,4,.1),new THREE.MeshBasicMaterial({color:0xeaf6ff}),office,-5,6,-7.9);
+  mesh(B(6.4,4.4,.06),M.chairDark,office,-5,6,-7.95);
+  // poster: tooth clinic sign (canvas texture)
+  const pc=document.createElement('canvas');pc.width=256;pc.height=320;const g2=pc.getContext('2d');
+  g2.fillStyle='#fff';g2.fillRect(0,0,256,320);
+  g2.fillStyle='#2a9d8f';g2.font='bold 34px sans-serif';g2.textAlign='center';
+  g2.fillText('DR. PELICAN',128,52);g2.fillText('D.D.S.',128,92);
+  g2.strokeStyle='#4f7f95';g2.lineWidth=10;
+  g2.beginPath(); // simple molar doodle
+  g2.moveTo(78,150);g2.bezierCurveTo(70,110,186,110,178,150);
+  g2.bezierCurveTo(190,190,170,230,158,268);g2.quadraticCurveTo(148,286,140,262);
+  g2.quadraticCurveTo(132,230,128,226);g2.quadraticCurveTo(124,230,116,262);
+  g2.quadraticCurveTo(108,286,98,268);g2.bezierCurveTo(86,230,66,190,78,150);g2.stroke();
+  const postTex=new THREE.CanvasTexture(pc);postTex.colorSpace=THREE.SRGBColorSpace;
+  mesh(new THREE.PlaneGeometry(2.6,3.2),new THREE.MeshStandardMaterial({map:postTex,roughness:.9}),office,4.5,6,-7.85);
+}
+
+// ----- dental chair (reclined, head toward +x) -----
+const chairG=new THREE.Group();office.add(chairG);
+{
+  mesh(C(1.1,1.5,.5),M.chairDark,chairG,0,.25,0);           // base
+  mesh(C(.28,.28,1.2),M.metal,chairG,0,1.1,0);              // column
+  const seat=mesh(B(4.6,.5,2.1),M.chair,chairG,-.4,1.95,0); seat.rotation.z=-.12;
+  const back=mesh(B(3.4,.45,2.0),M.chair,chairG,1.9,2.65,0);back.rotation.z=-.55; // reclined backrest
+  mesh(B(1.1,.35,1.1),M.chairDark,chairG,3.05,3.28,0).rotation.z=-.55;            // headrest
+  const leg=mesh(B(2.2,.4,2.0),M.chair,chairG,-2.6,1.6,0);leg.rotation.z=.35;     // legrest
+  // overhead lamp (kept high + behind so it doesn't crowd the closeups)
+  mesh(C(.12,.12,6.4),M.metal,chairG,5.2,3.2,-2.6);
+  const arm=mesh(C(.09,.09,3.6),M.metal,chairG,4.0,6.4,-1.9);arm.rotation.z=Math.PI/2.5;arm.rotation.y=.3;
+  const lampHead=new THREE.Group();lampHead.position.set(2.6,6.6,-1.3);lampHead.scale.setScalar(.85);chairG.add(lampHead);
+  mesh(C(.75,.95,.5),M.chairDark,lampHead).rotation.x=.9;
+  const lampFace=mesh(C(.7,.7,.08),new THREE.MeshBasicMaterial({color:0xfff8e0}),lampHead,0,-.18,.22);lampFace.rotation.x=.9;
+  const spot=new THREE.PointLight(0xfff2cc,.7,9);spot.position.set(2.7,5.6,-.4);chairG.add(spot);
+  // instrument tray
+  mesh(C(.07,.07,2.4),M.metal,chairG,1.2,1.2,2.2);
+  mesh(B(1.5,.08,.9),M.metal,chairG,1.2,2.44,2.2);
+  mesh(B(.7,.1,.12),M.teeth,chairG,1.1,2.53,2.1).rotation.y=.4;
+  mesh(C(.04,.04,.8),M.metal,chairG,1.4,2.53,2.3).rotation.z=Math.PI/2;
+}
+
+// ----- patient (reclined, 😳) -----
+const patient=new THREE.Group();office.add(patient);
+const pHead=new THREE.Group();pHead.position.set(2.85,3.72,0);pHead.rotation.set(-1.12,0,-.12);patient.add(pHead);
+let pupL,pupR,eyeL,eyeR,mouthOpen,smile,browL,browR;
+{
+  // body under a bib
+  const torso=mesh(B(2.6,.8,1.5),M.scrub,patient,.6,2.62,0);torso.rotation.z=-.4;
+  const bib=mesh(B(1.6,.86,1.3),new THREE.MeshStandardMaterial({color:0xbfe3ef,roughness:.9}),patient,1.35,2.95,0);bib.rotation.z=-.5;
+  const legs=mesh(B(2.6,.62,1.2),new THREE.MeshStandardMaterial({color:0x5a6a8a,roughness:.8}),patient,-1.7,2.2,0);legs.rotation.z=.32;
+  mesh(B(.5,.4,.5),M.hair,patient,-3.0,2.35,.35).rotation.z=.3;  // shoes
+  mesh(B(.5,.4,.5),M.hair,patient,-3.0,2.35,-.35).rotation.z=.3;
+
+  // head: face is built on +Z, then the group tilt above aims it up at the camera
+  mesh(S(.62),M.skin,pHead);
+  const hair=mesh(new THREE.SphereGeometry(.65,24,16,0,Math.PI*2,0,Math.PI*.52),M.hair,pHead,0,.02,-.16);
+  hair.rotation.x=.38;
+  mesh(S(.055),M.skin,pHead,0,-.06,.6);                        // nose
+  // 😳 — huge whites, pinpoint pupils, high flat brows, blush
+  eyeL=mesh(S(.27),M.eyeWhite,pHead,-.27,.2,.44);
+  eyeR=mesh(S(.27),M.eyeWhite,pHead, .27,.2,.44);
+  eyeL.scale.z=.5;eyeR.scale.z=.5;
+  pupL=mesh(S(.075),M.pupil,pHead,-.25,.2,.585);
+  pupR=mesh(S(.075),M.pupil,pHead, .25,.2,.585);
+  mesh(S(.025),M.glint,pHead,-.2,.26,.63).castShadow=false;
+  mesh(S(.025),M.glint,pHead, .3,.26,.63).castShadow=false;
+  browL=mesh(B(.22,.05,.05),M.brow,pHead,-.29,.55,.36);browL.rotation.z=.15;browL.rotation.x=-.5;
+  browR=mesh(B(.22,.05,.05),M.brow,pHead, .29,.55,.36);browR.rotation.z=-.15;browR.rotation.x=-.5;
+  const bl=mesh(new THREE.CircleGeometry(.11,20),M.blush,pHead,-.4,-.08,.46);bl.rotation.y=-.6;bl.castShadow=false;
+  const br=mesh(new THREE.CircleGeometry(.11,20),M.blush,pHead, .4,-.08,.46);br.rotation.y=.6;br.castShadow=false;
+  // wide-open mouth (the portal!)
+  mouthOpen=new THREE.Group();mouthOpen.position.set(0,-.3,.48);pHead.add(mouthOpen);
+  const hole=mesh(S(.2),M.mouthDark,mouthOpen);hole.scale.set(.95,1.2,.5);
+  for(let i=0;i<4;i++) mesh(B(.08,.1,.05),M.teeth,mouthOpen,-.12+i*.08,.16,.12); // upper teeth strip
+  // end-scene smile (hidden until finale)
+  smile=mesh(new THREE.TorusGeometry(.15,.04,10,24,Math.PI),M.mouthDark,pHead,0,-.28,.5);
+  smile.rotation.z=Math.PI;smile.visible=false;
+}
+
+// ----- Dr. Pelican -----
+const pelican=new THREE.Group();pelican.position.set(4.75,0,2.15);pelican.rotation.y=-1.35;office.add(pelican);
+let wingR,wingL,pelHead,pelBody;
+{
+  mesh(C(.55,.75,.5),M.chairDark,pelican,0,.25,0);            // stool
+  mesh(C(.6,.6,.1),M.scrubDark,pelican,0,.55,0);
+  pelBody=new THREE.Group();pelBody.position.set(0,1.75,0);pelican.add(pelBody);
+  const body=mesh(S(.85),M.feather,pelBody,0,0,0);body.scale.set(.9,1.1,1.15);
+  mesh(S(.5),M.featherShade,pelBody,0,-.35,-.75).scale.set(.7,.6,.9); // tail
+  // legs + feet
+  mesh(C(.06,.06,.75),M.orange,pelican,-.22,1.0,0);
+  mesh(C(.06,.06,.75),M.orange,pelican,.22,1.0,0);
+  mesh(B(.34,.07,.5),M.orange,pelican,-.22,.62,.12);
+  mesh(B(.34,.07,.5),M.orange,pelican,.22,.62,.12);
+  // neck + head
+  mesh(S(.3),M.feather,pelBody,0,.75,.28);
+  pelHead=new THREE.Group();pelHead.position.set(0,1.34,.44);pelBody.add(pelHead);
+  mesh(S(.42),M.feather,pelHead);
+  // surgical cap
+  const cap=mesh(new THREE.SphereGeometry(.46,24,14,0,Math.PI*2,0,Math.PI*.46),M.scrub,pelHead,0,.16,0);
+  mesh(new THREE.TorusGeometry(.43,.05,10,28),M.scrubDark,pelHead,0,.2,0).rotation.x=Math.PI/2;
+  // eyes
+  mesh(S(.06),M.pupil,pelHead,-.2,.08,.36);
+  mesh(S(.06),M.pupil,pelHead, .2,.08,.36);
+  mesh(S(.022),M.glint,pelHead,-.18,.11,.4).castShadow=false;
+  mesh(S(.022),M.glint,pelHead, .22,.11,.4).castShadow=false;
+  // the beak (business end) — long, proud, unmistakably pelican
+  const beak=new THREE.Group();beak.position.set(0,-.08,.4);beak.rotation.x=Math.PI/2.02;pelHead.add(beak);
+  const upper=mesh(C(.05,.17,1.45,14),M.beak,beak,0,.62,.03);upper.scale.z=.5;
+  const pouch=mesh(S(.2),M.pouch,beak,0,.38,-.12);pouch.scale.set(.8,2.1,1.0);
+  // mask dangling off one side (it never fit over the beak)
+  const mask=mesh(B(.34,.26,.04),M.scrubDark,pelHead,.3,-.3,.28);mask.rotation.z=-.5;mask.rotation.y=.4;
+  // wings
+  wingL=new THREE.Group();wingL.position.set(-.72,.25,.1);pelBody.add(wingL);
+  const wl=mesh(S(.5),M.featherShade,wingL,-.12,-.25,0);wl.scale.set(.22,.8,.55);
+  wingR=new THREE.Group();wingR.position.set(.72,.25,.1);pelBody.add(wingR);
+  const wr=mesh(S(.5),M.featherShade,wingR,.12,-.25,0);wr.scale.set(.22,.8,.55);
+  // little mirror instrument in right wing
+  mesh(C(.025,.025,.55),M.metal,wingR,.18,-.6,.25).rotation.x=.9;
+  mesh(C(.09,.09,.02),M.metal,wingR,.18,-.78,.47).rotation.x=.9;
+}
+
+// ----- finale confetti (office) -----
+const confetti=new THREE.Group();confetti.visible=false;office.add(confetti);
+const confettiBits=[];
+{
+  const cols=[0xf94144,0xf3722c,0xf9c74f,0x90be6d,0x577590,0xdc7fbe];
+  for(let i=0;i<70;i++){
+    const m=new THREE.Mesh(B(.14,.02,.2),new THREE.MeshBasicMaterial({color:cols[i%6]}));
+    confetti.add(m);
+    confettiBits.push({m,x:lerp(-4,7,R[i*3]),z:lerp(-3,3,R[i*3+1]),ph:R[i*3+2]*Math.PI*2,sp:lerp(2.2,3.6,R[i*3+2])});
+  }
+}
+
+/* ============================================================
+   WORLD 2 — inside the upper-right jaw (cutaway diorama)
+   Upper jaw: teeth hang DOWN, sinus sits ABOVE the bone.
+   Implant therefore screws UPWARD and fell DOWN when it let go.
+   ============================================================ */
+const MW=new THREE.Group();MW.position.set(0,-60,0);scene.add(MW);
+const mwLight=new THREE.PointLight(0xffe8d0,.85,70);mwLight.position.set(2,5,15);MW.add(mwLight);
+const mwLight2=new THREE.PointLight(0xc0d8ff,.35,70);mwLight2.position.set(-7,-3,11);MW.add(mwLight2);
+{
+  const bg=mesh(new THREE.PlaneGeometry(80,50),M.mouthBg,MW,0,0,-4);bg.castShadow=false;bg.receiveShadow=false;
+}
+const IX=1.2;             // x of the implant site (2nd-to-last molar)
+let oldImplant,newImplant,membrane,graftG,infect1,infect2,sparkG,crownMesh,glowRing,socketPanel;
+{
+  // bone slab
+  mesh(B(17,6.6,2.4),M.bone,MW,0,1.6,0);
+  // gum band with rounded lip
+  mesh(B(17,1.15,2.6),M.gum,MW,0,-2.15,0);
+  mesh(C(.58,.58,17,18),M.gum,MW,0,-2.72,0).rotation.z=Math.PI/2;
+  // sinus hollow — proud of the cross-section face so the cutaway reads
+  const hollow=mesh(S(1,32,20),M.sinusHollow,MW,IX,3.45,0.8);hollow.scale.set(3.9,1.4,.55);
+  // membrane: thin lining across the sinus floor
+  membrane=mesh(S(1,32,16),M.membrane,MW,IX,2.35,0.95);membrane.scale.set(2.6,.3,.5);
+  // carved rim where the cavity meets bone
+  const rim=mesh(new THREE.TorusGeometry(1,.025,10,48),new THREE.MeshStandardMaterial({color:0x8f7b55,roughness:.95}),MW,IX,3.45,1.36);
+  rim.scale.set(3.9,1.4,1);rim.castShadow=false;
+  // faint bone speckle so the slab has scale
+  const spkM=new THREE.MeshStandardMaterial({color:0xd6c096,roughness:.95});
+  for(let i=0;i<44;i++){
+    const d=mesh(new THREE.CircleGeometry(lerp(.05,.15,R[900+i*2]),10),spkM,MW,
+      lerp(-8.2,8.2,R[901+i*2]),lerp(-1.5,4.7,R[900+i*2]*7%1),1.205);
+    d.castShadow=false;d.receiveShadow=false;
+  }
+  // neighbor teeth (crowns hang down through gum; roots up into bone)
+  function tooth(x,w){
+    const t=new THREE.Group();t.position.set(x,0,.35);MW.add(t);
+    const cr=mesh(S(.68),M.teeth,t,0,-3.1,0);cr.scale.set(w,.85,.8);
+    mesh(C(.16,.3,1.6),M.teeth,t,-.27*w,-1.6,0).rotation.z=.12;
+    mesh(C(.16,.3,1.6),M.teeth,t,.27*w,-1.6,0).rotation.z=-.12;
+    return t;
+  }
+  tooth(-6.3,1.0);tooth(-3.9,.95);tooth(-1.5,1.05);   // teeth toward the front
+  tooth(3.9,1.1);                                      // the last molar, behind the gap
+  // the socket: a darker inset where the failed implant lived
+  socketPanel=mesh(B(1.15,2.4,.25),M.boneDeep,MW,IX,-.2,1.12);
+
+  // ---- the OLD (narrow, loose) implant ----
+  function buildImplant(radius,len,matBody){
+    const g=new THREE.Group();
+    const core=mesh(C(radius*.82,radius*.55,len,20),matBody,g,0,0,0);
+    for(let i=0;i<6;i++){ // screw threads
+      mesh(new THREE.TorusGeometry(radius*.88,radius*.16,8,24),matBody,g,0,-len/2+len*(i+.5)/6,0).rotation.x=Math.PI/2;
+    }
+    mesh(C(radius*.55,radius*.75,.5,16),matBody,g,0,-len/2-.25,0); // abutment (mouth side)
+    return g;
+  }
+  oldImplant=buildImplant(.30,1.9,M.metal);oldImplant.position.set(IX,-.1,1.1);MW.add(oldImplant);
+  // little crown still on the old implant (it came out as one piece with screw)
+  mesh(S(.42),M.crown,oldImplant,0,-1.6,0).scale.set(1.15,.7,.9);
+
+  // ---- infection (red glow near apex + sinus floor) ----
+  infect1=mesh(S(.8),M.infect,MW,IX,1.2,1.1);infect1.scale.z=.6;infect1.castShadow=false;
+  infect2=mesh(S(.9),M.infect.clone(),MW,IX+.3,2.4,1.0);infect2.scale.set(1.5,.65,.45);infect2.castShadow=false;
+
+  // ---- cleaning sparkles ----
+  sparkG=new THREE.Group();MW.add(sparkG);
+  for(let i=0;i<26;i++){
+    const s=mesh(new THREE.OctahedronGeometry(.16),M.sparkle,sparkG,
+      IX+lerp(-1.5,1.5,R[100+i*3]),lerp(-.9,2.9,R[101+i*3]),1.3+R[102+i*3]*.5);
+    s.castShadow=false;s.userData.ph=R[102+i*3];
+  }
+
+  // ---- graft granules (fill under the lifted membrane) ----
+  graftG=new THREE.Group();MW.add(graftG);
+  for(let i=0;i<85;i++){
+    const a=R[400+i*4]*Math.PI*2, rr=Math.sqrt(R[401+i*4]);
+    const gx=IX+Math.cos(a)*rr*1.9, gy=2.2+R[402+i*4]*1.1, gz=1.05+R[403+i*4]*.3;
+    const gr=mesh(S(lerp(.13,.24,R[403+i*4]),10,8),M.graft,graftG,gx,gy,gz);
+    gr.userData.d=R[400+i*4];
+  }
+
+  // ---- the NEW wider implant ----
+  newImplant=buildImplant(.46,2.1,M.titanium);newImplant.position.set(IX,-9,1.1);MW.add(newImplant);
+  glowRing=mesh(new THREE.TorusGeometry(.9,.1,10,32),M.glow,MW,IX,.3,1.35);glowRing.castShadow=false;
+  // final crown for the new implant
+  crownMesh=mesh(S(.6),M.crown,MW,IX,-2.7,1.1);crownMesh.scale.set(1.15,.85,.9);
+}
+
+/* ============================================================
+   CAMERA — keyframed rail with hidden cuts under white flashes
+   ============================================================ */
+const mw=(x,y,z)=>[x, y-60, z];
+const KEYS=[
+  // office establishing
+  {t:0.0, p:[13,6.5,15],  l:[1.4,3.3,0]},
+  {t:2.2, p:[5.4,5.0,6.0],l:[2.7,3.7,0]},
+  {t:3.05,p:[3.35,4.4,1.7],l:[2.85,3.85,.15]},
+  // CUT (flash) → jaw diorama
+  {t:3.10,p:mw(1.2,.5,26),l:mw(1.2,.7,0)},
+  {t:4.3, p:mw(2.8,-.6,13),l:mw(1.3,0,0)},
+  {t:6.0, p:mw(2.4,0,11.5),l:mw(1.25,.4,0)},
+  {t:8.8, p:mw(2.0,1.0,11.5),l:mw(1.25,1.4,0)},
+  {t:10.6,p:mw(1.0,2.0,13),l:mw(1.2,2.2,0)},
+  {t:12.6,p:mw(2.6,-.2,10.5),l:mw(1.3,.2,0)},
+  {t:15.6,p:mw(2.0,-.4,10.5),l:mw(1.25,0,0)},
+  {t:17.0,p:mw(1.2,.4,24),l:mw(1.2,.6,0)},
+  {t:17.72,p:mw(1.2,.4,25),l:mw(1.2,.6,0)},   // hold in-world until the flash covers the cut
+  // CUT (flash) → office finale
+  {t:17.78,p:[3.2,5.0,3.8],l:[2.85,3.75,0]},
+  {t:20.0,p:[6.8,7.4,15.5],l:[2.3,3.3,0]},
+];
+function setCamera(t){
+  let a=KEYS[0],b=KEYS[KEYS.length-1];
+  for(let i=0;i<KEYS.length-1;i++){if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}}
+  const u=ss(t,a.t,b.t);
+  const p=[0,1,2].map(i=>lerp(a.p[i],b.p[i],u));
+  const l=[0,1,2].map(i=>lerp(a.l[i],b.l[i],u));
+  // gentle handheld sway so nothing feels static
+  const sway=.06;
+  camera.position.set(p[0]+Math.sin(t*.7)*sway,p[1]+Math.sin(t*.9+2)*sway*.6,p[2]);
+  camera.lookAt(l[0],l[1]+Math.sin(t*.8+1)*sway*.4,l[2]);
+}
+
+/* ============================================================
+   CAPTIONS + overlay
+   ============================================================ */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+const flashEl=document.getElementById('flash');
+const CAPS=[
+  {a:3.2, b:5.9, s:"1 · The loose implant backs out — it had already lost its grip"},
+  {a:6.1, b:8.7, s:"2 · Antibiotics + a deep clean clear the sinus infection"},
+  {a:8.9, b:12.5,s:"3 · Sinus lift — the membrane rises, bone graft fills the space"},
+  {a:12.7,b:15.5,s:"4 · A wider implant bites into fresh, untouched bone"},
+  {a:15.7,b:17.55,s:"5 · Months of healing weld bone to titanium — then the crown"},
+  {a:17.9,b:20.0,s:"Healed — see you at the next checkup ✦"},
+];
+function setOverlay(t){
+  // title card
+  titleEl.style.opacity=(ss(t,.2,.8)*(1-ss(t,2.3,2.9))).toFixed(3);
+  // captions
+  let txt="",op=0;
+  for(const c of CAPS){if(t>=c.a&&t<=c.b){txt=c.s;op=ss(t,c.a,c.a+.35)*(1-ss(t,c.b-.3,c.b));break;}}
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=op.toFixed(3);
+  // white flashes hide the world cuts
+  const f=Math.max(bump(t,2.85,3.35),bump(t,17.5,18.0));
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ============================================================
+   ANIMATION — every property is a pure function of t
+   ============================================================ */
+function animate(t){
+  const inMouth=t>3.06&&t<17.72;
+  office.visible=!inMouth;MW.visible=inMouth;
+
+  // --- office idle life ---
+  if(!inMouth){
+    const blink=(Math.sin(t*1.7)>.995||Math.sin(t*1.7+2.4)>.997)?.15:1;
+    eyeL.scale.y=eyeR.scale.y=blink;
+    pelBody.position.y=1.75+Math.sin(t*2.1)*.04;             // breathing bob
+    pelHead.rotation.z=Math.sin(t*.9)*.07;
+    pelHead.rotation.x=.15+Math.sin(t*1.3)*.05;
+    wingR.rotation.z=-.25+Math.sin(t*2.1)*.06;
+    wingL.rotation.z=.2;
+    // 😳 pupils track the pelican early, then dart around
+    const dart=Math.sin(t*3.1)*.05;
+    pupL.position.x=-.25+dart;pupR.position.x=.25+dart;
+
+    if(t>17.7){ // finale: smile, wing raised in triumph, confetti
+      const u=ss(t,17.9,18.6);
+      mouthOpen.scale.setScalar(Math.max(.05,1-u));    // mouth closes
+      mouthOpen.visible=u<.6;
+      smile.visible=u>.45;
+      browL.rotation.z=lerp(.15,.05,u);browR.rotation.z=lerp(-.15,-.05,u);
+      wingR.rotation.z=lerp(-.25,1.7,ss(t,18.0,18.7)); // mirror aloft!
+      pelHead.rotation.z=lerp(0,.22,u);
+      confetti.visible=t>18.0;
+      for(const c of confettiBits){
+        const ct=t-18.0;
+        c.m.position.set(c.x+Math.sin(ct*2+c.ph)*.5, 8-((ct*c.sp+c.ph)%9), c.z);
+        c.m.rotation.set(ct*3+c.ph,ct*2,c.ph);
+      }
+    } else {mouthOpen.scale.setScalar(1);mouthOpen.visible=true;smile.visible=false;confetti.visible=false;}
+    return;
+  }
+
+  // --- jaw world ---
+  // S1: wobble then drop (3.2–6). Upper jaw ⇒ it falls DOWNWARD out of the socket.
+  const wob=ss(t,3.3,4.6)*(1-ss(t,4.75,4.95));
+  const drop=clamp(t-4.95,0,10);
+  oldImplant.rotation.z=Math.sin(t*21)*.14*wob + drop*2.2;
+  oldImplant.position.x=IX+drop*1.1;
+  oldImplant.position.y=-.1 - 14*drop*drop;
+  oldImplant.visible=t<6.2;
+
+  // S2: infection fades, sparkles scrub (6–8.8)
+  const inf=(1-ss(t,6.2,8.4));
+  infect1.material.opacity=.42*inf*(0.8+.2*Math.sin(t*6));
+  infect2.material.opacity=.38*inf*(0.8+.2*Math.sin(t*6+1));
+  infect1.visible=infect2.visible=t<8.6;
+  sparkG.visible=t>6.0&&t<8.8;
+  if(sparkG.visible)sparkG.children.forEach((s,i)=>{
+    s.scale.setScalar(Math.max(.001,bump((t+s.userData.ph*2.2)%2.2,0,1.1))*1.2);
+    s.rotation.z=t*3+i;
+  });
+
+  // S3: membrane lifts, graft pours in (8.8–12.6)
+  const liftU=ss(t,9.2,11.2);
+  membrane.position.y=lerp(2.35,3.45,liftU);
+  membrane.scale.y=lerp(.3,.42,liftU);
+  graftG.visible=t>9.6;
+  graftG.children.forEach(gr=>{
+    const u=ss(t,9.8+gr.userData.d*2.2,10.6+gr.userData.d*2.2);
+    gr.scale.setScalar(Math.max(.001,u));
+  });
+
+  // S4: wider implant screws UP into place (12.6–15.6)
+  const inU=ss(t,12.8,14.6);
+  newImplant.position.y=lerp(-6.5,0.3,inU);
+  newImplant.rotation.y=(1-inU)*38 + t*1.2;
+  newImplant.visible=t>12.4;
+
+  // S5: osseointegration glow + crown (15.6–17.7)
+  const heal=ss(t,15.7,16.6);
+  glowRing.visible=t>15.6&&t<17.6;
+  if(glowRing.visible){
+    glowRing.material.opacity=.55*heal*(0.6+.4*Math.sin(t*7));
+    glowRing.scale.setScalar(1+.15*Math.sin(t*7));
+  }
+  const crownU=ss(t,16.5,17.3);
+  crownMesh.visible=t>16.4;
+  crownMesh.position.y=lerp(-3.8,-2.3,crownU);
+  crownMesh.scale.set(1.15*crownU,.85*crownU,.9*crownU);
+}
+
+/* ============================================================
+   DRIVER
+   ============================================================ */
+window.seekTo=function(t){
+  t=clamp(t,0,DUR);
+  setCamera(t);animate(t);setOverlay(t);
+  renderer.render(scene,camera);
+};
+let playing=true,t0=null;
+function loop(now){
+  if(!playing)return;
+  if(t0===null)t0=now;
+  const t=((now-t0)/1000)%DUR;
+  window.seekTo(t);
+  requestAnimationFrame(loop);
+}
+window.stopPlayback=function(){playing=false;};
+window.sceneReady=true;
+// live preview autoplays; the recorder calls stopPlayback() then seekTo(t)
+if(!location.search.includes('record'))requestAnimationFrame(loop);
+else window.seekTo(0);
+</script>
+</body>
+</html>
