@@ -59,6 +59,13 @@ function bundle(src) {
   const html = fs.readFileSync(src, 'utf8');
   if (!VENDOR_TAG.test(html)) { console.log('no vendor tag in ' + src + ' — already bundled?'); return src; }
   const out = bundleName(src);
+  // bundleName is a regex replace that returns src UNCHANGED when it does not
+  // match -- so `bundle scene.htm` or `scene.HTML` used to write the inlined
+  // output over the source file and print "bundled -> scene.htm" as if fine,
+  // destroying the one file the header calls the single source of truth.
+  if (path.resolve(out) === path.resolve(src)) {
+    throw new Error(`refusing to overwrite the source: ${src} must end in .html`);
+  }
   // The replacement MUST be a function, not a string: in a string replacement
   // `$&`, `$'` and `` $` `` are substitution patterns, and minified three
   // contains `$&` (`if($&$.isStackTrace)`), which silently splices the matched
@@ -124,7 +131,9 @@ function loop(scene, width = 720, fps = 12) {
   // overwrote the full-resolution frames a previous `build.js all` had shot --
   // so making a README loop destroyed the source of your mp4 with no warning.
   const src = '.loopsrc', tmp = '.loopframes';
-  for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true });
+  const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
+  clean();
+  try {
   frames(scene, fps, src);
   fs.mkdirSync(tmp, { recursive: true });
   run('ffmpeg', ['-y', '-i', path.join(src, 'f%05d.png'), '-vf', `scale=${width}:-2`,
@@ -136,15 +145,21 @@ function loop(scene, width = 720, fps = 12) {
   try { execFileSync('img2webp', ['-version'], { stdio: 'ignore' }); }
   catch (e) { throw new Error('img2webp not found — install it (macOS: brew install webp)'); }
 
-  // Explicit file list rather than a shell glob: the glob was never tested past
-  // ~100 frames, and a 60s film at 12fps is 720 files, which can exceed ARG_MAX.
-  // Reading the directory also fails loudly if scaling produced nothing.
+  // Explicit file list rather than a shell glob. This does NOT dodge ARG_MAX --
+  // execFileSync argv goes through the same execve limit a glob would, so the
+  // earlier comment claiming otherwise was wrong. What it actually buys is
+  // deterministic ordering and a loud failure when scaling produced nothing,
+  // rather than img2webp receiving an unexpanded literal.
   const pngs = fs.readdirSync(tmp).filter(f => f.endsWith('.png')).sort()
                  .map(f => path.join(tmp, f));
   if (!pngs.length) throw new Error('no scaled frames in ' + tmp);
   run('img2webp', ['-loop', '0', '-d', String(Math.round(1000 / fps)), '-q', '60',
     ...pngs, '-o', out]);
-  for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true });
+  } finally {
+    // finally, not only on success: a failed run left .loopsrc and .loopframes
+    // full of PNGs in the scene directory, where `git add -A` sweeps them in.
+    clean();
+  }
 
   const bytes = fs.statSync(out).size;
   const mb = (bytes / 1048576).toFixed(2);
@@ -176,7 +191,11 @@ function poster(scene, t = 0, width = 960) {
   return out;
 }
 
+const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|loop|poster <scene.html> [fps|t] [width]';
 const [, , step, target, fpsArg, widthArg] = process.argv;
+if (['bundle', 'frames', 'video', 'all', 'loop', 'poster'].includes(step) && !target) {
+  console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
+}
 const fps = Number(fpsArg || 30);
 if (step === 'vendor') vendor(target ? path.resolve(target) : process.cwd());
 else if (step === 'loop') loop(target, Number(widthArg || 720), Number(fpsArg || 12));

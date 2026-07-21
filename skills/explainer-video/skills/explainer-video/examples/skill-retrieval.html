@@ -15,6 +15,11 @@
     font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
   #title h1{font-size:40px;margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
   #title p{font-size:21px;margin:6px 0 0;font-weight:500;opacity:.85;}
+  /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
+     the text with a different AA mode after opacity round-trips through 0, so the
+     same t can differ by a few pixels depending on seek ORDER -- which breaks the
+     frames-shot-in-any-order guarantee for any frame containing overlay text. */
+  #cap,#title{will-change:opacity;}
   #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
   #vig{position:fixed;inset:0;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 60%,rgba(5,7,10,.5) 100%);}
@@ -57,14 +62,16 @@ const rng=mulberry32(CONFIG.seed);
 const R=[];for(let i=0;i<200;i++)R.push(rng());
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,u)=>a+(b-a)*u;
-const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};
-const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);};
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
+const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};
+const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);};
 
 /* ---------- beat addressing (fractions of a beat, never timestamps) ---------- */
 const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
 const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
-function span(name,a=0,b=1){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);
-  return[B.t0+a*B.dur,B.t0+b*B.dur];}
+function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
+function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
 const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};
 const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};
 const beatAt=(name,at=0)=>span(name,at,at)[0];
@@ -146,7 +153,11 @@ function setCamera(t){
 const HOME=i=>({x:-3.4,y:1.75-i*.72});
 function animate(t){
   // beat 1: a scan sweeps the corpus — every entry is a candidate
-  const scan=ramp(t,'scan',0,.88)*N;
+  // Start the sweep OFF the left end. With a +-0.9 highlight, scan=0 puts slab 0
+  // at bump(0,-0.9,0.9)==1.0 -- fully lit through the whole title beat, before
+  // the beat that owns the effect begins. Widening the highlight to fix the
+  // flicker is what introduced this.
+  const scan=-0.9+ramp(t,'scan',0,.88)*(N+0.8);
   // beat 2: the match crosses into the context window
   const cross=ramp(t,'load',.063,.656);
 

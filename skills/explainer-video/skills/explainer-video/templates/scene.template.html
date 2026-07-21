@@ -17,6 +17,11 @@
     font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
   #title h1{font-size:44px;margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
   #title p{font-size:24px;margin:6px 0 0;font-weight:500;opacity:.9;}
+  /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
+     the text with a different AA mode after opacity round-trips through 0, so the
+     same t can differ by a few pixels depending on seek ORDER -- which breaks the
+     frames-shot-in-any-order guarantee for any frame containing overlay text. */
+  #cap,#title{will-change:opacity;}
   #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
   #vig{position:fixed;inset:0;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 58%,rgba(10,6,18,.42) 100%);}
@@ -82,8 +87,10 @@ const rng=mulberry32(CONFIG.seed);
 const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,u)=>a+(b-a)*u;
-const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
-const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
+const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
 
 /* ---------- beat addressing (use these, never raw timestamps) ----------
    Resolve durations into absolute spans once, then address them by name.
@@ -92,11 +99,11 @@ const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.
    narration-driven timing rewrite durations without breaking animate(). */
 const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
 const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
-function span(name,a=0,b=1){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);
-  return[B.t0+a*B.dur,B.t0+b*B.dur];}
+function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
+function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
 const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
 const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
-const during=(t,name)=>t>=BEAT[name].t0&&t<BEAT[name].t1;
+const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
 const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
 
 /* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
@@ -104,7 +111,7 @@ const beatAt=(name,at=0)=>span(name,at,at)[0];                                  
    a fixed settle time. Stretching a cut window with its beat would uncover the
    cut — which is the one bug method.md says already cost a re-render. Fractions
    for "across this part of the beat", seconds for "this many seconds". */
-const secAt  =(name,s=0)=>BEAT[name].t0+s;
+const secAt  =(name,s=0)=>beat(name).t0+s;
 const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
 const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
 

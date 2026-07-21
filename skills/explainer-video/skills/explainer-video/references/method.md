@@ -355,11 +355,11 @@ inert on github.com (Pages or a published Artifact both run it fine).
 WebP's cost is driven by how much of the frame changes per frame, which makes the
 camera decision a file-size decision:
 
-| Scene | 12s template, 960px/24fps | 8s held-camera diagram, 720px/12fps |
+| Scene | 12s template, 960px/24fps | 11s held-camera diagram, 720px/12fps |
 |---|---|---|
 | mp4 | 0.52 MB | 0.23 MB |
 | gif | 12.08 MB | — |
-| **webp** | **15.56 MB** | **0.17 MB** |
+| **webp** | **15.56 MB** | **0.20 MB** |
 
 Same encoder, same pipeline, 90x apart. The template's default sway
 (`CONFIG.sway = 0.06`) moves every pixel every frame and defeats inter-frame

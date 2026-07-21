@@ -14,8 +14,8 @@ to keep in sync.
 
 ![skills are retrieval](skills/explainer-video/examples/skill-retrieval.webp)
 
-*Built with this plugin and committed as a 175 KB animated WebP — the format
-GitHub actually renders inline. 8s, held camera, two beats. Source:
+*Built with this plugin and committed as a 204 KB animated WebP — the format
+GitHub actually renders inline. 11s, held camera, three beats. Source:
 [`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
 
 ## Installation
@@ -76,4 +76,4 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, source and bundled |
 | `skills/explainer-video/references/method.md` | Design method, procedural-asset cookbook, r185 API notes |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 8s, 2 beats, held camera, diagrammatic — the one shown above |
+| `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 11s, 3 beats, held camera, diagrammatic — the one shown above |

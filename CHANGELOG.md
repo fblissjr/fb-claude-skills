@@ -1,5 +1,16 @@
 # changelog
 
+## 0.43.0
+
+### fixed
+- **explainer-video 0.4.3 -> 0.5.0**: findings from a parallel review pass, most of them defects that shipped.
+  - **The committed inline demo was corrupt.** `examples/skill-retrieval.webp` played 22.8s of animation for an 11.0s scene — it contained frames from an unrelated render. Root cause: `shoot.js full` never cleared its output directory, so a re-render producing fewer frames left the previous run's tail in place and the encoder appended it. `full` now clears (`range` deliberately does not — partial re-shooting is its purpose). Artifact rebuilt: 204 KB, 11.0s. The size and beat-count claims in README/SKILL.md/method.md described the corrupt file and are corrected.
+  - **`bundle` could destroy the source scene.** `bundleName` returns its input unchanged when the name does not end in exactly `.html`, so `bundle scene.htm` wrote the inlined output over the source and reported success. Now refuses.
+  - **A highlight was fully lit before its beat began.** Widening the sweep to ±0.9 to fix a flicker put slab 0 at `bump(0,-0.9,0.9)` = 1.0 for the entire title card. The sweep now starts off the left end. A regression introduced by an earlier fix.
+  - **Frame determinism was violated by text antialiasing.** Chrome re-rasterized the DOM overlay with a different AA mode after opacity round-tripped through 0, so the same `t` differed by a few pixels depending on seek *order* — breaking the frames-in-any-order guarantee for any frame with overlay text. `will-change:opacity` pins the layer.
+  - Bad numeric args reported success while doing nothing (`full 3O` printed "done: NaN frames", exit 0); `loop` leaked temp dirs on error paths; `file://` URLs broke on `#`/`%` in a path; `ss`/`bump` returned NaN for a zero-width span; `during`/`secAt` bypassed the unknown-beat guard; Chromium build directories sorted lexicographically.
+  - Corrected a comment claiming the explicit file list dodges `ARG_MAX` — `execFileSync` argv goes through the same `execve` limit. What it actually buys is deterministic ordering and a loud empty-match failure.
+
 ## 0.42.1
 
 ### added

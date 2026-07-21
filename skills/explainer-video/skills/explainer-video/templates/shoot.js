@@ -16,6 +16,21 @@ const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const url = require('url');
+
+// Number() on a typo yields NaN, and `for (i=0; i<NaN; i++)` runs zero times --
+// so `full 3O` printed "done: NaN frames", exited 0, and wrote nothing. A mode
+// that reports success while doing nothing is the worst failure available here,
+// because the next encode silently reuses whatever frames were already there.
+function num(v, dflt, label) {
+  if (v === undefined || v === '') {
+    if (dflt === null) throw new Error(`missing ${label}`);
+    return dflt;
+  }
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`invalid ${label}: ${JSON.stringify(v)}`);
+  return n;
+}
 
 function chromiumPath() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
@@ -26,7 +41,8 @@ function chromiumPath() {
                        path.join(os.homedir(), 'Library/Caches/ms-playwright'),
                        path.join(os.homedir(), '.cache/ms-playwright')]) {
     if (!cache || !fs.existsSync(cache)) continue;
-    for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort().reverse()) {
+    const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
+    for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
       for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
                          'chrome-headless-shell-linux64/chrome-headless-shell',
                          'chrome-mac/headless_shell']) {
@@ -57,7 +73,7 @@ function chromiumPath() {
   // renamed three API is the usual cause and fails quietly otherwise.
   page.on('pageerror', e => console.error('scene error: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') console.error('console: ' + m.text()); });
-  await page.goto('file://' + path.resolve(sceneFile) + '?record=1');
+  await page.goto(url.pathToFileURL(path.resolve(sceneFile)).href + '?record=1');
   await page.waitForFunction('window.sceneReady === true', { timeout: 20000 })
     .catch(() => { throw new Error('scene never set window.sceneReady — check the errors above'); });
   await page.evaluate('window.stopPlayback()');
@@ -86,7 +102,14 @@ function chromiumPath() {
       console.log('sample', t);
     }
   } else if (mode === 'full') {
-    const fps = Number(rest[0] || 30), n = Math.round(fps * dur);
+    const fps = num(rest[0], 30, 'fps'), n = Math.round(fps * dur);
+    // Clear the directory first. Without this, a re-render that produces FEWER
+    // frames than last time (shorter DURATION, lower fps) leaves the old tail in
+    // place and the encoder appends it -- the end of your film is the previous
+    // film. This silently corrupted a shipped artifact: an 11s scene encoded to
+    // 22.8s of animation. `range` deliberately does NOT clear, since partial
+    // re-shooting is its whole purpose.
+    fs.rmSync(outDir, { recursive: true, force: true });
     fs.mkdirSync(outDir, { recursive: true });
     const t0 = Date.now();
     for (let i = 0; i < n; i++) {
@@ -95,7 +118,8 @@ function chromiumPath() {
     }
     console.log(`done: ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else if (mode === 'range') {
-    const a = Number(rest[0]), b = Number(rest[1]), fps = Number(rest[2] || 30);
+    const a = num(rest[0], null, 'start frame'), b = num(rest[1], null, 'end frame'),
+          fps = num(rest[2], 30, 'fps');
     fs.mkdirSync(outDir, { recursive: true });
     for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
     console.log('range done');

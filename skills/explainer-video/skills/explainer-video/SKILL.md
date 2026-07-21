@@ -184,7 +184,7 @@ that embeds. Choose by what the scene is, not by what squeezes under the 10MB ca
 
 | Scene | Inline artifact | Why |
 |---|---|---|
-| Held camera (diagrammatic, architecture, data flow) | `loop` — the WebP | Cheap and lossless-feeling. `examples/skill-retrieval.html`: **175 KB**, smaller than its own 232 KB mp4, same content. |
+| Held camera (diagrammatic, architecture, data flow) | `loop` — the WebP | Cheap and lossless-feeling. `examples/skill-retrieval.html`: **204 KB** for 11s at 720px/12fps, same content as the mp4. |
 | Moving camera (narrative, characters, world cuts) | `poster` — a still linking to the mp4 | A loop here costs megabytes *and* shows different content than the video, so it becomes a second artifact to maintain. A 19 KB still does not. |
 | Authored diagram, motion *is* the explanation | Neither — hand-write an animated SVG | 10-25 KB, inline, no cap. Wrong tool for a rendered 3D scene; right tool for a diagram. |
 
