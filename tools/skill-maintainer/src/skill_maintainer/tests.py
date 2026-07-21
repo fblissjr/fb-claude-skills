@@ -4,6 +4,7 @@ Encodes the measurable checks from best practices as pass/fail assertions.
 No pytest dependency. No network calls. No file writes. Pure read-only.
 """
 
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -262,6 +263,51 @@ def check_version_alignment(root: Path) -> list[Result]:
     return results
 
 
+def check_changelog_version(root: Path) -> list[Result]:
+    """The top `## X.Y.Z` in CHANGELOG.md must equal the root pyproject version.
+
+    Proposed during cross-review after a changelog insert matched `# changelog`
+    instead of the version heading below it: the entry landed with no version
+    and the repo version was never bumped. Nothing in the repo would have caught
+    either -- `check_version_alignment` compares plugin manifests, and the
+    pre-commit only warns when content changes with no version file staged, and
+    version files *were* staged.
+
+    Both failures violate this one comparison, which is exact rather than
+    heuristic and can therefore legitimately gate. Returns [] when either file
+    is absent: a repo without a changelog is a legitimate shape, and inventing
+    failures for it is how a check gets ignored.
+    """
+    changelog = root / "CHANGELOG.md"
+    pyproject = root / "pyproject.toml"
+    if not changelog.exists() or not pyproject.exists():
+        return []
+
+    ver = re.search(r'^version = "([^"]+)"', pyproject.read_text(), re.M)
+    if not ver:
+        return []
+
+    text = changelog.read_text()
+    heading = re.search(r"^## (\d+\.\d+\.\d+)\s*$", text, re.M)
+    if not heading:
+        return [Result("repo", "", "changelog version", False,
+                       "CHANGELOG.md has no `## X.Y.Z` heading")]
+
+    # Anything other than the title before the first version heading means an
+    # entry was written without one -- the exact failure this exists to catch.
+    preamble = text[: heading.start()]
+    stray = [ln for ln in preamble.splitlines()
+             if ln.strip() and not ln.startswith("# ")]
+    if stray:
+        return [Result("repo", "", "changelog version", False,
+                       f"content above the first version heading: {stray[0][:60]!r}")]
+
+    ok = heading.group(1) == ver.group(1)
+    return [Result("repo", "", "changelog version", ok,
+                   "" if ok else
+                   f"pyproject={ver.group(1)} but top CHANGELOG heading={heading.group(1)}")]
+
+
 def test_repo_hygiene(root: Path) -> list[Result]:
     """Run repo-level checks."""
     results = []
@@ -277,6 +323,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 break
     # Repo-wide plugin/marketplace version alignment.
     results.extend(check_version_alignment(root))
+
+    # Changelog heading vs repo version.
+    results.extend(check_changelog_version(root))
 
     results.append(Result(
         "repo", "", "no blanket .claude/ gitignore",

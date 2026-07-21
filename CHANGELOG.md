@@ -1,5 +1,10 @@
 # changelog
 
+## 0.41.0
+
+### added
+- **`check_changelog_version`**, proposed by the concurrent session during cross-review: the top `## X.Y.Z` heading in `CHANGELOG.md` must equal the root `pyproject.toml` version. Both of their changelog failures — an insert that matched `# changelog` instead of the version heading, leaving an entry with no version, and the repo version left unbumped — violate that single comparison. Nothing in the repo would have caught either: `check_version_alignment` compares plugin manifests, and the pre-commit only warns when content changes with no version file staged, and version files *were* staged. It is exact rather than heuristic, so it can legitimately gate, and it returns no findings when either file is absent. Verified by reconstructing both historical failures against the real repo, not just synthetic fixtures: each is caught with a specific message, and the tree goes green again on restore. Five regression tests, written red-first.
+
 ## 0.40.5
 
 ### fixed
