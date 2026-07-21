@@ -96,6 +96,27 @@ often have looked good anyway. Only the control separates the two.
 Brackets built from one viewer are small-n. Tighten them as more scenes get
 watched rather than treating the current numbers as settled.
 
+### Verify the control actually ran
+
+A control testing the wrong thing still returns a number, and the number looks
+like evidence. This is the failure mode of the rule above, and it is easy to hit:
+
+- A blank-scene check that never modified the scene, so the failure you observed
+  came from something else still in the way.
+- A "does it fail without X" run where X was still present, so the pass proved
+  nothing.
+- Asking a summarizing tool whether a document says something and reading its
+  silence as absence — absence is exactly what summarization discards.
+
+Before recording a control, confirm it exercised the thing you think it did:
+check the command actually errored or didn't, that the file was actually modified,
+that the dependency was actually absent. **A green control you did not really run
+is worse than no control**, because it converts an open question into a settled
+one in your notes and nobody revisits it.
+
+Symptom to watch for: a control that passes on the first attempt, testing
+something you expected to be broken.
+
 ## Motion that reads vs causality that reads
 
 These are different problems and the second is harder. A sweep only has to be

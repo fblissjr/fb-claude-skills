@@ -1,5 +1,10 @@
 # changelog
 
+## 0.42.1
+
+### added
+- **explainer-video 0.4.2 -> 0.4.3**: `method.md`'s "Build the control" section gains "Verify the control actually ran". The rule as shipped had its own failure mode and did not warn about it: a control testing the wrong thing still returns a number, and the number looks like evidence. Three real instances across today's work — a blank-scene check that never modified the scene, a does-it-fail-without-X run where X was still present, and a summarizing fetch whose silence was read as absence. A green control you did not really run is worse than no control, because it converts an open question into a settled one that nobody revisits.
+
 ## 0.42.0
 
 ### fixed
