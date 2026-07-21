@@ -13,7 +13,7 @@ description: >
   narration exist but are not yet wired (see references/audio.md).
 metadata:
   author: Fred Bliss
-  version: 0.1.0
+  version: 0.1.1
   last_verified: 2026-07-21
 ---
 
@@ -51,10 +51,10 @@ Retiming a beat later is a one-line edit; re-planning a scene is not.
 
 ### 2. Scaffold from the template
 
-Copy all three template files into your working directory, then vendor three:
+Copy the template files into your working directory, then vendor three:
 
 ```bash
-cp ${CLAUDE_SKILL_DIR}/templates/{scene.template.html,shoot.js,build.js} .
+cp ${CLAUDE_SKILL_DIR}/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor            # writes three.global.js beside the scene
@@ -92,7 +92,19 @@ failure modes (washed-out lighting, cutaway detail hidden inside solid
 geometry, world-cut voids, floating features) and their fixes — read it before
 the first render, it saves two rounds.
 
-### 4. Build outputs
+### 4. Smoke-test the contract
+
+```bash
+bun run smoke.js                              # all scenes, source + bundled
+```
+
+Checks each scene loads with no console errors, exposes the full contract,
+renders something, and — the one that matters — that `seekTo(t)` is
+deterministic: same `t` twice, byte-identical pixels. A scene that carries state
+across frames looks fine in the MP4 (rendered 0→N once) and wrong in the HTML
+loop's second pass. Run it before you shoot 600 frames.
+
+### 5. Build outputs
 
 ```bash
 bun run build.js all <name>.html              # bundle -> frames -> mp4
@@ -105,7 +117,7 @@ ffmpeg on PATH; `shoot.js` finds Chromium via `CHROMIUM_PATH`, playwright's
 cache, or system Chrome (macOS/Linux), in that order — `bunx playwright install
 chromium` if none.
 
-### 5. Deliver
+### 6. Deliver
 
 HTML output: the bundled file is the artifact — it autoplays and loops.
 MP4 output: encode at the fps you shot (30 default), `crf 17`, `yuv420p`.
@@ -139,6 +151,7 @@ Two constraints that dictate the setup — do not "simplify" them away:
 
 - `templates/scene.template.html` — the scaffold (start here)
 - `templates/shoot.js` / `templates/build.js` — recorder + pipeline (copy beside the scene)
+- `templates/smoke.js` — contract + determinism check (run before a full shoot)
 - `references/method.md` — design method, procedural-asset cookbook, gotchas (L3: read when building)
 - `references/audio.md` — narration/music extension design (not yet wired)
 - `examples/pelican-implant.html` — complete worked example, 20s, 5 beats, two worlds

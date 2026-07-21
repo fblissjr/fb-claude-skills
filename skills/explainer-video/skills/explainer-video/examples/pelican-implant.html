@@ -361,8 +361,8 @@ const KEYS=[
   {t:3.10,p:mw(1.2,.5,26),l:mw(1.2,.7,0)},
   {t:4.3, p:mw(2.8,-.6,13),l:mw(1.3,0,0)},
   {t:6.0, p:mw(2.4,0,11.5),l:mw(1.25,.4,0)},
-  {t:8.8, p:mw(2.0,1.0,11.5),l:mw(1.25,1.4,0)},
-  {t:10.6,p:mw(1.0,2.0,13),l:mw(1.2,2.2,0)},
+  {t:8.8, p:mw(2.0,2.1,11.0),l:mw(1.25,2.55,0)},
+  {t:10.6,p:mw(1.0,2.5,11.8),l:mw(1.2,2.85,0)},
   {t:12.6,p:mw(2.6,-.2,10.5),l:mw(1.3,.2,0)},
   {t:15.6,p:mw(2.0,-.4,10.5),l:mw(1.25,0,0)},
   {t:17.0,p:mw(1.2,.4,24),l:mw(1.2,.6,0)},
@@ -426,6 +426,11 @@ function animate(t){
     pelHead.rotation.x=.15+Math.sin(t*1.3)*.05;
     wingR.rotation.z=-.25+Math.sin(t*2.1)*.06;
     wingL.rotation.z=.2;
+    // Brows are restated every frame, not just in the finale below. Setting them
+    // only inside the finale branch left them stuck at their finale values on
+    // the loop's second pass — so the HTML loop diverged from the MP4, which
+    // renders 0->N once. Every property, every frame, a function of t.
+    browL.rotation.z=.15;browR.rotation.z=-.15;
     // 😳 pupils track the pelican early, then dart around
     const dart=Math.sin(t*3.1)*.05;
     pupL.position.x=-.25+dart;pupR.position.x=.25+dart;
@@ -513,6 +518,7 @@ function loop(now){
   window.seekTo(t);
   requestAnimationFrame(loop);
 }
+window.DURATION=DUR;
 window.stopPlayback=function(){playing=false;};
 window.sceneReady=true;
 // live preview autoplays; the recorder calls stopPlayback() then seekTo(t)

@@ -1,5 +1,15 @@
 # changelog
 
+## 0.31.1
+
+### added
+- **explainer-video**: `templates/smoke.js` — a contract and determinism check that renders one frame of every scene, source and bundled, and fails on any console error, missing contract member, blank canvas, or non-deterministic `seekTo`. It found two real bugs in the shipped example on its first run.
+
+### fixed
+- **explainer-video**: the worked example never set `window.DURATION`, violating the documented recorder contract. `shoot.js` masked it with a `|| 20` fallback that coincidentally matched the example's length — a 30-second scene would have silently rendered only its first 20 seconds. The example now sets it and the fallback is gone, so a missing `DURATION` fails loudly.
+- **explainer-video**: the worked example broke the skill's core determinism invariant. `browL/browR.rotation.z` were set at build time and mutated only inside the finale branch, so nothing reset them for `t < 17.7`. The MP4 renders 0->N once and looked correct, but the HTML loop's second pass showed finale brows during the early beats — the exact HTML/MP4 divergence the architecture claims is impossible. Brows are now restated every frame.
+- **explainer-video**: reframed the example's sinus-lift beat. The subject sat in the upper third against `method.md`'s own middle-third rule; the membrane now centers.
+
 ## 0.31.0
 
 ### added

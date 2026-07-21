@@ -61,7 +61,12 @@ function chromiumPath() {
   await page.waitForFunction('window.sceneReady === true', { timeout: 20000 })
     .catch(() => { throw new Error('scene never set window.sceneReady — check the errors above'); });
   await page.evaluate('window.stopPlayback()');
-  const dur = await page.evaluate('window.DURATION || 20');
+  // No `|| 20` fallback: a missing DURATION is a contract violation, and
+  // defaulting it silently renders a truncated film. Fail loudly instead.
+  const dur = await page.evaluate('window.DURATION');
+  if (typeof dur !== 'number' || !(dur > 0)) {
+    throw new Error(`scene did not set window.DURATION (got ${JSON.stringify(dur)})`);
+  }
 
   const shot = async (t, file) => {
     await page.evaluate(`window.seekTo(${t.toFixed(4)})`);

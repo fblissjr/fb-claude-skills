@@ -1,4 +1,4 @@
-last updated: 2026-07-05
+last updated: 2026-07-21
 
 # fb-claude-skills
 
@@ -20,6 +20,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
+| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer sequences (3D or diagrammatic) as a self-contained looping HTML page, a frame-exact MP4, or both. The film is a pure function of time, so one scene file drives both outputs. |
 
 ### decomposition & model routing
 
@@ -96,6 +97,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
 /plugin install model-routing@fb-claude-skills
+/plugin install explainer-video@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -188,6 +190,7 @@ Once installed, invoke as namespaced slash commands:
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:govuk-style             # Write or rewrite prose in GOV.UK / GDS house style
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
+/explainer-video:explainer-video # Build a deterministic animated explainer (HTML loop and/or MP4)
 
 /env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
 /env-forge:forge               # Generate a new environment from a description

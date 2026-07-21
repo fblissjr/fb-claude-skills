@@ -66,6 +66,7 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/templates/scene.template.html` | Runnable scaffold with the full recorder contract |
 | `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range) |
 | `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video |
+| `skills/explainer-video/templates/smoke.js` | Contract + determinism check, source and bundled |
 | `skills/explainer-video/references/method.md` | Design method, procedural-asset cookbook, r185 API notes |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
 | `skills/explainer-video/examples/pelican-implant.html` | Worked example: 20s, 5 beats, two worlds |
