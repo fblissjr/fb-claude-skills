@@ -1,5 +1,13 @@
 # changelog
 
+## 0.40.5
+
+### fixed
+- **`check_version_alignment`: two defects found by cross-review, both in the newest logic in my half.**
+  - `lstrip("./")` strips a character *set*, not a prefix. A marketplace `source` of `./.claude/thing` became `claude/thing`, so the check would report "plugin.json does not exist" while pointing at a path that was never right — sending someone to hunt a missing file rather than a mangled one. Every current entry happens to be safe, so it passed today and would have broken the first time a plugin lived under a dot-directory. `removeprefix("./")` is the fix. Same class as the `$&` bug in the bundler: a string method doing something adjacent to what it reads like.
+  - The reverse sweep swallowed unreadable manifests with `except Exception: continue`. The forward loop reports them. So a corrupt `plugin.json` made a plugin invisible to the exact check meant to catch plugins nobody can install, and the check reported green — the same silent-drift failure the function exists to prevent. It now reports the unreadable manifest.
+- Both covered by regression tests written red-first (17 tests, all green).
+
 ## 0.40.4
 
 ### fixed

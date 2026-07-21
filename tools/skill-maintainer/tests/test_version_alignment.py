@@ -73,3 +73,39 @@ def test_reports_every_drifted_plugin_not_just_the_first(tmp_path):
     _write_marketplace(tmp_path, [a, b])
     failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
     assert len(failed) == 2
+
+
+def test_source_with_dot_directory_resolves(tmp_path):
+    """`lstrip('./')` strips a character SET, not a prefix.
+
+    A source of `./.claude/thing` became `claude/thing`, so the check reported
+    "plugin.json does not exist" while pointing at a path that was never right
+    -- sending someone to look for a missing file rather than a mangled path.
+    """
+    d = tmp_path / ".claude" / "thing"
+    (d / ".claude-plugin").mkdir(parents=True)
+    (d / ".claude-plugin" / "plugin.json").write_bytes(
+        orjson.dumps({"name": "thing", "version": "1.0.0"})
+    )
+    _write_marketplace(tmp_path, [
+        {"name": "thing", "source": "./.claude/thing", "version": "1.0.0"}
+    ])
+    failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
+    assert not failed, [r.detail for r in failed]
+
+
+def test_unreadable_manifest_in_reverse_sweep_is_reported(tmp_path):
+    """A malformed plugin.json must not make a plugin invisible.
+
+    The forward loop reports an unreadable manifest; the reverse loop used to
+    `continue` past it, so a corrupt manifest silently removed the plugin from
+    the very check meant to catch plugins nobody can install -- and the check
+    then reported green.
+    """
+    d = tmp_path / "broken"
+    (d / ".claude-plugin").mkdir(parents=True)
+    (d / ".claude-plugin" / "plugin.json").write_text("{ not valid json")
+    _write_marketplace(tmp_path, [])
+    failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
+    assert any("unreadable" in r.detail or "broken" in r.detail for r in failed), \
+        f"corrupt manifest was silently skipped: {[r.detail for r in failed]}"

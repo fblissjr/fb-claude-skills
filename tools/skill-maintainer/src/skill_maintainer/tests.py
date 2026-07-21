@@ -216,7 +216,10 @@ def check_version_alignment(root: Path) -> list[Result]:
     for entry in entries:
         name = entry.get("name", "")
         listed[name] = entry.get("version", "")
-        source = (entry.get("source") or f"./{name}").lstrip("./")
+        # removeprefix, not lstrip: lstrip strips a character SET, so a source of
+        # "./.claude/thing" became "claude/thing" and the check then reported a
+        # missing plugin.json at a path that was never right.
+        source = (entry.get("source") or f"./{name}").removeprefix("./")
         pj = root / source / ".claude-plugin" / "plugin.json"
         if not pj.exists():
             results.append(Result(
@@ -240,7 +243,15 @@ def check_version_alignment(root: Path) -> list[Result]:
     for plugin_dir in discover_plugins(root):
         try:
             name = orjson.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_bytes()).get("name", "")
-        except Exception:
+        except Exception as e:
+            # Do NOT skip. A corrupt manifest would otherwise remove the plugin
+            # from the very check meant to catch plugins nobody can install, and
+            # the check would report green -- the same silent-drift failure this
+            # function exists to prevent.
+            results.append(Result(
+                "repo", plugin_dir.name, "version alignment", False,
+                f"unreadable plugin.json at {plugin_dir.name}: {e}",
+            ))
             continue
         if name and name not in listed:
             results.append(Result(
