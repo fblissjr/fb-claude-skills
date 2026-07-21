@@ -1,5 +1,10 @@
 # changelog
 
+## 0.36.2
+
+### fixed
+- **explainer-video 0.3.1 -> 0.3.2**: two items found by the cold run (following `SKILL.md` literally in a clean directory rather than editing files already understood). Step 2's scaffold command used bare `${CLAUDE_SKILL_DIR}`, which expands to empty in a shell and yields `cp: /templates/...: No such file or directory` if an agent copies it verbatim; it is now quoted and annotated as a load-time substitution rather than a shell variable. Step 1's caption guidance was `<70 chars` -- a character count cannot reference beat duration, so the same line is comfortable over 4s and impossible over 1.5s. Replaced with a per-second budget against the caption's *effective* window (beat duration minus fade, minus any `capEnd` trim), marked as observed rather than derived.
+
 ## 0.36.1
 
 ### fixed

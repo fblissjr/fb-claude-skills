@@ -46,7 +46,12 @@ domain:     what field this is from — it decides the geometry vocabulary, not
             the pipeline (a pump, a protein, a portfolio, a permit process)
 style:      palette (3-5 colors), tone (playful | neutral | technical),
             figures if any (procedural, built from primitives)
-subtitles:  on | off  — if on, one caption per beat, <70 chars
+subtitles:  on | off  — if on, one caption per beat. Budget by TIME, not
+            characters: a character count cannot reference beat duration, and
+            the same line is comfortable over 4s and impossible over 1.5s.
+            Aim under ~25 chars per second of *effective* window (beat duration
+            minus capFade, minus any capEnd trim). Observed, not derived —
+            27/sec read fine to one viewer, 37/sec did not
 beats:      ordered list of {name, dur, caption, what happens on screen}
             — durations, not absolute times: they accumulate
 outputs:    html | mp4 | loop | poster (see "Delivery" — decide this HERE, not
@@ -73,7 +78,9 @@ lengthening one shifts every later beat instead of silently overlapping it.
 Copy the template files into your working directory, then vendor three:
 
 ```bash
-cp ${CLAUDE_SKILL_DIR}/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
+# ${CLAUDE_SKILL_DIR} is substituted when this skill loads. If it comes through
+# literally (it is NOT a shell variable), use the skill's own directory path.
+cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor            # writes three.global.js beside the scene
