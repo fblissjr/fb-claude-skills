@@ -6,6 +6,30 @@ last updated: 2026-04-25
 
 Stops absolute and home-relative filesystem paths from leaking into committed artifacts. One rule: every path written into the repo must be relative to the repo root.
 
+
+## Keeping installed hooks current
+
+A plugin update refreshes the **scanner** your hooks call, but not the **wrapper**
+itself — the wrapper's logic is baked in when you run `install-git-hooks.sh`, so
+a repo can quietly carry a wrapper whose bugs were fixed several releases ago.
+
+Since 0.6.0 the generated wrapper carries a `# path-privacy:wrapper-version`
+stamp, and the SessionStart hook compares it against the installed plugin. If
+they differ you get one notice, in the repo where it matters, telling you to
+re-run the installer. Wrappers generated before 0.6.0 have no stamp and are
+reported as `pre-0.6.0`.
+
+```bash
+# in any repo the notice fires for
+<plugin-dir>/skills/path-privacy/scripts/install-git-hooks.sh
+```
+
+It deliberately does **not** rewrite the hook for you. Silently editing a file
+in someone's `.git/hooks` at session start is the kind of surprise a privacy
+gate should never spring — and the 0.6.0 release fixed four ways that installer
+could damage a repo. Detection is safe; an unattended rewrite of a security gate
+is not.
+
 ## What it does
 
 - **SessionStart directive**: when a session opens in a git repo, the rule is injected into Claude's context so paths outside the repo are never written in the first place.

@@ -1,5 +1,14 @@
 # changelog
 
+## 0.49.0
+
+### added
+- **path-privacy 0.6.0 -> 0.6.1**: installed git hooks now announce when they are out of date, so the one manual step after a plugin update stops depending on anyone remembering it.
+
+  A plugin update refreshes the scanner the wrapper *calls* but not the wrapper *itself* — its logic is frozen at install time. Before this there was no way to tell an old wrapper from a current one by inspection, so a repo could carry logic fixed several releases ago with nothing to reveal it. The generated wrapper now carries a `# path-privacy:wrapper-version` stamp, and the existing SessionStart hook compares it against the installed plugin, emitting one notice in the repo where it matters. Pre-0.6.0 wrappers have no stamp and are reported as `pre-0.6.0`.
+
+  It deliberately does **not** rewrite the hook. Silently editing a file in someone's `.git/hooks` at session start is the kind of surprise a privacy gate should never spring, and 0.6.0 fixed four ways that installer could damage a repo. Verified across five states: current wrapper silent, unstamped detected, older stamp reported with its version, repo with no hooks silent, and a third party's own pre-commit hook left unclaimed. The directive the hook already injects is unaffected; total cost 47ms.
+
 ## 0.48.1
 
 ### changed
