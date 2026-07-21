@@ -1,5 +1,15 @@
 # changelog
 
+## 0.48.1
+
+### changed
+- **CLAUDE.md**: invariant 2 corrected. It said every path "must resolve under the repo root", which reads as permission for `/Users/<name>/<this-repo>/x` — and that is exactly how five paths carrying a username survived 157 days and a full docs triage. The hooks do permit that shape by design; it still leaks the username. The invariant now says so and points at the whole-tree audit that catches the second class. Invariant 1 gains the clause that editing `tools/<plugin>/src/` *triggers* the cascade — it previously listed `tools/<plugin>/pyproject.toml` as a target without saying what causes one, and skill-maintainer shipped two commits at 0.13.0 through that gap.
+- **CLAUDE.md**: fixed three self-contradictions and a stale date. The working agreements listed `env-forge` among the disabled SessionStart hooks while invariant 6 correctly calls it deprecated; the "Where to find what" table advertised captured upstream docs two rows above a row stating nothing upstream is copied in; the SKILL.md count was wrong. Last-updated moved from 2026-05-04 despite same-day rewrites.
+- **README.md**: `skill-dashboard` was listed in two plugin tables and missing from the install block entirely despite shipping in the marketplace — all 18 plugins are now installable from the README. Removed references to the deleted `docs/reports/` synthesis, and rewrote the `docs/analysis/` description, which still advertised a tagged wiki of domain reports rather than the three files that survived triage.
+
+### added
+- **docs/internals/gotchas.md**: two operational hazards that cost real time. `/code-review ultra` with no argument diffs against `origin/main`, so pushing first empties the review target; it also caps at 8,000 lines, which this repo exceeds routinely. Splitting a diff across branches to fit that cap manufactures false positives — reviewers report content as missing when it only lives in the half they cannot see, which accounted for four findings in the 2026-07-21 review. Also: `git add -A` with two sessions in one worktree, which swept work three times and permanently detached two changelog entries from their commits.
+
 ## 0.48.0
 
 A nine-angle max-effort review of the previous seven commits returned 26 verified findings, all in code written that day and most of them inside *fixes*. They collapsed to six root causes; fixing the roots rather than the symptoms is what this release does.

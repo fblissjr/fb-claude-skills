@@ -58,7 +58,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Module | Description |
 |--------|-------------|
 | [heylook-monitor](apps/heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
-| [skill-dashboard](apps/skill-dashboard/) | ext-apps MCP App quality dashboard (TypeScript) |
 
 ### installable as a package (not a Claude plugin)
 
@@ -89,6 +88,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
 /plugin install explainer-video@fb-claude-skills
+/plugin install skill-dashboard@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
@@ -279,12 +279,13 @@ The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources 
 
 ## documentation
 
-See [docs/README.md](docs/README.md) for the full documentation index: domain reports, ecosystem synthesis, internals reference, and captured upstream docs.
+See [docs/README.md](docs/README.md) for the full documentation index.
 
 Highlights:
 - [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
-- [docs/internals/](docs/internals/) -- repo-specific operating reference (plugin versioning cascade, plugin patterns, maintenance commands, gotchas)
-- [docs/analysis/index.md](docs/analysis/index.md) -- wiki-style index of domain reports tagged by kind (entity / concept / audit / synthesis)
+- [docs/internals/](docs/internals/) -- repo-specific operating reference (version cascade, plugin patterns, maintenance commands, gotchas)
+- Upstream Claude Code docs are **not** vendored here — `skill-maintain upstream` fetches them to `.skill-maintainer/state/pages/` (gitignored)
+- [docs/analysis/](docs/analysis/) -- what survived the 2026-07-21 triage: the agent-state decision record, the MCP protocol reference, and the decision log explaining what went and why
 - Each plugin has its own README with detailed usage
 
 ## credits

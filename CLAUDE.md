@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # fb-claude-skills
 
@@ -9,15 +9,15 @@ Plugin marketplace and extension system for Claude Code. Bundles skills, agents,
 ## Working agreements
 
 - At session end, update what's actually relevant: `internal/log/log_YYYY-MM-DD.md`, this file (only if a hub-level rule changed), READMEs of impacted units, `pyproject.toml` of impacted units. Don't bulk-update untouched files.
-- `.claude/rules/` already covers language tooling (uv, bun, orjson), TDD, and doc conventions; `path-privacy`'s SessionStart hook covers path rules. Don't restate those here. (The `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, and `env-forge` SessionStart hooks are disabled in this repo — see invariant 6 — so `.claude/rules/` is the only copy that loads.)
+- `.claude/rules/` already covers language tooling (uv, bun, orjson), TDD, and doc conventions; `path-privacy`'s SessionStart hook covers path rules. Don't restate those here. (The `dev-conventions`, `dimensional-modeling` and `mece-decomposer` SessionStart hooks are disabled in this repo — see invariant 6 — so `.claude/rules/` is the only copy that loads.)
 
 ## Repo invariants
 
 These bite on the first edit if you don't know them.
 
-1. **Plugin content change ⇒ version cascade (three files).** `plugin.json` + root `marketplace.json` + a `CHANGELOG.md` entry. Plus `tools/<plugin>/pyproject.toml` and root `pyproject.toml` + `uv lock` only where those exist. **SKILL.md files are not in the cascade** — `metadata.version` was removed from all 39 on 2026-07-21 because it duplicated `plugin.json` and its only reader was the check confirming the duplicate matched. Do not re-add it. `metadata.last_verified` is also out: it asserts a human reviewed the skill, which a version bump does not establish — write it only after an actual review. Detail: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
+1. **Plugin content change ⇒ version cascade (three files).** `plugin.json` + root `marketplace.json` + a `CHANGELOG.md` entry. **Editing `tools/<plugin>/src/` counts as plugin content and triggers the cascade** — without the bump, `marketplace update` never reaches installed users. Plus `tools/<plugin>/pyproject.toml` and root `pyproject.toml` + `uv lock` only where those exist. **SKILL.md files are not in the cascade** — `metadata.version` was removed from every SKILL.md on 2026-07-21 because it duplicated `plugin.json` and its only reader was the check confirming the duplicate matched. Do not re-add it. `metadata.last_verified` is also out: it asserts a human reviewed the skill, which a version bump does not establish — write it only after an actual review. Detail: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
 
-2. **Path-privacy is enforced via git hooks.** Every path in repo content (code, docs, commit messages, branch names) must resolve under the repo root. Use `<HOME>/.claude/...` or generic names for system paths. Pre-commit + commit-msg hard-block leaks; don't `--no-verify`. Detail: `skills/path-privacy/`.
+2. **Path-privacy is enforced via git hooks.** Every path in repo content (code, docs, commit messages, branch names) must resolve under the repo root. Use `<HOME>/.claude/...` or generic names for system paths. Pre-commit + commit-msg hard-block leaks; don't `--no-verify`. **The hooks permit an absolute path that resolves INSIDE the repo** (`/Users/<name>/<this-repo>/x`) — by design, but it still leaks your username, so write those repo-relative too. `skill-maintain test`'s whole-tree audit catches that second class; the hooks do not. Detail: `skills/path-privacy/`.
 
 3. **best_practices.md has two copies that drift.** Edit `.skill-maintainer/best_practices.md` (working copy). The PostToolUse hook mirrors to `skills/skill-maintainer/references/best_practices.md`. Editing only the bundled copy means fresh `skill-maintain init` runs in other repos pull stale rules. More: [docs/internals/gotchas.md](docs/internals/gotchas.md).
 
@@ -37,7 +37,7 @@ These bite on the first edit if you don't know them.
 | Repo-specific gotchas (disabled plugins, `_deprecated`, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
-| Captured Claude Code official docs (domain reports + ecosystem field guide) | [docs/README.md](docs/README.md) |
+| The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
 | MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |
 | MCP protocol | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md) (verified current) |
 | MCP Apps / UI | `skills/mcp-apps/references/` — the official spec, shipped as a plugin |

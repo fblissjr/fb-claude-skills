@@ -63,6 +63,16 @@ For system-level references in prose (e.g., "the global agent-state DB lives at 
 
 If pre-commit blocks a leak you didn't write, it's likely grandfathered content from before path-privacy was installed. Fix the leak in the same commit; don't `--no-verify`.
 
+## Reviewing a large diff
+
+`/code-review ultra` with no argument diffs against `origin/main` — **pushing first empties the review target**. Pass an explicit base instead. It also rejects diffs over 8,000 lines, which this repo hits easily once doc deletions are involved.
+
+Splitting a diff across branches to fit that cap manufactures false positives: reviewers report content as "missing" when it only lives in the half they cannot see. Four findings in the 2026-07-21 review were exactly this. Prefer an explicit base that excludes bulk deletions over splitting by path.
+
+## Two sessions in one worktree
+
+`git add -A` sweeps the other session's uncommitted work into your commit. This happened three times on 2026-07-21 and permanently detached two CHANGELOG entries from the commits that describe them — unfixable without a history rewrite. Stage explicit paths and check `git status --short` before committing whenever another session is active.
+
 ## CLAUDE.md size creep
 
 The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~270 lines to ~70. The pre-commit hook now warns when CLAUDE.md exceeds 150 lines or ~4000 tokens. The warning catches the slow drift back into single-file-everything; treat it as a prompt to move content into a spoke (`docs/internals/`) or remove duplication with SessionStart-injected directives. The warning does not block — discretion stays with the author.
