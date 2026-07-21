@@ -2,7 +2,12 @@ last updated: 2026-02-19
 
 # Claude Code Hooks System: Patterns and Reference
 
-> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+> **Wrong in places, and still the best we have. This banner is permanent, not a to-do.**
+> No rewrite is scheduled. The durable content named below has no replacement anywhere
+> in the repo or upstream, which is why this was kept rather than deleted — the parts
+> that rotted are the API specifics, and they are listed so you can route around them.
+> For anything upstream states directly, trust `.skill-maintainer/state/pages/`
+> (gitignored; `skill-maintain upstream` fetches it) over this document.
 >
 > Known wrong: exit 0 is described as "success, action proceeds" — it actually reports **no decision**, and a PreToolUse call still goes through the normal permission flow. The hook `type` table omits `mcp_tool`; the `if` conditional field is missing entirely; several current events are absent (`PostToolUseFailure`, `MessageDisplay`, `PermissionDenied`, `WorktreeCreate`/`Remove`).
 >

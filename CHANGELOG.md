@@ -1,5 +1,15 @@
 # changelog
 
+## 0.37.1
+
+### changed
+- **The staleness banners added in 0.37.0 were reframed after review from the concurrent session.** They read "Stale -- not re-derived", which describes pending work; in three months that becomes furniture nobody reads. All eight documents are the same case -- wrong in places, still the best available, no rewrite scheduled -- so the banner now says exactly that and states it is permanent rather than a to-do. `data_centric_agent_state_research.md` is reframed as a historical record of what was considered, in the same spirit as `log.md`. The critique was correct and self-directed: a banner with nothing forcing action on it is the same pattern as the permanently-red board.
+
+### added
+- **`maintenance.md` records the availability-vs-staleness trade** behind deleting the local upstream copies, rather than leaving it implied. An absent doc announces itself; a stale undated doc teaches something false with confidence. The section says plainly not to quietly re-add local copies on a fetch failure, and what to do instead.
+- **`maintenance.md` gains "Designing a new check"**, from two rules earned in the concurrent session. *A proxy can reject but cannot approve*: give a heuristic authority only over its confident region and stay **silent** elsewhere, because a warning band over the uncertain region trains people to skim past the loud case too. *Build the control*: a technique needs a without-it comparison, a check needs a constructed failing case, a threshold needs bracketing by a confirmed-bad and a confirmed-fine observation.
+- **A fourth instance of the decayed-signal pattern is recorded** in the drift backlog: freshness checks detect drift over time and catch nothing that was wrong on the day it was written. `method.md` has always specified 3-4 seconds per beat while the example shipped at 2.4/2.4/3.2, under its own floor. Nothing was stale; the doc and the artifact disagreed from the start. We have no general consistency check for a documented threshold against the artifact it governs.
+
 ## 0.36.4
 
 ### added

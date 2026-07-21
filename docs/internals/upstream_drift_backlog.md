@@ -79,6 +79,22 @@ Re-derive with: `skill-maintain upstream`, then diff
 - Symlinks within the same marketplace are dereferenced and copied — a supported way to share files, but only for marketplace installs. Relevant to invariant 3 (the `best_practices.md` mirror)
 - Orphaned cache versions pruned after 14 days, not 7
 
+## Missing: a consistency check
+
+`review_interval_days` and `check_version_alignment` both detect drift over
+time. Nothing detects a document that was wrong on the day it was written.
+
+Concrete instance: `explainer-video`'s `method.md` states 3-4 seconds per beat
+as the pacing that reads, and the example shipped alongside it ran 2.4 / 2.4 /
+3.2 — under its own floor on two of three beats. Nothing was stale. The doc and
+the artifact disagreed from the start and it surfaced only when a human watched
+the video.
+
+Where a doc in this repo states a numeric threshold governing an artifact, the
+two should be compared. See "Designing a new check" in
+[maintenance.md](maintenance.md) for why the check must be silent outside its
+confident region rather than warning.
+
 ## Convention worth reconsidering
 
 **`last_verified` should probably leave the version cascade.** Invariant 1 bumps

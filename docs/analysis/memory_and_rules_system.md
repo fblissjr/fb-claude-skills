@@ -2,7 +2,12 @@ last updated: 2026-02-19
 
 # Memory and Rules System
 
-> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+> **Wrong in places, and still the best we have. This banner is permanent, not a to-do.**
+> No rewrite is scheduled. The durable content named below has no replacement anywhere
+> in the repo or upstream, which is why this was kept rather than deleted — the parts
+> that rotted are the API specifics, and they are listed so you can route around them.
+> For anything upstream states directly, trust `.skill-maintainer/state/pages/`
+> (gitignored; `skill-maintain upstream` fetches it) over this document.
 >
 > Known wrong: the "Gap: .claude/rules/ underutilized" section is false — this repo now has `.claude/rules/` populated. Described MEMORY.md and CLAUDE.md contents no longer match reality. The upstream memory page has roughly doubled and the core mechanics here are unverified against it.
 >

@@ -2,7 +2,10 @@ last updated: 2026-02-14
 
 # data-centric approaches to llm agent state management
 
-> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+> **Historical record, not a description of what exists.** This banner is permanent.
+> Kept as a record of what was considered and why, in the same spirit as `log.md`.
+> Nothing here describes the system that was actually built — read
+> `tools/agent-state/README.md` for that.
 >
 > This is pre-implementation research. The schema it proposes (`fact_tool_call`, `fact_token_usage`, `dim_session`) was never built — `tools/agent-state` uses a generic `fact_run`/`fact_run_message` model instead. Its file paths point at `skill-maintainer/scripts/`, which no longer exists. Read it as a record of what was considered, not of what exists.
 >

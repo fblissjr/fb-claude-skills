@@ -74,3 +74,86 @@ JS/TS: `skill-dashboard` at `apps/skill-dashboard/mcp-app` is a TypeScript ext-a
 Setup: `uv sync --all-packages` installs all member deps into a shared venv. `readwise-reader` is excluded from the default workspace; opt in by removing it from the `exclude` list in root `pyproject.toml`.
 
 `env-forge` is deprecated: moved to `apps/_deprecated/env-forge/`, removed from `marketplace.json` and from the workspace members above. `_deprecated` is in `SKIP_DIRS`, so nothing under it is scanned for skills, plugins, or version alignment.
+
+## Decision: no local copies of upstream docs (2026-07-21)
+
+`docs/claude-docs/` held frozen copies of the upstream Claude Code pages. They
+were deleted, and upstream is now fetched on demand into
+`.skill-maintainer/state/pages/` (gitignored) via `skill-maintain upstream`.
+
+**This is a trade, not a pure win, and the trade was made deliberately.** We
+accepted an availability risk to remove a staleness risk:
+
+- There is now **no offline fallback**. Working without network access, behind a
+  restrictive proxy, or after a page is moved or restructured, there is nothing
+  local to read.
+- A moved URL fails at fetch time — later and noisier than a stale local file
+  would have been.
+- Re-fetching is not free: the twelve tracked pages total well over 1MB.
+
+We took that because the failure modes are not symmetric. An absent doc
+announces itself and you go read the real one. A stale doc teaches you something
+false with total confidence — the February copies asserted that `allowed-tools`
+restricts tool access and that hook exit 0 approves a call, both wrong, and
+carried no date header to warn anyone. A reader cannot audit what they cannot
+date.
+
+**If you hit a fetch failure, do not quietly re-add local copies.** That
+reintroduces the exact problem, and the copies will rot again on the same
+timeline. Either fix the URL in `.skill-maintainer/config.json`, or if offline
+work genuinely needs a pinned snapshot, add one *with a visible capture date in
+the file itself* and a tracked expiry — the undated copy is what made the last
+set unauditable.
+
+## Designing a new check
+
+Hard-won from building the checks in this repo and the explainer-video smoke
+test. Both rules exist because a check was built that looked right and was not.
+
+### A proxy can reject; it cannot approve
+
+A heuristic has a confident region and an uncertain one. Give it authority only
+over the confident region, and make it **silent** — not "warn" — everywhere else.
+
+The failing example: a caption-readability check scored characters-per-second.
+It correctly rejected 37 CPS as unreadable and was wrong at 27, where one person
+watching three seconds of video overturned the whole model. The bug was not the
+threshold, it was granting the metric decision authority across its entire range
+when it only had authority at one end.
+
+A warning band over the uncertain region is the worst option available. It
+trains people to skim past the check's output, which destroys the loud case too
+— the permanently-red-board failure in miniature. Exact checks (version
+alignment, spec compliance, link-rot) can legitimately gate. Perceptual or
+heuristic checks get a floor, silence above it, and nothing in between.
+
+### Build the control
+
+For any claim that a technique or check improves something, build the version
+without it and confirm that one is worse. Otherwise you have measured your own
+effort rather than the effect. Three forms:
+
+- a **technique** needs a without-it comparison
+- a **check** needs a constructed failing case, proving it actually fires
+- a **threshold** needs bracketing: one confirmed-bad observation below it and
+  one confirmed-fine observation above
+
+This is why `check_version_alignment` was verified by re-injecting the exact
+historical `path-privacy` drift, and why the explainer-video blank-frame check
+was verified against a deliberately empty scene. A check nobody has seen fail is
+not known to work.
+
+### Freshness checks do not catch wrongness
+
+`review_interval_days` and `check_version_alignment` both detect **drift over
+time**. Neither catches a document that was wrong on the day it was written.
+
+The worked example: `references/method.md` has stated since day one that 3-4
+seconds per beat is the pacing that reads. The example shipped alongside it ran
+2.4 / 2.4 / 3.2 — below its own stated floor on two of three beats. Nothing was
+stale; the doc and the artifact simply disagreed from the start, and it surfaced
+only when a human watched the video and said it felt too fast.
+
+If a document states a numeric threshold that governs an artifact in this repo,
+something should compare the two. That is a consistency check, and we do not
+currently have a general one.
