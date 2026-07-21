@@ -59,6 +59,10 @@ const CONFIG = {
   seed: 20260721,                     // change to reshuffle all seeded randomness
   bg: 0x1a1426,
   exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+  sway: 0.06,                         // idle camera drift. Set to 0 for `build.js loop`:
+                                      // sway moves every pixel every frame, which defeats
+                                      // WebP/GIF inter-frame compression and can 10x the
+                                      // file size. Free in mp4, expensive inline.
 };
 
 /* ---------- deterministic kit ---------- */
@@ -125,7 +129,7 @@ const KEYS=[
 function setCamera(t){
   let a=KEYS[0],b=KEYS[KEYS.length-1];
   for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
-  const u=ss(t,a.t,b.t),sway=.06;   // slight sway so nothing feels static
+  const u=ss(t,a.t,b.t),sway=CONFIG.sway;   // slight sway so nothing feels static
   camera.position.set(lerp(a.p[0],b.p[0],u)+Math.sin(t*.7)*sway,
                       lerp(a.p[1],b.p[1],u)+Math.sin(t*.9+2)*sway*.6,
                       lerp(a.p[2],b.p[2],u));

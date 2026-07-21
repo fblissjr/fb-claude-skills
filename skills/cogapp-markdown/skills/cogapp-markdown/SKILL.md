@@ -5,6 +5,7 @@ metadata:
   author: Simon Willison (adapted by Fred Bliss)
   version: 0.1.0
   last_verified: 2026-03-31
+  review_interval_days: 365
 allowed-tools: "Bash(uv run *)"
 ---
 

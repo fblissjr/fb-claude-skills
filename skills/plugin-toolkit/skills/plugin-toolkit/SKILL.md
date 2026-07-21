@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.1.0
   last_verified: 2026-04-02
+  review_interval_days: 30
 allowed-tools: "Read, Glob, Grep"
 ---
 

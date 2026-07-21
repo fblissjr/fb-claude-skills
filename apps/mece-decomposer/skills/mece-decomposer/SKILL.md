@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.4.1
   last_verified: "2026-04-02"
+  review_interval_days: 365
   mcp-server: mece-decomposer
 allowed-tools: "Bash(uv run *)"
 ---

@@ -5,29 +5,34 @@ from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
 
-from skill_maintainer.shared import STALE_DAYS, discover_skills
+from skill_maintainer.shared import STALE_DAYS, discover_skills, get_review_interval
 from skill_maintainer.shared import get_last_verified as _get_last_verified
 
 
-def _read_last_verified(skill_dir: Path) -> tuple[str | None, int | None]:
-    """Read last_verified from SKILL.md frontmatter."""
+def _read_last_verified(skill_dir: Path) -> tuple[str | None, int | None, int | None]:
+    """Read last_verified and the skill's own review interval from frontmatter."""
     skill_md = find_skill_md(skill_dir)
     if skill_md is None:
-        return None, None
+        return None, None, None
 
     try:
         content = skill_md.read_text()
         metadata, _ = parse_frontmatter(content)
     except Exception:
-        return None, None
+        return None, None, None
 
-    return _get_last_verified(metadata)
+    lv_str, days_ago = _get_last_verified(metadata)
+    return lv_str, days_ago, get_review_interval(metadata)
 
 
-def check_skill(skill_dir: Path, threshold_days: int) -> dict:
+def check_skill(skill_dir: Path, threshold_days: int | None = None) -> dict:
     """Check freshness of a single skill."""
     name = skill_dir.name
-    lv_str, days_ago = _read_last_verified(skill_dir)
+    lv_str, days_ago, interval = _read_last_verified(skill_dir)
+    # An explicit --threshold is an override; otherwise honour the skill's own
+    # declared interval, falling back to the global default.
+    if threshold_days is None:
+        threshold_days = interval if interval is not None else STALE_DAYS
 
     if lv_str is None:
         return {
@@ -68,7 +73,8 @@ def main(args=None):
     parser = argparse.ArgumentParser(description="Check freshness of skills.")
     parser.add_argument("skill", nargs="?", default=None, help="Skill directory name to check")
     parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to search")
-    parser.add_argument("--threshold", type=int, default=STALE_DAYS, help="Staleness threshold in days")
+    parser.add_argument("--threshold", type=int, default=None,
+                        help="Override every skill's review interval (default: per-skill, else %(default)s)")
     parser.add_argument("--quiet", "-q", action="store_true", help="Only output stale skills")
     parsed = parser.parse_args(args)
 

@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 1.0.0
   last_verified: "2026-04-02"
+  review_interval_days: 90
 ---
 
 # Library Search

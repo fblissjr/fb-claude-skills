@@ -15,6 +15,7 @@ metadata:
   author: Fred Bliss
   version: 0.1.1
   last_verified: 2026-07-21
+  review_interval_days: 90
 ---
 
 # explainer-video
@@ -43,8 +44,16 @@ style:      palette (3-5 colors), tone (playful | clinical | technical),
             characters if any (procedural, built from primitives)
 subtitles:  on | off  — if on, one caption per beat, <70 chars
 beats:      ordered list of {t0, t1, caption, what happens on screen}
-outputs:    html | mp4 | both
+outputs:    html | mp4 | loop | poster (see "Delivery" — decide this HERE, not
+            at encode time: it constrains the camera, which constrains the beats)
 ```
+
+If the sequence has to play **inline in a GitHub README**, decide that now. Inline
+delivery means an animated WebP, and WebP's cost is driven by how much of the
+frame changes per frame — so it wants a held camera (`CONFIG.sway = 0`, no
+swooping keyframes). That is a beats-level constraint, not an encode flag.
+Diagrammatic sequences hold the camera anyway; narrative walkthroughs do not, and
+should not be forced to. See "Delivery".
 
 Get the beats table agreed with the user (or settled yourself) before building.
 Retiming a beat later is a one-line edit; re-planning a scene is not.

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Skills are retrieval</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#0e1116;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  #cap{position:fixed;left:50%;bottom:6.5%;transform:translateX(-50%);
+    font:600 26px/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(14,17,22,.72);padding:12px 30px;border-radius:999px;
+    white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.16);
+    text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #title{position:fixed;left:50%;top:9%;transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
+  #title h1{font-size:40px;margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:21px;margin:6px 0 0;font-weight:500;opacity:.85;}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 60%,rgba(5,7,10,.5) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="title"><h1></h1><p></p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<script src="./three.global.js"></script>
+<script>
+"use strict";
+/* Worked example: diagrammatic style, held camera, sized for inline delivery.
+   Every property is a pure function of t — see SKILL.md for the contract. */
+
+const CONFIG = {
+  duration: 8,
+  title: "Skills are retrieval",
+  subtitle: "high precision is the constraint",
+  titleUntil: 2.2,
+  captions: [
+    {a: 2.4, b: 4.6, s: "1 · every description is an index entry — all are candidates"},
+    {a: 4.8, b: 8.0, s: "2 · only the match is loaded into the context window"},
+  ],
+  flashes: [],
+  seed: 20260721,
+  bg: 0x0e1116,
+  exposure: 1.0,
+  sway: 0,          // held: this scene is delivered as an inline loop (see build.js loop)
+};
+
+/* ---------- deterministic kit ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(CONFIG.seed);
+const R=[];for(let i=0;i<200;i++)R.push(rng());
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+const ss=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};
+const bump=(t,t0,t1)=>{const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);};
+
+/* ---------- renderer ---------- */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled=false;                 // flat diagram: no shadows needed
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=CONFIG.exposure;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(CONFIG.bg);
+const camera=new THREE.PerspectiveCamera(24,16/9,.1,300);   // long lens: reads orthographic
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+/* ---------- helpers ---------- */
+const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);if(parent)parent.add(o);return o;}
+const std=(color,opts={})=>new THREE.MeshStandardMaterial(Object.assign({color,roughness:.6,metalness:.05},opts));
+
+/* ---------- lights ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x2a3240,.75));
+const key=new THREE.DirectionalLight(0xfff1dd,1.5);key.position.set(4,9,11);scene.add(key);
+const fill=new THREE.DirectionalLight(0x8fb6ff,.45);fill.position.set(-7,3,4);scene.add(fill);
+
+/* ============================================================
+   WORLD — a corpus of skills on the left, a context window on
+   the right, and one match that crosses between them.
+   ============================================================ */
+const N=6, MATCH=2;                       // which slab is the match
+const TEAL=0x2a9d8f, AMBER=0xffc857, EDGE=0x3d4657;
+const slabs=[], slabMat=[];
+let frameGrp, glow;
+
+function buildWorlds(){
+  const world=new THREE.Group();scene.add(world);
+
+  // corpus: a stack of skill descriptions
+  for(let i=0;i<N;i++){
+    const m=std(TEAL,{emissive:0x08201d,emissiveIntensity:1});
+    const s=mesh(B(2.0,.34,.5),m,world,-3.4,1.75-i*.72,0);
+    slabs.push(s);slabMat.push(m);
+  }
+
+  // context window: an open frame, drawn as four bars
+  frameGrp=new THREE.Group();frameGrp.position.set(3.5,-.05,0);world.add(frameGrp);
+  const fm=std(EDGE,{emissive:0x11161f,emissiveIntensity:1});
+  mesh(B(3.6,.12,.4),fm,frameGrp,0, 2.05,0);
+  mesh(B(3.6,.12,.4),fm,frameGrp,0,-2.15,0);
+  mesh(B(.12,4.3,.4),fm,frameGrp,-1.74,-.05,0);
+  mesh(B(.12,4.3,.4),fm,frameGrp, 1.74,-.05,0);
+
+  // arrival glow inside the frame
+  glow=mesh(new THREE.PlaneGeometry(3.3,4.0),
+    new THREE.MeshBasicMaterial({color:AMBER,transparent:true,opacity:0}),frameGrp,0,-.05,-.25);
+}
+buildWorlds();
+
+/* ---------- camera: held, single framing ---------- */
+const KEYS=[{t:0,p:[0,0,19.5],l:[0,0,0]},{t:8,p:[0,0,19.5],l:[0,0,0]}];
+function setCamera(t){
+  let a=KEYS[0],b=KEYS[KEYS.length-1];
+  for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
+  const u=ss(t,a.t,b.t),sway=CONFIG.sway;
+  camera.position.set(lerp(a.p[0],b.p[0],u)+Math.sin(t*.7)*sway,
+                      lerp(a.p[1],b.p[1],u)+Math.sin(t*.9+2)*sway*.6,
+                      lerp(a.p[2],b.p[2],u));
+  camera.lookAt(lerp(a.l[0],b.l[0],u),lerp(a.l[1],b.l[1],u),lerp(a.l[2],b.l[2],u));
+}
+
+/* ============================================================
+   ANIMATE — every property restated every frame. Nothing is set
+   once and mutated later: that is what keeps seekTo(t) pure.
+   ============================================================ */
+const HOME=i=>({x:-3.4,y:1.75-i*.72});
+function animate(t){
+  // beat 1: a scan sweeps the corpus — every entry is a candidate
+  const scan=ss(t,2.4,4.4)*N;
+  // beat 2: the match crosses into the context window
+  const cross=ss(t,5.0,6.9);
+
+  for(let i=0;i<N;i++){
+    const s=slabs[i],m=slabMat[i],h=HOME(i);
+    const lit=bump(scan,i-.55,i+.55);                 // scan highlight passing over i
+    const isMatch=i===MATCH;
+
+    // color: teal -> amber for the match once the scan reaches it
+    const pick=isMatch?ss(t,4.15,4.6):0;
+    m.color.setHex(TEAL).lerp(new THREE.Color(AMBER),Math.max(pick,lit*.55));
+    m.emissiveIntensity=1+lit*2.2+pick*1.5;
+
+    // non-matches dim and recede once the answer is known. Emissive has to come
+    // down with opacity — a transparent-but-glowing slab stays fully visible.
+    const drop=isMatch?0:ss(t,5.0,6.2);
+    m.opacity=1-drop*.72;m.transparent=drop>0;
+    m.emissiveIntensity*=1-drop*.85;
+    m.color.multiplyScalar(1-drop*.45);
+
+    if(isMatch){
+      s.position.x=lerp(h.x,3.5,cross);
+      s.position.y=lerp(h.y,-.05,cross)+bump(cross,0,1)*.9;   // slight arc
+      s.scale.setScalar(1+.16*bump(t,4.15,4.75)+.10*bump(t,6.6,7.3));
+    }else{
+      s.position.x=h.x-drop*.5;
+      s.position.y=h.y;
+      s.scale.setScalar(1+.06*lit);
+    }
+  }
+
+  // The context window brightens as the match lands. Keep the fill plane faint —
+  // a large amber plane at high opacity over the dark bg reads as muddy olive,
+  // not as light. The frame edge carries the signal instead.
+  glow.material.opacity=.045*ss(t,5.6,6.9)+.13*bump(t,6.6,7.6);
+  const arrive=ss(t,5.8,6.9)+.9*bump(t,6.6,7.5);
+  frameGrp.children.forEach(bar=>{
+    if(bar.material.emissive) bar.material.emissiveIntensity=1+arrive*3.2;
+  });
+  frameGrp.scale.setScalar(1+.03*bump(t,6.7,7.4));
+}
+
+/* ---------- overlay ---------- */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+titleEl.querySelector('h1').textContent=CONFIG.title;
+titleEl.querySelector('p').textContent=CONFIG.subtitle;
+const flashEl=document.getElementById('flash');
+function setOverlay(t){
+  titleEl.style.opacity=(ss(t,.2,.8)*(1-ss(t,CONFIG.titleUntil-.3,CONFIG.titleUntil+.3))).toFixed(3);
+  let txt="",op=0;
+  for(const c of CONFIG.captions)if(t>=c.a&&t<=c.b){txt=c.s;op=ss(t,c.a,c.a+.35)*(1-ss(t,c.b-.3,c.b));break;}
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=op.toFixed(3);
+  let f=0;for(const m of CONFIG.flashes)f=Math.max(f,bump(t,m-.25,m+.25));
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ---------- driver (the recorder contract) ---------- */
+window.DURATION=CONFIG.duration;
+window.seekTo=function(t){t=clamp(t,0,CONFIG.duration);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
+let playing=true,t0=null;
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%CONFIG.duration);requestAnimationFrame(loop);}
+window.stopPlayback=function(){playing=false;};
+window.sceneReady=true;
+if(!location.search.includes('record'))requestAnimationFrame(loop);else window.seekTo(0);
+</script>
+</body>
+</html>

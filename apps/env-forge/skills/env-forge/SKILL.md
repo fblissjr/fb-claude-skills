@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.3.1
   last_verified: "2026-04-02"
+  review_interval_days: 90
 allowed-tools: "Bash(uv run *), Bash(mkdir *), Bash(sqlite3 *), Read, Write, Glob, Grep, Edit"
 ---
 

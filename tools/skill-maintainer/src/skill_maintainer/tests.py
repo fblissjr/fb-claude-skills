@@ -18,6 +18,7 @@ from skills_ref.validator import validate
 from skill_maintainer.config import best_practices_file
 from skill_maintainer.shared import (
     STALE_DAYS,
+    get_review_interval,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
     check_description_quality,
@@ -98,11 +99,12 @@ def test_skills(root: Path) -> list[Result]:
             continue
 
         lv_str, days_ago = get_last_verified(metadata)
+        interval = get_review_interval(metadata)
         if lv_str and days_ago is not None:
             results.append(Result(
                 "skill", name, "staleness",
-                days_ago <= STALE_DAYS,
-                f"{days_ago}d" if days_ago <= STALE_DAYS else f"{days_ago}d > {STALE_DAYS}d",
+                days_ago <= interval,
+                f"{days_ago}d" if days_ago <= interval else f"{days_ago}d > {interval}d",
             ))
         elif lv_str:
             results.append(Result("skill", name, "staleness", False, f"invalid date: {lv_str}"))

@@ -15,6 +15,7 @@ from skill_maintainer.shared import (
     check_description_quality,
     discover_skills,
     get_last_verified,
+    get_review_interval,
     measure_tokens,
 )
 
@@ -64,6 +65,7 @@ def analyze_skill(skill_dir: Path) -> dict:
     lv_str, days_ago = get_last_verified(metadata)
     result["last_verified"] = lv_str
     result["days_ago"] = days_ago
+    result["review_interval"] = get_review_interval(metadata)
 
     # Description quality
     description = metadata.get("description", "")
@@ -71,6 +73,11 @@ def analyze_skill(skill_dir: Path) -> dict:
     result["name"] = metadata.get("name", skill_dir.name)
 
     return result
+
+
+def _is_stale(r: dict) -> bool:
+    """Stale relative to the skill's own review interval, not a global window."""
+    return r["days_ago"] is not None and r["days_ago"] > r.get("review_interval", STALE_DAYS)
 
 
 def _log_event(root: Path, results: list[dict]) -> None:
@@ -81,7 +88,7 @@ def _log_event(root: Path, results: list[dict]) -> None:
         "skills": len(results),
         "valid": sum(1 for r in results if r["valid"]),
         "over_budget": sum(1 for r in results if r["budget_status"] != "OK"),
-        "stale": sum(1 for r in results if r["days_ago"] is not None and r["days_ago"] > STALE_DAYS),
+        "stale": sum(1 for r in results if _is_stale(r)),
     })
 
 
@@ -123,9 +130,9 @@ def main(args=None):
     total = len(results)
     valid = sum(1 for r in results if r["valid"])
     over = sum(1 for r in results if r["budget_status"] != "OK")
-    stale = sum(1 for r in results if r["days_ago"] is not None and r["days_ago"] > STALE_DAYS)
+    stale = sum(1 for r in results if _is_stale(r))
     print()
-    print(f"{valid}/{total} valid, {over} over budget, {stale} stale (>{STALE_DAYS}d)")
+    print(f"{valid}/{total} valid, {over} over budget, {stale} stale (per-skill review interval)")
 
     if not parsed.no_log:
         _log_event(parsed.dir, results)

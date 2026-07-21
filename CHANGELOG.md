@@ -1,5 +1,14 @@
 # changelog
 
+## 0.32.0
+
+### fixed
+- **marketplace.json**: `path-privacy` was pinned at 0.1.1 while its `plugin.json` and SKILL.md had moved to 0.1.6 -- the marketplace entry was never updated during those five bumps, so installs resolved a stale version. Caught by the pre-commit version check once an unrelated edit touched the plugin. Reconciled against `plugin.json`, which is the source of truth.
+
+### added
+- **skill-maintainer 0.8.1 -> 0.9.0**: per-skill review intervals via `metadata.review_interval_days`, honoured by `test`, `quality`, and `freshness` (falling back to the global 30-day default; `freshness --threshold` still overrides everything). A single global window was the wrong instrument for a repo tracking sources of very different volatility -- the Claude Code docs move weekly, Kimball dimensional modeling has not moved in decades. Forcing both to 30 days kept 31 of 39 skills permanently red, which is how a signal stops being read.
+- **all skills**: tiered into 30d (content derived from Claude Code docs), 90d (tracks a third-party SDK/API), and 365d (methodology, or our own code -- we update the skill when the code changes and the date is only a backstop). Staleness failures dropped from 31 to 13, and the remaining 13 are genuine: they track moving surfaces and are past their own declared window.
+
 ## 0.31.1
 
 ### added

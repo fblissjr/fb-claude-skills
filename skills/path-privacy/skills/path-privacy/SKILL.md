@@ -12,6 +12,7 @@ metadata:
   author: Fred Bliss
   version: 0.1.6
   last_verified: 2026-04-30
+  review_interval_days: 365
 allowed-tools: "Bash,Read,Edit"
 ---
 

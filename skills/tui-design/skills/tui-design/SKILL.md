@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.3.1
   last_verified: 2026-03-31
+  review_interval_days: 90
 allowed-tools: "Bash(python *)"
 ---
 

@@ -7,8 +7,9 @@ description: >-
   "add maintenance to this repo". Invoke with /skill-maintainer:init-maintenance.
 metadata:
   author: Fred Bliss
-  version: 0.8.1
-  last_verified: 2026-05-04
+  version: 0.9.0
+  last_verified: 2026-07-21
+  review_interval_days: 365
 ---
 
 # Initialize Maintenance

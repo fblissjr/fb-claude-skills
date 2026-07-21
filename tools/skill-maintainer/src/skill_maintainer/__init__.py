@@ -2,6 +2,7 @@
 
 from skill_maintainer.shared import (
     STALE_DAYS,
+    get_review_interval,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
     check_description_quality,
@@ -13,6 +14,7 @@ from skill_maintainer.shared import (
 
 __all__ = [
     "STALE_DAYS",
+    "get_review_interval",
     "TOKEN_BUDGET_CRITICAL",
     "TOKEN_BUDGET_WARN",
     "check_description_quality",

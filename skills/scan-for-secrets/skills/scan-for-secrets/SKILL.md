@@ -11,6 +11,7 @@ metadata:
   author: Fred Bliss
   version: 0.1.1
   last_verified: 2026-07-05
+  review_interval_days: 365
 allowed-tools: "Bash,Read"
 ---
 

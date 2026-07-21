@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.2.0
   last_verified: "2026-04-19"
+  review_interval_days: 365
 ---
 
 # agent-state-mcp

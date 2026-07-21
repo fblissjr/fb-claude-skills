@@ -5,6 +5,7 @@ metadata:
   author: MCP Apps (adapted by Fred Bliss)
   version: 0.1.0
   last_verified: 2026-03-31
+  review_interval_days: 90
 allowed-tools: "Bash(bun *), Bash(bunx *)"
 ---
 

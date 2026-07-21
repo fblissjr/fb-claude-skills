@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.3.0
   last_verified: 2026-07-05
+  review_interval_days: 365
 ---
 
 Install, update, or remove a per-project model-delegation rule. The rule is a plain `.claude/rules/` file: it loads at session start in that project only, needs no plugin installed to keep working, and is removed by deleting the file.

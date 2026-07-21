@@ -93,6 +93,31 @@ def get_last_verified(metadata: dict) -> tuple[str | None, int | None]:
         return lv_str, None
 
 
+def get_review_interval(metadata: dict) -> int:
+    """Days a skill may go unverified before it counts as stale.
+
+    Reads `metadata.review_interval_days`, falling back to the global
+    STALE_DAYS. A single global window is wrong for a repo tracking sources of
+    very different volatility -- the Claude Code docs move weekly, Kimball
+    dimensional modeling has not moved in decades. Forcing both to 30 days
+    keeps the board permanently red, which is how a signal stops being read.
+
+    Invalid values fall back rather than raise: frontmatter is user input, and
+    a typo must not silently grant an unbounded window.
+    """
+    meta = metadata.get("metadata")
+    if not isinstance(meta, dict):
+        return STALE_DAYS
+    raw = meta.get("review_interval_days")
+    if raw is None or isinstance(raw, bool):
+        return STALE_DAYS
+    try:
+        days = int(raw)
+    except (TypeError, ValueError, OverflowError):
+        return STALE_DAYS
+    return days if days > 0 else STALE_DAYS
+
+
 def check_description_quality(description: str) -> list[str]:
     """Check description for WHAT verb + WHEN trigger."""
     issues = []

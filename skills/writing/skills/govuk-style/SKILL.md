@@ -5,6 +5,7 @@ metadata:
   author: Fred Bliss
   version: 0.1.0
   last_verified: 2026-06-27
+  review_interval_days: 365
   credit: Adapted from a skill shared by @fofr (https://twitter.com/fofr)
 ---
 
