@@ -162,3 +162,30 @@ degraded artifact that also shows different content than the video.
 
 `loop` needs `img2webp` (`brew install webp`). Homebrew's ffmpeg ships without
 libwebp, so `-c:v libwebp` fails with "Encoder not found".
+
+### Why WebP embeds and mp4 does not
+
+It is a content-type allowlist, not a markdown-syntax problem. Verified by
+fetching both from the URL a repo-relative reference resolves to:
+
+| committed file | `raw` Content-Type | result |
+|---|---|---|
+| `.webp` | `image/webp` | renders inline; `ANIM`/`ANMF` chunks arrive intact |
+| `.mp4` | `text/plain; charset=utf-8` + `nosniff` | inert — no browser will treat it as media |
+
+`<video>` being stripped from GFM is a second, independent block on the mp4 path.
+Both have to be true for the workaround (an issue/PR attachment URL) to be the
+only route to a player.
+
+Two traps that follow:
+
+- **Never track the loop under Git LFS.** `raw` returns the pointer file rather
+  than the image and the README shows a broken image. This catches most repos
+  that ship demo media.
+- **Animated GIF, WebP and APNG are all silent.** There is no format that gives
+  inline motion *with audio* in a README. Audio requires the attachment player,
+  which means the narration path and the inline path are different artifacts.
+
+APNG is unverified — the issue-composer upload rejects `.apng`, and whether a
+committed `.png` carrying APNG frames animates is undocumented. Do not rely on it
+without testing.

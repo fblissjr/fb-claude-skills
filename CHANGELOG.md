@@ -2,6 +2,14 @@
 
 ## 0.34.0
 
+### fixed
+- **explainer-video 0.1.2 -> 0.1.3**: corrected the mechanism given for why a repo-relative mp4 does not render as a player. 0.33.0 said `raw` serves video as `application/octet-stream`; it actually serves it as `text/plain; charset=utf-8` with `X-Content-Type-Options: nosniff`. Verified by fetching both formats from the URL a repo-relative reference resolves to. The conclusion was right and the reason was wrong, which matters because the real reason is a **content-type allowlist** -- `.webp` comes back as `image/webp` while video does not -- and that is exactly why the WebP loop path works at all. Independent verification also confirmed the animation chunks survive byte-intact.
+
+### added
+- **explainer-video**: two traps documented in `method.md` and `SKILL.md`. Never track the loop under Git LFS -- `raw` returns the pointer file, not the image, and the README shows a broken image; this catches most repos that ship demo media. And no format gives inline motion *with audio*: GIF, WebP and APNG are all silent, so the narration path and the inline path are necessarily different artifacts. APNG is flagged unverified rather than assumed.
+
+## 0.34.0
+
 ### added
 - **skill-maintainer 0.9.1 -> 0.10.0**: `check_version_alignment` in the repo-hygiene suite compares every `plugin.json` against its `marketplace.json` entry, in both directions -- a marketplace entry pointing at a plugin that does not exist, and a plugin on disk nobody can install. The pre-commit hook only ever inspected plugins a given commit happened to touch, which is why `path-privacy` drifted five releases before anything noticed. Verified by re-injecting that exact drift: it fails, and goes green when restored.
 

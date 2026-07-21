@@ -78,9 +78,15 @@ function video(name, fps = 30) {
 }
 
 // GitHub renders animated WebP inline in markdown; it does NOT render a
-// repo-relative mp4 as a player (the <video> tag is stripped, and raw serves
-// video as application/octet-stream). So `loop` is the output that actually
-// embeds in a README, and mp4 is the output you attach via an issue/PR composer.
+// repo-relative mp4 as a player. Mechanism (verified by fetching both): GitHub's
+// raw endpoint serves .webp as `image/webp`, but serves video as
+// `text/plain; charset=utf-8` with X-Content-Type-Options: nosniff, so no
+// browser will treat it as media. <video> is stripped from GFM on top of that.
+// So `loop` is the output that embeds in a README, and mp4 is the output you
+// attach via an issue/PR composer to get a real player.
+//
+// Do not track the .webp under Git LFS — raw returns the pointer file, not the
+// image, and the README shows a broken image.
 //
 // Sizing is the whole game — GitHub's cap is 10MB. Measured on the 12s template
 // scene at 960px/24fps: mp4 0.52MB, gif 12.08MB, webp 15.56MB. WebP loses to GIF

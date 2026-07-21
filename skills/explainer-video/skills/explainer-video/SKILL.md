@@ -13,7 +13,7 @@ description: >
   narration exist but are not yet wired (see references/audio.md).
 metadata:
   author: Fred Bliss
-  version: 0.1.2
+  version: 0.1.3
   last_verified: 2026-07-21
   review_interval_days: 90
 ---
@@ -139,9 +139,22 @@ an Artifact, both of which run it fine.
 
 MP4: encode at the fps you shot (30 default), `crf 17`, `yuv420p`. A
 repo-relative mp4 will **not** render as a player — `<video>` is stripped from
-GFM and raw serves video as `application/octet-stream`. To get a real player,
-drag the file into an issue or PR composer and use the
+GFM, and GitHub serves video from `raw` as `text/plain; charset=utf-8` with
+`X-Content-Type-Options: nosniff`, so the browser refuses to treat it as media.
+To get a real player, drag the file into an issue or PR composer and use the
 `github.com/user-attachments/assets/...` URL it returns.
+
+That content-type allowlist is the whole mechanism, and it is why WebP works
+where mp4 does not — verified by fetching both:
+
+| committed file | what `raw` serves | result in a README |
+|---|---|---|
+| `.webp` | `image/webp` | renders; animation chunks intact |
+| `.mp4` | `text/plain` + `nosniff` | inert |
+
+**Do not track the loop under Git LFS.** `raw` returns the LFS pointer file, not
+the image, and the README shows a broken image. Most repos with demo videos hit
+exactly this.
 
 Inline motion: GitHub renders animated **WebP**, so `build.js loop` is the output
 that embeds. Choose by what the scene is, not by what squeezes under the 10MB cap:
