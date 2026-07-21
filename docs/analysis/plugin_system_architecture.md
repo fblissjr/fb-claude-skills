@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # Plugin System Architecture
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Known stale: the "Implementation Audit" section is a point-in-time inventory of 6-10 plugins (the repo now ships 18), and the hook event list predates several current events.
+>
+> Durable: the readiness checklist, anti-pattern tables, and env-var/CLI appendices.
+
 A comprehensive reference for the Claude Code plugin system: anatomy, schema, component types, auto-discovery, namespacing, development workflow, migration, and a real implementation audit of every plugin in this repository.
 
 ---

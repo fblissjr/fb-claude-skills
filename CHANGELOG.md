@@ -1,5 +1,18 @@
 # changelog
 
+## 0.37.0
+
+### removed
+- **`docs/` triaged: 26 files deleted, 972K -> 400K.** All 20 of `docs/claude-docs/` -- frozen 2026-02-19 copies of upstream Claude Code docs that had become roughly a third of current content (hooks 64KB -> 235KB, plugins-reference 24KB -> 88KB) while carrying **no date header**, so nothing signalled their staleness. They were wrong in load-bearing ways: `allowed-tools` described as restricting when it grants, hook exit 0 described as success when it reports no decision. Plus six analysis reports: three were the same Anthropic skills-guide PDF restated three times (superseded by `.skill-maintainer/best_practices.md`), `self_updating_system_design.md` described a CDC pipeline never built, and two were point-in-time snapshots pinned to a pre-reorg layout.
+
+### changed
+- **Upstream docs are no longer copied into the repo.** `settings`, `permissions` and `mcp` -- the three deleted pages that had no live tracking -- were added to `upstream_urls`, bringing tracked pages to twelve. `skill-maintain upstream` fetches them into gitignored state with per-page deltas. A stale copy is worse than no copy: a clone can refetch in seconds but cannot know that what it is reading is five months old.
+- **Eight surviving analysis reports gained staleness banners** naming their specific false claims rather than a generic warning. They share one shape -- durable original synthesis (anti-pattern catalogs, design checklists, comparison matrices) sitting on rotted API specifics. `subagents_and_agent_teams.md` is the sharpest: it asserts three times that subagents cannot spawn subagents, which current docs reverse, and that is load-bearing for delegation design.
+
+### fixed
+- **Two documents linked from `CLAUDE.md` as live references were wrong.** `cross_surface_compatibility.md` claimed PreToolUse "exit 0 = approve" (it reports no decision; approval needs `permissionDecision: "allow"`). `mcp_apps_and_ui_development.md` cited `coderef/ext-apps/` and `coderef/mcp-ui/`, neither of which exists -- the real paths are under `coderef/mcp/`. Both corrected in place.
+- Link-rot from the deletions repaired across eight files, including relative-path breakage introduced during the redirect; `skill-maintain lint` is clean.
+
 ## 0.36.3
 
 ### added

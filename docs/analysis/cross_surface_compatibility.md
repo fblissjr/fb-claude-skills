@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # Cross-Surface Compatibility
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> One verified-false claim was corrected in place on 2026-07-21 (PreToolUse exit-code semantics). The rest — permission modes, transport details, per-surface feature support — has NOT been re-verified, and surface capabilities move fast.
+>
+> Durable: the surface compatibility matrix, transport requirements, and cross-surface testing checklist.
+
 A domain report on building Claude Code extensions that work across every surface where Claude runs -- terminal, desktop, web, SDK, and IDE.
 
 ---
@@ -212,7 +218,7 @@ Full permission system with interactive approval:
 - **Permission modes**: `default`, `acceptEdits`, `plan`, `dontAsk`, `bypassPermissions`
 - **Rules**: `allow`, `ask`, `deny` with tool-specific specifiers and glob patterns
 - **Evaluation order**: deny > ask > allow (first match wins)
-- **PreToolUse hooks**: Extend the permission system dynamically (exit 0 = approve, exit 2 = deny)
+- **PreToolUse hooks**: Extend the permission system dynamically. Exit 2 denies. Exit 0 does **not** approve — it reports no decision, and the normal permission flow still applies. To approve, emit JSON with `permissionDecision: "allow"` (corrected 2026-07-21; the original claim was wrong)
 
 ### 7.2 SDK / Headless (`-p`)
 
@@ -399,20 +405,17 @@ No automated cross-surface testing framework exists. Cowork and Claude.ai intera
 Analysis reports in this repository:
 
 - `abstraction_analogies.md` (in sibling repo `star-schema-llm-context`) -- Selection-under-constraint framework
-- [claude_skills_best_practices_guide_full_report.md](claude_skills_best_practices_guide_full_report.md) -- Skill authoring best practices
-- [skills_guide_structured.md](skills_guide_structured.md) -- Structured extraction from Anthropic skills guide
-- [skills_guide_analysis.md](skills_guide_analysis.md) -- Gap analysis of skills capabilities
-- [self_updating_system_design.md](self_updating_system_design.md) -- CDC pipeline design
 - [data_centric_agent_state_research.md](data_centric_agent_state_research.md) -- Agent state management research
-- [duckdb_dimensional_model_strategy.md](duckdb_dimensional_model_strategy.md) -- Dimensional modeling strategy
 
-Source documentation:
+Source documentation. Upstream pages are no longer copied into this repo; run
+`skill-maintain upstream` to fetch current snapshots into
+`.skill-maintainer/state/pages/` (gitignored), or read them live:
 
-- [claude_docs_skills.md](../claude-docs/claude_docs_skills.md) -- Skills
-- [claude_docs_plugins.md](../claude-docs/claude_docs_plugins.md) -- Plugins
-- [claude_docs_mcp.md](../claude-docs/claude_docs_mcp.md) -- MCP
-- [claude_docs_permissions.md](../claude-docs/claude_docs_permissions.md) -- Permissions
-- [claude_docs_settings.md](../claude-docs/claude_docs_settings.md) -- Settings
-- [claude_docs_headless.md](../claude-docs/claude_docs_headless.md) -- Headless / Agent SDK
-- [claude_docs_sandboxing.md](../claude-docs/claude_docs_sandboxing.md) -- Sandboxing
-- [claude_docs_sub-agents.md](../claude-docs/claude_docs_sub-agents.md) -- Subagents
+- [skills](https://code.claude.com/docs/en/skills)
+- [plugins](https://code.claude.com/docs/en/plugins)
+- [mcp](https://code.claude.com/docs/en/mcp)
+- [permissions](https://code.claude.com/docs/en/permissions)
+- [settings](https://code.claude.com/docs/en/settings)
+- [headless](https://code.claude.com/docs/en/headless)
+- [sandboxing](https://code.claude.com/docs/en/sandboxing)
+- [sub-agents](https://code.claude.com/docs/en/sub-agents)

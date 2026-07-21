@@ -2,10 +2,16 @@ last updated: 2026-02-19
 
 # Memory and Rules System
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Known wrong: the "Gap: .claude/rules/ underutilized" section is false — this repo now has `.claude/rules/` populated. Described MEMORY.md and CLAUDE.md contents no longer match reality. The upstream memory page has roughly doubled and the core mechanics here are unverified against it.
+>
+> Durable: the Memory-vs-Skills/Hooks/Plugins comparison tables.
+
 Analysis of Claude Code's memory and rules mechanisms: the six-level hierarchy, auto memory,
 CLAUDE.md imports, `.claude/rules/` path-scoped modular rules, and organization-level management.
 
-Source: `docs/claude-docs/claude_docs_memory.md/code_claude_com_docs_en_memory_text.md`
+Source: `.skill-maintainer/state/pages/memory.md/code_claude_com_docs_en_memory_text.md`
 
 ---
 

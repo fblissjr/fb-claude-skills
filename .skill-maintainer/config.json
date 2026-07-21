@@ -8,7 +8,10 @@
     "https://code.claude.com/docs/en/hooks-guide",
     "https://code.claude.com/docs/en/hooks",
     "https://code.claude.com/docs/en/sub-agents",
-    "https://code.claude.com/docs/en/memory"
+    "https://code.claude.com/docs/en/memory",
+    "https://code.claude.com/docs/en/settings",
+    "https://code.claude.com/docs/en/permissions",
+    "https://code.claude.com/docs/en/mcp"
   ],
   "llms_full_url": "https://code.claude.com/docs/llms-full.txt",
   "tracked_repos": [

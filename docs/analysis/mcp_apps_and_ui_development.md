@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # MCP Apps and UI Development
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Source paths were corrected on 2026-07-21 (`coderef/ext-apps/` -> `coderef/mcp/ext-apps/`). The SDK API content was spot-checked against `coderef/mcp/ext-apps/src/` and matched, but the document as a whole has not been re-derived.
+>
+> Durable: the section documenting this repo's own mece-decomposer MCP App implementation.
+
 Building interactive user interfaces for MCP tools. This report covers the two primary
 SDK paths -- the official MCP Apps specification (`@modelcontextprotocol/ext-apps`,
 SEP-1865) and the MCP UI SDK (`@mcp-ui/*`) -- and how they converge on a single standard
@@ -48,7 +54,7 @@ Two independent efforts converged into a single specification (SEP-1865, stable 
 - Published by the Model Context Protocol organization.
 - Defines the specification, core classes (`App`, `AppBridge`), server helpers
   (`registerAppTool`, `registerAppResource`), React hooks, and reference implementations.
-- Source: `coderef/ext-apps/` in this repository.
+- Source: `coderef/mcp/ext-apps/` in this repository.
 - npm: `@modelcontextprotocol/ext-apps`
 
 **MCP UI SDK** (`@mcp-ui/*`)
@@ -57,7 +63,7 @@ Two independent efforts converged into a single specification (SEP-1865, stable 
 - `@mcp-ui/client` is the recommended SDK for hosts implementing MCP Apps.
 - Adds platform adapters (e.g., ChatGPT Apps SDK adapter), legacy `UIResourceRenderer`,
   and Web Component support.
-- Source: `coderef/mcp-ui/` in this repository.
+- Source: `coderef/mcp/mcp-ui/` in this repository.
 - npm: `@mcp-ui/server`, `@mcp-ui/client`
 
 The two are complementary, not competing. The ext-apps SDK defines the specification and
@@ -97,7 +103,7 @@ Server                    Host                     View (iframe)
 | `@modelcontextprotocol/ext-apps/app-bridge` | Host-side: `AppBridge` class for embedding and communicating with Views |
 | `@modelcontextprotocol/ext-apps/server` | Server-side: `registerAppTool`, `registerAppResource`, `getUiCapability` |
 
-Source files in `coderef/ext-apps/src/`:
+Source files in `coderef/mcp/ext-apps/src/`:
 
 - `app.ts` -- `App` class (extends MCP `Protocol`)
 - `app-bridge.ts` -- `AppBridge` class (extends MCP `Protocol`)
@@ -1177,7 +1183,7 @@ self-contained CJS bundle.
 
 ### Related Documents in This Repository
 
-- `docs/claude-docs/claude_docs_mcp.md` -- Claude Code's MCP integration documentation.
+- `.skill-maintainer/state/pages/mcp.md` -- Claude Code's MCP integration documentation.
   Covers server installation (stdio, HTTP, SSE), configuration, and management commands.
 
 - `mcp-apps/references/specification.mdx` -- the full MCP Apps specification
@@ -1208,8 +1214,8 @@ self-contained CJS bundle.
 
 ### Source Code References (Local)
 
-- `coderef/ext-apps/` -- MCP Apps SDK source (symlink to local clone)
-- `coderef/mcp-ui/` -- MCP UI SDK source (symlink to local clone)
+- `coderef/mcp/ext-apps/` -- MCP Apps SDK source (symlink to local clone)
+- `coderef/mcp/mcp-ui/` -- MCP UI SDK source (symlink to local clone)
 - `mcp-apps/` -- MCP Apps plugin (skills, references)
 - `mece-decomposer/mcp-app/` -- Real MCP App implementation
 

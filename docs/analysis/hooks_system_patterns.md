@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # Claude Code Hooks System: Patterns and Reference
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Known wrong: exit 0 is described as "success, action proceeds" — it actually reports **no decision**, and a PreToolUse call still goes through the normal permission flow. The hook `type` table omits `mcp_tool`; the `if` conditional field is missing entirely; several current events are absent (`PostToolUseFailure`, `MessageDisplay`, `PermissionDenied`, `WorktreeCreate`/`Remove`).
+>
+> Durable: the security-script patterns, anti-pattern catalog, and hook design checklist.
+
 This document provides a comprehensive analysis of the Claude Code hooks system --
 the event-driven extension mechanism that gives users deterministic control over
 Claude Code's behavior at every point in its lifecycle. It covers all event types,
@@ -956,19 +962,19 @@ Use this checklist when designing a new hook:
 
 ### Within This Repository
 
-- `docs/claude-docs/claude_docs_hooks_reference.md` -- Full upstream hooks
+- `.skill-maintainer/state/pages/hooks.md` -- Full upstream hooks
   reference (event schemas, JSON formats, advanced features).
-- `docs/claude-docs/claude_docs_hooks-guide.md` -- Upstream hooks guide
+- `.skill-maintainer/state/pages/hooks-guide.md` -- Upstream hooks guide
   (getting started, common use cases, troubleshooting).
-- `docs/claude-docs/claude_docs_plugins-reference.md` -- Plugin system reference
+- `.skill-maintainer/state/pages/plugins-reference.md` -- Plugin system reference
   including plugin hooks, `hooks.json` format, and `${CLAUDE_PLUGIN_ROOT}`.
-- `docs/claude-docs/claude_docs_settings.md` -- Settings file resolution and
+- `.skill-maintainer/state/pages/settings.md` -- Settings file resolution and
   configuration scopes.
-- `docs/claude-docs/claude_docs_permissions.md` -- Permission modes referenced
+- `.skill-maintainer/state/pages/permissions.md` -- Permission modes referenced
   by the `permission_mode` input field.
-- `docs/claude-docs/claude_docs_sub-agents.md` -- Subagent system, relevant to
+- `.skill-maintainer/state/pages/sub-agents.md` -- Subagent system, relevant to
   `SubagentStart`/`SubagentStop` hooks and agent-based hooks.
-- `docs/claude-docs/claude_docs_mcp.md` -- MCP server integration, relevant to
+- `.skill-maintainer/state/pages/mcp.md` -- MCP server integration, relevant to
   MCP tool hook matchers.
 
 ### External References

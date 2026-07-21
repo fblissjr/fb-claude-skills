@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # documentation
 
@@ -45,14 +45,8 @@ Design documents and research created during development. Cover the full Claude 
 | [hooks_system_patterns.md](analysis/hooks_system_patterns.md) | Hook events, types, matchers, security, automation patterns |
 | [subagents_and_agent_teams.md](analysis/subagents_and_agent_teams.md) | Custom agents, tool control, teams, delegation patterns |
 | [cross_surface_compatibility.md](analysis/cross_surface_compatibility.md) | Surface matrix, transports, permissions, headless mode |
-| [claude_skills_best_practices_guide_full_report.md](analysis/claude_skills_best_practices_guide_full_report.md) | Skills best practices from Anthropic guide |
-| [skills_guide_structured.md](analysis/skills_guide_structured.md) | Structured extraction from skills guide (for CDC) |
-| [skills_guide_analysis.md](analysis/skills_guide_analysis.md) | Gap analysis: guide recommendations vs this repo |
-| [self_updating_system_design.md](analysis/self_updating_system_design.md) | CDC architecture decisions and source inventory |
-| [duckdb_dimensional_model_strategy.md](analysis/duckdb_dimensional_model_strategy.md) | DuckDB star schema strategy for agent state |
 | [data_centric_agent_state_research.md](analysis/data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
 | [memory_and_rules_system.md](analysis/memory_and_rules_system.md) | Memory hierarchy, auto memory, CLAUDE.md imports, rules |
-| [mcp_ecosystem_audit_2026-02-19.md](analysis/mcp_ecosystem_audit_2026-02-19.md) | MCP ecosystem audit: tools, registries, hosting |
 
 ## synthesis (`reports/`)
 
@@ -60,29 +54,28 @@ Design documents and research created during development. Cover the full Claude 
 |----------|-------------|
 | [claude_ecosystem_synthesis.md](reports/claude_ecosystem_synthesis.md) | Full ecosystem overview, decision tree, maturity assessment |
 
-## captured external docs (`claude-docs/`)
+## upstream Claude Code docs
 
-Offline copies of upstream Claude Code documentation for reference and CDC comparison.
+Not stored in this repo. Frozen copies used to live in `docs/claude-docs/`; they
+were deleted on 2026-07-21 after drifting five months out of date while carrying
+no date header, so nothing signalled their staleness. Between the February
+capture and July, the hooks page grew from 64KB to 235KB and `plugins-reference`
+from 24KB to 88KB — the copies had become roughly a third of the real content,
+and wrong in load-bearing ways (`allowed-tools` semantics, hook exit codes).
 
-| Document | Topic |
-|----------|-------|
-| [claude_docs_plugins.md](claude-docs/claude_docs_plugins.md) | Plugin system overview |
-| [claude_docs_plugins-reference.md](claude-docs/claude_docs_plugins-reference.md) | Plugin reference (schemas, fields) |
-| [claude_docs_discover-plugins.md](claude-docs/claude_docs_discover-plugins.md) | Discovering and browsing plugins |
-| [claude_docs_plugin-marketplaces.md](claude-docs/claude_docs_plugin-marketplaces.md) | Plugin marketplace setup |
-| [claude_docs_skills.md](claude-docs/claude_docs_skills.md) | Skills system |
-| [claude_docs_sub-agents.md](claude-docs/claude_docs_sub-agents.md) | Custom subagents |
-| [claude_docs_hooks-guide.md](claude-docs/claude_docs_hooks-guide.md) | Hooks usage guide |
-| [claude_docs_hooks_reference.md](claude-docs/claude_docs_hooks_reference.md) | Hooks reference (events, schemas) |
-| [claude_docs_mcp.md](claude-docs/claude_docs_mcp.md) | MCP integration |
-| [claude_docs_settings.md](claude-docs/claude_docs_settings.md) | Settings and configuration |
-| [claude_docs_permissions.md](claude-docs/claude_docs_permissions.md) | Permission model |
-| [claude_docs_sandboxing.md](claude-docs/claude_docs_sandboxing.md) | Sandboxing and security |
-| [claude_docs_headless.md](claude-docs/claude_docs_headless.md) | Headless mode |
-| [claude_docs_output-styles.md](claude-docs/claude_docs_output-styles.md) | Output styles |
-| [claude_docs_troubleshooting.md](claude-docs/claude_docs_troubleshooting.md) | Troubleshooting |
-| [claude_docs_cli-reference_reference.md](claude-docs/claude_docs_cli-reference_reference.md) | CLI reference |
-| [interactive-mode.md](claude-docs/interactive-mode.md) | Interactive mode |
-| [claude_docs_memory.md](claude-docs/claude_docs_memory.md) | Memory system |
-| [claude_docs_best_practices.md](claude-docs/claude_docs_best_practices.md) | Best practices |
-| [claude_generated_docs_dot_claude_folder.md](claude-docs/claude_generated_docs_dot_claude_folder.md) | .claude folder structure |
+Fetch current snapshots instead:
+
+```bash
+skill-maintain upstream
+```
+
+That writes `.skill-maintainer/state/pages/*.md` (gitignored) and reports a
+per-page line and character delta against the previous snapshot. Twelve pages
+are tracked, listed in `.skill-maintainer/config.json`: skills, plugins,
+plugins-reference, discover-plugins, plugin-marketplaces, hooks, hooks-guide,
+sub-agents, memory, settings, permissions, mcp.
+
+Anything not tracked there is a link away at
+[code.claude.com/docs](https://code.claude.com/docs/en/overview) — read it live
+rather than copying it here.
+

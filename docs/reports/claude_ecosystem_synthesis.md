@@ -627,7 +627,7 @@ implementations in this repository.
 
 | Pattern | Implementation | Location |
 |---------|---------------|----------|
-| Plugin structure with manifest | Every plugin has `.claude-plugin/plugin.json`, auto-discovered skills, and optional agents/hooks | `skills/mcp-apps/`, `skills/plugin-toolkit/`, `skills/cogapp-markdown/`, `skills/tui-design/`, `skills/dimensional-modeling/`, `apps/mece-decomposer/`, `apps/env-forge/`, `apps/readwise-reader/`, `skills/dev-conventions/` |
+| Plugin structure with manifest | Every plugin has `.claude-plugin/plugin.json`, auto-discovered skills, and optional agents/hooks | `skills/mcp-apps/`, `skills/plugin-toolkit/`, `skills/cogapp-markdown/`, `skills/tui-design/`, `skills/dimensional-modeling/`, `apps/mece-decomposer/`, `apps/readwise-reader/`, `skills/dev-conventions/` |
 | Marketplace distribution | Root marketplace catalog lists all installable plugins | `.claude-plugin/marketplace.json` |
 | Multi-plugin monorepo | Single repo contains marketplace + all plugin directories using relative source paths | Repository root |
 | Progressive disclosure | Frontmatter for routing, SKILL.md body for instructions, `references/` for detailed docs | All skills follow this pattern |

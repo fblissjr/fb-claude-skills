@@ -476,4 +476,4 @@ pkg/model/         -- data models for server.json
 - Python SDK: `coderef/mcp/python-sdk/README.md` (v1), `README.v2.md` (v2 draft)
 - Inspector: `coderef/mcp/inspector/README.md`
 - Registry: `coderef/mcp/registry/README.md`
-- Claude Code MCP docs: `docs/claude-docs/claude_docs_mcp.md`
+- Claude Code MCP docs: `.skill-maintainer/state/pages/mcp.md`

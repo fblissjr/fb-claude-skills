@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # Subagents and Agent Teams
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Known wrong, and load-bearing: this doc asserts three times that "subagents cannot spawn other subagents" and that subagents "do not inherit skills from the parent". Both are reversed — the current docs state the `Agent` tool is inherited and nested subagents are supported. Do not design a delegation architecture from this document.
+>
+> Durable: the plugin-toolkit agent-pipeline case study and the agent design checklist.
+
 Reference for Claude Code's delegation architecture: subagents (single-session delegation), custom agent creation, tool control, hooks, persistent memory, and agent teams (multi-session coordination).
 
 ---
@@ -447,4 +453,4 @@ The skill (`SKILL.md`) orchestrates this: it knows *what* to do, the agents know
 **External documentation**:
 - [Subagents](https://code.claude.com/docs/en/sub-agents), [Agent Teams](https://code.claude.com/docs/en/agent-teams), [Hooks](https://code.claude.com/docs/en/hooks), [Permissions](https://code.claude.com/docs/en/permissions), [Skills](https://code.claude.com/docs/en/skills), [Settings](https://code.claude.com/docs/en/settings), [Plugins Reference](https://code.claude.com/docs/en/plugins-reference)
 
-**Captured docs**: `docs/claude-docs/claude_docs_sub-agents.md`, `claude_docs_settings.md`, `claude_docs_permissions.md`, `claude_docs_hooks-guide.md`, `claude_docs_hooks_reference.md`, `claude_docs_plugins-reference.md`, `claude_docs_cli-reference_reference.md`
+**Captured docs**: `.skill-maintainer/state/pages/sub-agents.md`, `claude_docs_settings.md`, `claude_docs_permissions.md`, `claude_docs_hooks-guide.md`, `claude_docs_hooks_reference.md`, `claude_docs_plugins-reference.md`, `claude_docs_cli-reference_reference.md`

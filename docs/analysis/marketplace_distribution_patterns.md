@@ -2,6 +2,12 @@ last updated: 2026-02-19
 
 # marketplace distribution patterns
 
+> **Stale — not re-derived.** The upstream documentation this was derived from has changed substantially since (the hooks page alone grew from 64KB to 235KB between 2026-02 and 2026-07). Current upstream truth lives in `.skill-maintainer/state/pages/` — gitignored, run `skill-maintain upstream` to fetch.
+>
+> Known stale: the repo case study cites 10 installable plugins (now 18) and a directory tree that has since been reorganised. General mechanics are unverified against the marketplace and discover-plugins pages, which have roughly tripled.
+>
+> Durable: the source-type selection table and the `strictKnownMarketplaces` example.
+
 Domain report on Claude Code plugin marketplace architecture, distribution strategies, and operational patterns. Uses fb-claude-skills as a primary case study.
 
 ---
@@ -299,7 +305,7 @@ claude plugin validate .
 
 - `docs/analysis/abstraction_analogies.md` -- unified framework: skills as stored procedures, marketplace as system catalog.
 - `docs/analysis/claude_skills_best_practices_guide_full_report.md` -- skill authoring best practices.
-- `docs/claude-docs/claude_docs_plugin-marketplaces.md` -- upstream marketplace creation docs.
-- `docs/claude-docs/claude_docs_discover-plugins.md` -- upstream plugin discovery docs.
-- `docs/claude-docs/claude_docs_permissions.md` -- permission system and managed settings.
+- `.skill-maintainer/state/pages/plugin-marketplaces.md` -- upstream marketplace creation docs.
+- `.skill-maintainer/state/pages/discover-plugins.md` -- upstream plugin discovery docs.
+- `.skill-maintainer/state/pages/permissions.md` -- permission system and managed settings.
 - `.skill-maintainer/config.json` -- source registry tracking upstream doc pages for CDC.

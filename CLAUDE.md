@@ -38,7 +38,9 @@ These bite on the first edit if you don't know them.
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
 | Captured Claude Code official docs (domain reports + ecosystem field guide) | [docs/README.md](docs/README.md) |
-| MCP protocol / apps / cross-surface | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md), [docs/analysis/mcp_apps_and_ui_development.md](docs/analysis/mcp_apps_and_ui_development.md), [docs/analysis/cross_surface_compatibility.md](docs/analysis/cross_surface_compatibility.md) |
+| MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |
+| MCP protocol / apps / cross-surface | [mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md) (verified current), [mcp_apps_and_ui_development.md](docs/analysis/mcp_apps_and_ui_development.md) and [cross_surface_compatibility.md](docs/analysis/cross_surface_compatibility.md) (both carry a staleness banner — read it first) |
+| Current upstream Claude Code docs | `skill-maintain upstream`, then `.skill-maintainer/state/pages/` (gitignored). Nothing upstream is copied into this repo |
 | DuckDB schema (agent-state, readwise-reader) | `tools/agent-state/README.md`, `apps/readwise-reader/CLAUDE.md` |
 | Repo layout, plugins table, install commands | [README.md](README.md) |
 | Setup from a fresh clone | [README.md](README.md) "installation" + `uv sync --all-packages` |
