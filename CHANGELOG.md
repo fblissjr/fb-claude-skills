@@ -1,5 +1,7 @@
 # changelog
 
+## 0.40.3
+
 ### fixed
 - **explainer-video 0.4.0 -> 0.4.1**: two defects found by cross-review, both in the newest code.
   - **`loop` and `poster` failed on a fresh checkout.** Neither ensured `three.global.js` existed before rendering, so a clean directory produced `THREE is not defined` — loud, but pointing at the scene contract when the cause was a missing build step. `bundle()` had auto-vendored since the start and `smoke.js` gained a conditional version later; the two newest entry points never got it. Now share an `ensureVendor` guard using the same needs-three test, so a non-three backend is still never forced to build a bundle it will not load.
