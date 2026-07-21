@@ -125,12 +125,20 @@ line number into a snapshot we do not keep:
 
 For a `command` hook, upstream says nothing. Treat it as unknown.
 
-Two notes on checking this yourself. A summarising fetch of the page may report
-that neither sentence exists — the page is over 230KB and a single sentence is
-easy to lose in summarisation; grep the raw text instead, via
-`skill-maintain upstream`. And quote sentences, not line numbers: the snapshots
-are gitignored and renumber on every fetch, which makes a line citation
-unverifiable by exactly the person who most needs to check it.
+Two notes on checking this yourself.
+
+**A summary cannot establish absence.** For any claim of the form "the docs do
+not say X", a summarising fetch can never be the source, because absence is
+precisely what summarisation discards — its silence is not evidence. This is not
+a caveat about large pages; it is categorical. A grep answers the question, a
+summary cannot. Both sides of this exchange got it wrong the same way on the same
+day: one query against the 230KB hooks page returned "not stated for any hook
+type" for a sentence that appears three times in the raw text. Use
+`skill-maintain upstream` and grep the snapshot.
+
+**Quote sentences, not line numbers.** The snapshots are gitignored and renumber
+on every fetch, so a line citation is unverifiable by exactly the person who most
+needs to check it.
 
 **Choose the value so that the unknown does not matter.** Cross the two
 possibilities with too-short and too-long:

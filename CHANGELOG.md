@@ -1,5 +1,10 @@
 # changelog
 
+## 0.40.2
+
+### changed
+- **Sharpened the summarising-fetch caveat into a categorical rule.** It read as a caution about large pages losing a sentence. The stronger and correct form, from the concurrent session: **a summary can never source a claim that the docs do not say something**, because absence is precisely what summarisation discards — its silence is not evidence. Not a caveat, a category error. Both sessions made it the same way on the same day: one summarising query against the 230KB hooks page returned "not stated for any hook type" for a sentence that appears three times in the raw text. Recorded in `plugin-patterns.md` and `best_practices.md`.
+
 ## 0.40.1
 
 ### changed
