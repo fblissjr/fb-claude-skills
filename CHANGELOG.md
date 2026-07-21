@@ -1,5 +1,12 @@
 # changelog
 
+## 0.49.1
+
+### added
+- **skill-maintainer**: 14 regression tests pinning behaviors fixed earlier today that had **no test at all** — Poetry-layout pyproject, `[tool.*]` tables above `[project]`, populated `## [Unreleased]` sections, keep-a-changelog headings, non-dict marketplace entries, object-form sources, sources escaping the repo root, nameless plugin manifests, bare home paths without a trailing slash, the sanctioned `~/.claude/...` form, the `skip-file` marker quoted deep in a file, and system account names.
+
+  Six behaviors were changed and none were pinned, so every one could have silently regressed — the exact failure this suite exists to prevent, in the commit that fixed six instances of it elsewhere. Suite goes 29 -> 43 tests. Mutation-checked: reverting the Poetry fallback turns one red, so the new tests are load-bearing rather than decorative.
+
 ## 0.49.0
 
 ### added

@@ -65,3 +65,35 @@ def test_binary_files_do_not_crash(tmp_path):
     (r / "blob.bin").write_bytes(b"\x00\x01\x02\xff\xfe")
     subprocess.run(["git", "-C", str(r), "add", "-A"], check=True)
     check_path_privacy(r)   # must not raise
+
+
+def test_bare_home_path_without_trailing_slash_is_caught(tmp_path):
+    """`cd /Users/janedoe` at end of line carries a username just as much."""
+    r = _repo(tmp_path, "doc.md", "cd /Users/realpersonname\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_sanctioned_tilde_form_is_not_a_leak(tmp_path):
+    """`<HOME>/.claude/...` is the repo's own approved replacement, used 143x.
+
+    Adding ~ and $HOME to the pattern flagged the approved form as the thing it
+    replaces. This check is about USERNAME exposure; the scanner's rule is about
+    resolution outside the root. Different rules, deliberately.
+    """
+    r = _repo(tmp_path, "doc.md", "state lives in ~/.claude/agent_state.duckdb\n")
+    assert not _failed(check_path_privacy(r))
+
+
+def test_marker_quoted_deep_in_a_file_does_not_exempt_it(tmp_path):
+    """Matching the marker anywhere let any file that merely mentions it opt out.
+
+    Six tracked files including CHANGELOG.md were wholly exempt that way.
+    """
+    body = "\n".join(["filler"] * 40 + ["path-privacy: skip-file is the marker"])
+    r = _repo(tmp_path, "doc.md", "leak /Users/realpersonname/x\n" + body + "\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_system_account_names_are_not_leaks(tmp_path):
+    r = _repo(tmp_path, "doc.md", "brew lives at /home/linuxbrew/.linuxbrew\n")
+    assert not _failed(check_path_privacy(r))

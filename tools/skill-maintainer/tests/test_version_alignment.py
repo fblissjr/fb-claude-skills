@@ -109,3 +109,45 @@ def test_unreadable_manifest_in_reverse_sweep_is_reported(tmp_path):
     failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
     assert any("unreadable" in r.detail or "broken" in r.detail for r in failed), \
         f"corrupt manifest was silently skipped: {[r.detail for r in failed]}"
+
+
+# --- shapes fixed 2026-07-21, previously unpinned ----------------------------
+
+def _mp(tmp_path, plugins):
+    (tmp_path / ".claude-plugin").mkdir(exist_ok=True)
+    (tmp_path / ".claude-plugin" / "marketplace.json").write_bytes(
+        orjson.dumps({"plugins": plugins}))
+    return tmp_path
+
+
+def test_non_dict_entry_does_not_abort_the_run(tmp_path):
+    """A malformed entry raised out and killed every later repo-hygiene check."""
+    r = _mp(tmp_path, ["oops-a-bare-string"])
+    results = check_version_alignment(r)          # must not raise
+    assert any(not x.passed for x in results)
+
+
+def test_object_source_is_skipped_not_crashed(tmp_path):
+    """The official schema allows {"source": "github", ...}; it has no local manifest."""
+    r = _mp(tmp_path, [{"name": "ext", "source": {"source": "github", "repo": "a/b"},
+                        "version": "1.0.0"}])
+    assert check_version_alignment(r) == []       # nothing local to compare
+
+
+def test_source_escaping_the_repo_root_is_refused(tmp_path):
+    """`../x` and absolute sources were dereferenced, reading outside the audited tree."""
+    for bad in ["./../outside", "/etc", "../../../../etc"]:
+        r = _mp(tmp_path, [{"name": "esc", "source": bad, "version": "1.0.0"}])
+        failed = [x for x in check_version_alignment(r) if not x.passed]
+        assert failed, f"{bad} must be refused"
+        assert "escapes the repo root" in failed[0].detail
+
+
+def test_plugin_without_a_name_is_reported(tmp_path):
+    """A nameless manifest was invisible to the sweep meant to find uninstallable plugins."""
+    r = _mp(tmp_path, [])
+    d = tmp_path / "plugins" / "anon" / ".claude-plugin"
+    d.mkdir(parents=True)
+    (d / "plugin.json").write_bytes(orjson.dumps({"version": "1.0.0"}))
+    failed = [x for x in check_version_alignment(r) if not x.passed]
+    assert any("no 'name'" in x.detail for x in failed)
