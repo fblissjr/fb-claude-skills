@@ -1,5 +1,11 @@
 # changelog
 
+## 0.33.1
+
+### added
+- **docs**: `docs/internals/explainer_video_roadmap.md` — design for the queued explainer-video work. The headline item is replacing scattered literal timings with a named-beats table as the single source of timing truth: `SKILL.md` currently claims "retiming a beat is a one-line edit" and that is false, since beat timing lives in `CONFIG.captions`, in `ss(t, 5.0, 6.9)` literals through `animate()`, and again in the camera rail. The doc argues the ordering (the refactor blocks the contact sheet, narration-driven audio, and the lint; only parallel capture is independent) and records what we are deliberately not building.
+- **docs/README.md**: indexed `upstream_drift_backlog.md` and the new roadmap, neither of which appeared in the internals table.
+
 ## 0.33.0
 
 ### added

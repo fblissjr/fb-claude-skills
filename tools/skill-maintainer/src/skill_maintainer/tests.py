@@ -190,6 +190,67 @@ def test_plugins(root: Path) -> list[Result]:
 # ---------------------------------------------------------------------------
 
 
+def check_version_alignment(root: Path) -> list[Result]:
+    """Compare every plugin.json version against its marketplace.json entry.
+
+    The pre-commit hook only inspects plugins a given commit happens to touch,
+    so a marketplace entry can drift for releases at a time without anything
+    noticing -- path-privacy sat five versions behind that way, and installs
+    resolved the stale version the whole time. This walks the repo instead.
+
+    Returns [] when there is no marketplace.json: a plugin repo without one is
+    legitimate, and inventing failures there would train people to ignore this.
+    """
+    mp_path = root / ".claude-plugin" / "marketplace.json"
+    if not mp_path.exists():
+        return []
+
+    try:
+        entries = orjson.loads(mp_path.read_bytes()).get("plugins", [])
+    except Exception as e:
+        return [Result("repo", "", "version alignment", False, f"unreadable marketplace.json: {e}")]
+
+    results = []
+    listed: dict[str, str] = {}
+
+    for entry in entries:
+        name = entry.get("name", "")
+        listed[name] = entry.get("version", "")
+        source = (entry.get("source") or f"./{name}").lstrip("./")
+        pj = root / source / ".claude-plugin" / "plugin.json"
+        if not pj.exists():
+            results.append(Result(
+                "repo", name, "version alignment", False,
+                f"marketplace lists '{name}' but {source}/.claude-plugin/plugin.json does not exist",
+            ))
+            continue
+        try:
+            real = orjson.loads(pj.read_bytes()).get("version", "")
+        except Exception as e:
+            results.append(Result("repo", name, "version alignment", False, f"unreadable plugin.json: {e}"))
+            continue
+        aligned = real == entry.get("version")
+        results.append(Result(
+            "repo", name, "version alignment", aligned,
+            "" if aligned else f"marketplace.json={entry.get('version')} vs plugin.json={real}",
+        ))
+
+    # A plugin on disk that nobody can install is the same class of bug, seen
+    # from the other side.
+    for plugin_dir in discover_plugins(root):
+        try:
+            name = orjson.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_bytes()).get("name", "")
+        except Exception:
+            continue
+        if name and name not in listed:
+            results.append(Result(
+                "repo", name, "version alignment", False,
+                f"plugin '{name}' exists on disk but is not in marketplace.json",
+            ))
+
+    return results
+
+
 def test_repo_hygiene(root: Path) -> list[Result]:
     """Run repo-level checks."""
     results = []
@@ -203,6 +264,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
             if stripped in (".claude/", ".claude"):
                 blanket_found = True
                 break
+    # Repo-wide plugin/marketplace version alignment.
+    results.extend(check_version_alignment(root))
+
     results.append(Result(
         "repo", "", "no blanket .claude/ gitignore",
         not blanket_found,

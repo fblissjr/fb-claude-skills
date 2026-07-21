@@ -22,6 +22,8 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; agents; bash 3.2 portability |
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
 | [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
+| [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
+| [explainer_video_roadmap.md](internals/explainer_video_roadmap.md) | Queued explainer-video work: named-beats refactor and what it unblocks |
 
 ## package documentation
 
