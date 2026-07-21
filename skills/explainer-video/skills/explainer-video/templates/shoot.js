@@ -68,6 +68,13 @@ function chromiumPath() {
     throw new Error(`scene did not set window.DURATION (got ${JSON.stringify(dur)})`);
   }
 
+  // FRAMES_DIR lets a caller shoot somewhere other than frames/, so a derived
+  // output (build.js loop) cannot clobber the frames a full render produced.
+  // Honoured by BOTH full and range: range is the mode a user runs by hand to
+  // re-shoot a few seconds after an edit, so an override that skipped it would
+  // silently write to the wrong place in exactly the manual case.
+  const outDir = process.env.FRAMES_DIR || 'frames';
+
   const shot = async (t, file) => {
     await page.evaluate(`window.seekTo(${t.toFixed(4)})`);
     await page.screenshot({ path: file });
@@ -79,9 +86,6 @@ function chromiumPath() {
       console.log('sample', t);
     }
   } else if (mode === 'full') {
-    // FRAMES_DIR lets a caller shoot somewhere other than frames/, so a derived
-    // output (build.js loop) cannot clobber the frames a full render produced.
-    const outDir = process.env.FRAMES_DIR || 'frames';
     const fps = Number(rest[0] || 30), n = Math.round(fps * dur);
     fs.mkdirSync(outDir, { recursive: true });
     const t0 = Date.now();
@@ -92,8 +96,8 @@ function chromiumPath() {
     console.log(`done: ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else if (mode === 'range') {
     const a = Number(rest[0]), b = Number(rest[1]), fps = Number(rest[2] || 30);
-    fs.mkdirSync('frames', { recursive: true });
-    for (let i = a; i < b; i++) await shot(i / fps, `frames/f${String(i).padStart(5, '0')}.png`);
+    fs.mkdirSync(outDir, { recursive: true });
+    for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
     console.log('range done');
   } else {
     console.error('unknown mode: ' + mode); process.exit(1);

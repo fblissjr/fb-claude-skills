@@ -1,5 +1,12 @@
 # changelog
 
+### fixed
+- **explainer-video 0.4.0 -> 0.4.1**: two defects found by cross-review, both in the newest code.
+  - **`loop` and `poster` failed on a fresh checkout.** Neither ensured `three.global.js` existed before rendering, so a clean directory produced `THREE is not defined` — loud, but pointing at the scene contract when the cause was a missing build step. `bundle()` had auto-vendored since the start and `smoke.js` gained a conditional version later; the two newest entry points never got it. Now share an `ensureVendor` guard using the same needs-three test, so a non-three backend is still never forced to build a bundle it will not load.
+  - **`FRAMES_DIR` was honoured by `shoot.js full` but ignored by `range`.** `range` is the mode a user runs by hand to re-shoot a few seconds after an edit, so the override added in 0.4.0 to stop `loop` clobbering `frames/` silently did not apply in the one case someone drives manually. Both modes now use it.
+
+Both verified by control from clean directories: `poster` and `loop` complete with no vendored bundle present, and `FRAMES_DIR=alt shoot.js range` writes 5 files to `alt/` and 0 to `frames/`.
+
 ## 0.40.2
 
 ### changed

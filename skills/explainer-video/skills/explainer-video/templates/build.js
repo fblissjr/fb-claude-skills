@@ -71,7 +71,22 @@ function bundle(src) {
   return out;
 }
 
+// Any command that RENDERS a scene needs the vendored bundle present. bundle()
+// has auto-vendored since the start; loop and poster were added later and did
+// not, so a fresh checkout failed with "THREE is not defined" — loud, but
+// pointing at the scene contract when the real cause is a missing build step.
+// The needsThree test mirrors smoke.js: only vendor if the scene asks for three,
+// so a 2D or SVG backend is never forced to materialize a bundle it never loads.
+function ensureVendor(scene) {
+  const dir = path.dirname(path.resolve(scene));
+  if (fs.existsSync(path.join(dir, VENDOR))) return;
+  let src = '';
+  try { src = fs.readFileSync(scene, 'utf8'); } catch (e) { return; }
+  if (/three\.global\.js/.test(src)) vendor(dir);
+}
+
 function frames(scene, fps = 30, dir = 'frames') {
+  ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
       { env: { ...process.env, FRAMES_DIR: dir } });
 }
@@ -149,6 +164,7 @@ function poster(scene, t = 0, width = 960) {
   const base = scene.replace(/(\.bundled)?\.html$/, '');
   const out = base + '.jpg';
   const tag = String(t).replace('.', '_');
+  ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)]);
   run('ffmpeg', ['-y', '-i', `sample_${tag}.png`, '-vf', `scale=${width}:-2`,
     '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
