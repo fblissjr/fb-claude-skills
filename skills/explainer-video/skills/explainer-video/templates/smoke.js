@@ -19,7 +19,7 @@
 // Requires: bun, playwright-core, a Chromium (see shoot.js resolution order).
 // Exits non-zero on any failure, so it can gate a release.
 const { chromium } = require('playwright-core');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -50,11 +50,12 @@ function chromiumPath() {
 }
 
 const CONTRACT = ['seekTo', 'DURATION', 'stopPlayback', 'sceneReady'];
+const VIEWPORT = { width: 640, height: 360 };
 
 async function checkScene(browser, file) {
   const fails = [];
   const noise = [];
-  const page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   page.on('pageerror', e => noise.push('page error: ' + e.message));
   // Driver performance chatter from the software GL path (our own readPixels
   // provokes it) is not a correctness signal. Everything else stays: three
@@ -99,9 +100,13 @@ async function checkScene(browser, file) {
     // uniform frame to almost nothing: at 640x360 a flat fill lands around 1-3KB,
     // while anything with real content is far larger. A heuristic, but it catches
     // the failure that matters — a pipeline happily shooting 600 empty frames.
-    const BLANK_BYTES = 6000;
-    if (a.length < BLANK_BYTES) {
-      fails.push(`frame looks blank (screenshot only ${a.length} bytes compressed)`);
+    // Threshold scales with the viewport instead of being a magic constant: a
+    // uniform PNG costs roughly a byte per 40 pixels, so anything below that is
+    // flat fill. Hardcoding 6000 silently mis-calibrated the moment VIEWPORT
+    // changed, which is exactly the kind of coupling nobody notices.
+    const blankFloor = Math.round((VIEWPORT.width * VIEWPORT.height) / 40);
+    if (a.length < blankFloor) {
+      fails.push(`frame looks blank (${a.length} bytes compressed, floor ${blankFloor})`);
     }
   } catch (e) {
     fails.push(e.message.split('\n')[0]);
@@ -126,7 +131,7 @@ async function checkScene(browser, file) {
     try { return /three\.global\.js/.test(fs.readFileSync(f, 'utf8')); } catch (e) { return false; }
   });
   if (needsThree && !fs.existsSync('three.global.js')) {
-    execSync(`bun run ${path.join(__dirname, 'build.js')} vendor`, { stdio: 'inherit' });
+    execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'vendor'], { stdio: 'inherit' });
   }
 
   const browser = await chromium.launch({
@@ -138,8 +143,8 @@ async function checkScene(browser, file) {
   for (const scene of scenes) {
     const variants = [scene];
     try {
-      const out = execSync(`bun run ${path.join(__dirname, 'build.js')} bundle ${scene}`,
-                           { encoding: 'utf8' });
+      const out = execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
+                               { encoding: 'utf8' });
       const m = out.match(/bundled -> (.+)/);
       if (m) variants.push(m[1].trim());
     } catch (e) {

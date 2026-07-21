@@ -79,11 +79,14 @@ function chromiumPath() {
       console.log('sample', t);
     }
   } else if (mode === 'full') {
+    // FRAMES_DIR lets a caller shoot somewhere other than frames/, so a derived
+    // output (build.js loop) cannot clobber the frames a full render produced.
+    const outDir = process.env.FRAMES_DIR || 'frames';
     const fps = Number(rest[0] || 30), n = Math.round(fps * dur);
-    fs.mkdirSync('frames', { recursive: true });
+    fs.mkdirSync(outDir, { recursive: true });
     const t0 = Date.now();
     for (let i = 0; i < n; i++) {
-      await shot(i / fps, `frames/f${String(i).padStart(5, '0')}.png`);
+      await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
       if (i % 60 === 0) console.log(`frame ${i}/${n}`);
     }
     console.log(`done: ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);

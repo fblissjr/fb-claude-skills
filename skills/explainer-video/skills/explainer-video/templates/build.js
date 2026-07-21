@@ -13,7 +13,13 @@
 //
 // Prereqs: bun add three@0.185.1 playwright-core@1.61.1 ; ffmpeg on PATH.
 // `loop` also needs img2webp (macOS: brew install webp).
-const { execSync } = require('child_process');
+// execFileSync, not execSync: no shell means no quoting rules to get wrong, and
+// a path containing a space cannot break the command. Same class of bug as the
+// exec-form rule for hooks in docs/internals/plugin-patterns.md -- that rule
+// covers hooks.json and says nothing about plugin scripts, but the surface is
+// identical.
+const { execFileSync } = require('child_process');
+const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
 const fs = require('fs');
 const path = require('path');
 
@@ -37,7 +43,7 @@ function vendor(dir = process.cwd()) {
     // collide with scene variables (a minified `MW` shadowed one and broke the
     // example). IIFE keeps the library's internals to itself, exactly as the old
     // UMD build did; only globalThis.THREE escapes.
-    execSync(`bun build ${entry} --target=browser --format=iife --minify --outfile ${out}`, { stdio: 'inherit' });
+    run('bun', ['build', entry, '--target=browser', '--format=iife', '--minify', '--outfile', out]);
   } finally {
     fs.unlinkSync(entry);
   }
@@ -65,15 +71,16 @@ function bundle(src) {
   return out;
 }
 
-function frames(scene, fps = 30) {
-  execSync(`bun run ${path.join(__dirname, 'shoot.js')} ${scene} full ${fps}`, { stdio: 'inherit' });
+function frames(scene, fps = 30, dir = 'frames') {
+  run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
+      { env: { ...process.env, FRAMES_DIR: dir } });
 }
 
 function video(name, fps = 30) {
   const out = name.replace(/(\.bundled)?\.html$/, '') + '.mp4';
-  execSync(
-    `ffmpeg -y -framerate ${fps} -i frames/f%05d.png -c:v libx264 -preset slow ` +
-    `-crf 17 -pix_fmt yuv420p -movflags +faststart ${out}`, { stdio: 'inherit' });
+  run('ffmpeg', ['-y', '-framerate', String(fps), '-i', 'frames/f%05d.png',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart', out]);
   console.log('encoded -> ' + out);
 }
 
@@ -98,22 +105,31 @@ const LOOP_LIMIT = 10 * 1024 * 1024;
 function loop(scene, width = 720, fps = 12) {
   const base = scene.replace(/(\.bundled)?\.html$/, '');
   const out = base + '.webp';
-  const tmp = '.loopframes';
-  frames(scene, fps);
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // Shoot into our OWN directory. `loop` used to reuse frames/, which silently
+  // overwrote the full-resolution frames a previous `build.js all` had shot --
+  // so making a README loop destroyed the source of your mp4 with no warning.
+  const src = '.loopsrc', tmp = '.loopframes';
+  for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true });
+  frames(scene, fps, src);
   fs.mkdirSync(tmp, { recursive: true });
-  execSync(`ffmpeg -y -i frames/f%05d.png -vf scale=${width}:-2 ${tmp}/f%05d.png`,
-           { stdio: ['ignore', 'ignore', 'inherit'] });
+  run('ffmpeg', ['-y', '-i', path.join(src, 'f%05d.png'), '-vf', `scale=${width}:-2`,
+    path.join(tmp, 'f%05d.png')], { stdio: ['ignore', 'ignore', 'inherit'] });
 
   // Homebrew's ffmpeg ships without libwebp, so `-c:v libwebp` fails with
   // "Encoder not found". img2webp (from the `webp` package) is the reliable
   // encoder and is what we require.
-  try { execSync('img2webp -version', { stdio: 'ignore' }); }
+  try { execFileSync('img2webp', ['-version'], { stdio: 'ignore' }); }
   catch (e) { throw new Error('img2webp not found — install it (macOS: brew install webp)'); }
 
-  execSync(`img2webp -loop 0 -d ${Math.round(1000 / fps)} -q 60 ${tmp}/*.png -o ${out}`,
-           { stdio: 'inherit', shell: '/bin/bash' });
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // Explicit file list rather than a shell glob: the glob was never tested past
+  // ~100 frames, and a 60s film at 12fps is 720 files, which can exceed ARG_MAX.
+  // Reading the directory also fails loudly if scaling produced nothing.
+  const pngs = fs.readdirSync(tmp).filter(f => f.endsWith('.png')).sort()
+                 .map(f => path.join(tmp, f));
+  if (!pngs.length) throw new Error('no scaled frames in ' + tmp);
+  run('img2webp', ['-loop', '0', '-d', String(Math.round(1000 / fps)), '-q', '60',
+    ...pngs, '-o', out]);
+  for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true });
 
   const bytes = fs.statSync(out).size;
   const mb = (bytes / 1048576).toFixed(2);
@@ -133,9 +149,9 @@ function poster(scene, t = 0, width = 960) {
   const base = scene.replace(/(\.bundled)?\.html$/, '');
   const out = base + '.jpg';
   const tag = String(t).replace('.', '_');
-  execSync(`bun run ${path.join(__dirname, 'shoot.js')} ${scene} sample ${t}`, { stdio: 'inherit' });
-  execSync(`ffmpeg -y -i sample_${tag}.png -vf scale=${width}:-2 -q:v 4 ${out}`,
-           { stdio: ['ignore', 'ignore', 'inherit'] });
+  run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)]);
+  run('ffmpeg', ['-y', '-i', `sample_${tag}.png`, '-vf', `scale=${width}:-2`,
+    '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
   fs.rmSync(`sample_${tag}.png`, { force: true });
   console.log(`poster -> ${out} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
   console.log(`\nPaste into the README, with VIDEO_URL from dragging the mp4 into an\n` +

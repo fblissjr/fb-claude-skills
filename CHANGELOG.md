@@ -1,5 +1,16 @@
 # changelog
 
+## 0.37.2
+
+### fixed
+- **explainer-video 0.3.4 -> 0.4.0**: fixed the four defects that were about to be handed to a code review as known-but-unfixed, which is the wrong trade — a review's value is finding what you do not already know.
+  - **Shell-free process calls.** Every `execSync` with an interpolated path became `execFileSync` with an argument array. A directory containing a space broke the build outright. This is the same class as the exec-form hook rule added to `plugin-patterns.md` today; that rule covers `hooks.json` and says nothing about plugin scripts, so the guidance addressed one surface of a two-surface bug.
+  - **`build.js loop` no longer destroys `frames/`.** It reused the shared directory, so producing a README loop silently overwrote the full-resolution frames a previous `build.js all` had shot — deleting the source of your mp4 with no warning. It now shoots into its own `.loopsrc`, via a new `FRAMES_DIR` override in `shoot.js`.
+  - **No shell glob in the WebP encode.** `img2webp ${tmp}/*.png` was never tested past ~100 frames; a 60s film at 12fps is 720 files and can exceed `ARG_MAX`. Now an explicit file list, which also fails loudly when scaling produced nothing.
+  - **`smoke.js`'s blank-frame floor derives from the viewport** instead of a hardcoded 6000 bytes, which silently mis-calibrated the moment the viewport changed.
+
+All four verified by control, per the rule added in 0.3.4: `frames/` confirmed intact at 275 files across a `loop` run, a build run to completion from a directory with spaces in its name, and the blank-scene check confirmed still failing (1453 bytes against a derived floor of 5760).
+
 ## 0.37.1
 
 ### changed
