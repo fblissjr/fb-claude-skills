@@ -93,6 +93,41 @@ same point with `node`.
 
 Keep shell form only where you genuinely need pipes, `&&`, redirects, or globs.
 
+### The same rule applies inside plugin scripts
+
+This is not a `hooks.json` rule. It is a rule about spawning subprocesses with
+interpolated paths, and it applies anywhere a plugin does that — most often
+`execSync` in a bundled Node or Bun script:
+
+```js
+// wrong: goes through a shell, so a path with a space splits into two arguments
+execSync(`bun run ${scriptPath} ${sceneFile}`);
+
+// right: no shell, each element is exactly one argument
+execFileSync('bun', ['run', scriptPath, sceneFile], { stdio: 'inherit' });
+```
+
+`execSync` and `exec` run their whole string through `/bin/sh`. `execFileSync`
+and `spawnSync` with an argument array do not. Same failure, same fix, one layer
+down: `${CLAUDE_PLUGIN_ROOT}` and any user-supplied filename can contain spaces,
+and a filename can additionally contain `;`, `$`, backticks, and quotes — which
+a shell will happily interpret.
+
+Quoting the interpolation (`"${path}"`) papers over the space case and leaves
+the metacharacter case. Prefer the array form; reach for a shell only when you
+actually need shell features, and then quote deliberately.
+
+Two related traps in the same family, both worth checking when you write one of
+these scripts:
+
+- **A glob in the command is expanded by the shell, not by your program.** That
+  caps how many paths can be passed before hitting `ARG_MAX`, and the limit is
+  reached quietly at a few thousand entries. If you are passing a frame sequence
+  or similar, pass a pattern the tool itself understands, or feed a file list.
+- **Derived outputs must not write into a source directory.** A step that
+  regenerates `frames/` to build a preview will destroy the frames an expensive
+  full render produced. Give the derived step its own output directory.
+
 ## Bash 3.2 portability
 
 Plugin scripts use `#!/usr/bin/env bash` and may run on macOS system bash (3.2). Avoid bash 4+ features:

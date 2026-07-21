@@ -1,5 +1,10 @@
 # changelog
 
+## 0.37.3
+
+### changed
+- **The exec-form rule in `plugin-patterns.md` now covers plugin scripts, not just `hooks.json`.** It described a `hooks.json` convention when the underlying problem is spawning a subprocess with an interpolated path, which plugin scripts do too via `execSync`. The rule addressed one surface of a two-surface bug; explainer-video's scripts were living proof of the other. Adds the `execSync` -> `execFileSync` array-argument form, notes that quoting fixes the space case but leaves `;`/`$`/backticks, and records two traps in the same family: a shell-expanded glob silently caps out at `ARG_MAX`, and a derived output written into a source directory destroys the source (a preview build overwriting the full-resolution frames behind an mp4).
+
 ## 0.37.2
 
 ### fixed
