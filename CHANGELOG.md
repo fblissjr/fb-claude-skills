@@ -1,5 +1,14 @@
 # changelog
 
+## 0.42.0
+
+### fixed
+- **path-privacy 0.3.2 -> 0.4.0: three defects in the fail-closed wrapper, all found by cross-review, all landing before the push because the marketplace update is what arms the fuse.**
+  - **The `rm` remediation destroyed the user's own hook.** The wrapper also *chains* `<hook>.local`, which is where an existing pre-commit hook is preserved at install time. Telling a blocked user to `rm` the wrapper silently took their previous hook with it — our gate fails loudly, theirs died quietly. The message is now conditional: with a `.local` present it says `mv <hook>.local <hook>` and states that this restores what they had before path-privacy.
+  - **Discovery assumed a marketplace-cache install.** A local checkout or `--plugin-dir` install has a frozen path that never lived under `<HOME>/.claude/plugins/cache/`, so once it broke the glob found nothing and the user was hard-blocked by a message naming a directory their install was never in. Discovery now searches the frozen path's own tree first (sibling version dirs, then the tree itself) before falling back to the cache, and the error names both locations.
+  - **The message had no "why now."** It fires roughly 14 days after a plugin update, on an unrelated commit. It now leads with the cause — the plugin updated and the old cached copy was cleaned up — which turns a mystery block into a recognisable event.
+- Verified by control across four paths: `.local` present (user hook runs, `mv` advice shown), local-checkout frozen path with a sibling version (recovers and still blocks a real leak), no `.local` with every discovery source neutered (fails closed, `rm` advice), and the ordinary valid-path case. Two of those controls were wrong on the first attempt — one committed clean content so the exit code proved nothing, and one left the real cache glob intact so the hook legitimately recovered — and were re-run before being recorded.
+
 ## 0.41.1
 
 ### fixed
