@@ -79,6 +79,17 @@ Re-derive with: `skill-maintain upstream`, then diff
 - Symlinks within the same marketplace are dereferenced and copied — a supported way to share files, but only for marketplace installs. Relevant to invariant 3 (the `best_practices.md` mirror)
 - Orphaned cache versions pruned after 14 days, not 7
 
+## Convention worth reconsidering
+
+**`last_verified` should probably leave the version cascade.** Invariant 1 bumps
+`metadata.version` and `metadata.last_verified` together. But a version bump
+means "these bytes changed" while `last_verified` means "someone checked this is
+still correct", and those are different claims. Converting eight plugins to
+exec-form hooks on 2026-07-21 would have marked 17 skills freshly verified on no
+evidence, dropping staleness failures 11 -> 5 without anyone reading a line. The
+dates were restored by hand. Either drop `last_verified` from the cascade, or
+split it into `last_changed` (mechanical) and `last_verified` (a human claim).
+
 ## Repo gaps worth deciding on
 
 - `displayName` — unused across all 19 plugins. `name` is the stable install key; `displayName` is the only way to relabel the `/plugin` picker without breaking installs

@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "env-forge"
-version = "0.3.1"
+version = "0.4.0"
 source = { virtual = "apps/env-forge" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -390,7 +390,7 @@ requires-dist = [
 
 [[package]]
 name = "fb-claude-skills"
-version = "0.33.1"
+version = "0.34.0"
 source = { virtual = "." }
 dependencies = [
     { name = "skill-maintainer" },
@@ -845,7 +845,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.4.1"
+version = "0.5.0"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
@@ -1595,7 +1595,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.9.1"
+version = "0.10.0"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

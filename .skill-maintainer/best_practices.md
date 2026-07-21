@@ -65,6 +65,10 @@ Everything in this list loads on every session. Each line is a fixed cost.
 - [ ] Exit code semantics: exit 0 = **no decision reported** (JSON output processed). For PreToolUse this does NOT approve the call -- the normal permission flow still applies. Exit 2 = blocking error (stderr shown to user). Any other non-zero = non-blocking error. Do not use exit 1 to gate -- use exit 2
 - [ ] Per-event exceptions to the above: `WorktreeCreate` fails creation on ANY non-zero exit; `Setup` surfaces stderr as a hook error on any non-zero exit including 2
 - [ ] Hook output strings (`additionalContext`, `systemMessage`, stdout) are capped at 10,000 characters; overflow is spilled to a file and replaced with a preview plus path
+- [ ] Use **exec form** (set `args`) whenever a hook command references a path placeholder like `${CLAUDE_PLUGIN_ROOT}`. Shell form passes the whole string to `sh -c`, so a plugin root containing a space breaks the hook silently. Exec form passes each element as one argument with no shell involved
+- [ ] Exec form for a bundled shell script is `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]` -- NOT the script path as `command`. On Windows a `.sh` file is not a spawnable executable; naming the interpreter works on every platform (the docs make the same point with `node`)
+- [ ] Keep shell form when you actually need shell features (pipes, `&&`, redirects, globs)
+- [ ] `${user_config.*}` is rejected in shell-form plugin hook commands (v2.1.207+). Read `$CLAUDE_PLUGIN_OPTION_<KEY>` instead, or set `args` to switch to exec form
 - [ ] `once: true` in hook blocks is only honored inside **skill** frontmatter (auto-removes after first run). Ignored in `settings.json`, plugin `hooks.json`, AND agent frontmatter
 
 ### composable directive pattern

@@ -6,7 +6,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+            ]
           }
         ]
       }
@@ -17,8 +20,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh",
-            "timeout": 3000
+            "command": "bash",
+            "timeout": 3000,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"
+            ]
           }
         ]
       }

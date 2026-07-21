@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # Plugin patterns
 
@@ -65,6 +65,33 @@ When designing an agent, deduplicate against existing skills and global rules �
 ## Catalog-as-exemplar
 
 When generating new artifacts, first search existing catalogs for structurally similar examples. Use the closest match as a few-shot reference — adapt patterns, don't copy verbatim. The `env-forge:forge` skill's step 2 documents this for environment generation; the principle applies to any new SKILL.md, hook, or directive.
+
+## Hook invocation: exec form
+
+Every plugin hook in this repo runs a bundled `.sh` and therefore references
+`${CLAUDE_PLUGIN_ROOT}`. All of them use **exec form**:
+
+```json
+{
+  "type": "command",
+  "command": "bash",
+  "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"]
+}
+```
+
+Not shell form (`"command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"` with
+no `args`). Shell form hands the whole string to `sh -c`, so a plugin root
+containing a space — a user account named `First Last`, for instance — splits at
+the space and the hook dies with `sh: /Users/First: No such file or directory`.
+Exec form passes each `args` element as exactly one argument, no shell, no
+quoting rules.
+
+Name `bash` as the `command` and put the script path in `args`, rather than
+making the script path the `command`. A `.sh` file is not a spawnable executable
+on Windows; naming the interpreter works everywhere. The upstream docs make the
+same point with `node`.
+
+Keep shell form only where you genuinely need pipes, `&&`, redirects, or globs.
 
 ## Bash 3.2 portability
 

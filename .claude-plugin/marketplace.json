@@ -29,19 +29,19 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.3.2"
+      "version": "0.4.0"
     },
     {
       "name": "tui-design",
       "source": "./skills/tui-design",
       "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
-      "version": "0.3.1"
+      "version": "0.4.0"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
-      "version": "0.4.1"
+      "version": "0.5.0"
     },
     {
       "name": "skill-dashboard",
@@ -53,13 +53,13 @@
       "name": "env-forge",
       "source": "./apps/env-forge",
       "description": "Generate and launch database-backed MCP tool environments from scenario descriptions or the AWM-1K catalog. SessionStart hook auto-injects principles when .env-forge or fastapi-mcp detected.",
-      "version": "0.3.1"
+      "version": "0.4.0"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.6.0"
+      "version": "0.7.0"
     },
     {
       "name": "readwise-reader",
@@ -77,7 +77,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.9.1"
+      "version": "0.10.0"
     },
     {
       "name": "json-query",
@@ -95,7 +95,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.1.6"
+      "version": "0.2.0"
     },
     {
       "name": "writing",
@@ -113,7 +113,7 @@
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
-      "version": "0.1.2"
+      "version": "0.2.0"
     },
     {
       "name": "explainer-video",

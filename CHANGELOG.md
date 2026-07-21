@@ -1,5 +1,18 @@
 # changelog
 
+## 0.34.0
+
+### added
+- **skill-maintainer 0.9.1 -> 0.10.0**: `check_version_alignment` in the repo-hygiene suite compares every `plugin.json` against its `marketplace.json` entry, in both directions -- a marketplace entry pointing at a plugin that does not exist, and a plugin on disk nobody can install. The pre-commit hook only ever inspected plugins a given commit happened to touch, which is why `path-privacy` drifted five releases before anything noticed. Verified by re-injecting that exact drift: it fails, and goes green when restored.
+
+### changed
+- **all 8 hook-shipping plugins**: hooks converted from shell form to **exec form** (`"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]`). Shell form hands the whole string to `sh -c`, so a plugin root containing a space -- a user account named `First Last` -- splits at the space and the hook dies with `sh: /Users/First: No such file or directory`. Demonstrated the failure and the fix before converting; output and exit codes are byte-identical for the path-privacy blocker. `bash` is named as the executable with the script in `args` rather than making the script path the `command`, because a `.sh` file is not spawnable on Windows -- the same reason the upstream docs recommend `node` plus a script path.
+- Affected: `dev-conventions` 0.6.0 -> 0.7.0, `dimensional-modeling` 0.3.2 -> 0.4.0, `env-forge` 0.3.1 -> 0.4.0, `mece-decomposer` 0.4.1 -> 0.5.0, `path-privacy` 0.1.6 -> 0.2.0, `pyright-autoconfig` 0.1.2 -> 0.2.0, `skill-maintainer` 0.9.1 -> 0.10.0, `tui-design` 0.3.1 -> 0.4.0.
+- **best_practices.md / plugin-patterns.md**: document exec vs shell form, including the Windows constraint and the `${user_config.*}` shell-form rejection (v2.1.207+).
+
+### fixed
+- **version cascade convention**: the cascade re-dates `metadata.last_verified` alongside `metadata.version`, which conflates "this file changed" with "someone checked this is still correct". Bumping eight plugins for a hook-invocation change would have silently marked 17 unreviewed skills as freshly verified and dropped staleness failures 11 -> 5 on no evidence. Those dates were restored. The two plugins that kept today's date are the ones actually exercised. Worth reconsidering whether `last_verified` belongs in the cascade at all -- see docs/internals/upstream_drift_backlog.md.
+
 ## 0.33.1
 
 ### added

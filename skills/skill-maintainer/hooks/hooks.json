@@ -7,7 +7,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sync-bundled-ref.sh"
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/sync-bundled-ref.sh"
+            ]
           }
         ]
       }
@@ -17,7 +20,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/maybe-draft-session-log.sh"
+            "command": "bash",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/maybe-draft-session-log.sh"
+            ]
           }
         ]
       }

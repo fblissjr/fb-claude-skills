@@ -7,7 +7,7 @@ description: >-
   SessionStart hook; invoke /dev-conventions:bun-tooling for full reference.
 metadata:
   author: Fred Bliss
-  version: 0.6.0
+  version: 0.7.0
   last_verified: 2026-07-05
 ---
 
