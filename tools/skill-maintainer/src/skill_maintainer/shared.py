@@ -16,13 +16,32 @@ TOKEN_BUDGET_CRITICAL = 8000
 STALE_DAYS = 30
 
 
+def _skipped(path: Path, root: Path) -> bool:
+    """True if `path` sits under a SKIP_DIRS component *inside* the repo.
+
+    Matching against the absolute path is wrong: a repo checked out beneath a
+    directory that happens to be named `internal`, `coderef`, `.venv` or the
+    like made every file invisible, so discovery returned nothing and the suite
+    reported green having scanned nothing -- the worst failure available to a
+    checker. Only components below the root can disqualify a file.
+    """
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return True
+    # `.backup` also matches as a SUFFIX -- a directory named
+    # `plugin-toolkit.backup` is a snapshot, not a unit to check. The original
+    # code expressed this as a separate substring test; folding it in here keeps
+    # both rules in one place instead of one of them getting dropped in a
+    # refactor, which is exactly what happened.
+    return any(part in SKIP_DIRS or part.endswith(".backup") for part in rel.parts)
+
+
 def discover_skills(root: Path) -> list[Path]:
     """Find all SKILL.md files, return their parent directories."""
     results = []
     for skill_md in sorted(root.rglob("SKILL.md")):
-        if any(skip in skill_md.parts for skip in SKIP_DIRS):
-            continue
-        if ".backup" in str(skill_md):
+        if _skipped(skill_md, root):
             continue
         results.append(skill_md.parent)
     return results
@@ -32,7 +51,7 @@ def discover_plugins(root: Path) -> list[Path]:
     """Find all plugin directories (have .claude-plugin/plugin.json), skip coderef/."""
     results = []
     for pj in sorted(root.rglob(".claude-plugin/plugin.json")):
-        if any(skip in pj.parts for skip in SKIP_DIRS):
+        if _skipped(pj, root):
             continue
         # plugin dir is parent of .claude-plugin/
         plugin_dir = pj.parent.parent

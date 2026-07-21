@@ -215,12 +215,26 @@ def check_version_alignment(root: Path) -> list[Result]:
     listed: dict[str, str] = {}
 
     for entry in entries:
+        # A malformed entry must not abort the run. The official marketplace
+        # schema allows object sources ({"source": "github", ...}) and this tool
+        # is run against arbitrary repos via --dir, so `entry` may not be a dict
+        # and `source` may not be a string. Crashing here killed every later
+        # check in test_repo_hygiene and printed no summary at all.
+        if not isinstance(entry, dict):
+            results.append(Result("repo", "", "version alignment", False,
+                                  f"marketplace entry is not an object: {entry!r}"))
+            continue
         name = entry.get("name", "")
         listed[name] = entry.get("version", "")
         # removeprefix, not lstrip: lstrip strips a character SET, so a source of
         # "./.claude/thing" became "claude/thing" and the check then reported a
         # missing plugin.json at a path that was never right.
-        source = (entry.get("source") or f"./{name}").removeprefix("./")
+        raw_source = entry.get("source") or f"./{name}"
+        if not isinstance(raw_source, str):
+            # An external source (github/git/url object) has no local plugin.json
+            # to compare against. Skip rather than invent a failure.
+            continue
+        source = raw_source.removeprefix("./")
         pj = root / source / ".claude-plugin" / "plugin.json"
         if not pj.exists():
             results.append(Result(
@@ -254,7 +268,15 @@ def check_version_alignment(root: Path) -> list[Result]:
                 f"unreadable plugin.json at {plugin_dir.name}: {e}",
             ))
             continue
-        if name and name not in listed:
+        if not name:
+            # Contradicted the "do NOT skip" reasoning one branch above: a
+            # nameless plugin was silently invisible to the very sweep meant to
+            # find plugins nobody can install.
+            results.append(Result(
+                "repo", str(plugin_dir.name), "version alignment", False,
+                f"{plugin_dir.name}/.claude-plugin/plugin.json has no 'name'",
+            ))
+        elif name not in listed:
             results.append(Result(
                 "repo", name, "version alignment", False,
                 f"plugin '{name}' exists on disk but is not in marketplace.json",
@@ -283,12 +305,31 @@ def check_changelog_version(root: Path) -> list[Result]:
     if not changelog.exists() or not pyproject.exists():
         return []
 
-    ver = re.search(r'^version = "([^"]+)"', pyproject.read_text(), re.M)
-    if not ver:
-        return []
+    # Parse properly rather than regexing. The old pattern took the FIRST
+    # `version = "..."` anywhere in the file, so a [tool.*] table above [project]
+    # won; and single quotes, no spaces, or a dynamic version made it return []
+    # -- reporting success while the check could not run at all. A file that
+    # exists but cannot be read is not the same as a file that is absent.
+    try:
+        import tomllib
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except Exception as e:
+        return [Result("repo", "", "changelog version", False,
+                       f"unreadable pyproject.toml: {e}")]
+    pyver = data.get("project", {}).get("version")
+    if not isinstance(pyver, str):
+        if "version" in data.get("project", {}).get("dynamic", []):
+            return []          # dynamic versioning is a legitimate shape
+        return [Result("repo", "", "changelog version", False,
+                       "pyproject.toml has no [project] version to compare against")]
 
-    text = changelog.read_text()
-    heading = re.search(r"^## (\d+\.\d+\.\d+)\s*$", text, re.M)
+    text = changelog.read_text(encoding="utf-8")
+    # Accept keep-a-changelog `## [1.2.3] - 2024-01-01` and prerelease suffixes
+    # too. This tool runs against arbitrary repos via --dir, where those are
+    # standard shapes; failing them as "no version heading" would be a false
+    # positive on a correct changelog.
+    heading = re.search(r"^## \[?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]?(?:\s+-\s+\S.*)?\s*$",
+                        text, re.M)
     if not heading:
         return [Result("repo", "", "changelog version", False,
                        "CHANGELOG.md has no `## X.Y.Z` heading")]
@@ -296,16 +337,19 @@ def check_changelog_version(root: Path) -> list[Result]:
     # Anything other than the title before the first version heading means an
     # entry was written without one -- the exact failure this exists to catch.
     preamble = text[: heading.start()]
+    # An `## Unreleased` section above the top version is conventional, not a
+    # defect. Only non-heading prose indicates an entry written without one.
     stray = [ln for ln in preamble.splitlines()
-             if ln.strip() and not ln.startswith("# ")]
+             if ln.strip() and not ln.startswith("# ")
+             and not re.match(r"^##+\s+\[?Unreleased\]?", ln, re.I)]
     if stray:
         return [Result("repo", "", "changelog version", False,
                        f"content above the first version heading: {stray[0][:60]!r}")]
 
-    ok = heading.group(1) == ver.group(1)
+    ok = heading.group(1) == pyver
     return [Result("repo", "", "changelog version", ok,
                    "" if ok else
-                   f"pyproject={ver.group(1)} but top CHANGELOG heading={heading.group(1)}")]
+                   f"pyproject={pyver} but top CHANGELOG heading={heading.group(1)}")]
 
 
 def test_repo_hygiene(root: Path) -> list[Result]:

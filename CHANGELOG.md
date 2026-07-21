@@ -1,5 +1,17 @@
 # changelog
 
+## 0.45.0
+
+### fixed
+- **skill-maintainer**: discovery matched `SKIP_DIRS` against the **absolute** path, so a repo checked out beneath any directory named `internal`, `coderef`, `.venv`, `node_modules` or `_deprecated` found zero skills and zero plugins and the suite reported green having scanned nothing — the worst failure available to a checker, since it looks exactly like success. Matching is now relative to the repo root. Verified both ways: a nested repo under `internal/` is now visible, and this repo still excludes its own `internal/` and `_deprecated/`.
+- **skill-maintainer**: restored the `.backup` **suffix** rule, which the above refactor dropped — `plugin-toolkit.backup` is a snapshot directory, not a unit to check. Both rules now live in one place instead of one of them getting lost in a refactor, which is precisely what happened.
+- **skill-maintainer**: `check_version_alignment` no longer aborts the entire run on a malformed marketplace entry. A non-dict entry, or the object-form `source` the official schema allows (`{"source": "github", ...}`), raised out of the function and killed every later check in `test_repo_hygiene` with no summary printed. External sources are skipped (no local manifest to compare); malformed entries are reported.
+- **skill-maintainer**: a plugin whose `plugin.json` parses but has no `name` was silently invisible to the reverse sweep — contradicting the "do NOT skip" reasoning one branch above, in the check whose whole purpose is finding plugins nobody can install.
+- **skill-maintainer**: `check_changelog_version` parsed pyproject with a regex that took the first `version = "..."` anywhere in the file, so a `[tool.*]` table above `[project]` won; and single quotes, missing spaces, or a dynamic version made it return success while unable to run at all. Now uses `tomllib`, fails loudly on an unparseable file, and treats declared-dynamic versioning as the legitimate shape it is.
+- **skill-maintainer**: the changelog check rejected keep-a-changelog headings (`## [1.2.3] - 2024-01-01`), prerelease suffixes, and a conventional `## Unreleased` section above the top version. This tool runs against arbitrary repos via `--dir`, where all three are standard — a false positive on a correct changelog is how a gate gets ignored.
+
+Each change was verified against a constructed instance of the failure it addresses, and against a legitimate configuration it must not fire on.
+
 ## 0.44.0
 
 ### fixed
