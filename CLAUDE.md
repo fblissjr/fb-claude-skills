@@ -26,3 +26,31 @@ These bite on the first edit if you don't know them.
 5. **Security-guidance plugin's PreToolUse hook is disabled here** via `.claude/settings.json` env `ENABLE_SECURITY_REMINDER=0`. It substring-matches benign tokens in markdown prose and false-fires on docs and session logs. If you reset settings, re-disable. Detail: [docs/internals/gotchas.md](docs/internals/gotchas.md).
 
 6. **Four of this repo's own plugins are disabled here** via `enabledPlugins: false` in `.claude/settings.json`: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `env-forge`. Their SessionStart hooks inject ~3,500 chars of convention text into every session, and in this repo those conventions are already stated twice — in `.claude/rules/general.md` and the user's global `CLAUDE.md`. The hooks stay in the plugins because they are the entire point for a repo with nothing written down; they are just redundant *here*. `path-privacy` and `pyright-autoconfig` remain enabled — the first enforces via PreToolUse, the second acts silently.
+
+## Where to find what
+
+| Working on... | Look at |
+|---|---|
+| Plugin authoring (structure, hooks exec form, agents, directives, bash portability) | [docs/internals/plugin-patterns.md](docs/internals/plugin-patterns.md) |
+| The version cascade and what is deliberately NOT in it | [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md) |
+| Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
+| Repo-specific gotchas (disabled plugins, `_deprecated`, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
+| Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
+| Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
+| Captured Claude Code official docs (domain reports + ecosystem field guide) | [docs/README.md](docs/README.md) |
+| MCP protocol / apps / cross-surface | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md), [docs/analysis/mcp_apps_and_ui_development.md](docs/analysis/mcp_apps_and_ui_development.md), [docs/analysis/cross_surface_compatibility.md](docs/analysis/cross_surface_compatibility.md) |
+| DuckDB schema (agent-state, readwise-reader) | `tools/agent-state/README.md`, `apps/readwise-reader/CLAUDE.md` |
+| Repo layout, plugins table, install commands | [README.md](README.md) |
+| Setup from a fresh clone | [README.md](README.md) "installation" + `uv sync --all-packages` |
+
+## State
+
+- `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored)
+- `<HOME>/.claude/agent_state.duckdb` — global DuckDB for run audit and state tracking (schema in `tools/agent-state/`)
+- Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves.
+- `apps/_deprecated/` — units kept for reference but no longer published. In `SKIP_DIRS`, so nothing there is scanned for skills or plugins.
+
+## Cross-repo
+
+- `coderef/agentskills/` — symlink to a local clone of the Agent Skills spec + `skills-ref` validator
+- Sibling repos: `star-schema-llm-context` (storage engine / kernel), `ccutils` (client applications). The three together form a database-like component stack — see [VISION.md](VISION.md) for the design.

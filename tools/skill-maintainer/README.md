@@ -1,4 +1,4 @@
-last updated: 2026-04-19
+last updated: 2026-07-21
 
 # skill-maintainer (CLI package)
 
@@ -48,24 +48,25 @@ tracked git repos                                              .skill-maintainer
 
 The `/maintain` slash command orchestrates the pipeline in sequence: `sources → upstream → quality → review`.
 
+Skill and plugin discovery skip `_deprecated` directories along with the usual `__pycache__`, `.backup`, `node_modules`, `.git`, `coderef`, `.venv`, and `internal`. `_deprecated` holds units kept for reference but no longer published; excluding it keeps them out of quality reports, token budgets, and version checks.
+
 ## what runs automatically
 
 ### pre-commit hook (git)
 
-**When:** every `git commit` that includes a staged `SKILL.md` file.
+**When:** every `git commit` that touches a staged `SKILL.md`, `.claude-plugin/marketplace.json`, or a plugin's version-bearing files.
 
 **What it does:**
 1. `git diff --cached --name-only --diff-filter=ACM` lists staged files
-2. Filters for files ending in `SKILL.md`
-3. If none found, exits immediately (cost: ~1ms)
-4. For each staged SKILL.md, runs `uv run agentskills validate <skill-dir>`
-5. If any fail validation, the commit is blocked with an error message
+2. For each staged SKILL.md, runs `uv run agentskills validate <skill-dir>`; blocks the commit on any failure
+3. If `.claude-plugin/marketplace.json` is staged and the `claude` CLI is installed, runs `claude plugin validate . --strict` and blocks the commit if it fails. Skipped entirely when `claude` isn't on PATH, so the hook still works on a machine without Claude Code installed.
+4. Checks version consistency across `plugin.json`, `marketplace.json`, and `pyproject.toml` for every plugin root touched by the commit, and warns (without blocking) if plugin content changed but no version-bearing file was staged
 
-**What it checks:** the [Agent Skills spec](https://agentskills.io) -- required frontmatter fields (name, description), naming conventions (kebab-case, no consecutive hyphens), allowed fields only, etc.
+**What it checks:** the [Agent Skills spec](https://agentskills.io) -- required frontmatter fields (name, description), naming conventions (kebab-case, no consecutive hyphens), allowed fields only, etc. -- plus marketplace-manifest strictness and plugin version alignment.
 
-**Where:** `.git/hooks/pre-commit` (bash script, 28 lines)
+**Where:** `tools/skill-maintainer/src/skill_maintainer/templates/pre-commit.sample`, installed as `.git/hooks/pre-commit`.
 
-**Side effects:** none. Read-only check. Either the commit proceeds or it doesn't.
+**Side effects:** none. Read-only checks. Either the commit proceeds or it doesn't.
 
 That's it. Nothing else runs unless you invoke it.
 
@@ -78,7 +79,7 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 | `init` | Create `.skill-maintainer/config.json` in the target repo |
 | `validate` | Validate skills against Agent Skills spec + best practices |
 | `quality` | Unified report: validation + token budget + freshness + description quality |
-| `freshness` | Check `metadata.last_verified` staleness across all skills |
+| `freshness` | Check `metadata.last_verified` staleness across all skills, honoring each skill's `metadata.review_interval_days` |
 | `measure` | Token budget measurement with per-file breakdown |
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
 | `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
@@ -226,7 +227,7 @@ Unified report: validation + token budget + staleness + description quality, one
 For each skill:
 - **Validation:** `skills_ref.validator.validate()`
 - **Token budget:** chars / 4 estimate. Warn >4000, critical >8000
-- **Staleness:** days since `metadata.last_verified`. >30 days = stale
+- **Staleness:** days since `metadata.last_verified`, compared against that skill's `metadata.review_interval_days` (default 30 if absent or invalid)
 - **Description quality:** checks for WHAT verb ("handles", "generates", etc.) and WHEN trigger ("use when", "when user", etc.)
 
 Exits 1 if any skill fails validation.
@@ -238,12 +239,14 @@ skill-maintain quality --no-log   # skip audit log entry
 
 ### freshness
 
-Checks `metadata.last_verified` dates across all skills.
+Checks `metadata.last_verified` dates across all skills against each skill's own staleness window.
+
+The window is `metadata.review_interval_days` from that skill's frontmatter (default 30 when the field is absent, non-numeric, zero, or negative -- a typo in frontmatter must not silently grant an unbounded window). `--threshold` overrides every skill's own interval with a single value, for cases like a pre-release audit where the user wants a stricter global bar.
 
 ```bash
-skill-maintain freshness                    # show all
+skill-maintain freshness                    # show all, per-skill review_interval_days
 skill-maintain freshness --quiet            # only show stale
-skill-maintain freshness --threshold 14     # stricter threshold (days)
+skill-maintain freshness --threshold 14     # override every skill's interval with 14 days
 skill-maintain freshness --skill tui-design # check one skill
 ```
 
@@ -260,6 +263,8 @@ skill-maintain measure --output report.md   # write to file
 ### test
 
 Red/green test suite with three categories: skills, plugins, repo hygiene.
+
+Repo hygiene includes `check_version_alignment`, which walks every entry in `.claude-plugin/marketplace.json` against the `plugin.json` it points to, in both directions: a marketplace entry whose plugin doesn't exist on disk, and a plugin on disk that isn't listed in the marketplace. This is a repo-wide check, unlike the pre-commit hook's version check, which only inspects plugins touched by the current commit -- a marketplace entry can otherwise drift for releases at a time with nothing noticing. Returns no findings when the repo has no `marketplace.json`, since that's a legitimate shape for a plugin repo.
 
 ```bash
 skill-maintain test
@@ -367,6 +372,19 @@ Each SKILL.md has this in frontmatter:
 ```yaml
 metadata:
   last_verified: 2026-03-06
+  review_interval_days: 90
 ```
 
-Update it when you review or modify a skill. `freshness` and `quality` both read this field.
+`last_verified` means strictly that a human reviewed the skill against its source -- not that its content changed. It is no longer bumped as part of a version cascade (see `metadata.version` below): a version bump says bytes changed, not that anyone checked. Update it by hand when you actually review the skill. `freshness`, `quality`, and `test` all read this field.
+
+`review_interval_days` (integer, default 30) sets that skill's own staleness window, replacing a single global 30-day cutoff for every skill. This repo tiers it by how fast the skill's source moves:
+
+- **30 days** -- content derived from the Claude Code docs
+- **90 days** -- content tracking a third-party SDK or API
+- **365 days** -- methodology, or a skill documenting the user's own code, where the code review is the real trigger and the date is only a backstop
+
+Invalid values (non-numeric, zero, negative) fall back to the 30-day default rather than raising -- frontmatter is user input, and a typo must not silently grant an unbounded window. `skill-maintain freshness --threshold N` still overrides every skill's own interval when a single global cutoff is wanted for one run.
+
+### metadata.version (removed from SKILL.md)
+
+SKILL.md frontmatter no longer carries a `version` field. `plugin.json` is the sole version source for a plugin; `/skill-maintainer:sync-versions` no longer touches SKILL.md. Do not add `version:` back to a skill's frontmatter -- it was a second source of truth for the same number `plugin.json` already tracks.

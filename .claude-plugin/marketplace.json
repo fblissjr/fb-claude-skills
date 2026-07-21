@@ -71,7 +71,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.11.0"
+      "version": "0.11.1"
     },
     {
       "name": "json-query",

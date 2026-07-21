@@ -1,5 +1,17 @@
 # changelog
 
+## 0.36.1
+
+### changed
+- **docs reconciled with the 0.35.0 process changes.** `CLAUDE.md`, `.claude/rules/plugins.md`, `docs/internals/{maintenance,gotchas,plugin-versioning,plugin-patterns}.md`, and both skill-maintainer READMEs now describe the three-file cascade, `review_interval_days`, the `last_verified` semantics, `_deprecated`, `check_version_alignment`, the `--strict` pre-commit gate, and hook exec form. `docs/analysis/`, `docs/claude-docs/` and `docs/reports/` were deliberately left alone -- they are captured upstream documentation and point-in-time reports, not statements of our conventions.
+- **`.claude/rules/plugins.md`** gains the version-cascade, deprecation, and exec-form rules, and now says plainly that upstream requires only `name` in `plugin.json` -- the other four fields are this repo's convention, enforced by our own test suite.
+
+### fixed
+- **`CLAUDE.md` had been truncated.** The 0.35.0 edit replaced from invariant 5 to end-of-file, silently deleting the "Where to find what", "State", and "Cross-repo" sections. Recovered from `9bbb7e1` and updated: the doc table gains rows for the versioning doc and the upstream drift backlog, and "State" now describes `review_interval_days` and `apps/_deprecated/`.
+
+### added
+- **model-routing installed into this repo**: `.claude/rules/model-delegation.md` plus the `fast-executor` and `task-coder` agents. The feedback layer was deliberately skipped -- it appends always-loaded text that only pays off with the `agent-state` CLI in active use.
+
 ## 0.36.0
 
 ### changed

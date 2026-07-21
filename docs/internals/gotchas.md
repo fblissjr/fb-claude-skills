@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # Gotchas
 
@@ -74,3 +74,33 @@ Multiple places in the repo (root `README.md`, `docs/README.md`, historically `C
 The fix: don't include numbers in prose. Say "domain reports" rather than a hardcoded count. The filesystem is the source of truth; descriptions that don't claim a count never go stale.
 
 `skill-maintain lint` enforces this. It scans `README.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for count assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem reality. Soft finding (exit 0); not a CI block.
+
+## SessionStart hooks from our own plugins are disabled here
+
+Four plugins are disabled in this repo only, via `enabledPlugins: false` in `.claude/settings.json`: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `env-forge`. Their SessionStart hooks inject roughly 3,500 characters of directive text per session — conventions this repo already has written down in `.claude/rules/general.md` and in the user's global CLAUDE.md. Loading both is pure duplication with no benefit.
+
+The hooks are not removed from the plugins themselves. They exist for repos that have nothing written down yet — a fresh clone of some other project has no `.claude/rules/general.md`, so the injected directive is doing real work there. This repo is the exception, not the rule the plugins are designed around.
+
+A future session should not "helpfully" re-enable these plugins to restore consistency with other repos. The setting is intentional and repo-specific; if it looks like an oversight, check `.claude/settings.json` and this section before touching it.
+
+## `_deprecated/` is skipped by all tooling
+
+`apps/_deprecated/` holds plugins that are kept on disk but withdrawn from circulation — currently `env-forge`, moved there and removed from `marketplace.json` and the root `pyproject.toml` workspace members. `_deprecated` was added to `SKIP_DIRS`, so nothing under it is scanned for skills or plugins by `discover_skills`, `discover_plugins`, `measure_tokens`, or the version-alignment check.
+
+Why skip rather than just delete the marketplace entry and leave the code in place: a plugin that still exists on disk but isn't listed in `marketplace.json` would otherwise fail `check_version_alignment`'s "plugin on disk not in marketplace" check forever. That check is supposed to catch a plugin someone forgot to register, not flag a plugin that was deliberately retired. A permanently-red board trains everyone to ignore it — the whole point of the check is that a failure means something needs action.
+
+If a deprecated plugin needs to come back, move it out of `_deprecated/`, re-add it to `marketplace.json` and the workspace members, and it re-enters every check automatically.
+
+## Removing a frontmatter field can break the pre-commit hook
+
+Hit for real on 2026-07-21, when `metadata.version` was removed from all SKILL.md files. The pre-commit hook extracted the version with a pipeline shaped like:
+
+```bash
+sed -n '/^---$/,/^---$/p' SKILL.md | grep '^ *version:' | head -1 | sed 's/.*: *//'
+```
+
+Under `set -euo pipefail`, a `grep` that matches nothing exits non-zero, and with `pipefail` that non-zero propagates out of the pipeline. That aborted the whole hook — silently, with exit 1 and no error message printed. Commits appeared to vanish: `git commit` returned to the prompt having done nothing, with nothing in the terminal explaining why.
+
+The trap: tolerating an absent field in a *comparison* (`if [ -z "$version" ]; then skip; fi`) is not the same as tolerating it in the *extraction* that feeds the comparison. The extraction ran first and killed the script before any tolerant comparison logic got a chance to run.
+
+Fixed by appending `|| true` to the end of the whole command substitution — `sk_ver=$(sed ... | grep ... | head -1 | sed ... || true)` — so a no-match yields an empty string instead of aborting, leaving the downstream logic to handle it. Putting it on the `grep` alone also works, but the substitution-level form covers every step in the chain. Any hook step built on `grep`/`sed` chains under `pipefail` needs the same treatment whenever the thing being matched can legitimately be absent — check other extraction pipelines in the hook for the same pattern before removing another field from frontmatter.

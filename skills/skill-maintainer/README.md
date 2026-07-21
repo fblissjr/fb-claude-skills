@@ -1,8 +1,8 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # skill-maintainer
 
-Maintenance tools for any Claude Code skills repo. Validates skills against the Agent Skills spec, checks token budgets, tracks freshness, detects upstream doc changes (with per-page content snapshots and line/char deltas), reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
+Maintenance tools for any Claude Code skills repo. Validates skills against the Agent Skills spec, checks token budgets, tracks freshness against each skill's own `metadata.review_interval_days` window, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks plugin.json/marketplace.json version alignment repo-wide, reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
 
 ## installation
 
@@ -27,7 +27,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 | `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: upstream checks, source pulls, quality report, best practices review |
 | `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, freshness, description quality |
 | `init-maintenance` | `/skill-maintainer:init-maintenance` | Set up persistent maintenance config and state in a repo |
-| `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across all sources atomically (handles multi-skill plugins) |
+| `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` atomically. No longer touches SKILL.md -- `metadata.version` was removed from skill frontmatter, and `plugin.json` is the sole version source |
 | `sync-bundled-ref` | `/skill-maintainer:sync-bundled-ref` | Mirror the working-copy `best_practices.md` to the plugin-bundled reference |
 | `finish-session` | `/skill-maintainer:finish-session` | Orchestrate end-of-session cleanup: draft log, sync refs, flag version bumps, quality scan |
 
@@ -56,9 +56,9 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 # set up maintenance config in a new skills repo
 /skill-maintainer:init-maintenance
 
-# bump tui-design to 0.3.0 across plugin.json, marketplace, SKILL.md, pyproject
-# (also discovers and bumps sub-skill SKILL.md metadata for multi-skill plugins)
-/skill-maintainer:sync-versions tui-design 0.3.0
+# bump tui-design's version across plugin.json, marketplace.json, pyproject.toml
+# (SKILL.md no longer carries a version field -- plugin.json is the sole source)
+/skill-maintainer:sync-versions tui-design 0.4.0
 
 # sync working copy -> bundled reference manually (hook does this automatically on Edit)
 /skill-maintainer:sync-bundled-ref
