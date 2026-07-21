@@ -53,12 +53,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). <!-- path-privacy: ignore --> |
 | [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
 
-### environment synthesis
-
-| Plugin | Type | Description |
-|--------|------|-------------|
-| [env-forge](apps/env-forge/) | Hook + Skill + Scripts | Interface for [Snowflake AWM](https://github.com/Snowflake-Labs/AgentWorldModel) synthesis pipeline. Hook detects .env-forge or fastapi-mcp. |
-
 ### project-scoped
 
 | Module | Description |
@@ -89,7 +83,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
-/plugin install env-forge@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
 /plugin install readwise-reader@fb-claude-skills
 /plugin install agent-state-mcp@fb-claude-skills
@@ -195,8 +188,6 @@ Once installed, invoke as namespaced slash commands:
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
 /explainer-video:explainer-video # Build a deterministic animated explainer (HTML loop and/or MP4)
 
-/env-forge:browse e-commerce   # Browse AWM-1K catalog, materialize an environment
-/env-forge:forge               # Generate a new environment from a description
 
 /skill-maintainer:quality              # Quick quality check for all skills
 /skill-maintainer:quality tui-design   # Check a specific skill
@@ -305,4 +296,4 @@ Highlights:
 - scan-for-secrets built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets) (Apache 2.0) — all literal-matching and escape-variant logic is his work
 - MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
-- env-forge synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
+- env-forge (deprecated 2026-07-21, kept in `apps/_deprecated/`) built on the synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs

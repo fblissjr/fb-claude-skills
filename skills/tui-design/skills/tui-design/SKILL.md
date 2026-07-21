@@ -3,7 +3,6 @@ name: tui-design
 description: Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. Use when building CLI tools, interactive prompts, dashboards, or any terminal output with Rich, Textual, Questionary, or Click. Triggers on "terminal UI", "TUI", "Rich table", "CLI output", "terminal dashboard", "questionary prompt", "make this look better in the terminal".
 metadata:
   author: Fred Bliss
-  version: 0.4.0
   last_verified: 2026-03-31
   review_interval_days: 90
 allowed-tools: "Bash(python *)"

@@ -209,7 +209,9 @@ Source: Agent Skills spec (agentskills.io). Enforced by `agentskills validate`.
 ## maintenance
 
 - [ ] `metadata.last_verified` present in every SKILL.md frontmatter
-- [ ] `last_verified` date is within 30 days
+- [ ] `last_verified` is within the skill's own `metadata.review_interval_days` (default 30). Tier by how fast the source moves, not uniformly -- a single global window makes the board permanently red, and a permanently-red board is an ignored board
+- [ ] `last_verified` is written ONLY after a human reviewed the skill against its source. It is not part of a version cascade: a version bump says "bytes changed", not "someone checked this"
+- [ ] Do NOT store a version in SKILL.md frontmatter when the skill ships in a plugin. `plugin.json` is the single source; duplicating it into N sub-skills forces N edits per bump and the only consumer is the check verifying the copies agree
 - [ ] Plugin listed in root `marketplace.json` (if installable)
 - [ ] Plugin has a README.md with installation instructions
 - [ ] Plugin `plugin.json` has name, version, description, author, repository. NOTE: upstream requires only `name` (and the manifest itself is optional) -- the other four are a convention of THIS repo, enforced by our own test suite, not a Claude Code requirement

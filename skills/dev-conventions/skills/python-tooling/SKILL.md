@@ -6,7 +6,6 @@ description: >-
   Use when you need the complete uv command mapping, version pinning strategy, or lock file workflow.
 metadata:
   author: Fred Bliss
-  version: 0.7.0
   last_verified: 2026-07-05
 ---
 

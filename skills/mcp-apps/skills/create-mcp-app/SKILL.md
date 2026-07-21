@@ -3,7 +3,6 @@ name: create-mcp-app
 description: Guides building MCP Apps with interactive UIs, covering SDK patterns, resource registration, and host integration. Use when the user asks to "create an MCP App", "add a UI to an MCP tool", "build an interactive MCP View", or "scaffold an MCP App".
 metadata:
   author: MCP Apps (adapted by Fred Bliss)
-  version: 0.1.0
   last_verified: 2026-03-31
   review_interval_days: 90
 allowed-tools: "Bash(bun *), Bash(bunx *), Bash(git *)"

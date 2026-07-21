@@ -2,7 +2,15 @@
 
 from pathlib import Path
 
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
+SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal",
+             "_deprecated"}
+"""Directories never scanned for skills or plugins.
+
+`_deprecated` holds units we no longer publish but have not deleted. Keeping
+them discoverable would mean permanent red rows -- an unpublished plugin
+legitimately fails "listed in marketplace.json", and its skills legitimately
+go stale -- and a permanently-red board is an ignored board.
+"""
 TOKEN_BUDGET_WARN = 4000
 TOKEN_BUDGET_CRITICAL = 8000
 STALE_DAYS = 30

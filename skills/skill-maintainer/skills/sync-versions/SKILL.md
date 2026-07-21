@@ -2,12 +2,12 @@
 name: sync-versions
 description: >-
   Bump a plugin's version across all sources (plugin.json, marketplace.json,
-  SKILL.md, pyproject.toml) atomically. Use when the user says "sync versions",
+  CHANGELOG.md, pyproject.toml) atomically. SKILL.md is deliberately NOT one of
+  them. Use when the user says "sync versions",
   "bump version", "align versions", or "/sync-versions <plugin> <version>".
   Pass plugin name and target version as arguments.
 metadata:
   author: fblissjr
-  version: 0.10.0
   last_verified: 2026-07-21
   review_interval_days: 365
 ---
@@ -48,11 +48,12 @@ Read the current version from the plugin's `.claude-plugin/plugin.json` to confi
 
 ## Step 3 -- Find and update all version sources
 
-For the target plugin, update version in every file that tracks it:
+The cascade is three files. It does **not** scale with how many skills a plugin
+ships, because SKILL.md no longer carries a version.
 
 ### 3a. plugin.json
 
-The plugin's `.claude-plugin/plugin.json`:
+`<plugin>/.claude-plugin/plugin.json`:
 ```json
 "version": "X.Y.Z"
 ```
@@ -64,40 +65,29 @@ Root `.claude-plugin/marketplace.json` -- find the entry by plugin name:
 "version": "X.Y.Z"
 ```
 
-### 3c. Primary SKILL.md
+### 3c. CHANGELOG.md
 
-The skill whose directory name matches the plugin name (e.g., `skills/<plugin>/skills/<plugin>/SKILL.md` or `apps/<plugin>/skills/<plugin>/SKILL.md`). Update `metadata.version` in frontmatter:
-```yaml
-metadata:
-  version: X.Y.Z
-```
+Add an entry describing what changed and why. Semver only, no dates.
 
-### 3c-alt. Sub-skill SKILL.md files (for multi-skill plugins)
+### 3d. pyproject.toml (only if present)
 
-Some plugins ship multiple sub-skills under `<plugin>/skills/<sub-skill>/` rather than (or in addition to) a primary SKILL.md matching the plugin name. Each sub-skill has its own `metadata.version` + `metadata.last_verified` that also must be bumped, or version alignment checks will flag drift.
-
-Discover them:
-
-```bash
-find skills/<plugin>/skills apps/<plugin>/skills -name "SKILL.md" 2>/dev/null
-```
-
-For every SKILL.md found, update `metadata.version` AND `metadata.last_verified` in frontmatter. The primary SKILL.md is the one whose directory name matches the plugin name (if it exists); all others are sub-skills.
-
-**Plugins known to have sub-skills (as of 2026-04-19)**: skill-maintainer (4 sub-skills: init-maintenance, maintain, quality, sync-versions, sync-bundled-ref, finish-session), dev-conventions (5 sub-skills), mlx-skills (4 sub-skills), env-forge, mece-decomposer, document-skills.
-
-If the plugin has no sub-skills (single SKILL.md matching plugin name), this step is a no-op.
-
-### 3d. pyproject.toml (if present)
-
-If the plugin has a `pyproject.toml`, update:
+`tools/<plugin>/pyproject.toml` for plugins with a CLI counterpart, and the root
+`pyproject.toml` when the repo version moves (then `uv lock`):
 ```toml
 version = "X.Y.Z"
 ```
 
-## Step 4 -- Update last_verified
+## Step 4 -- Do NOT touch SKILL.md
 
-Set `metadata.last_verified` to today's date (YYYY-MM-DD) in the primary SKILL.md AND every sub-skill SKILL.md discovered in step 3c-alt.
+`metadata.version` was removed from every SKILL.md on 2026-07-21. It duplicated
+`plugin.json`, and the only thing that read it was the check confirming the
+duplicate still matched -- work that produced no information and forced up to
+six file edits per bump. Do not re-add it. The pre-commit hook still validates
+the field *if present*, so a stray re-addition is caught rather than drifting.
+
+Do not touch `metadata.last_verified` either. It asserts that a human reviewed
+the skill against its source, which a version bump does not establish. Write it
+only when you actually did that review.
 
 ## Step 5 -- Report
 
@@ -109,8 +99,8 @@ Version bumped: mece-decomposer 0.3.0 -> 0.4.0
 Updated files:
   - apps/mece-decomposer/.claude-plugin/plugin.json
   - .claude-plugin/marketplace.json (mece-decomposer entry)
-  - apps/mece-decomposer/skills/mece-decomposer/SKILL.md (metadata.version, last_verified)
   - apps/mece-decomposer/pyproject.toml
+  - CHANGELOG.md
 
 Skipped (not found):
   - (none)

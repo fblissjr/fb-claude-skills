@@ -42,6 +42,21 @@ if [ -n "$staged_skills" ]; then
     done
 fi
 
+# --- 1b. Marketplace manifest validation (strict) ---
+# Unknown top-level fields are warnings by default so a manifest can double as
+# package.json; --strict promotes them to errors, which is what we want in a
+# repo where the manifest is hand-edited. Skipped when the CLI isn't present so
+# the hook still works on a machine without Claude Code installed.
+if command -v claude >/dev/null 2>&1; then
+    if is_staged ".claude-plugin/marketplace.json"; then
+        if ! claude plugin validate . --strict >/dev/null 2>&1; then
+            echo "MARKETPLACE VALIDATION FAILED (claude plugin validate --strict):"
+            claude plugin validate . --strict 2>&1 | sed 's/^/  /'
+            failed=1
+        fi
+    fi
+fi
+
 # --- 2. Check version consistency + warn on unbumped content changes ---
 # Find unique plugin roots touched by staged files
 plugin_roots_str=""
@@ -108,7 +123,11 @@ while IFS= read -r root; do
         for skill_md in "$root"/skills/*/SKILL.md; do
             [ -f "$skill_md" ] || continue
             case "$skill_md" in *.backup/*) continue ;; esac
-            sk_ver=$(sed -n '/^---$/,/^---$/p' "$skill_md" | grep '^ *version:' | head -1 | sed 's/.*version: *//; s/[" ]//g')
+            # `|| true` is required, not defensive: SKILL.md no longer carries
+            # metadata.version (see CLAUDE.md invariant 1), so grep matches
+            # nothing, and under `set -euo pipefail` a non-matching grep in a
+            # pipeline aborts the whole hook silently with exit 1.
+            sk_ver=$(sed -n '/^---$/,/^---$/p' "$skill_md" | grep '^ *version:' | head -1 | sed 's/.*version: *//; s/[" ]//g' || true)
             if [ -n "$sk_ver" ] && [ "$sk_ver" != "$truth" ]; then
                 skill_name=$(basename "$(dirname "$skill_md")")
                 echo "VERSION MISMATCH: $name/$skill_name SKILL.md=$sk_ver vs plugin.json=$truth"

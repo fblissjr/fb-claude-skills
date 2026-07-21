@@ -3,7 +3,6 @@ name: govuk-style
 description: Write and edit in GOV.UK / GDS house style — plain English, active voice, front-loaded content, sentence case, and no bold or italics for emphasis. Use when writing or editing reports, research write-ups, guidance, documentation, summaries, or any prose where clarity and accessibility matter.
 metadata:
   author: Fred Bliss
-  version: 0.1.0
   last_verified: 2026-06-27
   review_interval_days: 365
   credit: Adapted from a skill shared by @fofr (https://twitter.com/fofr)

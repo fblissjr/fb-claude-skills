@@ -3,7 +3,6 @@ name: verify
 description: Run verification functions against current DB state for a task (Phase 2). Use when user says "verify task", "check task completion", "run verifiers", or wants to validate that an agent completed an env-forge task correctly.
 metadata:
   author: Fred Bliss
-  version: 0.4.0
   last_verified: "2026-04-02"
   review_interval_days: 90
 ---

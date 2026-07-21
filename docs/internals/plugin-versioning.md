@@ -1,4 +1,4 @@
-last updated: 2026-05-04
+last updated: 2026-07-21
 
 # Plugin versioning
 
@@ -10,7 +10,7 @@ Anything inside a plugin directory (e.g., `skills/<plugin>/`, `apps/<plugin>/`) 
 
 - Hooks, scripts, directives, references inside the plugin
 - Agent files in `<plugin>/agents/`
-- Sub-skill SKILL.md bodies (any change beyond `metadata.version` / `metadata.last_verified`)
+- Sub-skill SKILL.md bodies
 - The plugin's `.claude-plugin/plugin.json` (description, etc.)
 - Source code under `tools/<plugin>/src/...` for plugins with a CLI counterpart
 
@@ -18,21 +18,31 @@ If you change any of the above, `marketplace update` won't refresh the cache for
 
 ## The cascade
 
-1. **Plugin version sources (covered by `/skill-maintainer:sync-versions`):**
-   - `<plugin>/.claude-plugin/plugin.json` → `version`
-   - Root `.claude-plugin/marketplace.json` → entry where `name == <plugin>`, `version`
-   - Plugin's primary SKILL.md frontmatter → `metadata.version` (only for plugins with a SKILL.md whose dirname matches the plugin name)
-   - `tools/<plugin>/pyproject.toml` (if a CLI counterpart exists) → `[project] version`
+As of 2026-07-21 the cascade is **three files**, regardless of how many skills a
+plugin ships. `metadata.version` was removed from every SKILL.md: it duplicated
+`plugin.json` and the only thing that ever read it was the check verifying it
+still matched. Storing a value in N places so a hook can confirm all N agree is
+work that produces no information. `plugin.json` is now the sole source.
 
-2. **Sub-skill metadata (manual — pre-commit hard-blocks on drift):**
-   - For every `<plugin>/skills/<skill>/SKILL.md`: bump both `metadata.version` (must match `plugin.json`) and `metadata.last_verified` (today's date).
-   - Pre-commit hook reads each sub-skill's `metadata.version` and compares to `plugin.json`. Drift = block, not warning.
-   - Example: `skill-maintainer` has 6 sub-skills (`finish-session`, `init-maintenance`, `maintain`, `quality`, `sync-bundled-ref`, `sync-versions`). All six must move together with the plugin.
+1. `<plugin>/.claude-plugin/plugin.json` → `version`
+2. Root `.claude-plugin/marketplace.json` → entry where `name == <plugin>`
+3. `CHANGELOG.md` → a new entry
 
-3. **Repo-level (manual):**
-   - Root `pyproject.toml` → `version` (every plugin bump pairs with a root version bump)
-   - `CHANGELOG.md` → new entry under root version
-   - `uv lock` → refresh `uv.lock` (else `uv lock --check` fails in CI)
+Plus, only when they exist:
+
+- `tools/<plugin>/pyproject.toml` (CLI counterpart) → `[project] version`
+- Root `pyproject.toml` + `uv lock` when the repo version moves
+
+### What is NOT in the cascade
+
+- **`metadata.version` in any SKILL.md.** Removed. Do not re-add it. The
+  pre-commit hook still validates it *if present* (`[ -n "$sk_ver" ]`), so a
+  stray re-addition gets caught rather than silently drifting.
+- **`metadata.last_verified`.** It means "a human checked this is still
+  correct", which a version bump does not establish. Bumping eight plugins for
+  a mechanical hook change on 2026-07-21 would have marked 17 unreviewed skills
+  freshly verified and moved staleness failures 11 → 5 on no evidence. Write it
+  only when you actually reviewed the skill against its source.
 
 ## Worked example: `skill-maintainer 0.6.3 → 0.6.4` (May 2026)
 

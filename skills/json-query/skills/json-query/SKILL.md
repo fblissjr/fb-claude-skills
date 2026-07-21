@@ -3,7 +3,6 @@ name: json-query
 description: Guide JSON query tool selection and syntax. Use when user needs to extract data from JSON files, search JSON for keys, query nested JSON structures, filter JSON arrays, or process large JSON. Triggers on "query JSON", "extract from JSON", "search JSON", "parse JSON file", "jq alternative", "jsongrep", "jg command", "find in JSON", "JSON path query", "grep JSON", "large JSON file", "process JSON", "JSON extraction".
 metadata:
   author: Fred Bliss
-  version: 0.1.0
   last_verified: 2026-03-27
   review_interval_days: 365
 allowed-tools: "Read,Bash"

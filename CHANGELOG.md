@@ -1,11 +1,32 @@
 # changelog
 
+## 0.36.0
+
+### changed
+- **explainer-video 0.2.0 -> 0.3.0**: generalized the skill beyond the single domain its first build happened to come from. The procedural-asset cookbook in `method.md` is now organized by **shape problem** rather than by subject, and leads with a derivable method (decompose to primitives, silhouette first, oversize the signature feature ~30%, costume beats anatomy, signal over realism) so an uncovered domain can be handled without a matching recipe. Recipes are split into ones actually built versus sketched, so the earned material stays distinguishable. `SKILL.md` gains a `domain` field in the spec, a third style mode (cross-section), and an explicit statement that only geometry and caption register vary by field — never the contract, beats or pipeline.
+- **explainer-video**: widened the skill description, which is the retrieval surface. It previously read software- and character-flavoured and would not have triggered on "animate how a heat pump works" or "show how our approval process flows". Now spans process, mechanism, system, organism, market, supply chain, building and policy, and mentions the WebP inline-in-README output that 0.1.2 added.
+- **explainer-video**: replaced the longer worked example. It is no longer bundled; `skill-retrieval.html` remains as the diagrammatic reference. The playful/moving-camera style now ships without an example — the template scaffold plus the `method.md` recipes are the starting point. Worth replacing with a neutral-subject example when one is needed.
+
+## 0.35.0
+
+### changed
+- **version cascade is now three files, not 3+N.** `metadata.version` removed from all 39 SKILL.md. It duplicated `plugin.json`, and the only thing that ever read it was the check confirming the duplicate still matched — storing a value in N places so a hook can verify all N agree is work that produces no information. A `skill-maintainer` bump used to force 6 SKILL.md edits; `dev-conventions`, `mece-decomposer` and `env-forge` 5 each. Now: `plugin.json` + `marketplace.json` + `CHANGELOG.md`. Both consumers already treated the field as optional (`[ -n "$sk_ver" ]` in the pre-commit, `if (meta?.version)` in skill-dashboard), so a stray re-addition is still caught rather than silently drifting. One code change *was* needed and I initially missed it: the pre-commit's *extraction* is a pipeline (`sed | grep '^ *version:' | head | sed`), and under `set -euo pipefail` a grep that matches nothing aborts the entire hook with a silent exit 1. Tolerating absence in the comparison is not the same as tolerating it in the extraction. Fixed with `|| true`.
+- **`metadata.last_verified` is out of the cascade too.** It asserts a human reviewed the skill against its source, which a version bump does not establish. Documented in CLAUDE.md invariant 1, `docs/internals/plugin-versioning.md`, the `sync-versions` skill, and best_practices.
+- **`dev-conventions`, `dimensional-modeling`, `mece-decomposer` disabled in this repo** via `enabledPlugins: false`. Their SessionStart hooks inject ~3,500 chars of convention text every session, and those conventions are already stated twice here — `.claude/rules/general.md` and the user's global CLAUDE.md. The hooks stay in the plugins because they are the entire point for a repo with nothing written down; they are redundant only *here*.
+
+### added
+- **skill-maintainer 0.10.0 -> 0.11.0**: `_deprecated` added to `SKIP_DIRS`, so units kept for reference but no longer published stop producing permanently-red rows (an unpublished plugin legitimately fails "listed in marketplace.json", and its skills legitimately go stale).
+- **pre-commit**: `claude plugin validate . --strict` gates any staged `marketplace.json`. Unknown top-level fields are warnings by default so a manifest can double as `package.json`; `--strict` promotes them to errors, which is what a hand-edited manifest wants. Verified by injecting `keywords` as a string — the commit is blocked. Skipped when the CLI is absent, so the hook still works without Claude Code installed.
+
+### removed
+- **env-forge deprecated.** Moved to `apps/_deprecated/env-forge/`, dropped from `marketplace.json` `plugins[]` and the uv workspace, removed from the README. Code kept, not deleted. `marketplace.json` gains `"renames": {"env-forge": null}` — the documented graceful-removal path, so existing installs get a "removed from the marketplace" notice instead of `plugin-not-found`. That map is append-only. Staleness failures 11 -> 6.
+
 ## 0.35.0
 
 ### changed
 - **explainer-video 0.1.3 -> 0.2.0**: beat timing is now data. A named `BEATS` array is the single source of timing truth; captions, camera keyframes and `DURATION` all derive from it, and `animate()` addresses beats by name. `SKILL.md` has claimed since 0.1.0 that "retiming a beat is a one-line edit" -- it was false, because timing lived in `CONFIG.captions`, in `ss(t, 5.0, 6.9)` literals scattered through `animate()`, and again in the camera rail. It is now true. Durations accumulate rather than being absolute, so lengthening a beat shifts every later beat instead of silently overlapping it.
 - **explainer-video**: two addressing forms, and the distinction is load-bearing. `ramp`/`pulse` take **fractions of a beat** and stretch when the beat is retimed; `rampS`/`pulseS`/`secAt` take **seconds from the beat start** and do not. A rise across half a beat should stretch; a 0.25s flash or a 0.06s world cut must not, because stretching a cut window uncovers the cut -- the one bug `method.md` says already cost a re-render.
-- **explainer-video**: both worked examples migrated. Verified behavior-preserving by shooting identical timestamps before and after and comparing with `ffmpeg psnr`: 7 of 12 pelican frames byte-identical, the rest 61-97 dB (imperceptible), and **the world-cut transition byte-identical at every sampled frame through it**. The only sub-70 dB frames were caption-fade boundaries, confirmed via difference images to be localized to the caption pill and the title -- a consequence of captions now spanning their beat instead of a hand-kept gap. A `capEnd` field covers the one case that genuinely needs an early-ending caption (the pelican's must clear the flash).
+- **explainer-video**: both worked examples migrated. Verified behavior-preserving by shooting identical timestamps before and after and comparing with `ffmpeg psnr`: 7 of 12 frames byte-identical on the longer scene, the rest 61-97 dB (imperceptible), and **the world-cut transition byte-identical at every sampled frame through it**. The only sub-70 dB frames were caption-fade boundaries, confirmed via difference images to be localized to the caption pill and the title -- a consequence of captions now spanning their beat instead of a hand-kept gap. A `capEnd` field covers the case that genuinely needs an early-ending caption, where it must clear a flash.
 
 ### added
 - **explainer-video**: `method.md` gains "Beats are data, not comments" (including how to verify a migration with psnr and difference images) and "Spike the hostile beat first" -- build the beat that is both load-bearing and compression-hostile before committing to the full table, since it answers "does it read" and "does it encode small enough" in a few seconds of work.
@@ -72,7 +93,7 @@
 ### fixed
 - **explainer-video**: the worked example never set `window.DURATION`, violating the documented recorder contract. `shoot.js` masked it with a `|| 20` fallback that coincidentally matched the example's length — a 30-second scene would have silently rendered only its first 20 seconds. The example now sets it and the fallback is gone, so a missing `DURATION` fails loudly.
 - **explainer-video**: the worked example broke the skill's core determinism invariant. `browL/browR.rotation.z` were set at build time and mutated only inside the finale branch, so nothing reset them for `t < 17.7`. The MP4 renders 0->N once and looked correct, but the HTML loop's second pass showed finale brows during the early beats — the exact HTML/MP4 divergence the architecture claims is impossible. Brows are now restated every frame.
-- **explainer-video**: reframed the example's sinus-lift beat. The subject sat in the upper third against `method.md`'s own middle-third rule; the membrane now centers.
+- **explainer-video**: reframed one beat of a worked example. The subject sat in the upper third against `method.md`'s own middle-third rule; it now centers.
 
 ## 0.31.0
 

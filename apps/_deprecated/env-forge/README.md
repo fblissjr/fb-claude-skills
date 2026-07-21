@@ -1,3 +1,17 @@
+> **DEPRECATED — 2026-07-21.** No longer published to the marketplace and no
+> longer a uv workspace member. The code is kept here for reference, not
+> maintained, and its skills are excluded from quality and freshness checks
+> (`_deprecated` is in `SKIP_DIRS`).
+>
+> Existing installs are handled gracefully: `marketplace.json` carries
+> `"renames": {"env-forge": null}`, so Claude Code drops the key with a
+> "removed from the marketplace" notice rather than failing with
+> `plugin-not-found`. That entry is append-only — do not remove it.
+>
+> To revive: move back under `apps/`, re-add to `marketplace.json` `plugins[]`
+> and the root `pyproject.toml` workspace members, and delete the `renames`
+> entry only after confirming no one still has the old key.
+
 last updated: 2026-03-31
 
 # env-forge

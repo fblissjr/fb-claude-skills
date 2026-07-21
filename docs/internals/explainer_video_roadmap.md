@@ -136,7 +136,7 @@ const KEYS = [
 
 Three files, in order: `templates/scene.template.html`, then
 `examples/skill-retrieval.html` (small, 2 beats — do it second as the proving
-run), then `examples/pelican-implant.html` (20s, 5 beats, two worlds — the real
+run), then the longer worked example (20s, 5 beats, two worlds — the real
 test).
 
 `smoke.js` is the safety net and it is already sufficient: it byte-compares
@@ -147,7 +147,7 @@ That check should be part of the migration, not an afterthought.
 
 ### Cost
 
-Roughly: template ~40 lines changed, `skill-retrieval` ~15, `pelican-implant`
+Roughly: template ~40 lines changed, `skill-retrieval` ~15, the longer example
 ~60, plus `SKILL.md` steps 1-2 and a `method.md` section. Half a session.
 
 ---
@@ -171,7 +171,7 @@ Only parallel capture is genuinely independent.
 
 ## 2. Beat-aware contact sheet
 
-The iteration loop is the real bottleneck — the pelican took four rounds of
+The iteration loop is the real bottleneck — the longer example took four rounds of
 render-look-edit. Right now that means picking timestamps by hand and opening
 PNGs one at a time.
 

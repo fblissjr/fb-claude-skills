@@ -7,7 +7,6 @@ description: >-
   agent state", or "activate agent-state-mcp". Invoke with /agent-state-mcp:enable.
 metadata:
   author: Fred Bliss
-  version: 0.2.0
   last_verified: 2026-04-19
   review_interval_days: 365
 ---

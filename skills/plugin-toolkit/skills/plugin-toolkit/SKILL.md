@@ -3,7 +3,6 @@ name: plugin-toolkit
 description: Analyze, polish, and manage Claude Code plugins. Use when user wants to evaluate a plugin (/plugin-toolkit:analyze), add standard utility commands (/plugin-toolkit:polish), or add/remove/modify plugin features (/plugin-toolkit:feature). Also use when user mentions "plugin analysis", "plugin review", "add command to plugin", or "improve plugin". Also use when user says "review my plugin", "check plugin quality", "what's wrong with my plugin", "add a help command to my plugin", or "improve my plugin structure".
 metadata:
   author: Fred Bliss
-  version: 0.2.0
   last_verified: 2026-07-21
   review_interval_days: 30
 allowed-tools: "Read, Glob, Grep"

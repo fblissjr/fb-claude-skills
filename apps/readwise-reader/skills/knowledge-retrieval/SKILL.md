@@ -3,7 +3,6 @@ name: knowledge-retrieval
 description: Synthesizes knowledge from your Readwise Reader library by prioritizing highlights and annotations across documents. Use when the user asks for references from their reading, wants to surface saved knowledge, or needs cross-document synthesis.
 metadata:
   author: Fred Bliss
-  version: 1.0.0
   last_verified: "2026-04-02"
   review_interval_days: 90
 ---

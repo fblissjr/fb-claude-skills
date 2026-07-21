@@ -3,7 +3,6 @@ name: migrate-oai-app
 description: Converts OpenAI Apps SDK applications to MCP Apps SDK with step-by-step migration guidance and API mapping tables. Use when the user asks to "migrate from OpenAI Apps SDK", "convert OpenAI App to MCP", "port from window.openai", or "migrate from skybridge".
 metadata:
   author: MCP Apps (adapted by Fred Bliss)
-  version: 0.1.0
   last_verified: 2026-03-31
   review_interval_days: 90
 allowed-tools: "Bash(bun *), Bash(bunx *)"

@@ -8,7 +8,6 @@ description: >-
   /skill-maintainer:sync-bundled-ref.
 metadata:
   author: Fred Bliss
-  version: 0.10.0
   last_verified: 2026-07-21
   review_interval_days: 365
 ---

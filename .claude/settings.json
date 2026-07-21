@@ -1,5 +1,11 @@
 {
   "env": {
     "ENABLE_SECURITY_REMINDER": "0"
+  },
+  "enabledPlugins": {
+    "dev-conventions@fb-claude-skills": false,
+    "dimensional-modeling@fb-claude-skills": false,
+    "mece-decomposer@fb-claude-skills": false,
+    "env-forge@fb-claude-skills": false
   }
 }

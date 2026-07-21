@@ -3,7 +3,6 @@ name: library-search
 description: Decomposes natural language queries into targeted searches across Readwise Reader documents, highlights, and tags. Use when the user searches their reading library, asks what they saved about a topic, or wants to find specific highlights.
 metadata:
   author: Fred Bliss
-  version: 1.0.0
   last_verified: "2026-04-02"
   review_interval_days: 90
 ---

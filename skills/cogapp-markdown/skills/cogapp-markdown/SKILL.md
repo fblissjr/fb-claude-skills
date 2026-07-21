@@ -3,7 +3,6 @@ name: cogapp-markdown
 description: Auto-generate and keep markdown documentation in sync with code using cogapp. Use when user says "keep docs in sync", "regenerate readme", "embed --help output", "run cog -r", "documentation is out of date", "sync CLI help into README", or when documentation should be derived from code rather than maintained by hand.
 metadata:
   author: Simon Willison (adapted by Fred Bliss)
-  version: 0.1.0
   last_verified: 2026-03-31
   review_interval_days: 365
 allowed-tools: "Bash(uv run *)"

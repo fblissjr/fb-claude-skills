@@ -8,7 +8,6 @@ description: >
   compliance, description quality, token budgets, freshness, plugin checks, and repo hygiene.
 metadata:
   author: fblissjr
-  version: 1.1.0
   last_verified: 2026-04-02
   review_interval_days: 365
 ---
