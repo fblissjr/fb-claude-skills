@@ -1,5 +1,15 @@
 # changelog
 
+## 0.40.4
+
+### fixed
+- **explainer-video 0.4.1 -> 0.4.2**: three instances of post-refactor staleness, all documentation that never caught up with the 0.2.0 beats change.
+  - `references/audio.md` told you to "slow the beat down in `CONFIG`" — but `CONFIG` has held no timing since 0.2.0, and the same file says four lines later that the beats table is the single source of timing truth. Following it literally sent you to the wrong file to find nothing.
+  - `references/audio.md` also keyed narration by numeric beat index (`{beat: 1}`) when beats have been named since 0.2.0. Rewritten around named beats and aligned with the roadmap's `narration-drives-timing` design, which is implementable only *because* beats are named data — a measured clip duration cannot be written back into a positional index.
+  - `docs/internals/explainer_video_roadmap.md` still specified the addressing helper as `u()` in four places. It was renamed to `ramp()` during the refactor itself, to avoid shadowing the local `u` in `setCamera`.
+
+The first was found by cross-review, the other two by sweeping for the same class afterwards — including one in a file the original sweep had looked at and passed. A sweep scoped to the symptom rather than the class.
+
 ## 0.40.3
 
 ### fixed

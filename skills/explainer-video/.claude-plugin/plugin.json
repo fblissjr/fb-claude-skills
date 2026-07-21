@@ -1,6 +1,6 @@
 {
   "name": "explainer-video",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Deterministic animated explainer sequences for any domain — 3D, diagrammatic or cross-section — as a self-contained looping HTML page, a frame-exact MP4, or an animated WebP that plays inline in a README",
   "author": {
     "name": "Fred Bliss"

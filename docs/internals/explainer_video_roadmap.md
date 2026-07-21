@@ -82,10 +82,10 @@ Almost nothing spans a whole beat — things happen in the first third, or the l
 20%. So the core helper takes a fractional sub-range:
 
 ```js
-// u(t,'load')          -> 0..1 smoothstep across the whole beat
-// u(t,'load',0,.6)     -> 0..1 across the first 60% of it
-// u(t,'load',.5,1)     -> 0..1 across the back half
-function u(t, name, a = 0, b = 1) {
+// ramp(t,'load')       -> 0..1 smoothstep across the whole beat
+// ramp(t,'load',0,.6)  -> 0..1 across the first 60% of it
+// ramp(t,'load',.5,1)  -> 0..1 across the back half
+function ramp(t, name, a = 0, b = 1) {
   const B = BEAT[name];
   return ss(t, B.t0 + a * B.dur, B.t0 + b * B.dur);
 }
@@ -100,10 +100,10 @@ Migration is then mechanical and readable:
 
 | before | after |
 |---|---|
-| `ss(t, 2.4, 4.4)` | `u(t, 'scan')` |
-| `ss(t, 5.0, 6.9)` | `u(t, 'load', 0, .56)` |
+| `ss(t, 2.4, 4.4)` | `ramp(t, 'scan')` |
+| `ss(t, 5.0, 6.9)` | `ramp(t, 'load', 0, .56)` |
 | `bump(t, 6.6, 7.6)` | `pulse(t, 'load', .53, .82)` |
-| `ss(t, 4.15, 4.6)` | `u(t, 'scan', .73, .92)` |
+| `ss(t, 4.15, 4.6)` | `ramp(t, 'scan', .73, .92)` |
 
 The fractions read worse than the literals in isolation, which is worth naming
 honestly. The gain is that they are *relative* — retiming `scan` moves them all
@@ -265,7 +265,7 @@ contains a numeric literal as the 2nd or 3rd argument to `ss`/`bump`:
 
 ```
 warn: skill-retrieval.html:142 — ss(t, 5.0, 6.9) uses literal timings.
-      Use u(t,'<beat>',a,b) so retiming a beat moves this with it.
+      Use ramp(t,'<beat>',a,b) so retiming a beat moves this with it.
 ```
 
 Scoped to the `animate()` body by brace matching, because literals elsewhere are

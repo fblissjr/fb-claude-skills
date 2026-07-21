@@ -11,8 +11,9 @@ Add an `audio` block to the spec, keyed to the same beats:
 
 ```yaml
 audio:
-  narration:            # one clip per beat, or one continuous track
-    - {beat: 1, text: "The pulse leaves the first station...", voice: "..."}
+  mode: narration-drives-timing   # default; or `fixed` to keep beat durations
+  narration:            # one clip per named beat, or one continuous track
+    - {beat: scan, text: "The pulse leaves the first station...", voice: "..."}
   music: {file: bed.mp3, gain_db: -18, duck_under_narration: true}
   sfx:
     - {t: 4.95, file: pop.wav}      # timed to animation events, e.g. the drop
@@ -21,10 +22,11 @@ audio:
 ## Pipeline (all ffmpeg, no scene changes)
 
 1. **Narration**: generate per-beat clips with any TTS (macOS `say -o`, cloud
-   TTS, recorded voice). Because each beat has a fixed [t0, t1], validate that
-   each clip fits its window (`ffprobe` duration ≤ b−a; if not, either slow the
-   beat down in CONFIG — retiming is a one-line edit — or regenerate shorter
-   copy. Prefer retiming the film to rushing the voice.)
+   TTS, recorded voice). Under the default `narration-drives-timing`, measure
+   each clip with `ffprobe` and write the duration back into that beat's `dur`
+   in `BEATS` — which is possible only because beats are named data. Under
+   `mode: fixed`, keep the authored durations and treat a clip that overruns its
+   window as an error. Prefer retiming the film to rushing the voice.
 2. **Assemble the track**: place clips at their beat offsets on a silent base:
    `ffmpeg -f lavfi -i anullsrc=r=48000:cl=stereo -t <dur>` plus one
    `adelay=<t0*1000>` per clip, mixed with `amix`. Music bed via `amix` with
