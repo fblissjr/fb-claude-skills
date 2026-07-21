@@ -285,6 +285,71 @@ def check_version_alignment(root: Path) -> list[Result]:
     return results
 
 
+# Placeholders that legitimately appear in a home-path shape. `<name>`, `$USER`,
+# `[^/]+` and friends are documentation or regex, not a leak.
+_PLACEHOLDER = re.compile(
+    # Anything with substitution/regex syntax in the user slot is a template.
+    r"[<>${}\[\]*?%]"
+    # `/Users/Shared` is a real macOS system path, never a person.
+    r"|^Shared$"
+    # Conventional stand-in names used in documentation and fixtures. Broad
+    # enough to keep the check quiet on legitimate content -- a check that
+    # cries wolf gets bypassed, and this one is meant to gate.
+    r"|^(?:someone|someuser|username|user|you|name|me|foo|bar|baz|test|tester"
+    r"|example|alice|bob|carol|jane|john|jamie|dev|developer|youruser|yourname)$",
+    re.I)
+_HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)/")
+
+
+def check_path_privacy(root: Path) -> list[Result]:
+    """No tracked file may contain an absolute home path with a real username.
+
+    The path-privacy pre-commit hook scans the *diff*, so it only ever sees
+    added lines. A leak introduced before the hook existed -- or in a file the
+    hook has since seen only banner-level edits to -- survives indefinitely.
+    That is not hypothetical: five absolute paths carrying a username sat in a
+    tracked doc for 157 days and through a full docs triage, because every
+    commit that touched the file added lines elsewhere.
+
+    This is the whole-tree counterpart: it audits content rather than changes,
+    so a pre-existing leak cannot hide behind a clean diff. It honours the same
+    `path-privacy: skip-file` and `path-privacy: ignore` markers the scanner
+    uses, so the plugins that legitimately contain these patterns stay silent.
+    """
+    try:
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files"],
+                                 capture_output=True, text=True, timeout=30)
+    except Exception:
+        return []                       # not a git repo, or git unavailable
+    if tracked.returncode != 0:
+        return []
+
+    hits: list[str] = []
+    for rel in tracked.stdout.splitlines():
+        f = root / rel
+        if not f.is_file():
+            continue
+        try:
+            text = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue                    # binary or unreadable: nothing to leak
+        if "path-privacy: skip-file" in text:
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            if "path-privacy: ignore" in line:
+                continue
+            for m in _HOME_PATH.finditer(line):
+                if not _PLACEHOLDER.search(m.group(1)):
+                    hits.append(f"{rel}:{i}")
+                    break
+
+    if not hits:
+        return [Result("repo", "", "no leaked home paths", True, "")]
+    shown = ", ".join(hits[:3]) + (f" (+{len(hits) - 3} more)" if len(hits) > 3 else "")
+    return [Result("repo", "", "no leaked home paths", False,
+                   f"absolute home path with a real username in: {shown}")]
+
+
 def check_changelog_version(root: Path) -> list[Result]:
     """The top `## X.Y.Z` in CHANGELOG.md must equal the root pyproject version.
 
@@ -367,6 +432,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 break
     # Repo-wide plugin/marketplace version alignment.
     results.extend(check_version_alignment(root))
+
+    # Whole-tree path audit -- the pre-commit hook only sees the diff.
+    results.extend(check_path_privacy(root))
 
     # Changelog heading vs repo version.
     results.extend(check_changelog_version(root))

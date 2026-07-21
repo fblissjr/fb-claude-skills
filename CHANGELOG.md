@@ -1,5 +1,16 @@
 # changelog
 
+## 0.46.0
+
+### added
+- **skill-maintainer**: `check_path_privacy` — a whole-tree audit for absolute home paths carrying a real username, wired into `test_repo_hygiene`.
+
+  The path-privacy pre-commit hook scans the **diff**, so it only ever sees added lines. A leak introduced before the hook existed, or in a file since touched only elsewhere, survives indefinitely. That is not hypothetical: five absolute paths carrying a username sat in a tracked doc for **157 days** and through a full docs triage, because every commit that touched the file added lines somewhere else. The hook was working exactly as designed; the invariant it claims to enforce ("every path in repo content") is broader than what a diff scan can reach.
+
+  This audits content rather than changes, so a pre-existing leak cannot hide behind a clean diff. It honours the same `path-privacy: skip-file` and `path-privacy: ignore` markers the plugin's scanner uses, so the plugins that legitimately contain these patterns stay silent, and treats `/Users/Shared`, regex/substitution syntax, and conventional stand-in names as non-leaks — a check that cries wolf gets bypassed, and this one is meant to gate.
+
+  Seven regression tests, both directions, and mutation-tested: neutering the check turns two of them red.
+
 ## 0.45.1
 
 ### fixed
