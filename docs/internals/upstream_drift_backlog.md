@@ -23,6 +23,7 @@ Re-derive with: `skill-maintain upstream`, then diff
 - `once: true` is NOT honored in agent frontmatter
 - frontmatter allow-list gained `disallowed-tools`, `arguments`
 - new `## agent authoring` section
+- `args` / exec form for hooks — all 9 hook entries across 8 plugins converted (2026-07-21)
 
 ## Not yet absorbed
 
@@ -30,7 +31,6 @@ Re-derive with: `skill-maintain upstream`, then diff
 
 - New event `MessageDisplay` (display-only, no matcher, cannot block)
 - Per-type timeout defaults: 600s command/http/mcp_tool, 30s prompt, 60s agent; `UserPromptSubmit` lowers to 30s, `MessageDisplay` to 10s
-- `args` field / exec form — spawns without a shell; recommended whenever the command references `${CLAUDE_PLUGIN_ROOT}`. **Directly relevant to our composable-directive `session-start.sh` pattern.**
 - `SessionStart` gained `reloadSkills`, `initialUserMessage`, `watchPaths`. `reloadSkills` matters for hook-installed skills going live in the same session
 - `SessionStart` matcher gained `fork`; `Notification` gained `agent_needs_input`, `agent_completed`; `StopFailure` gained `overloaded`, `model_not_found`
 - Tool-name matcher separator: `,` now interchangeable with `|`
@@ -40,7 +40,7 @@ Re-derive with: `skill-maintain upstream`, then diff
 - `Stop` hooks force-overridden after 8 consecutive blocks (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`)
 - Multi-hook merge: all matching hooks run in parallel to completion; precedence `deny` > `defer` > `ask` > `allow`
 - Command hooks have no controlling terminal (macOS/Linux, v2.1.139+)
-- `${user_config.*}` is now **rejected** in shell-form hook commands, monitor commands, and MCP `headersHelper`; read `CLAUDE_CODE_PLUGIN_OPTION_<KEY>` or use exec form
+- `${user_config.*}` is now **rejected** in shell-form hook commands, monitor commands, and MCP `headersHelper`; read `CLAUDE_CODE_PLUGIN_OPTION_<KEY>` or use exec form (documented in best_practices; no repo hook uses `user_config` today)
 - `shell` default may be `powershell` on Windows without Git Bash
 
 ### skills
