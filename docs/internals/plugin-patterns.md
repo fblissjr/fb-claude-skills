@@ -93,23 +93,52 @@ same point with `node`.
 
 Keep shell form only where you genuinely need pipes, `&&`, redirects, or globs.
 
-### `timeout` is in seconds
+### `timeout` is in seconds, and its failure mode is undocumented
 
 `"timeout": 3000` is fifty minutes, not three seconds. Both hooks in this repo
-that set the field had it wrong by 1000x from the day they were written —
-`path-privacy` at 3000 and `pyright-autoconfig` at 5000 — and it survived
-review, a version cascade, and an exec-form conversion before anyone noticed.
+that set the field had it wrong from the day they were written — `path-privacy`
+at 3000 and `pyright-autoconfig` at 5000 — and it survived review, a version
+cascade, and an exec-form conversion before anyone noticed. Milliseconds are the
+instinct from every other JS API here, which is why the unit needs stating.
 
-It matters most on `PreToolUse`, which gates tool calls: a hung hook stalls the
-session for the whole window instead of failing fast. And a canceled hook
-reports **no decision**, so the tool call proceeds — the check fails open. A
-wrong timeout does not make the gate stricter, it makes the stall longer.
+Note the upstream default is **600 seconds** for `command`, `http`, and
+`mcp_tool`. So 3000 was five times the default, not a wild outlier — which is
+part of why it read as plausible for so long.
 
-Pick the value by measuring, not by guessing. Both were measured before being
-set: the `path-privacy` scan takes 0.25s against a deliberately extreme 1.4MB,
-20,000-line payload, so 3s is roughly 12x headroom; `pyright-autoconfig` takes
-0.03s, so 5s is ~170x. Milliseconds are the instinct from every other JS API in
-this repo, which is exactly why this one needs stating.
+**What happens when a command hook times out is not documented.** Be careful
+here; we got this wrong once already by generalizing from an adjacent section.
+The two behaviours that *are* documented point in opposite directions:
+
+- **HTTP hooks**: a timeout is a non-blocking error and execution continues —
+  fails open. But that section opens "HTTP hooks use HTTP status codes instead
+  of exit codes" and closes "Unlike command hooks…", so it does not transfer.
+- **Agent SDK callback hooks on `PreToolUse`**: a timeout **blocks** the tool
+  call and Claude receives an error naming the timeout — fails closed.
+
+For a `command` hook, neither passage applies and upstream says nothing. Treat
+it as unknown.
+
+**Choose the value so that the unknown does not matter.** Cross the two
+possibilities with too-short and too-long:
+
+| | too short | too long |
+|---|---|---|
+| **fails open** | silent bypass — the gate skips, the write proceeds, no message | visible stall |
+| **fails closed** | spurious block — annoying, but loud and obvious | visible stall |
+
+Only one cell is catastrophic, and it is the silent one. Every other outcome
+announces itself and gets fixed. So for a hook that gates anything, **err long**:
+a stall is recoverable, a silent bypass is a leaked path nobody sees.
+
+`path-privacy`'s `PreToolUse` scan measures 0.25s against a deliberately extreme
+1.4MB, 20,000-line payload. It is set to **30s** — roughly 120x headroom, still
+fast enough to diagnose inside one turn, and 20x below upstream's own default.
+The earlier value of 3s was 12x headroom measured warm, which compresses under
+load and shell startup, and it bet on a failure mode we cannot actually confirm.
+
+`pyright-autoconfig` is set to 5s on 0.03s of work, and deliberately stays tight:
+it gates nothing, so it has no silent-bypass mode, and its only real risk is
+stalling session start. Different risk profile, different value.
 
 ### The same rule applies inside plugin scripts
 

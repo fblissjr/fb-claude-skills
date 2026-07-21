@@ -1,5 +1,12 @@
 # changelog
 
+## 0.40.0
+
+### fixed
+- **Corrected an inference I had written into guidance as documented fact.** The previous entry claimed a canceled `PreToolUse` hook "reports no decision, so the call proceeds and the check fails open". That is not documented for `command` hooks. It was generalized from the HTTP-hook section, which fails open but opens with "Error handling differs from command hooks" and closes with "Unlike command hooks" — a passage that explicitly excludes the case I applied it to. The one directly-analogous documented case says the **opposite**: an Agent SDK callback hook on `PreToolUse` that exceeds its timeout *blocks* the tool call. Command-hook timeout behaviour is genuinely unspecified, and `plugin-patterns.md` and `best_practices.md` now say so and name both conflicting passages. Caught by the concurrent session; it is the same failure the docs triage existed to remove — reading an adjacent section and treating it as the source.
+- **path-privacy 0.3.0 -> 0.3.1: `PreToolUse` timeout 3s -> 30s.** With the failure mode unknown, the value should be chosen so it cannot matter. Crossing {fails open, fails closed} against {too short, too long} leaves exactly one catastrophic cell — too-short *and* fails-open, a silent bypass where the gate skips and the write proceeds with no message. Every other outcome is a visible stall or a loud block. So for anything that gates, err long: 30s is ~120x headroom over the measured 0.25s, still diagnosable inside one turn, and 20x below upstream's own 600s default. The earlier 3s bet on a failure mode we cannot confirm. `pyright-autoconfig` deliberately stays at 5s — it gates nothing, has no silent-bypass mode, and its only real risk is stalling session start.
+- Also corrects the framing in 0.38.0: upstream's default is 600s, so `3000` was five times the default rather than an obvious outlier, which is part of why it read as plausible through review and a version cascade.
+
 ## 0.39.0
 
 ### fixed
