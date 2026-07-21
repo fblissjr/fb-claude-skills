@@ -107,16 +107,30 @@ part of why it read as plausible for so long.
 
 **What happens when a command hook times out is not documented.** Be careful
 here; we got this wrong once already by generalizing from an adjacent section.
-The two behaviours that *are* documented point in opposite directions:
+Only two timeout behaviours are stated anywhere on
+<https://code.claude.com/docs/en/hooks>, and neither is about command hooks.
+Both are quoted verbatim so the next person can check them without trusting a
+line number into a snapshot we do not keep:
 
-- **HTTP hooks**: a timeout is a non-blocking error and execution continues —
-  fails open. But that section opens "HTTP hooks use HTTP status codes instead
-  of exit codes" and closes "Unlike command hooks…", so it does not transfer.
-- **Agent SDK callback hooks on `PreToolUse`**: a timeout **blocks** the tool
-  call and Claude receives an error naming the timeout — fails closed.
+- Under the **HTTP hook** fields: *"Error handling differs from command hooks:
+  non-2xx responses, connection failures, and timeouts all produce non-blocking
+  errors that allow execution to continue."* Fails open — but the same section
+  says HTTP hooks "use HTTP status codes and response bodies instead of exit
+  codes", so it does not transfer.
+- Under **`### PreToolUse`**: *"An Agent SDK callback hook on `PreToolUse` that
+  exceeds its timeout blocks the tool call, and Claude receives an error result
+  naming the timeout."* Fails closed — but an Agent SDK callback hook is a
+  different mechanism from a `command` hook in `hooks.json`, so this is the same
+  event, not the same surface. It is weak evidence, not an analogy.
 
-For a `command` hook, neither passage applies and upstream says nothing. Treat
-it as unknown.
+For a `command` hook, upstream says nothing. Treat it as unknown.
+
+Two notes on checking this yourself. A summarising fetch of the page may report
+that neither sentence exists — the page is over 230KB and a single sentence is
+easy to lose in summarisation; grep the raw text instead, via
+`skill-maintain upstream`. And quote sentences, not line numbers: the snapshots
+are gitignored and renumber on every fetch, which makes a line citation
+unverifiable by exactly the person who most needs to check it.
 
 **Choose the value so that the unknown does not matter.** Cross the two
 possibilities with too-short and too-long:

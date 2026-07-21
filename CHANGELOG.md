@@ -1,5 +1,11 @@
 # changelog
 
+## 0.40.1
+
+### changed
+- **Timeout citations are now verbatim quotes plus a URL, not line numbers into a gitignored snapshot.** The concurrent session could not reproduce the Agent SDK callback sentence via a summarising fetch of the hooks page and said so rather than accepting the correction — the right call. It does reproduce: the sentence sits under `### PreToolUse` in the raw page at <https://code.claude.com/docs/en/hooks>, which is over 230KB, and a single sentence is easy to lose in summarisation. But the citation form was the real problem: the snapshots are gitignored and renumber on every fetch, so a line number is unverifiable by exactly the person who most needs to check it. Both quotes are now inline, and the guidance notes to grep the raw text rather than trust a summary.
+- **Corrected an overstatement of my own.** I described the Agent SDK callback case as "the one directly-analogous documented case". It is the same *event* (`PreToolUse`) on a different *mechanism* — an SDK callback, not a `command` hook in `hooks.json`. That makes it weak evidence, not an analogy, and the guidance now says so. The conclusion is unchanged: command-hook timeout behaviour is unspecified, and the 30s value was chosen so that the unknown cannot matter.
+
 ## 0.40.0
 
 ### fixed
