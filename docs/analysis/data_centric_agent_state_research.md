@@ -703,8 +703,8 @@ Strategy: Store in `~/.claude/` (same permissions as Claude Code config). Provid
 
 ### this repo's implementation
 
-- `store.py`: `/Users/fredbliss/claude/fb-claude-skills/skill-maintainer/scripts/store.py` -- Current DuckDB star schema implementation
-- `docs_monitor.py`: `/Users/fredbliss/claude/fb-claude-skills/skill-maintainer/scripts/docs_monitor.py` -- CDC pipeline using the store
-- `self_updating_system_design.md`: `/Users/fredbliss/claude/fb-claude-skills/docs/analysis/self_updating_system_design.md` -- Architecture decisions document
-- `config.yaml`: `/Users/fredbliss/claude/fb-claude-skills/skill-maintainer/config.yaml` -- Source registry and skill tracking
-- `state.json`: `/Users/fredbliss/claude/fb-claude-skills/skill-maintainer/state/state.json` -- Backward-compatible state export
+- `store.py`: `skill-maintainer/scripts/store.py` -- Current DuckDB star schema implementation
+- `docs_monitor.py`: `skill-maintainer/scripts/docs_monitor.py` -- CDC pipeline using the store
+- `self_updating_system_design.md`: `docs/analysis/self_updating_system_design.md` -- Architecture decisions document
+- `config.yaml`: `skill-maintainer/config.yaml` -- Source registry and skill tracking
+- `state.json`: `skill-maintainer/state/state.json` -- Backward-compatible state export
