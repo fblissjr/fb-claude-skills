@@ -93,6 +93,24 @@ same point with `node`.
 
 Keep shell form only where you genuinely need pipes, `&&`, redirects, or globs.
 
+### `timeout` is in seconds
+
+`"timeout": 3000` is fifty minutes, not three seconds. Both hooks in this repo
+that set the field had it wrong by 1000x from the day they were written —
+`path-privacy` at 3000 and `pyright-autoconfig` at 5000 — and it survived
+review, a version cascade, and an exec-form conversion before anyone noticed.
+
+It matters most on `PreToolUse`, which gates tool calls: a hung hook stalls the
+session for the whole window instead of failing fast. And a canceled hook
+reports **no decision**, so the tool call proceeds — the check fails open. A
+wrong timeout does not make the gate stricter, it makes the stall longer.
+
+Pick the value by measuring, not by guessing. Both were measured before being
+set: the `path-privacy` scan takes 0.25s against a deliberately extreme 1.4MB,
+20,000-line payload, so 3s is roughly 12x headroom; `pyright-autoconfig` takes
+0.03s, so 5s is ~170x. Milliseconds are the instinct from every other JS API in
+this repo, which is exactly why this one needs stating.
+
 ### The same rule applies inside plugin scripts
 
 This is not a `hooks.json` rule. It is a rule about spawning subprocesses with

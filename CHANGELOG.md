@@ -1,5 +1,13 @@
 # changelog
 
+## 0.38.0
+
+### fixed
+- **Two hook timeouts were wrong by 1000x and would have gone live with the next marketplace update.** Upstream documents `timeout` as *seconds*; `path-privacy` had `3000` (fifty minutes) on its `PreToolUse` hook and `pyright-autoconfig` had `5000` (eighty-three minutes) on `SessionStart`. Both were wrong from the commit that introduced them, survived review and a version cascade, and were spotted only because the exec-form conversion moved the field next to `args` in a diff. Corrected to 3 and 5. The `PreToolUse` one had the real blast radius: it gates every Write and Edit, so a hung hook stalls the session for the whole window — and a canceled hook reports no decision, so the call proceeds and the check fails open. A wrong timeout does not make the gate stricter, only the stall longer. Values were measured before being set: the path-privacy scan runs 0.25s against a deliberately extreme 1.4MB/20,000-line payload (12x headroom at 3s), pyright-autoconfig 0.03s (~170x at 5s).
+
+### added
+- **The seconds unit is now stated in `plugin-patterns.md` and `best_practices.md`.** Milliseconds are the instinct from every other JS API in this repo, which is why it needed saying — and this was a documented field nobody had checked against its own documentation.
+
 ## 0.37.3
 
 ### changed

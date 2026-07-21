@@ -21,7 +21,7 @@
           {
             "type": "command",
             "command": "bash",
-            "timeout": 3000,
+            "timeout": 3,
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"
             ]

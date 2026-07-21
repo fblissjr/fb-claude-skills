@@ -71,7 +71,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.12.0"
+      "version": "0.12.1"
     },
     {
       "name": "json-query",
@@ -89,7 +89,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "writing",
@@ -107,7 +107,7 @@
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "explainer-video",

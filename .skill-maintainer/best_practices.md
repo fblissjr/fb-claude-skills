@@ -57,6 +57,7 @@ Everything in this list loads on every session. Each line is a fixed cost.
 
 - [ ] No hooks that fire on every tool call, file read, or other high-frequency event without documented justification
 - [ ] Hook `type` is one of: `command`, `http`, `mcp_tool`, `prompt`, `agent`
+- [ ] Hook `timeout` is in **seconds**, not milliseconds. `3000` is fifty minutes. It matters most on `PreToolUse`, which gates tool calls -- and a canceled hook reports no decision, so the call proceeds and the check fails open. Measure the hook, then set the value with headroom
 - [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning). `if` applies only to tool events: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied. `FileChanged` is NOT one of them. On any other event a hook with `if` set **never runs** -- it is not ignored, the hook is skipped entirely
 - [ ] `if` Bash matching is best-effort and **fails open** on unparseable commands. Use the permission system, not a hook, for hard allow/deny
 - [ ] `if` file patterns are rooted at the working directory: `Edit(src/**)` matches only top-level `src`. Use `Edit(**/src/**)` for any depth
