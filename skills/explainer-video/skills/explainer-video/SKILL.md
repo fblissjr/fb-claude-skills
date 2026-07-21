@@ -2,7 +2,7 @@
 name: explainer-video
 description: >
   Create animated explainer sequences — 3D, diagrammatic, or cross-section — as
-  a self-contained looping HTML page, an MP4, or an animated WebP that plays
+  a self-contained looping HTML page, an MP4, or an animated WebP/AVIF that plays
   inline in a GitHub README. Use when asked to "make a video / animation /
   walkthrough / explainer / animated sequence / motion graphic" of any subject
   in any field: a process, mechanism, system, architecture, organism, market,
@@ -49,21 +49,34 @@ style:      palette (3-5 colors), tone (playful | neutral | technical),
 subtitles:  on | off  — if on, one caption per beat. Budget by TIME, not
             characters: a character count cannot reference beat duration, and
             the same line is comfortable over 4s and impossible over 1.5s.
-            Aim under ~25 chars per second of *effective* window (beat duration
-            minus capFade, minus any capEnd trim). Observed, not derived —
-            27/sec read fine to one viewer, 37/sec did not
+            Aim under ~27 chars per second of *effective* window (beat duration
+            minus capFade, minus any capEnd trim); the lint warns at 30.
+            Observed, not derived — 27/sec read fine to one viewer, 37/sec did
+            not, and nothing narrows the gap between
 beats:      ordered list of {name, dur, caption, what happens on screen}
             — durations, not absolute times: they accumulate
-outputs:    html | mp4 | loop | poster (see "Delivery" — decide this HERE, not
+outputs:    html | mp4 | loop | avif | poster (see "Delivery" — decide this HERE, not
             at encode time: it constrains the camera, which constrains the beats)
 ```
 
-If the sequence has to play **inline in a GitHub README**, decide that now. Inline
-delivery means an animated WebP, and WebP's cost is driven by how much of the
-frame changes per frame — so it wants a held camera (`CONFIG.sway = 0`, no
-swooping keyframes). That is a beats-level constraint, not an encode flag.
-Diagrammatic sequences hold the camera anyway; narrative walkthroughs do not, and
-should not be forced to. See "Delivery".
+Decide delivery now — it constrains the beats, not just the encode step. Four
+peer options, not a ranked list (full comparison in "Delivery"): **HTML** is the
+interactive source itself — no encode step, no camera constraint, but it does
+not run on github.com (script tags are stripped) and needs Pages or a published
+Artifact. **MP4** is the only format with audio and the only one that gives a
+true player, but that requires an issue/PR attachment — it does not render
+inline in a README. **WebP** decodes cheaply on any hardware and its inline
+rendering is the best-verified case, but its cost is driven by how much of the
+frame changes per frame, so it wants a held camera (`CONFIG.sway = 0`, no
+swooping keyframes) — a beats-level constraint, not an encode flag. **AVIF** is
+far smaller (a moving-camera 12s scene is 0.28 MB vs 15 MB for WebP) and lifts
+the held-camera constraint, but an animated AVIF is an AV1 image sequence
+decoded in software, so it costs decode CPU and was observed to stutter on weak
+machines — a real cost to weigh, and whether it holds on genuinely low-end
+hardware is still open. Choose by context: held-camera diagram → WebP or AVIF
+either; moving-camera walkthrough shipped inline → AVIF, accepting the
+playback-cost question; audio or a guaranteed player → MP4 via attachment; the
+scene itself, interactive → HTML via Pages or an Artifact.
 
 Get the beats table agreed with the user (or settled yourself) before building.
 Retiming a beat later really is a one-line edit — the `BEATS` array is the only
@@ -72,6 +85,20 @@ from it. Re-planning a scene is not.
 
 Beats are **named and contiguous**, and their durations accumulate, so
 lengthening one shifts every later beat instead of silently overlapping it.
+
+Three things to settle here, because they are expensive to fix after building:
+
+- **Every beat needs geometry, not just a caption.** A beat whose content is an
+  *assertion* ("signal quality is what makes it compound") has no natural
+  geometry, and the path of least resistance is to caption it over B-roll. That
+  is the specific hazard of building a film from a document: a doc's argument
+  does not decompose into visible process the way its mechanism does. Invent
+  geometry for the claim or cut the beat.
+- **Vary the durations.** Six beats at an identical length with identical framing
+  reads as a slideshow however good each shot is.
+- **Transit eats the content window.** If a beat spends its first 40% moving the
+  camera or the subject into place, a 3.4s beat gives the mechanism under 2s —
+  below the pacing floor. Budget the content window, not the beat.
 
 ### 2. Scaffold from the template
 
@@ -102,39 +129,96 @@ full contract:
   instant world-cuts hidden under white-flash overlays
 - caption + title overlay as DOM (crisp text in screenshots), styled from CONFIG
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
-  `window.sceneReady`: the recorder contract; do not rename these
+  `window.sceneReady`: the recorder contract; do not rename these. Plus
+  `window.BEATS`, which exposes the beats table so tooling can label frames by
+  beat and check caption timing without re-parsing the source
 
 Replace the placeholder in the two marked sections: `buildWorlds()` (geometry)
 and `animate(t)` (per-beat motion, every property a function of `t`).
 
-### 3. Iterate by looking, not by hoping
-
-Render single frames and actually look at them — composition, exposure, and
-readability problems are invisible in code and obvious in pixels:
+### 3. Review on three axes (looking is the method)
 
 ```bash
-bun run shoot.js <name>.html sample 0,3,7,11  # one PNG per timestamp
+bun run build.js sheet <name>.html            # one frame per beat -> .sheet.jpg + .squint.jpg
+bun run build.js sheet <name>.html 480 0.95   # every beat at its END — catches effects that park
+bun run shoot.js <name>.html sample 0,3,7,11  # arbitrary timestamps, one PNG each
 ```
+
+**Read the generated images with the Read tool — it renders them visually.** A
+filename is not a review, and every check below depends on having actually seen
+the frames. Composition problems are invisible in code and obvious in pixels.
+
+But stills only cover one of the three ways a film fails:
+
+| Axis | Fails | Instrument |
+|---|---|---|
+| **Composition** | within a frame — framing, occlusion, exposure, detail hidden inside geometry | `build.js sheet`, then Read the sheet |
+| **Continuity** | between frames — pops, stalls, sliding feet, camera velocity breaks | watch the loop; check the three shapes in source. `build.js motion` profiles energy per beat but does **not** detect these |
+| **Semantics** | every frame is fine and the film still explains nothing | cover the caption: can you still tell what the beat is about? |
+
+Start with the contact sheet rather than individual samples. One frame per beat
+side by side is what reveals a *systematic* error — six shots each framed the
+same way wrong look like six small problems viewed one at a time, and like one
+bad camera formula when tiled. Generated keyframes (`STAGES.map(...)`) are the
+usual source: verify one before you generate the rest. The `.squint.jpg` strip
+is the silhouette check — a subject that does not read as a distinct shape at
+90px will not read at full size either.
 
 `shoot.js` prints any scene error to stderr — a renamed three API fails quietly
 otherwise, and you do not want to discover it after 600 frames.
 
-Budget 3-4 rounds of look-and-edit. `references/method.md` lists the recurring
-failure modes (washed-out lighting, cutaway detail hidden inside solid
-geometry, world-cut voids, floating features) and their fixes — read it before
-the first render, it saves two rounds.
+Budget 3-4 rounds of look-and-edit for composition — that's the axis rounds
+converge. Continuity and semantics don't get better from repeating this loop;
+they need their own passes, watching the film and covering the caption.
+`references/method.md` organizes the recurring failure modes by axis, with the
+fix for each — read it before the first render, it saves two rounds.
 
 ### 4. Smoke-test the contract
 
 ```bash
 bun run smoke.js                              # all scenes, source + bundled
+bun run build.js motion <name>.html           # per-beat motion profile + dead air
 ```
 
-Checks each scene loads with no console errors, exposes the full contract,
-renders something, and — the one that matters — that `seekTo(t)` is
+`smoke.js` checks each scene loads with no console errors, exposes the full
+contract, renders something, and — the one that matters — that `seekTo(t)` is
 deterministic: same `t` twice, byte-identical pixels. A scene that carries state
 across frames looks fine in the MP4 (rendered 0→N once) and wrong in the HTML
-loop's second pass. Run it before you shoot 600 frames.
+loop's second pass. Run it before you shoot 600 frames. It also emits advisory
+warnings for caption reading speed, captions too wide for the viewport, and
+exposure at **both** tails — washed out and crushed are equally common, and
+which one you get depends on your palette.
+
+`build.js motion` reports how much each beat moves, and where nothing moves at
+all. A beat far below its neighbours is either a deliberate hold or an action
+that never fired; a run of near-identical bars is a slideshow.
+
+It deliberately does **not** claim to find pops or stalls. That was tried and
+measured against a scene with a known discontinuity: whole-frame statistics put
+it at 1.00x its own local baseline — invisible, because the camera and six
+mechanisms were already moving — while a stall detector fired at *every* beat
+boundary on both a bad scene and a good one, because films are supposed to
+settle between beats. A check reporting "0 pops" on a scene that has one is
+worse than no check.
+
+`build.js strip <name>.html <t0> <t1>` tiles **consecutive** frames from one
+narrow window, which is the only pixel-level look at continuity available to a
+reviewer who cannot play the film. Bracketed both ways on a moving-camera scene:
+a 1.2-unit whole-body jump is obvious between adjacent cells, a 0.35 rad limb
+rotation is invisible. It catches world- and object-level breaks, not limb-level
+ones, and does better on a held camera.
+
+So continuity is reviewed by **watching the loop**, by `strip` at a suspect
+moment, and by checking three shapes in source, all of which have shipped bugs:
+
+- `ss()` has zero derivative at both ends, so *summing* per-beat ramps brings
+  continuous motion to a dead stop at every boundary. Span one ramp across the
+  beats instead.
+- Any term inside an `if(during(...))` guard that is nonzero at the beat edge
+  steps to zero in one frame. Use `ramp`/`pulse`, which return to zero on their
+  own, or cover the step with a flash.
+- An effect that finishes its ramp **parks** there. Gate it off at the end of
+  its beat rather than trusting it to leave.
 
 ### 5. Build outputs
 
@@ -153,45 +237,53 @@ chromium` if none.
 
 ```bash
 bun run build.js loop   <name>.html 12 720   # <name>.webp — plays inline in a README
+bun run build.js avif   <name>.html 12 720   # <name>.avif — same shape as loop, different size/decode tradeoff
 bun run build.js poster <name>.html 7.2      # <name>.jpg + the markdown to paste
 ```
 
-HTML: the bundled file is the artifact — it autoplays and loops. It does **not**
-run on github.com (script tags are stripped); serve it via Pages or publish it as
-an Artifact, both of which run it fine.
+Four peer delivery options — HTML, MP4, WebP, AVIF — not a ranked list. Which
+one(s) to ship is a per-project call; choose by what the context needs.
 
-MP4: encode at the fps you shot (30 default), `crf 17`, `yuv420p`. A
-repo-relative mp4 will **not** render as a player — `<video>` is stripped from
-GFM, and GitHub serves video from `raw` as `text/plain; charset=utf-8` with
-`X-Content-Type-Options: nosniff`, so the browser refuses to treat it as media.
-To get a real player, drag the file into an issue or PR composer and use the
-`github.com/user-attachments/assets/...` URL it returns.
+HTML: the bundled file (`build.js bundle`) is a single self-contained artifact
+that runs offline — the interactive, deterministic source itself, not a
+rendering of it. It autoplays and loops. It does **not** run on github.com
+(script tags are stripped); serve it via GitHub Pages or publish it as an
+Artifact, both of which run it fine. A `build.js deploy` helper to automate
+that publish step is a plausible future addition — not built yet.
 
-That content-type allowlist is the whole mechanism, and it is why WebP works
-where mp4 does not — verified by fetching both:
-
-| committed file | what `raw` serves | result in a README |
-|---|---|---|
-| `.webp` | `image/webp` | renders; animation chunks intact |
-| `.mp4` | `text/plain` + `nosniff` | inert |
+MP4: encode at the fps you shot (30 default), `crf 17`, `yuv420p`. It is the
+only delivery format with audio. A repo-relative mp4 will **not** render as a
+player in a README — GitHub serves it from `raw` with a content type no
+browser will treat as media, and `<video>` is stripped from GFM on top of
+that. To get a real player, drag the file into an issue or PR composer and use
+the `github.com/user-attachments/assets/...` URL it returns. The mechanism,
+verified by fetching both, is in `references/method.md`.
 
 **Do not track the loop under Git LFS.** `raw` returns the LFS pointer file, not
 the image, and the README shows a broken image. Most repos with demo videos hit
 exactly this.
 
-Inline motion: GitHub renders animated **WebP**, so `build.js loop` is the output
-that embeds. Choose by what the scene is, not by what squeezes under the 10MB cap:
+Inline motion: GitHub renders animated **WebP** and **AVIF**, so `build.js loop`
+or `build.js avif` is the output that embeds. They are peer options with
+different costs — WebP's is on disk, AVIF's is at playback:
 
 | Scene | Inline artifact | Why |
 |---|---|---|
-| Held camera (diagrammatic, architecture, data flow) | `loop` — the WebP | Cheap and lossless-feeling. `examples/skill-retrieval.html`: **204 KB** for 11s at 720px/12fps, same content as the mp4. |
-| Moving camera (narrative, characters, world cuts) | `poster` — a still linking to the mp4 | A loop here costs megabytes *and* shows different content than the video, so it becomes a second artifact to maintain. A 19 KB still does not. |
+| Held camera (diagram, architecture, data flow) | `loop` (WebP) or `avif` | Either decodes cheaply on a held camera. WebP's inline rendering is the best-verified case; `examples/skill-retrieval.html`: **204 KB** for 11s at 720px/12fps. |
+| Moving camera you must ship inline | `avif` | A WebP loop here costs megabytes; AVIF stays small. Costs decode CPU at playback (below) — weigh against the audience's hardware. |
+| Size or bandwidth matters most | `avif` | ~7-54x smaller than WebP on disk. |
 | Authored diagram, motion *is* the explanation | Neither — hand-write an animated SVG | 10-25 KB, inline, no cap. Wrong tool for a rendered 3D scene; right tool for a diagram. |
 
 Measured on the 12s template scene at 960px/24fps, where the default sway moves
-every pixel every frame: mp4 0.52 MB, gif 12.08 MB, webp **15.56 MB**. Sway is
-free in mp4 and ruinous in WebP. That is the whole reason the camera decision
-belongs in step 1.
+every pixel every frame: mp4 0.52 MB, gif 12.08 MB, webp 15.56 MB, **avif 0.28
+MB**. On the held-camera example (720px/12fps): **avif 0.029 MB** vs 204 KB WebP.
+AVIF wins decisively on size — but an animated AVIF is an AV1 image sequence
+decoded in software, so it costs decode CPU at playback and was observed to
+stutter (worse in macOS Preview than Chrome). Whether it stays smooth on
+genuinely low-end hardware is an open, unconfirmed question — weigh that
+against WebP's better-verified inline rendering when choosing. Full tradeoff,
+encoder settings, and the inline-rendering evidence chain: "Delivering inline
+on GitHub" in `references/method.md`.
 
 Whatever you ship, the scene file stays the single source: never maintain two.
 
@@ -234,7 +326,10 @@ Two constraints that dictate the setup — do not "simplify" them away:
 ## Files
 
 - `templates/scene.template.html` — the scaffold (start here)
-- `templates/shoot.js` / `templates/build.js` — recorder + pipeline (copy beside the scene)
-- `templates/smoke.js` — contract + determinism check (run before a full shoot)
-- `references/method.md` — design method, procedural-asset cookbook, gotchas (L3: read when building)
+- `templates/shoot.js` / `templates/build.js` — recorder + pipeline, incl. `sheet`
+  and `motion` review passes (copy beside the scene)
+- `templates/smoke.js` — contract + determinism check, plus caption and exposure
+  lints (run before a full shoot)
+- `references/method.md` — design method by failure axis, procedural-asset
+  cookbook, gotchas (L3: read when building)
 - `references/audio.md` — narration/music extension design (not yet wired)

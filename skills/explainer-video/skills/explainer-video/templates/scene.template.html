@@ -90,6 +90,10 @@ const lerp=(a,b,u)=>a+(b-a)*u;
 // Zero-width span would be 0/0 -> NaN, which propagates silently into a
 // position (mesh vanishes) or an opacity string. Guard rather than poison.
 const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+// bump() is rise-AND-FALL: it is 0 at BOTH ends and peaks in the middle. Correct
+// for "flash and go"; wrong for "grow and stay" — a burst scaled by bump(u,0,1)
+// shrinks back to nothing exactly when it should be at full size, which shipped
+// once. Use ss() when the effect should arrive and remain.
 const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
 
 /* ---------- beat addressing (use these, never raw timestamps) ----------
@@ -103,6 +107,10 @@ function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+na
 function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
 const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
 const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+// during() is a hard boolean at the beat edges, so any expression gated by it MUST be zero at both edges
+// or it steps discontinuously in one frame and reads as a pop. Safe use: toggling .visible on something
+// with scale already reaching 0. Adding a nonzero offset to a rotation inside if(during(...)) is the exact
+// shape that produced a visible 20-degree arm snap in a real scene. Reach for ramp() or pulse() first.
 const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
 const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
 
@@ -222,6 +230,9 @@ function setOverlay(t){
 
 /* ---------- driver (the recorder contract) ---------- */
 window.DURATION=TOTAL;                                 // derived from BEATS, cannot disagree
+// Exposing the beats table lets external tooling label frames by beat and check caption timing
+// without re-parsing scene source. Read by sheet and motion build commands and caption lints in smoke.js.
+window.BEATS=BEATS;
 window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

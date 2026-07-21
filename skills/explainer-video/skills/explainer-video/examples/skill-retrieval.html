@@ -226,6 +226,7 @@ function setOverlay(t){
 
 /* ---------- driver (the recorder contract) ---------- */
 window.DURATION=TOTAL;
+window.BEATS=BEATS;
 window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

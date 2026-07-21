@@ -2,23 +2,65 @@ last updated: 2026-07-21
 
 # explainer-video roadmap
 
-Design for the queued work on the `explainer-video` plugin (currently 0.1.2).
-Written after building two worked examples and finding that the skill's central
-usability claim is false.
-
-Ordering is deliberate and argued in [Why beats first](#why-beats-first): the
-beats refactor blocks three of the other four items, so doing anything else
-first means doing it twice.
+Roadmap for the `explainer-video` plugin (currently **0.6.0**). Originally
+written at 0.1.2 after finding the skill's central usability claim false; the
+beats refactor that fixed it, and most of the review tooling designed here, have
+since shipped. The design write-ups below are kept as history even where DONE —
+several shipped *differently* than designed, and the deltas are the useful part.
 
 | # | Item | Status | Blocked by |
 |---|---|---|---|
 | 1 | [Named beats as the timing source](#1-named-beats-as-the-timing-source) | **DONE** (0.2.0) | — |
-| 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | designed | 1 |
-| 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed | 1 |
-| 4 | [Magic-number lint](#4-magic-number-lint) | designed, advisory only | 1 |
-| 5 | [Parallel frame capture](#5-parallel-frame-capture) | designed | — |
-| 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | designed | — (not this plugin) |
+| 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | **DONE** (0.6.0, as `build.js sheet`) | 1 |
+| 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed, unbuilt | 1 |
+| 4 | [Caption lint](#4-caption-floor-lint-replaces-the-magic-number-lint) | **DONE** (0.6.0, advisory) | 1 |
+| 5 | [Parallel frame capture](#5-parallel-frame-capture) | designed, unbuilt | — |
+| 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | open | — (not this plugin) |
 | 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
+| 8 | [The three-axis review model](#8-the-three-axis-review-model-06) | **DONE** (0.6.0) | 1 |
+| 9 | [Inline delivery: AVIF vs WebP](#9-inline-delivery-avif-vs-webp-06) | **DONE** (0.6.0), one test open | — |
+| 10 | [A committed flagship example](#10-a-committed-flagship-example) | open | — |
+
+The 0.6.0 items (8, 9) and how 2 and 4 actually shipped are summarized next; the
+older design write-ups follow unchanged from item 1 down.
+
+---
+
+## Shipped in 0.6.0 (the review-tooling session)
+
+A large pass that gave the skill instruments for two failure axes it was blind
+to, and — as importantly — recorded honestly where an instrument could **not** be
+built. Detail lives in `references/method.md` (reorganized around the three axes)
+and the root `CHANGELOG.md` 0.50.0 entry.
+
+- **Contact sheet (item 2) shipped as `build.js sheet`, not `shoot.js sheet`,**
+  and captions each cell via a stdout legend rather than `ffmpeg drawtext` —
+  libfreetype is not guaranteed present in every ffmpeg build, and a hard
+  dependency on it would fail the command. Samples `frac` into each beat (default
+  0.6; `sheet <scene> 480 0.95` puts every beat at its end, which is what catches
+  an effect that parks at the end of its ramp). Ships with a `.squint.jpg`
+  thumbnail strip — the silhouette check the docs had asserted for months with no
+  instrument.
+- **`build.js strip`** — consecutive frames tiled, the only pixel-level look at
+  the continuity axis for a reviewer that cannot play the film. Bracketed both
+  ways: a whole-body jump is visible between cells, a 0.35 rad limb rotation is
+  not. Catches world/object-level breaks, not limb-level ones.
+- **`build.js motion`** — per-beat motion profile + dead-air report. It
+  **deliberately does not** detect pops or stalls: that was built, measured
+  against a known-bad scene, and cut when whole-frame statistics put the defect at
+  1.00x its local baseline and the stall detector fired on a known-good film. A
+  negative result, documented in the code and method.md rather than shipped as a
+  check that lies.
+- **Caption lint (item 4) shipped advisory, not as a hard-fail floor** — see the
+  item 4 note below.
+- **Exposure lint** — both tails (washed-out *and* crushed), because the wash rule
+  turned out palette-conditional; a dark scene refuted the "every render is
+  overexposed" law. Advisory.
+- **`window.BEATS`** added to the scene contract, so tooling labels frames and
+  checks caption timing without re-parsing source. A `manifest` shoot mode emits
+  the beat table as JSON without rendering (used by `motion`).
+- **`build.js video`** now warns and prints the re-encode command past the 10MB
+  attachment ceiling.
 
 ---
 
@@ -171,21 +213,30 @@ Only parallel capture is genuinely independent.
 
 ## 2. Beat-aware contact sheet
 
+> **Shipped in 0.6.0**, with two deltas from the design below:
+> - It is `build.js sheet`, not `shoot.js sheet` — the tiling/legend belongs with
+>   the other ffmpeg pipeline steps.
+> - Cells are **not** captioned with `ffmpeg drawtext`. libfreetype is not
+>   guaranteed present in every ffmpeg build, so a drawtext dependency would fail
+>   the command on some installs; the legend (beat name + `t`) prints to stdout
+>   instead, and the reviewer reads it beside the image.
+>
+> It also samples `frac` into each beat (default 0.6), not a fixed midpoint —
+> `sheet <scene> 480 0.95` puts every beat at its *end*, which is what surfaces an
+> effect that parks at the end of its ramp. And it ships a `.squint.jpg`
+> thumbnail strip for the silhouette check.
+
 The iteration loop is the real bottleneck — the longer example took four rounds of
 render-look-edit. Right now that means picking timestamps by hand and opening
 PNGs one at a time.
 
 ```bash
-bun run shoot.js <scene>.html sheet          # one tiled PNG, every beat's midpoint
+bun run build.js sheet <scene>.html          # tiled PNG, every beat + a squint strip
 ```
 
-Renders the midpoint of each beat, tiles them into a single image, captions each
-cell with the beat name and its `t0-t1`. One look tells you which beat fails.
-Implementation is a montage of existing sample frames — `ffmpeg tile` filter with
-`drawtext`, no new capability.
-
-Deliberately the midpoint, not the start: beat boundaries are transitions and
-show half-finished state.
+Renders a point in each beat, tiles them into a single image. One look tells you
+which beat fails — and, tiled, which failures are *systematic* (the same framing
+error across every beat is one bad camera formula, invisible one frame at a time).
 
 ---
 
@@ -221,6 +272,16 @@ unwanted dependency.
 
 ## 4. Caption floor lint (replaces the magic-number lint)
 
+> **Shipped in 0.6.0 — but advisory, not the hard-fail floor designed here.**
+> Every lint in `smoke.js` (caption speed, caption overflow, exposure) prints a
+> `warn` line and never touches the exit code, on the same reasoning the design
+> below reaches for: a gate on a judgment call gets bypassed. So rather than
+> hard-fail at ~35 CPS and stay silent below, it warns at **30** (inside the
+> unresolved 27-comfortable / 37-unreadable gap, biased to the confirmed-good
+> end) and is otherwise quiet. The "a proxy can reject, cannot approve" principle
+> still holds — a passing scene is unjudged — it is just enforced by not failing
+> rather than by a one-sided threshold.
+
 **Revised twice, and the second revision is the one to build.**
 
 The original design was a magic-number detector — heuristic, false-positive
@@ -255,8 +316,7 @@ original 17-21 threshold never had. But it is one viewer and two data points.
 Tighten the bracket as more scenes get watched; do not treat 35 as settled.
 
 Near-zero false positives by construction, which is what makes it safe to gate.
-Deliberately **not built yet**: the JS is stable pending a code review, and this
-adds a new check to it. Build after.
+Built in 0.6.0 (advisory — see the banner above), after the JS stabilized.
 
 ## 4b. Magic-number lint (dropped)
 
@@ -309,14 +369,84 @@ hook fired.
 version for **every** plugin on every run, not only for the one being touched.
 Cheap, and it closes a hole that persisted across five releases.
 
+Related but not the same: CLAUDE.md invariant 1 was clarified in this repo (a
+skill plugin's `templates/`/`references/`/`examples/` edits trigger the cascade,
+not just SKILL.md) — that documents *when* to bump; this item is the automated
+check that the bump actually landed everywhere. Still open.
+
+---
+
+## 8. The three-axis review model (0.6)
+
+The skill's whole method was "render frames and look at them," which only covers
+failures visible *within* a single frame. `method.md` is now reorganized around
+three independent axes, because the reorganization is what made the gaps visible:
+
+- **Composition** — fails inside one frame (framing, occlusion, exposure, hidden
+  internals). Instrument: look at stills / the contact sheet. Well covered.
+- **Continuity** — fails *between* frames (pops, stalls, sliding feet). No metric
+  works (see the `motion` negative result above); reviewed by watching the loop,
+  `build.js strip`, and three named source-level shapes. This axis had **zero**
+  coverage before 0.6.
+- **Semantics** — every frame is right and the film still explains nothing.
+  Test: cover the caption, ask what the beat is about. A beat that only works with
+  its caption is a slideshow with a 3D background.
+
+The load-bearing lesson, worth keeping: a real scene got four thorough rounds of
+look-and-edit that converged composition cleanly, and two continuity defects rode
+through untouched to a confident all-clear. Rounds of *looking* converge the axis
+stills can show and do nothing for the other two.
+
+---
+
+## 9. Inline delivery: the format comparison (0.6)
+
+Four ways to deliver a scene, and — by explicit decision — **no forced default**.
+Each wins on a different axis; the choice is the user's, per context. The job of
+the tooling and docs is to surface the tradeoff, not to pick.
+
+| Delivery | Size | Plays inline in a README? | Playback | Audio | Notes |
+|---|---|---|---|---|---|
+| **HTML+JS scene** | n/a (hosted) | No (github.com strips `<script>`) | Interactive, exact | — | The source of truth and the richest form; runs on Pages or a published Artifact. `build.js bundle` makes it a single offline file. |
+| **MP4** | small | No — served as `text/plain`; needs an issue/PR attachment URL for a player | Hardware-decoded, smooth everywhere | Yes (attachment player) | The only path with audio. |
+| **AVIF** | smallest (measured 7-54x under WebP) | One real-world observation, not independently confirmed | Software-decoded AV1 sequence — heavier; low-end smoothness unconfirmed | Silent | Lifts the held-camera constraint. |
+| **WebP** | largest (ruinous on a moving camera) | Yes, verified | Light, smooth | Silent | Inline rendering is the best-verified case. |
+
+These are **peers**, not a ranking. Keep the measured facts (sizes, the AVIF
+decode cost, the content-type mechanism, browser support) as decision inputs in
+`method.md`; do not phrase any one as "the default." The single open empirical
+question is whether animated AVIF stays smooth on genuinely low-end hardware —
+until that is watched and recorded, none of the three raster formats is presented
+as safer than the others, just *different*.
+
+Forward: a first-class **deploy-the-HTML-scene** path (package the bundled scene
+and publish it to Pages / as an Artifact) is worth treating as a real delivery
+option rather than a footnote — it is the only form that keeps the interactivity
+and the determinism, and it sidesteps the raster tradeoff entirely. Possible
+`build.js deploy` helper; not built.
+
+---
+
+## 10. A committed flagship example
+
+The repo ships exactly one example: `examples/skill-retrieval.html` — 11s,
+held-camera, diagrammatic (now in html/webp/avif). There is **no committed
+character/"Playful"-style example**; SKILL.md admits as much. The flagship
+walkthrough that exercises a figure, world cuts, and a moving camera was built in
+a sibling project and is not committed here.
+
+Worth a committed hero example that shows the character/moving-camera path end to
+end — it is the case the diagrammatic sample cannot demonstrate, and the one most
+likely to be copied from. Open; deliberately not auto-created.
+
 ---
 
 ## 7. Spike the hostile beat first (method.md addition)
 
-From a freudagent build in progress, and worth generalizing into `method.md`
-during the refactor pass rather than losing it here.
+From a walkthrough built in a sibling project, generalized into `method.md`
+rather than lost here.
 
-That film is 30s and six beats, and beat 5 is a violently wobbling wheel driving
+That film is 30s and six beats, and one beat is a violently wobbling wheel driving
 a second geared one — every pixel changing every frame, which is precisely the
 case that defeats inter-frame compression. It is simultaneously the most
 important beat and the most compression-hostile one.
