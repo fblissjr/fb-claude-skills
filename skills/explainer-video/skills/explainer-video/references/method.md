@@ -61,6 +61,41 @@ Overlay fades belong **inside** their beat. The title fade used to be centred on
 the beat boundary, which spilled title pixels 0.3s into the next beat and made
 retiming non-local. Fade out completes at `t1`; fade in starts after `t0`.
 
+## Build the control
+
+**For any claim that a technique improves something, build the version without it
+and confirm that one is worse. Otherwise you have measured your own effort rather
+than the effect.**
+
+This is the single most useful discipline in this file, and every check and
+threshold here that survived contact with reality has it. Three forms:
+
+| Claim | Control |
+|---|---|
+| "this technique makes it read better" | render it without the technique; confirm the difference is visible |
+| "this check catches the failure" | construct the failing case; confirm the check fails on it |
+| "this threshold is right" | bracket it — one observation confirmed bad above, one confirmed fine below |
+
+Worked instances, each of which changed the outcome:
+
+- `smoke.js`'s blank-frame check was verified against a deliberately blank
+  scene. Without that, a check that never fires is indistinguishable from a
+  check that always passes.
+- The caption floor sits at ~35 CPS because 37 was watched and found
+  unreadable and 27 was watched and found comfortable. The earlier threshold
+  (17-21) had no observation on either side and was wrong by a wide margin.
+- Phase-locking two coupled objects is *claimed* to make causality legible.
+  Untested — and the way to test it is to break the phase deliberately and check
+  whether the broken version reads differently. If it does not, the locking was
+  decorative.
+
+The failure mode this prevents is specific and seductive: you apply a technique,
+the result looks good, and you conclude the technique did it. The result would
+often have looked good anyway. Only the control separates the two.
+
+Brackets built from one viewer are small-n. Tighten them as more scenes get
+watched rather than treating the current numbers as settled.
+
 ## Motion that reads vs causality that reads
 
 These are different problems and the second is harder. A sweep only has to be

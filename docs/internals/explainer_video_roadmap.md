@@ -249,6 +249,11 @@ So the lint that earns its place is a **floor**, not a pacing tool:
   "too long" — the cause is often a `capEnd` trim or fade the author forgot,
   not word count.
 
+The ~35 CPS figure is **bracketed by observation on both sides** — 37 watched and
+found unreadable, 27 watched and found comfortable — which is the evidence the
+original 17-21 threshold never had. But it is one viewer and two data points.
+Tighten the bracket as more scenes get watched; do not treat 35 as settled.
+
 Near-zero false positives by construction, which is what makes it safe to gate.
 Deliberately **not built yet**: the JS is stable pending a code review, and this
 adds a new check to it. Build after.

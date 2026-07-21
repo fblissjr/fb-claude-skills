@@ -1,5 +1,13 @@
 # changelog
 
+## 0.36.4
+
+### added
+- **explainer-video 0.3.3 -> 0.3.4**: `method.md` gains "Build the control", generalizing a discipline that had appeared three times as separate instances. For any claim that a technique improves something, build the version without it and confirm that one is worse — otherwise you have measured your own effort rather than the effect. Three forms tabulated (technique needs a without-it render, check needs a constructed failing case, threshold needs bracketing above and below), each with the worked instance that changed an outcome: the blank-frame check verified against a deliberately blank scene, the caption floor bracketed by a watched-bad 37 CPS and a watched-fine 27 CPS, and phase-locking flagged as claimed-but-uncontrolled. Names the seductive failure it prevents — applying a technique, seeing a good result, and concluding the technique caused it when the result would have looked fine anyway.
+
+### changed
+- **roadmap**: recorded that the ~35 CPS caption floor is bracketed by observation on both sides, which the original 17-21 threshold never was, but is still one viewer and two data points. Tighten as more scenes get watched rather than treating it as settled.
+
 ## 0.37.0
 
 ### removed
