@@ -63,3 +63,45 @@ only a frozen copy (settings, permissions, mcp) were added to
 away. The lesson worth keeping: a copy with no date header cannot be audited,
 and a stale copy is worse than no copy, because a clone can refetch in seconds
 but cannot know what it is reading is five months old.
+
+## 2026-07-21 (later) — deleted the eight bannered survivors
+
+Earlier today this directory was triaged: 26 files deleted, 8 kept with
+permanent banners naming their specific false claims. That compromise is now
+reversed, and the reversal is recorded here rather than left to look like churn.
+
+**Why the banners were not enough.** Retrieval in this repo is frequently
+grep-based. A grep hit lands mid-file, below the banner, on unbannered stale
+prose — so the mitigation only works for a whole-file read, which is not how
+these documents are actually consumed. `subagents_and_agent_teams.md` still
+asserted "subagents cannot spawn other subagents" as a key constraint in its
+body, which is false and load-bearing for anyone designing delegation.
+
+**Deleted (7):** subagents_and_agent_teams, memory_and_rules_system,
+marketplace_distribution_patterns, plugin_system_architecture,
+mcp_apps_and_ui_development, hooks_system_patterns, cross_surface_compatibility
+— the whole 2026-02-19 cohort. Everything durable in them is superseded by
+`.skill-maintainer/best_practices.md` (which is *maintained*), duplicated by
+tracked upstream snapshots, shipped in `skills/mcp-apps/references/`, or
+describes in-repo code that is its own source of truth.
+
+**Also deleted:** `docs/reports/claude_ecosystem_synthesis.md` — 13 of its 15
+analysis links were dead. A 706-line synthesis of documents that no longer
+exist is worse than no synthesis.
+
+**Kept (3):** `data_centric_agent_state_research.md` (the one genuinely
+irreplaceable file — the comparative survey and DuckDB rationale behind
+`tools/agent-state`; VISION.md asserts the conclusion but not the comparison),
+`mcp_protocol_and_servers.md` (verified current, linked from CLAUDE.md), and
+this log.
+
+**Salvaged before deletion:** the hook anti-pattern catalog, into
+`docs/internals/plugin-patterns.md` — but only the items that are environmental
+or that we verified independently. Importing the unverified remainder into a
+maintained document would have moved the problem rather than solved it.
+
+**What is lost, plainly:** the six-surface compatibility matrix, the plugin
+readiness checklist, the marketplace source-type table, the memory-vs-skills
+comparison tables, and prose write-ups of mece-decomposer and the plugin-toolkit
+agent pipeline. All regenerable from tracked sources; none were measurements.
+

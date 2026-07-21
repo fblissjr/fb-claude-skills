@@ -448,9 +448,6 @@ pkg/model/         -- data models for server.json
 
 ### Related Documents
 
-- `docs/analysis/mcp_apps_and_ui_development.md` -- MCP App patterns, React frontends
-- `docs/analysis/plugin_system_architecture.md` -- plugin/MCP server bundling, plugin.json vs .mcp.json
-- `docs/analysis/cross_surface_compatibility.md` -- transport compatibility across Claude surfaces
 
 ### .mcp.json Files in This Repository
 

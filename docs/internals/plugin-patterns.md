@@ -24,7 +24,6 @@ plugin-name/
 
 Components in default directories (`skills/`, `agents/`) are auto-discovered. Don't list them in `plugin.json`.
 
-For full plugin architecture, schemas, and patterns, see [docs/analysis/plugin_system_architecture.md](../analysis/plugin_system_architecture.md).
 
 ## Hooks vs. skills (the directive distinction)
 
@@ -224,3 +223,34 @@ For local DuckDB instances under `<HOME>/.claude/` (e.g., `agent_state.duckdb`) 
 ## Schema evolution: production-facing
 
 The exception to greenfield. `marketplace.json` and any data shape consumed by users of installed plugins needs additive evolution: add fields, don't rename, don't drop. Use the existing version cascade to carry users forward. Applies to MCP tool schemas, agent-state tables exposed by `agent-state-mcp`, and any artifact other repos pull from this one.
+
+## Hook anti-patterns
+
+Salvaged from `docs/analysis/hooks_system_patterns.md` before it was deleted on
+2026-07-21. Only the items that are environmental, or that we verified
+independently, were kept — the rest of that document's claims were unverified
+against current upstream and importing them here would have moved the problem
+rather than solved it.
+
+- **Mixing exit codes and JSON.** Exit 2 makes Claude Code read stderr and ignore
+  stdout entirely. Pick one: exit 2 + stderr to block, or exit 0 + JSON stdout
+  for a structured decision. (Verified 2026-07-21: only exit 2 blocks; exit 0
+  means "no decision reported" and does *not* approve; exit 1 is a non-blocking
+  error despite being the conventional Unix failure code.)
+- **Blocking on a non-blockable event.** Exit 2 from `PostToolUse`,
+  `SessionStart`, `SessionEnd` or `PreCompact` blocks nothing — the action has
+  already happened. The stderr is shown; the action proceeds.
+- **Shell profile pollution.** An unconditional `echo` in `~/.zshrc` prepends to
+  hook stdout and breaks JSON parsing. Guard with `if [[ $- == *i* ]]`.
+- **Unquoted variable expansions.** `$FILE_PATH` word-splits on paths containing
+  spaces. This is the same defect class as shell-form hook commands and as
+  `execSync` with an interpolated path — see "Hooks use exec form". It bit this
+  repo's own plugin scripts on 2026-07-21.
+- **Treating a matcher as a security boundary.** Matchers filter the tool name,
+  which is not user-controlled. Tool *inputs* still need validating inside the
+  hook.
+- **Trusting a diff-scoped check to enforce a whole-tree invariant.** A
+  pre-commit hook sees only added lines, so anything predating it survives
+  indefinitely. If the rule is about repo *content*, something must audit
+  content — `check_path_privacy` exists because five leaked paths survived 157
+  days and a full docs triage behind clean diffs.

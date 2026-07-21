@@ -282,7 +282,6 @@ The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources 
 See [docs/README.md](docs/README.md) for the full documentation index: domain reports, ecosystem synthesis, internals reference, and captured upstream docs.
 
 Highlights:
-- [Claude Ecosystem Synthesis](docs/reports/claude_ecosystem_synthesis.md) -- full ecosystem overview, decision tree, maturity assessment
 - [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
 - [docs/internals/](docs/internals/) -- repo-specific operating reference (plugin versioning cascade, plugin patterns, maintenance commands, gotchas)
 - [docs/analysis/index.md](docs/analysis/index.md) -- wiki-style index of domain reports tagged by kind (entity / concept / audit / synthesis)

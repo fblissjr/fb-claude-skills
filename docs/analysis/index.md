@@ -2,46 +2,11 @@ last updated: 2026-07-21
 
 # analysis index
 
-Wiki-style index of `docs/analysis/`. Reports are tagged by kind so retrieval is by intent (looking for an entity description vs. a pattern catalog vs. a snapshot audit) rather than alphabetic order.
+Most of this directory was deleted on 2026-07-21. What remains is what could not
+be regenerated from a maintained source. See `log.md` for the reasoning.
 
-For the umbrella documentation index across `docs/` (guides, internals, package docs, captured external docs), see [../README.md](../README.md).
-
-## entity
-
-Describe a thing the wider Claude/MCP ecosystem defines. Stable when the upstream spec is stable.
-
-| Document | Topic |
-|----------|-------|
-| [plugin_system_architecture.md](plugin_system_architecture.md) | Claude Code plugin anatomy, schema, components, auto-discovery |
-| [mcp_protocol_and_servers.md](mcp_protocol_and_servers.md) | MCP protocol, primitives, transports, SDKs, registry |
-| [memory_and_rules_system.md](memory_and_rules_system.md) | Memory hierarchy, auto memory, CLAUDE.md imports, rules |
-| [subagents_and_agent_teams.md](subagents_and_agent_teams.md) | Custom agents, tool control, teams, delegation |
-
-## concept
-
-Pattern, strategy, or principle this repo applies. Updated when our practice evolves.
-
-| Document | Topic |
-|----------|-------|
-| [hooks_system_patterns.md](hooks_system_patterns.md) | Hook events, types, matchers, security, automation patterns |
-| [marketplace_distribution_patterns.md](marketplace_distribution_patterns.md) | Marketplace schema, source types, monorepo, enterprise distribution |
-| [mcp_apps_and_ui_development.md](mcp_apps_and_ui_development.md) | MCP Apps SDK, UI linkage, React hooks, framework templates |
-| [cross_surface_compatibility.md](cross_surface_compatibility.md) | Surface matrix, transports, permissions, headless mode |
-| [data_centric_agent_state_research.md](data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
-
-## audit
-
-Time-bound assessment. Useful as a snapshot; superseded as the ecosystem evolves.
-
-| Document | Topic |
-|----------|-------|
-
-## synthesis
-
-Cross-cutting integrative work that pulls from multiple of the above. (None today; the closest equivalent is [../reports/claude_ecosystem_synthesis.md](../reports/claude_ecosystem_synthesis.md), which lives one level up.)
-
-## maintenance notes
-
-- Each report's `last updated` line at the top is the freshness signal. `skill-maintain freshness` doesn't yet read `docs/analysis/` — staleness here is checked by the upstream change detector (`skill-maintain upstream`) when an external source page changes.
-- `skill-maintain lint` flags any `*.md` in this directory not linked from `docs/README.md` or this index. Add new reports to both.
-- See [log.md](log.md) for the narrative ingest/update history.
+| Document | Why it survived |
+|---|---|
+| [data_centric_agent_state_research.md](data_centric_agent_state_research.md) | Decision record: the comparative survey and DuckDB-vs-alternatives rationale behind `tools/agent-state`. `VISION.md` asserts the conclusion; this holds the comparison. Nobody will redo it. |
+| [mcp_protocol_and_servers.md](mcp_protocol_and_servers.md) | Verified current, linked from `CLAUDE.md`, describes a stable external spec. |
+| [log.md](log.md) | Append-only decision log, including for this deletion. |

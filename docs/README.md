@@ -38,21 +38,13 @@ Design documents and research created during development. Cover the full Claude 
 
 | Document | Description |
 |----------|-------------|
-| [plugin_system_architecture.md](analysis/plugin_system_architecture.md) | Plugin anatomy, schema, components, auto-discovery, audit |
-| [marketplace_distribution_patterns.md](analysis/marketplace_distribution_patterns.md) | Marketplace schema, source types, monorepo, enterprise distribution |
 | [mcp_protocol_and_servers.md](analysis/mcp_protocol_and_servers.md) | MCP protocol, primitives, transports, SDKs, registry |
-| [mcp_apps_and_ui_development.md](analysis/mcp_apps_and_ui_development.md) | MCP Apps SDK, UI linkage, React hooks, framework templates |
-| [hooks_system_patterns.md](analysis/hooks_system_patterns.md) | Hook events, types, matchers, security, automation patterns |
-| [subagents_and_agent_teams.md](analysis/subagents_and_agent_teams.md) | Custom agents, tool control, teams, delegation patterns |
-| [cross_surface_compatibility.md](analysis/cross_surface_compatibility.md) | Surface matrix, transports, permissions, headless mode |
 | [data_centric_agent_state_research.md](analysis/data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
-| [memory_and_rules_system.md](analysis/memory_and_rules_system.md) | Memory hierarchy, auto memory, CLAUDE.md imports, rules |
 
 ## synthesis (`reports/`)
 
 | Document | Description |
 |----------|-------------|
-| [claude_ecosystem_synthesis.md](reports/claude_ecosystem_synthesis.md) | Full ecosystem overview, decision tree, maturity assessment |
 
 ## upstream Claude Code docs
 

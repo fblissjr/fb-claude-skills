@@ -1,5 +1,22 @@
 # changelog
 
+## 0.47.0
+
+### removed
+- **docs/analysis**: deleted the seven bannered survivors and `docs/reports/claude_ecosystem_synthesis.md`. `docs/` is now 184K across the essentials.
+
+  This reverses the compromise reached earlier the same day, and the reasoning is recorded in `docs/analysis/log.md` rather than left to look like churn. **The banners did not work.** Retrieval here is frequently grep-based, and a grep hit lands mid-file, below the banner, on unbannered stale prose — the mitigation only protects a whole-file read, which is not how these are consumed. `subagents_and_agent_teams.md` still asserted "subagents cannot spawn other subagents" as a key constraint in its body, which is false and load-bearing for anyone designing delegation.
+
+  Everything durable in the deleted cohort is superseded by `.skill-maintainer/best_practices.md` (which is *maintained*), duplicated by tracked upstream snapshots, shipped in `skills/mcp-apps/references/`, or describes in-repo code that is its own source of truth. The synthesis report went too: 13 of its 15 analysis links were dead, and a 706-line synthesis of documents that no longer exist is worse than none.
+
+  **Kept:** `data_centric_agent_state_research.md` — the one irreplaceable file, holding the comparative survey and DuckDB rationale behind `tools/agent-state`, where `VISION.md` asserts the conclusion but not the comparison. Plus `mcp_protocol_and_servers.md` (verified current) and the log.
+
+### added
+- **docs/internals/plugin-patterns.md**: a hook anti-pattern section salvaged before deletion — but only the items that are environmental or that we verified independently. Importing the unverified remainder into a maintained document would have moved the problem rather than solved it. Includes the lesson from this session's own leak: a diff-scoped check cannot enforce a whole-tree invariant.
+
+### fixed
+- **branches**: removed two stale local review branches and their worktrees. Verified first that neither held unmerged content — both were squashed snapshots strictly behind `main`. Also confirmed `origin/claude/romantic-brattain` (Feb 2026) is fully landed: its `mcp-app` sources are byte-identical to `main`'s copies under `apps/`, and its `commands/` became `main`'s `skills/`. It reads as unmerged only because the `apps/` restructure moved the paths.
+
 ## 0.46.0
 
 ### added
