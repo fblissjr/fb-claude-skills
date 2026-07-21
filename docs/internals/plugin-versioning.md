@@ -2,7 +2,7 @@ last updated: 2026-07-21
 
 # Plugin versioning
 
-The full version cascade for any plugin content change in this repo. The `/skill-maintainer:sync-versions` skill covers four sources atomically; the rest is manual.
+The full version cascade for any plugin content change in this repo.
 
 ## What counts as "plugin content"
 
@@ -44,7 +44,7 @@ Plus, only when they exist:
   freshly verified and moved staleness failures 11 → 5 on no evidence. Write it
   only when you actually reviewed the skill against its source.
 
-## Worked example: `skill-maintainer 0.6.3 → 0.6.4` (May 2026)
+## Worked example: `skill-maintainer 0.6.3 → 0.6.4`
 
 Files touched in one commit:
 
@@ -52,17 +52,20 @@ Files touched in one commit:
 - `skills/skill-maintainer/.claude-plugin/plugin.json` → `0.6.4`
 - `.claude-plugin/marketplace.json` → `skill-maintainer` entry version `0.6.4`
 - `tools/skill-maintainer/pyproject.toml` → `0.6.4`
-- 6 × `skills/skill-maintainer/skills/*/SKILL.md` → `metadata.version: 0.6.4`, `metadata.last_verified: 2026-05-04`
-- `pyproject.toml` (root) → `0.24.4`
-- `CHANGELOG.md` — new `## 0.24.4` entry
+- `pyproject.toml` (root) → bumped
+- `CHANGELOG.md` — matching new `## X.Y.Z` entry at the top
 - `uv.lock` — refreshed via `uv lock`
 
-13 files in one commit. Pre-commit validates each SKILL.md and confirms version alignment before allowing the commit.
+Seven files. **No SKILL.md is touched** — `metadata.version` was removed from
+every SKILL.md on 2026-07-21 and must not be re-added; see above. An earlier
+version of this example listed six SKILL.md edits and a `last_verified` bump,
+which is now exactly the wrong thing to copy.
 
 ## Common mistakes
 
 - **Forgetting `uv lock`.** Local commit succeeds (the hook doesn't run lock check); CI later fails on `uv lock --check`.
-- **Bumping plugin.json but missing a sub-skill.** Pre-commit blocks with a `VERSION MISMATCH` line per drift. Re-stage the missed sub-skill and retry.
+- **Re-adding `metadata.version` to a SKILL.md.** Pre-commit still validates the field *if present*, so a stray re-addition is caught rather than drifting silently. It should not be there at all.
+- **Changelog heading out of step with the root version.** `check_changelog_version` compares the top `## X.Y.Z` against `pyproject.toml` and gates on it.
 - **Editing `tools/<plugin>/` source without bumping plugin version.** The hook only warns (no version-bearing file is staged inside the plugin directory), so it's easy to miss. Treat `tools/<plugin>/` source as plugin content.
 - **Major bump without a CHANGELOG entry.** No mechanical block; reviewer catches it. Always pair the version bump with the changelog narrative.
 

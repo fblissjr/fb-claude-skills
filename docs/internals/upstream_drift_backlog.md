@@ -23,7 +23,7 @@ Re-derive with: `skill-maintain upstream`, then diff
 - `once: true` is NOT honored in agent frontmatter
 - frontmatter allow-list gained `disallowed-tools`, `arguments`
 - new `## agent authoring` section
-- `args` / exec form for hooks — all 9 hook entries across 8 plugins converted (2026-07-21)
+- `args` / exec form for hooks — all 10 hook entries across 8 plugins converted (2026-07-21)
 
 ## Not yet absorbed
 
@@ -109,6 +109,6 @@ split it into `last_changed` (mechanical) and `last_verified` (a human claim).
 ## Repo gaps worth deciding on
 
 - `displayName` — unused across all 19 plugins. `name` is the stable install key; `displayName` is the only way to relabel the `/plugin` picker without breaking installs
-- `renames` — absent from `marketplace.json`. Any future rename/removal gives existing users `plugin-not-found`. Append-only history
+- ~~`renames` — absent from `marketplace.json`.~~ **Resolved 2026-07-21**: added as `"renames": {"env-forge": null}` when env-forge was deprecated. Append-only history
 - `defaultEnabled: false` — candidates are the SessionStart-hook plugins that inject context every session (`dev-conventions`, `dimensional-modeling`, `tui-design`, `env-forge`, `mece-decomposer`, `pyright-autoconfig`). Would make ambient cost opt-in
 - Marketplace top-level `description` — we only set `metadata.description`; the validator warns on the top-level field

@@ -1,5 +1,14 @@
 # changelog
 
+## 0.45.1
+
+### fixed
+- **docs**: reconciled repo documentation with the repo's actual state, from a parallel consistency review.
+  - `CLAUDE.md` and `docs/internals/gotchas.md` both said **four** plugins are disabled via `enabledPlugins`; `settings.json` has three. Corrected to three, with the reason recorded: `env-forge` is *deprecated*, not disabled — the `renames` map handles its removal, and an `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.
+  - `README.md` listed `explainer-video` twice in the plugins table with conflicting descriptions, twice in the install block, and twice in the invocation list. It also still advertised an "environment synthesis" grouping whose section was removed with env-forge, and omitted `pyright-autoconfig` entirely despite it shipping in the marketplace.
+  - `docs/internals/plugin-versioning.md` contradicted itself: the header still described a four-source cascade, and the worked example walked the reader through adding `metadata.version` and `metadata.last_verified` to six SKILL.md files — twenty lines after the document says the field was removed and must not be re-added. A reader skimming for the procedure would have landed on step-by-step instructions to do the forbidden thing. The example is now seven files with no SKILL.md, and the common-mistakes list reflects the checks that actually exist.
+  - `docs/internals/upstream_drift_backlog.md` still listed `renames` as absent and the hook-entry count as 9; both were resolved or wrong.
+
 ## 0.45.0
 
 ### fixed
