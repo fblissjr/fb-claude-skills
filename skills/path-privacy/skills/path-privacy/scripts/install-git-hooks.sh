@@ -94,9 +94,11 @@ fi
 # old one, which is deleted 14 days later -- so this path goes stale on every
 # update and dies on a 14-day fuse. Re-resolve to the newest installed copy.
 if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
-  for candidate in "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
-    [ -x "\$candidate" ] && PATH_PRIVACY_SCRIPT="\$candidate"
-  done
+  # sort -V, not last-wins iteration. Glob order is lexicographic, so with
+  # 0.1.9 and 0.1.10 both cached the loop picked 0.1.9 -- the older scanner.
+  # Only reachable when two updates land inside the 14-day orphan window, but
+  # "newest" has to actually mean newest.
+  PATH_PRIVACY_SCRIPT="\$(ls -1 "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME" 2>/dev/null | sort -V | tail -1)"
 fi
 
 # Fail CLOSED and loudly. This hook is a leak gate; if it cannot run, allowing

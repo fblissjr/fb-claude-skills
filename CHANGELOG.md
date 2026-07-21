@@ -1,5 +1,10 @@
 # changelog
 
+## 0.41.1
+
+### fixed
+- **path-privacy 0.3.1 -> 0.3.2: the wrapper's fallback picked the lexicographically last cached version, not the newest.** Found by cross-review. Glob order is lexicographic, so with `0.1.9` and `0.1.10` both cached the last-wins loop selected `0.1.9` — the older scanner. Verified against a constructed cache: last-wins picks `0.2.0` from `{0.1.6, 0.1.9, 0.1.10, 0.2.0, 0.10.0}` while `sort -V` correctly orders `0.1.6 -> 0.1.9 -> 0.1.10 -> 0.2.0 -> 0.10.0` and picks `0.10.0`. Now uses `sort -V | tail -1`. Narrow — the fallback only runs once the frozen path is gone, which usually leaves one version — but it is reachable when two updates land inside the 14-day orphan window, and "newest" has to mean newest. All three controls re-run after the change: frozen path valid passes, frozen path broken self-heals and still blocks a real leak, nothing found fails closed with the full diagnostic.
+
 ## 0.41.0
 
 ### added
