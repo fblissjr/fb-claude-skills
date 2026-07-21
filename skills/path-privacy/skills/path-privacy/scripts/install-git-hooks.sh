@@ -81,6 +81,7 @@ install_wrapper() {
 set -u
 HOOK_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 LOCAL_HOOK="\$HOOK_DIR/$(basename "$hook").local"
+SCRIPT_NAME="$(basename "$source_script")"
 PATH_PRIVACY_SCRIPT="$source_script"
 
 # Run the pre-existing hook first, if any.
@@ -88,10 +89,28 @@ if [ -x "\$LOCAL_HOOK" ]; then
   "\$LOCAL_HOOK" "\$@" || exit \$?
 fi
 
-# Run path-privacy.
-if [ -x "\$PATH_PRIVACY_SCRIPT" ]; then
-  "\$PATH_PRIVACY_SCRIPT" "\$@" || exit \$?
+# The path above is frozen at install time and points into the VERSION-STAMPED
+# plugin cache. A plugin update writes a new version directory and orphans the
+# old one, which is deleted 14 days later -- so this path goes stale on every
+# update and dies on a 14-day fuse. Re-resolve to the newest installed copy.
+if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
+  for candidate in "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
+    [ -x "\$candidate" ] && PATH_PRIVACY_SCRIPT="\$candidate"
+  done
 fi
+
+# Fail CLOSED and loudly. This hook is a leak gate; if it cannot run, allowing
+# the commit silently is the worst outcome -- that is how a gate becomes
+# decorative without anyone noticing.
+if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
+  echo "path-privacy: scanner not found -- the leak gate is NOT running." >&2
+  echo "  Looked for: \$SCRIPT_NAME under \$HOME/.claude/plugins/cache/*/path-privacy/*/" >&2
+  echo "  Reinstall:  /path-privacy:path-privacy   (or re-run install-git-hooks.sh)" >&2
+  echo "  Remove:     rm \$HOOK_DIR/$(basename "$hook")" >&2
+  exit 1
+fi
+
+"\$PATH_PRIVACY_SCRIPT" "\$@" || exit \$?
 exit 0
 EOF
   chmod +x "$hook"

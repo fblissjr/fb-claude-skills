@@ -1,5 +1,14 @@
 # changelog
 
+## 0.39.0
+
+### fixed
+- **path-privacy 0.2.1 -> 0.3.0: the git-hook wrapper died on a 14-day fuse after every plugin update, and failed open when it did.** `install-git-hooks.sh` froze an absolute path to the scanner at install time, pointing into the **version-stamped** plugin cache (`.../path-privacy/0.1.6/...`). Updating the plugin writes a new version directory and orphans the old one, which Claude Code deletes 14 days later (plugins-reference: "removed automatically 14 days later"). For those 14 days the hook silently ran the *old* scanner, so a fix to the scanner never reached the repo; after 14 days the guard `if [ -x "$PATH_PRIVACY_SCRIPT" ]` went false and the wrapper `exit 0`'d — the leak gate silently doing nothing, in every repo it had ever been installed into. Verified by constructing the pruned state: the old wrapper exits 0 with no output.
+- The generated wrapper now re-resolves to the newest installed copy when the frozen path is gone, and if it still cannot find the scanner it **fails closed** with a message naming what it looked for and how to reinstall or remove it. A leak gate that cannot run must not let the commit through quietly. Verified across three cases: frozen path valid (passes), frozen path broken (self-heals via discovery and still blocks a real leak), no copy anywhere (exits 1 with remediation).
+
+### note
+- **Existing installs are not self-correcting.** Any repo where `install-git-hooks.sh` was run before this release still has the old frozen-path wrapper. Re-run the installer there to pick up the hardened version.
+
 ## 0.38.0
 
 ### fixed
