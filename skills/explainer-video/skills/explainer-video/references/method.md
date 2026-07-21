@@ -43,6 +43,24 @@ the shipped scenes the only sub-70 dB frames were caption-fade boundaries,
 localized to the caption pill, and a precision-critical world cut came out
 byte-identical.
 
+## Dwell: measured, not derived
+
+Two numbers observed by rendering and watching, not reasoned about. Treat them
+as starting points and re-measure rather than trusting the arithmetic:
+
+- **A sweep highlight at ±0.55 units wide reads as a flicker.** At ±0.9 the lit
+  phases of neighbouring elements overlap and it reads as a wave passing
+  through. Width mattered more than beat length: stretching the beat alone just
+  spaced the flickers further apart.
+- **A beat under ~3s felt rushed even when its caption was comfortably
+  legible.** Caption speed and motion speed are separate problems and the
+  caption is the weaker signal — a beat can pass a reading-speed check and still
+  be too fast to follow.
+
+Overlay fades belong **inside** their beat. The title fade used to be centred on
+the beat boundary, which spilled title pixels 0.3s into the next beat and made
+retiming non-local. Fade out completes at `t1`; fade in starts after `t0`.
+
 ## Beats before geometry
 
 A sequence is a list of beats — (time range, caption, one visible change). Write

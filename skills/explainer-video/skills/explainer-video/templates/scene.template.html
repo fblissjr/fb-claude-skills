@@ -192,7 +192,9 @@ const flashEl=document.getElementById('flash');
 function setOverlay(t){
   // Title card spans the first beat, whatever it is called or how long it runs.
   const T=BEAT[BEATS[0].name];
-  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.3,T.t1+.3))).toFixed(3);
+  // Fade OUT completes at the beat boundary, not centred on it: a beat's content
+  // stays inside its own beat, so retiming the title never bleeds into the next.
+  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
 
   // Captions ARE beats — no parallel list to drift out of sync. The fade is
   // inset from each beat edge, which is what used to be a hand-kept gap.

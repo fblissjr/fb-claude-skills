@@ -2,6 +2,18 @@
 
 ## 0.36.1
 
+### fixed
+- **explainer-video 0.3.0 -> 0.3.1**: overlay fades now complete **inside** their own beat rather than straddling the boundary. The title fade was centred on `t1`, so title pixels bled 0.3s into the next beat and retiming the title silently moved content into its neighbour. Fixed in the template and the worked example.
+- **explainer-video**: retimed the worked example after watching it. It ran 2.4 / 2.4 / 3.2s against `method.md`'s own stated 3-4s-per-beat guidance, and the sweep read as a flicker. Now 3.2 / 4.2 / 3.6, with the sweep highlight widened from ±0.55 to ±0.9 slab-units. Width mattered more than duration — lengthening the beat alone just spaced the flickers further apart.
+
+### added
+- **explainer-video**: a "Dwell: measured, not derived" section in `method.md`, recording the two values above as observations rather than rules. Also records that a beat can pass a caption reading-speed check and still be too fast to follow, so motion pacing and caption pacing are separate problems.
+
+### changed
+- **explainer-video**: the caption reading-speed lint proposed for a future release is **not** shipping as designed. Its threshold came from arithmetic (17-21 CPS) and was contradicted by one person watching three seconds of video: a 27 CPS caption read fine. If it ships at all it should guard only the egregious case, not act as a pacing tool.
+
+## 0.36.1
+
 ### changed
 - **docs reconciled with the 0.35.0 process changes.** `CLAUDE.md`, `.claude/rules/plugins.md`, `docs/internals/{maintenance,gotchas,plugin-versioning,plugin-patterns}.md`, and both skill-maintainer READMEs now describe the three-file cascade, `review_interval_days`, the `last_verified` semantics, `_deprecated`, `check_version_alignment`, the `--strict` pre-commit gate, and hook exec form. `docs/analysis/`, `docs/claude-docs/` and `docs/reports/` were deliberately left alone -- they are captured upstream documentation and point-in-time reports, not statements of our conventions.
 - **`.claude/rules/plugins.md`** gains the version-cascade, deprecation, and exec-form rules, and now says plainly that upstream requires only `name` in `plugin.json` -- the other four fields are this repo's convention, enforced by our own test suite.

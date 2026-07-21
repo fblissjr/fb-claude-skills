@@ -35,9 +35,9 @@
 /* Timing lives here and nowhere else. Durations accumulate, so retiming
    `scan` moves everything after it — including the camera and captions. */
 const BEATS = [
-  {name: 'title', dur: 2.4},
-  {name: 'scan',  dur: 2.4, cap: "1 · every description is an index entry — all are candidates"},
-  {name: 'load',  dur: 3.2, cap: "2 · only the match is loaded into the context window"},
+  {name: 'title', dur: 3.2},
+  {name: 'scan',  dur: 4.2, cap: "1 · every description is an index entry — all are candidates"},
+  {name: 'load',  dur: 3.6, cap: "2 · only the match is loaded into the context window"},
 ];
 
 const CONFIG = {
@@ -146,17 +146,20 @@ function setCamera(t){
 const HOME=i=>({x:-3.4,y:1.75-i*.72});
 function animate(t){
   // beat 1: a scan sweeps the corpus — every entry is a candidate
-  const scan=ramp(t,'scan',0,.833)*N;
+  const scan=ramp(t,'scan',0,.88)*N;
   // beat 2: the match crosses into the context window
   const cross=ramp(t,'load',.063,.656);
 
   for(let i=0;i<N;i++){
     const s=slabs[i],m=slabMat[i],h=HOME(i);
-    const lit=bump(scan,i-.55,i+.55);                 // scan highlight passing over i
+    // Highlight width in slab-units. Wider = each bar holds its lit phase longer
+    // and neighbours overlap, which reads as a wave passing through rather than
+    // a glint flickering down. Narrow looked frantic at every beat length tried.
+    const lit=bump(scan,i-.9,i+.9);
     const isMatch=i===MATCH;
 
     // color: teal -> amber for the match once the scan reaches it
-    const pick=isMatch?ramp(t,'scan',.729,.917):0;
+    const pick=isMatch?ramp(t,'scan',.66,.9):0;
     m.color.setHex(TEAL).lerp(new THREE.Color(AMBER),Math.max(pick,lit*.55));
     m.emissiveIntensity=1+lit*2.2+pick*1.5;
 
@@ -170,7 +173,7 @@ function animate(t){
     if(isMatch){
       s.position.x=lerp(h.x,3.5,cross);
       s.position.y=lerp(h.y,-.05,cross)+bump(cross,0,1)*.9;   // slight arc
-      s.scale.setScalar(1+.16*pulse(t,'scan',.729,.979)+.10*pulse(t,'load',.563,.781));
+      s.scale.setScalar(1+.16*pulse(t,'scan',.66,.97)+.10*pulse(t,'load',.563,.781));
     }else{
       s.position.x=h.x-drop*.5;
       s.position.y=h.y;
@@ -197,7 +200,9 @@ titleEl.querySelector('p').textContent=CONFIG.subtitle;
 const flashEl=document.getElementById('flash');
 function setOverlay(t){
   const T=BEAT[BEATS[0].name];
-  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.3,T.t1+.3))).toFixed(3);
+  // Fade OUT completes at the beat boundary, not centred on it: a beat's content
+  // stays inside its own beat, so retiming the title never bleeds into the next.
+  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
   const F=CONFIG.capFade;
   let txt="",op=0;
   for(const b of BEATS){if(!b.cap)continue;const B=BEAT[b.name];
