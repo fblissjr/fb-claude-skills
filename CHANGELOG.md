@@ -1,5 +1,17 @@
 # changelog
 
+## 0.44.0
+
+### fixed
+- **path-privacy 0.4.0 -> 0.5.0**: five installer defects found by the parallel review, two of which could affect a user's own repository and shipped in 0.4.0.
+  - **`core.hooksPath` repos got a successful-looking no-op.** The installer wrote to `.git/hooks` regardless, so every husky/lefthook repo printed "installed" and git never ran the hooks — the plugin promised a gate it never installed. Same fail-open class as the wrapper bug 0.4.0 fixed, one level up, and it would have shipped alongside that fix. Now honours `core.hooksPath` and says where it installed.
+  - **The installer wrote through symlinked hooks.** `.git/hooks/pre-commit` symlinked into the work tree (`ln -s ../../scripts/pre-commit.sh`) meant `cat >` followed the link and overwrote the user's *tracked source file* with the wrapper, which they could then commit. The link is now replaced, never written through.
+  - **Discovery picked a candidate before testing executability**, so a newest copy with the exec bit lost blocked every commit while a working older copy sat beside it. And `sort -V` over a merged list compares the marketplace directory before the version, so a stale copy from another marketplace outranked a newer one from your own tree. Groups are now tried in order, newest-executable-first within each.
+  - Install refuses rather than silently overwriting when a `.local` already exists and the live hook is not ours; uninstall no longer restores over a hook the user wrote themselves.
+  - Worktrees and submodules (`.git` is a file, not a directory) are no longer rejected with a misleading "not a git repo".
+
+Verified by control in throwaway repos: the user's tracked source survives a symlinked-hook install, the wrapper lands in `.husky` and not `.git/hooks`, a real leak is still blocked, clean content still commits, and discovery falls through to an executable older copy rather than failing closed.
+
 ## 0.43.0
 
 ### fixed

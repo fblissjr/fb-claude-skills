@@ -29,12 +29,27 @@ done
 if [ -z "$TARGET_REPO" ]; then
   TARGET_REPO=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 fi
-if [ -z "$TARGET_REPO" ] || [ ! -d "$TARGET_REPO/.git" ]; then
-  echo "install-git-hooks: not a git repo (or .git missing): $TARGET_REPO" >&2
+# `.git` is a FILE in worktrees and submodules, so -d rejected them with a
+# misleading "missing" message and no way to install.
+if [ -z "$TARGET_REPO" ] || ! git -C "$TARGET_REPO" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "install-git-hooks: not a git repo: $TARGET_REPO" >&2
   exit 2
 fi
 
-HOOKS_DIR="$TARGET_REPO/.git/hooks"
+# Honour core.hooksPath. Writing to .git/hooks in a repo that sets it produces a
+# successful-looking install whose hooks git never runs -- every husky/lefthook
+# repo, silently ungated. That is the exact fail-open the wrapper works hard to
+# avoid, one level up, so it must not be silent here either.
+CUSTOM_HOOKS_PATH=$(git -C "$TARGET_REPO" config --get core.hooksPath 2>/dev/null || echo "")
+if [ -n "$CUSTOM_HOOKS_PATH" ]; then
+  case "$CUSTOM_HOOKS_PATH" in
+    /*) HOOKS_DIR="$CUSTOM_HOOKS_PATH" ;;
+    *)  HOOKS_DIR="$TARGET_REPO/$CUSTOM_HOOKS_PATH" ;;
+  esac
+  echo "note: core.hooksPath is set; installing into $HOOKS_DIR (not .git/hooks)" >&2
+else
+  HOOKS_DIR="$TARGET_REPO/.git/hooks"
+fi
 mkdir -p "$HOOKS_DIR"
 
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -44,6 +59,13 @@ uninstall_one() {
   local hook="$HOOKS_DIR/$name"
   local backup="$hook.local"
   if [ -f "$backup" ]; then
+    # If the live hook is neither ours nor the backup, the user has written their
+    # own since installing. Restoring over it would silently destroy their work.
+    if [ -f "$hook" ] && ! grep -q 'path-privacy:wrapper' "$hook" 2>/dev/null; then
+      echo "install-git-hooks: $hook is not a path-privacy wrapper." >&2
+      echo "  Leaving it alone. Your earlier hook is still at $backup." >&2
+      return 0
+    fi
     mv "$backup" "$hook"
     echo "restored $hook from $backup"
   elif [ -f "$hook" ] && grep -q 'path-privacy:wrapper' "$hook" 2>/dev/null; then
@@ -72,7 +94,22 @@ install_wrapper() {
       cp "$hook" "$backup"
       chmod +x "$backup"
       echo "preserved existing $hook -> $backup"
+    else
+      # A .local already exists AND the live hook is not ours -- the user has
+      # replaced it since. Overwriting with no copy anywhere loses their work.
+      echo "install-git-hooks: $hook is not a path-privacy wrapper and $backup" >&2
+      echo "  already exists. Refusing to overwrite; move or remove one of them." >&2
+      exit 2
     fi
+  fi
+
+  # A hook can be a SYMLINK into the work tree (ln -s ../../scripts/pre-commit.sh
+  # is a common pattern). `cat > "$hook"` follows it and writes the wrapper into
+  # the user's tracked source file, which they may then commit. Replace the link
+  # itself, never write through it. The backup above already captured contents.
+  if [ -L "$hook" ]; then
+    echo "replacing symlink $hook (target left untouched)"
+    rm -f "$hook"
   fi
 
   cat > "$hook" <<EOF
@@ -99,11 +136,23 @@ if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
   # Search the frozen path's own tree first, so a LOCAL checkout or --plugin-dir
   # install (whose scripts never live under the plugin cache) can still recover.
   FROZEN_ROOT="\${PATH_PRIVACY_SCRIPT%/skills/path-privacy/scripts/*}"
-  PATH_PRIVACY_SCRIPT="\$(ls -1 \\
-      "\${FROZEN_ROOT%/*}"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME" \\
-      "\$FROZEN_ROOT"/skills/path-privacy/scripts/"\$SCRIPT_NAME" \\
-      "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME" \\
-      2>/dev/null | sort -V | tail -1)"
+  # Highest version that is ACTUALLY EXECUTABLE, not merely highest. A newest
+  # copy with the exec bit lost must not shadow a working older one and block
+  # every commit.
+  newest_exec() {
+    printf '%s\\n' "\$@" | sort -rV | {
+      while IFS= read -r c; do
+        if [ -x "\$c" ]; then printf '%s' "\$c"; break; fi
+      done
+    }
+  }
+  # Groups are tried IN ORDER rather than merged. sort -V over a merged list
+  # compares the marketplace directory before the version component, so a stale
+  # copy under cache/zz-other/ outranks a newer one from your own tree.
+  CAND="\$(newest_exec "\${FROZEN_ROOT%/*}"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
+  [ -z "\$CAND" ] && CAND="\$(newest_exec "\$FROZEN_ROOT"/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
+  [ -z "\$CAND" ] && CAND="\$(newest_exec "\$HOME"/.claude/plugins/cache/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
+  [ -n "\$CAND" ] && PATH_PRIVACY_SCRIPT="\$CAND"
 fi
 
 # Fail CLOSED and loudly. This hook is a leak gate; if it cannot run, allowing
