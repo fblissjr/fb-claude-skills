@@ -136,8 +136,11 @@ the full contract:
   `rampS`/`pulseS`/`secAt` take **seconds from the beat start**, for durations
   that must *not* stretch: a 0.25s flash, a 0.06s world cut. Write
   `ramp(t,'lift',0,.6)`, never `ss(t, 9.2, 11.4)`
-- camera rail — `KEYS[]` anchored to `{beat, at}`, smoothstep-interpolated, with
-  instant world-cuts hidden under white-flash overlays
+- cinematography — `SHOTS[]` in cinematographer vocabulary (subject, size,
+  angle, lens, cut, focus), solved to the camera per frame; match cuts are a
+  checked constraint, racks are two shots differing only in focus. See
+  `references/film-language.md`. (3D template; the 2D template keeps its
+  simpler `{x,y,zoom}` rail. World-cut flashes still work under any cut.)
 - caption + title overlay as DOM (crisp text in screenshots), styled from CONFIG
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
   `window.sceneReady`: the recorder contract; do not rename these. Plus
@@ -359,6 +362,8 @@ Two constraints that dictate the setup — do not "simplify" them away:
   (L3: read when building, any backend)
 - `references/styles/` — style packs: swappable `STYLE` blocks + register
   rules (read the chosen pack at art-direction time)
+- `references/film-language.md` — the shot vocabulary: sizes, cuts, match
+  constraint, focus, camera energy (read when planning shots)
 - `references/style-3d.md` — the three.js half: lighting, camera rail,
   procedural-asset cookbook, r185 notes (L3: read when building a 3D scene)
 - `references/delivery.md` — GitHub delivery forensics: format tradeoffs,

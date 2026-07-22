@@ -87,6 +87,7 @@ const CONFIG = {
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
   capFade: 0.35,                      // caption fade inset from each beat edge, seconds
+  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
 };
 
 /* ==== KERNEL-START ====================================================
@@ -207,23 +208,107 @@ function buildWorlds(){
 }
 buildWorlds();
 
-/* ---------- camera rail: {beat, at, p:[x,y,z], l:[lookAt]} ----------
-   Keyframes anchor to a beat and a fraction through it, so a keyframe can
-   never drift away from the beat it was framing when timings change. */
-const KEYS=[
-  {beat:'title', at:0,  p:[9,6,12],  l:[0,2.5,0]},
-  {beat:'one',   at:.5, p:[5,4,7],   l:[0,3,0]},
-  {beat:'two',   at:.5, p:[-6,5,8],  l:[0,3,0]},
-  {beat:'three', at:1,  p:[9,7,12],  l:[0,2.5,0]},
-].map(k=>({...k,t:beatAt(k.beat,k.at)}));
+/* ============================================================
+   CINEMATOGRAPHY — shots as data, solved per frame.
+
+   SUBJECTS names the things a camera can frame. pos is a pure
+   function of t returning the subject's CENTER, so a moving
+   subject is a tracking shot for free. h is the height the
+   framing math uses. Craft note: track a subject's TRAVEL, not
+   its jumps — leave vertical action out of pos so it moves in
+   the frame instead of being cancelled by the camera.
+
+   SHOTS is the film's shot list — the cinematographer's half of
+   the film, the way BEATS is the editor's. Each shot starts at
+   a beat anchor and runs until the next shot starts:
+     subject  what the shot frames (a SUBJECTS key)
+     size     EWS WS FS MS MCU CU ECU — fraction of frame height
+              the subject occupies (see SIZES)
+     angle    degrees around the subject, 0 = from +Z
+     elev     degrees above level (default 6)
+     fov      this shot's lens (vertical degrees, default 42) —
+              long lens flattens, short lens dramatizes
+     size2 / angle2   optional end values: a push/pull or an
+              orbit eased across the shot's duration
+     focus    subject the DoF plane sits on (default: subject).
+              Scenes with a BokehPass read shotFocus each frame;
+              two adjacent shots differing only in focus, joined
+              by cut:'blend', ARE a rack focus.
+     cut      how the shot ENTERS: 'hard' (default), 'whip'
+              (0.16s snap), 'blend' (0.8s dolly-morph)
+     match    true = must enter with the SAME framing vocabulary
+              (size/angle/elev/fov) as the previous shot — the
+              match-cut constraint, checked at load, throws loud.
+   Raw keyframes are gone on purpose: coordinates were never the
+   author's intent, framing was. If a shot the vocabulary cannot
+   say is genuinely needed, extend the vocabulary — do not sneak
+   coordinates back in.
+   ============================================================ */
+const SUBJECTS={
+  knot:{pos:t=>[0,3+Math.sin(t*1.3)*.2,0],h:3.6},   // mirrors animate(): the aim rides the bob
+};
+// The size ladder, calibrated to the convention a cinematographer means:
+// f = how many frame-heights the subject's full height spans; a = the
+// vertical anchor on the subject the camera aims at. FS is full-body tight;
+// MS is waist-up — the first cut of this table shipped MS at full-shot
+// framing and the rack's second subject fell out of frame.
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+const SHOTS=[
+  {at:['title',0], subject:'knot', size:'WS', angle:35},
+  {at:['one',.1],  subject:'knot', size:'FS', angle:60,  cut:'blend'},
+  {at:['two',.1],  subject:'knot', size:'FS', angle:-40, cut:'whip'},
+  {at:['three',0], subject:'knot', size:'WS', angle:35, size2:'FS', cut:'blend'},  // push in on the payoff
+].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
+SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not hoped
+  if(!sh.match)return;
+  const q=SHOTS[i-1]||{};
+  const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
+    &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
+    &&(sh.fov===undefined?42:sh.fov)===(q.fov===undefined?42:q.fov)
+    &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
+  if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
+});
+const CUT_DUR={hard:0,whip:.16,blend:.8};
+let shotFocus=12;               // DoF plane distance, refreshed by setCamera each frame
+function solveShot(sh,t){
+  const S=SUBJECTS[sh.subject];if(!S)throw new Error('unknown subject: '+sh.subject);
+  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;               // shot progress drives push/orbit
+  const A=SIZES[sh.size],B=sh.size2?SIZES[sh.size2]:A;
+  if(!A||!B)throw new Error('unknown size: '+(A?sh.size2:sh.size));
+  const f=lerp(A.f,B.f,u),anchor=sh.anchor!==undefined?sh.anchor:lerp(A.a,B.a,u);
+  const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
+  const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
+  const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
+  const fovd=sh.fov===undefined?42:sh.fov;
+  const[cx,cy,cz]=S.pos(t);
+  const dist=S.h/f/(2*Math.tan(fovd*Math.PI/360));     // the framing solver: size -> distance
+  const aimY=cy+(anchor-.5)*S.h;
+  return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
+         l:[cx,aimY,cz],fovd};
+}
+function focusDist(sh,t,p){const S=SUBJECTS[sh.focus||sh.subject];if(!S)throw new Error('unknown focus subject');
+  const[x,y,z]=S.pos(t);return Math.hypot(p[0]-x,p[1]-y,p[2]-z);}
 function setCamera(t){
-  let a=KEYS[0],b=KEYS[KEYS.length-1];
-  for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
-  const u=ss(t,a.t,b.t),sway=CONFIG.sway;   // slight sway so nothing feels static
-  camera.position.set(lerp(a.p[0],b.p[0],u)+Math.sin(t*.7)*sway,
-                      lerp(a.p[1],b.p[1],u)+Math.sin(t*.9+2)*sway*.6,
-                      lerp(a.p[2],b.p[2],u));
-  camera.lookAt(lerp(a.l[0],b.l[0],u),lerp(a.l[1],b.l[1],u)+Math.sin(t*.8+1)*sway*.4,lerp(a.l[2],b.l[2],u));
+  let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
+  const cur=SHOTS[i],c=solveShot(cur,t);
+  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p);
+  const cd=CUT_DUR[cur.cut||'hard'];
+  if(i>0&&cd>0&&t<cur.t+cd){                            // entering: whip or dolly-morph
+    const u=ss(t,cur.t,cur.t+cd),q=solveShot(SHOTS[i-1],t);
+    const mix=(a,b)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u),lerp(a[2],b[2],u)];
+    p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
+    fd=lerp(focusDist(SHOTS[i-1],t,q.p),fd,u);          // focus blends too — the rack
+  }
+  /* camera energy — noise from the frozen pool, amplitude riding CONFIG.sway
+     so `build.js loop`'s held-camera warning stays honest:
+     locked = tripod, steadicam = the old gentle drift, handheld = nerves. */
+  const E={locked:0,steadicam:1,handheld:4}[CONFIG.energy||'steadicam']*CONFIG.sway;
+  const F=CONFIG.energy==='handheld'?1.9:.55;
+  camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
+  camera.fov=fovd;camera.updateProjectionMatrix();
+  camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);
+  shotFocus=fd;
 }
 
 /* ============================================================

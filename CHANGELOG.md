@@ -1,5 +1,14 @@
 # changelog
 
+## 0.58.0
+
+### added
+- **explainer-video 0.13.0 -> 0.14.0**: Phase 3 (film language) — shots as data, gate met and phase closed. The 3D template's raw camera keyframes are GONE, replaced by a cinematography system: `SUBJECTS` (positions as pure functions of t — tracking shots for free), a calibrated size ladder (EWS→ECU), a framing solver (`dist = h/f/(2·tan(fov/2))`), moves as eased end-values (`size2`/`angle2`), cuts as entry vocabulary (`hard`/`whip`/`blend`), **the match-cut constraint checked at load** (identical framing vocabulary or throw), focus as a per-shot subject with racks expressed as two shots differing only in `focus`, and camera energy profiles (`locked`/`steadicam`/`handheld`) driven by seeded noise — closing the Phase 1 flag on `noise1`.
+
+  Gate: `examples/toybot-walk.html` re-authored as an eight-shot list with zero hand-written keyframes — a compiler-verified match cut (MS on the sign plate, hard cut, MS on the bot's torso: the frames rhyme because they must), a whip into the finale, and the rack rebuilt as focus-only shot changes. Two calibration lessons recorded in `references/film-language.md`: the first size ladder shipped MS at full-shot framing (sizes are conventions with meanings, not free parameters — FS added, ladder recalibrated), and a rack to an off-screen subject explains nothing (both subjects must be visible at different depths, which set the rack triplet's size and anchor).
+
+  Deliberately not built, per the earn-in rule, recorded with reasons: dissolve/wipe, ffmpeg edit lists, cut rhythm (belongs to Phase 4's style bibles), the 2D solver analog. Exit checkpoint: harvest in film-language.md + SKILL.md contract, release cut, regression green (all examples + both templates), prune reviewed (unused ladder sizes kept — the ladder is one conventional table, not speculative machinery).
+
 ## 0.57.0
 
 ### added

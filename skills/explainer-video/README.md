@@ -42,10 +42,13 @@ byte-determinism check with the chain enabled:
 ![toybot takes a walk](skills/explainer-video/examples/toybot-walk.avif)
 
 *13.6s, four beats, moving camera — which is exactly the case WebP punishes,
-so this one is committed as a 0.13 MB animated AVIF only. This image is ALSO
-the experiment the AVIF evidence chain has been waiting for: if it animates
-inline above, the last row of the table in `references/delivery.md` gets its
-second observation. Source:
+so this one is committed as a 0.25 MB animated AVIF only. The camera is
+authored entirely as a SHOT LIST — eight shots, zero hand-written keyframes:
+a match cut verified by the compiler (sign plate → torso, identical framing),
+a whip into the finale, and a rack focus expressed as two shots differing
+only in `focus`. This image is ALSO the experiment the AVIF evidence chain
+has been waiting for: if it animates inline above, the last row of the table
+in `references/delivery.md` gets its second observation. Source:
 [`toybot-walk.html`](skills/explainer-video/examples/toybot-walk.html).*
 
 The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
@@ -184,6 +187,7 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/style-3d.md` | The three.js half: lighting, camera rail, procedural-asset cookbook, r185 API notes |
 | `skills/explainer-video/references/delivery.md` | GitHub delivery forensics: format tradeoffs, encoder settings, content-type evidence chain |
 | `skills/explainer-video/references/styles/` | Style packs — swappable `STYLE` blocks + register rules (paper-cutout, blueprint, neon-dark) |
+| `skills/explainer-video/references/film-language.md` | Shot vocabulary: sizes, cuts, the match-cut constraint, rack-as-shots, camera energy |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
 | `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
 | `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |

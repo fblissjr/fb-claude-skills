@@ -77,7 +77,7 @@ const STYLE = {
   outline: 1.055,                     // inverted-hull scale — the cel linework
   post: {                             // per-frame-pure passes ONLY (no temporal)
     bloomStrength:.55, bloomRadius:.3, bloomThreshold:.82,
-    aperture:.00022, maxblur:.005,    // focus itself is animated in animate()
+    aperture:.00032, maxblur:.006,    // focus itself is animated in animate()
   },
 };
 
@@ -92,6 +92,7 @@ const CONFIG = {
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
   capFade: 0.35,                      // caption fade inset from each beat edge, seconds
+  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
 };
 
 /* ==== KERNEL-START ====================================================
@@ -288,7 +289,7 @@ om(new THREE.LatheGeometry(
 {
   const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
     {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
-  pod.position.set(-7.5,.7,3.2);pod.castShadow=true;world.add(pod);
+  pod.position.set(-9,.7,4.2);pod.castShadow=true;world.add(pod);
 }
 {
   const cv=document.createElement('canvas');cv.width=cv.height=256;
@@ -369,40 +370,105 @@ function footTarget(s,phase){
   return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
 }
 
-/* ---------- camera rail ---------- */
-const KEYS=[
-  {beat:'title',  at:0,  p:[-4,4.2,15],  l:[1.6,2.4,0]},  // empty stage + the sign: anticipation
-  {beat:'arrive', at:.08,p:[-11,3.8,14.5], l:[-9,2.2,0]},
-  {beat:'arrive', at:1,  p:[2,3.6,13.5],   l:[0,2.4,0]},
-  {beat:'rack',   at:.5, p:[4.2,3.2,11],   l:[0,3.4,0]},
-  {beat:'spark',  at:.2, p:[0,5.2,15.5], l:[0,4.0,0]},  // wide enough for the hop AND the orb
-].map(k=>({...k,t:beatAt(k.beat,k.at)}));
+/* ============================================================
+   CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
+   camera keyframes; the solver in the template does the framing.
+   ============================================================ */
+// Travel and hop as named closed forms — the SUBJECTS registry and animate()
+// both derive from THESE, so the camera and the body can never disagree.
+const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
+const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+
+const SUBJECTS={
+  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
+  // a tracked jump cancels itself on screen.
+  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
+  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
+};
+// The size ladder, calibrated to the convention a cinematographer means:
+// f = how many frame-heights the subject's full height spans; a = the
+// vertical anchor on the subject the camera aims at. FS is full-body tight;
+// MS is waist-up — the first cut of this table shipped MS at full-shot
+// framing and the rack's second subject fell out of frame.
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+const SHOTS=[
+  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
+  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
+  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
+  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
+  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
+  // a rack to an off-screen subject explains nothing — both subjects must be
+  // visible at different depths for the focus pull to read.
+  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
+  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
+  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
+  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
+].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
+SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not hoped
+  if(!sh.match)return;
+  const q=SHOTS[i-1]||{};
+  const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
+    &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
+    &&(sh.fov===undefined?42:sh.fov)===(q.fov===undefined?42:q.fov)
+    &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
+  if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
+});
+const CUT_DUR={hard:0,whip:.16,blend:.8};
+let shotFocus=12;               // DoF plane distance, refreshed by setCamera each frame
+function solveShot(sh,t){
+  const S=SUBJECTS[sh.subject];if(!S)throw new Error('unknown subject: '+sh.subject);
+  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;               // shot progress drives push/orbit
+  const A=SIZES[sh.size],B=sh.size2?SIZES[sh.size2]:A;
+  if(!A||!B)throw new Error('unknown size: '+(A?sh.size2:sh.size));
+  const f=lerp(A.f,B.f,u),anchor=sh.anchor!==undefined?sh.anchor:lerp(A.a,B.a,u);
+  const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
+  const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
+  const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
+  const fovd=sh.fov===undefined?42:sh.fov;
+  const[cx,cy,cz]=S.pos(t);
+  const dist=S.h/f/(2*Math.tan(fovd*Math.PI/360));     // the framing solver: size -> distance
+  const aimY=cy+(anchor-.5)*S.h;
+  return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
+         l:[cx,aimY,cz],fovd};
+}
+function focusDist(sh,t,p){const S=SUBJECTS[sh.focus||sh.subject];if(!S)throw new Error('unknown focus subject');
+  const[x,y,z]=S.pos(t);return Math.hypot(p[0]-x,p[1]-y,p[2]-z);}
 function setCamera(t){
-  let a=KEYS[0],b=KEYS[KEYS.length-1];
-  for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
-  const u=ss(t,a.t,b.t),sway=CONFIG.sway;
-  camera.position.set(lerp(a.p[0],b.p[0],u)+Math.sin(t*.7)*sway,
-                      lerp(a.p[1],b.p[1],u)+Math.sin(t*.9+2)*sway*.6,
-                      lerp(a.p[2],b.p[2],u));
-  camera.lookAt(lerp(a.l[0],b.l[0],u),lerp(a.l[1],b.l[1],u)+Math.sin(t*.8+1)*sway*.4,lerp(a.l[2],b.l[2],u));
+  let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
+  const cur=SHOTS[i],c=solveShot(cur,t);
+  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p);
+  const cd=CUT_DUR[cur.cut||'hard'];
+  if(i>0&&cd>0&&t<cur.t+cd){                            // entering: whip or dolly-morph
+    const u=ss(t,cur.t,cur.t+cd),q=solveShot(SHOTS[i-1],t);
+    const mix=(a,b)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u),lerp(a[2],b[2],u)];
+    p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
+    fd=lerp(focusDist(SHOTS[i-1],t,q.p),fd,u);          // focus blends too — the rack
+  }
+  /* camera energy — noise from the frozen pool, amplitude riding CONFIG.sway
+     so `build.js loop`'s held-camera warning stays honest:
+     locked = tripod, steadicam = the old gentle drift, handheld = nerves. */
+  const E={locked:0,steadicam:1,handheld:4}[CONFIG.energy||'steadicam']*CONFIG.sway;
+  const F=CONFIG.energy==='handheld'?1.9:.55;
+  camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
+  camera.fov=fovd;camera.updateProjectionMatrix();
+  camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);
+  shotFocus=fd;
 }
 
 /* ============================================================
    ANIMATE — every property a pure function of t.
    ============================================================ */
-const _v=new THREE.Vector3();
 function animate(t){
   // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
-  const trav=ramp(t,'arrive',.05,.95);
-  const botX=lerp(-16,0,trav);
+  const botX=botXAt(t);
   const s=botX+16;
   const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
 
   // the spark beat, sequenced so its two events don't fight: anticipation
   // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
   // cut ran hop and glow together and the payoff read as neither.
-  const hopU=ramp(t,'spark',.24,.52);
-  const hop=1.7*Math.sin(hopU*Math.PI)*(hopU>0&&hopU<1?1:0);
+  const hop=hopAt(t);
   const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
               +.06*(backOut(ramp(t,'spark',.58,.78))-1);
   bot.position.set(botX,hop,0);
@@ -423,13 +489,9 @@ function animate(t){
   armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
   armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
 
-  // the rack: focus is a distance, computed from the live camera every frame —
-  // there-and-back between the bot's face and the signpost
-  head.getWorldPosition(_v);
-  const dBot=camera.position.distanceTo(_v);
-  prop.getWorldPosition(_v);_v.y=2.4;
-  const dProp=camera.position.distanceTo(_v);
-  bokeh.uniforms.focus.value=lerp(dBot,dProp,bump(t,'rack',.18,.88));
+  // DoF follows the shot list: shotFocus is solved per frame, and the rack
+  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
+  bokeh.uniforms.focus.value=shotFocus;
 
   // bloom payoff: the orb wakes for the finale (park is deliberate — the film
   // ends on it), plus a proud little spin. Restated every frame, never +=.
