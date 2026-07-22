@@ -1,5 +1,12 @@
 # changelog
 
+## 0.52.0
+
+### added
+- **explainer-video 0.7.0 -> 0.8.0**: parallel frame capture — `shoot.js <scene> full 30 --workers N`, or `SHOOT_WORKERS=N` which `build.js` callers inherit. N pages in one browser, each shooting a **contiguous** 1/N chunk so a dead worker leaves one obvious gap instead of a comb the encoder would hide. Phase 1 of the generalization plan opens here (back-to-back mode pulls capture infrastructure forward).
+
+  Both halves measured before trusting, and one refutes the design note that motivated the feature. Correctness: 4-worker output is byte-identical to 1-worker output on the template scene, 48/48 frames. Speed: on a 4-core software-GL container — the exact case roadmap item 5 predicted this would matter for — 25.1s single vs 26.1s with 4 workers, ~1.0x, because SwiftShader already multithreads a single page's rasterization across the cores and extra pages only contend. The remaining win case (many-core, or hardware GL where one page cannot saturate the machine) is plausible and unmeasured; the docs say so instead of promising a speedup that was not observed.
+
 ## 0.51.0
 
 ### changed

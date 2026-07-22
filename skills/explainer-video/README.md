@@ -146,7 +146,7 @@ opened directly from disk — which is the entire point of the HTML artifact.
 |------|-----------|
 | `skills/explainer-video/SKILL.md` | The skill: workflow, contract, style quick-reference |
 | `skills/explainer-video/templates/scene.template.html` | Runnable scaffold with the full recorder contract |
-| `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting |
+| `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting; `full --workers N` shoots contiguous chunks in parallel (byte-identical output, verified) |
 | `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video, avif, loop, poster, sheet, strip, motion |
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, plus caption and exposure lints |
 | `skills/explainer-video/references/method.md` | The universal method: failure axes, beats + controls discipline, continuity/semantics review, determinism rules |

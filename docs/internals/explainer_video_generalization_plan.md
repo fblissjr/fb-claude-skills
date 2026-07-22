@@ -63,7 +63,8 @@ Any feature that cannot be had under those two rules is either reformulated
 | Phase | Status |
 |---|---|
 | 0 | **DONE** — shipped as explainer-video 0.7.0. Checkpoint: split verified lossless (every heading and spot-checked measured fact present in exactly one new home), `smoke.js` green source+bundled on the template scene, code untouched so frame regression is trivially satisfied. |
-| 1-4 | not started |
+| 1 | **IN PROGRESS** — parallel capture landed (0.8.0; byte-identical verified, ~1.0x on a 4-core software-GL box — see roadmap item 5 for the honest delta). Remaining: STYLE split from CONFIG, Canvas2D template, easing personalities, style packs, the 2D proving film, kernel extraction. |
+| 2-4 | not started |
 | 5 | demand-gated, out of the run |
 
 ## Phase overview

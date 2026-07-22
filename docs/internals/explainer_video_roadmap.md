@@ -20,7 +20,7 @@ flip condition the "Not doing: a 2D backend" entry below set for itself.
 | 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | **DONE** (0.6.0, as `build.js sheet`) | 1 |
 | 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed, unbuilt | 1 |
 | 4 | [Caption lint](#4-caption-floor-lint-replaces-the-magic-number-lint) | **DONE** (0.6.0, advisory) | 1 |
-| 5 | [Parallel frame capture](#5-parallel-frame-capture) | designed, unbuilt | — |
+| 5 | [Parallel frame capture](#5-parallel-frame-capture) | **DONE** (0.8.0), with a negative speed result | — |
 | 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | open | — (not this plugin) |
 | 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
 | 8 | [The three-axis review model](#8-the-three-axis-review-model-06) | **DONE** (0.6.0) | 1 |
@@ -346,6 +346,21 @@ revisit promoting it.
 ---
 
 ## 5. Parallel frame capture
+
+> **Shipped in 0.8.0** (Phase 1 of the generalization plan pulled it forward —
+> back-to-back execution makes iteration cost the inner loop). Built as
+> designed: `--workers N` or `SHOOT_WORKERS=N`, contiguous chunks, N pages in
+> one browser. Correctness verified: 4-worker output is **byte-identical** to
+> 1-worker output on the template scene, 48/48 frames.
+>
+> **The speed prediction below was refuted where it was made.** "The ~1 fps
+> software-GL case is where this would matter" — measured on a 4-core
+> software-GL container: 25.1s single vs 26.1s with 4 workers, ~1.0x.
+> SwiftShader already multithreads a single page's rasterization across the
+> cores, so extra pages only contend. The remaining win case is a many-core box
+> or hardware GL, where one page cannot saturate the machine — plausible,
+> unmeasured. Recorded per the build-the-control rule: the mechanism is
+> correct, the benefit is environment-conditional and so far undemonstrated.
 
 Falls straight out of determinism: frames are independent, so N headless pages can
 each shoot a contiguous 1/N of the range with zero correctness risk. Contiguous

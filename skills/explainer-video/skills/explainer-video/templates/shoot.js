@@ -5,10 +5,25 @@
 // Usage:
 //   bun run shoot.js <scene.html> sample 0,2.5,7      -> sample_<t>.png previews
 //   bun run shoot.js <scene.html> full [fps]          -> frames/f00000.png ... (fps default 30)
+//   bun run shoot.js <scene.html> full 30 --workers 4 -> same frames, N pages in parallel
 //   bun run shoot.js <scene.html> range <a> <b> [fps] -> re-shoot frames [a,b) after an edit
 //   bun run shoot.js <scene.html> beats [frac]        -> one frame per window.BEATS entry,
 //                                                         frac (default 0.6) into each beat
 //   bun run shoot.js <scene.html> manifest [frac]     -> beats JSON only, shoots nothing
+//
+// --workers N (or SHOOT_WORKERS=N in the environment, which build.js callers
+// inherit) parallelizes `full`. This falls straight out of determinism: frames
+// are independent, so N pages each shoot a CONTIGUOUS 1/N of the range with
+// zero correctness risk — contiguous rather than strided, so a worker that dies
+// leaves one obvious gap instead of a comb the encoder would hide.
+//
+// Measured before trusting, both halves: 1-worker and 4-worker output of the
+// template scene are BYTE-IDENTICAL (48/48 frames). And on a 4-core software-GL
+// container the speedup is ~1.0x (25.1s vs 26.1s) — SwiftShader already
+// multithreads ONE page's rasterization across the cores, so extra pages only
+// contend. Reach for this on a many-core box or hardware GL, where one page
+// cannot saturate the machine; that case is plausible and NOT yet measured.
+// Do not expect it to rescue a low-core cloud render.
 //
 // Then: ffmpeg -framerate 30 -i frames/f%05d.png -c:v libx264 -preset slow \
 //              -crf 17 -pix_fmt yuv420p -movflags +faststart out.mp4
@@ -116,15 +131,11 @@ function beatsManifest({ synthetic, beats }) {
   });
 }
 
-(async () => {
-  const [, , sceneFile, mode = 'sample', ...rest] = process.argv;
-  if (!sceneFile || !fs.existsSync(sceneFile)) {
-    console.error('usage: bun run shoot.js <scene.html> sample|full|range|beats|manifest ...'); process.exit(1);
-  }
-  const browser = await chromium.launch({
-    executablePath: chromiumPath(),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
-  });
+// One scene page, fully initialized: contract waited on, playback stopped,
+// DURATION validated. `full --workers N` opens N of these; every other mode
+// opens one. Identical setup per page is what makes the N-worker output
+// byte-identical to the 1-worker output.
+async function openScenePage(browser, sceneFile) {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
   // Surface scene errors instead of shooting 600 silently-broken frames. A
   // renamed three API is the usual cause and fails quietly otherwise.
@@ -140,6 +151,32 @@ function beatsManifest({ synthetic, beats }) {
   if (typeof dur !== 'number' || !(dur > 0)) {
     throw new Error(`scene did not set window.DURATION (got ${JSON.stringify(dur)})`);
   }
+  return { page, dur };
+}
+
+(async () => {
+  const [, , sceneFile, mode = 'sample', ...restRaw] = process.argv;
+  if (!sceneFile || !fs.existsSync(sceneFile)) {
+    console.error('usage: bun run shoot.js <scene.html> sample|full|range|beats|manifest ...'); process.exit(1);
+  }
+  // Pull --workers out before positional parsing so `full 30 --workers 4` and
+  // `full --workers 4 30` both read fps=30. The env form exists so build.js
+  // callers (frames/all/loop/avif/sheet) inherit parallelism without every
+  // call site growing a parameter.
+  const rest = [];
+  let workersArg;
+  for (let i = 0; i < restRaw.length; i++) {
+    if (restRaw[i] === '--workers') { workersArg = restRaw[++i]; continue; }
+    rest.push(restRaw[i]);
+  }
+  const workers = Math.max(1, Math.round(
+    num(workersArg !== undefined ? workersArg : process.env.SHOOT_WORKERS, 1, 'workers', { max: 32 })));
+
+  const browser = await chromium.launch({
+    executablePath: chromiumPath(),
+    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
+  });
+  const { page, dur } = await openScenePage(browser, sceneFile);
 
   // FRAMES_DIR lets a caller shoot somewhere other than frames/, so a derived
   // output (build.js loop) cannot clobber the frames a full render produced.
@@ -174,11 +211,31 @@ function beatsManifest({ synthetic, beats }) {
     // `FRAMES_DIR=. shoot.js ... full` erase the scene and everything beside it.
     clearFrames(outDir);
     const t0 = Date.now();
-    for (let i = 0; i < n; i++) {
-      await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
-      if (i % 60 === 0) console.log(`frame ${i}/${n}`);
+    // Contiguous chunks: worker k owns [floor(k*n/W), floor((k+1)*n/W)). A
+    // worker that dies leaves one hole with clean edges — the encoder then
+    // fails loudly on the missing sequence numbers instead of interleaving
+    // stale frames into a comb nobody notices.
+    const W = Math.min(workers, Math.max(1, n));
+    let done = 0;
+    const shootChunk = async (pg, a, b) => {
+      for (let i = a; i < b; i++) {
+        await pg.evaluate(`window.seekTo(${(i / fps).toFixed(4)})`);
+        await pg.screenshot({ path: path.join(outDir, `f${String(i).padStart(5, '0')}.png`) });
+        if (++done % 60 === 0) console.log(`frame ${done}/${n}`);
+      }
+    };
+    if (W === 1) {
+      await shootChunk(page, 0, n);
+    } else {
+      console.log(`workers: ${W} (contiguous chunks)`);
+      const extras = await Promise.all(
+        Array.from({ length: W - 1 }, () => openScenePage(browser, sceneFile).then(r => r.page)));
+      const pages = [page, ...extras];
+      await Promise.all(pages.map((pg, k) =>
+        shootChunk(pg, Math.floor(k * n / W), Math.floor((k + 1) * n / W))));
+      // browser.close() below reaps the extra pages; nothing to do per-page.
     }
-    console.log(`done: ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    console.log(`done: ${done} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } else if (mode === 'range') {
     const a = num(rest[0], null, 'start frame', { allowZero: true }), b = num(rest[1], null, 'end frame'),
           fps = num(rest[2], 30, 'fps');

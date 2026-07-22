@@ -193,6 +193,12 @@ scare you off a local render that finishes while you read this. Sample frames ar
 cheap in both cases.
 
 Capture is embarrassingly parallel, and that falls straight out of determinism:
-frames are independent, so N headless pages can each shoot 1/N of the range with
-zero correctness risk. Not implemented yet — the obvious fix if long pieces start
-hurting.
+frames are independent, so N headless pages each shoot a contiguous 1/N of the
+range with zero correctness risk. Implemented: `shoot.js <scene> full 30
+--workers 4`, or `SHOOT_WORKERS=4` in the environment (which `build.js` callers
+inherit). Measured on the template scene: 4-worker output is **byte-identical**
+to 1-worker output — and on a 4-core software-GL container the speedup is
+**~1.0x**, because SwiftShader already multithreads a single page across the
+cores and extra pages only contend. The win case is a many-core box or hardware
+GL, where one page cannot saturate the machine — plausible, not yet measured.
+Do not expect `--workers` to rescue a low-core cloud render.
