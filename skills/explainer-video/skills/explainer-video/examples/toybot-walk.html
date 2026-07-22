@@ -66,20 +66,44 @@ const BEATS = [
   {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
 ];
 
-/* ---------- STYLE: everything that is the LOOK. ---------- */
-const STYLE = {
-  bg: 0xdfe6ea,                       // soft daylight
-  floor: 0xe7dcc8,                    // warm sand
-  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
-  ink: 0x26221c,                      // outline + dark details
-  body: 0x2a9d8f, accent: 0xe05d3d, trim: 0xe9b44c,   // the plugin palette, in 3D
-  toonSteps: 3,                       // cel bands in the gradient map
-  outline: 1.055,                     // inverted-hull scale — the cel linework
-  post: {                             // per-frame-pure passes ONLY (no temporal)
-    bloomStrength:.55, bloomRadius:.3, bloomThreshold:.82,
-    aperture:.00032, maxblur:.006,    // focus itself is animated in animate()
+/* ============================================================
+   STYLE BIBLES — one object constrains EVERY layer: palette,
+   lights, post, glass (default lens), cut pace, camera energy.
+   BIBLE is the one-line film switch; BEATS, the cast, the world
+   and the SHOT LIST never change. That separation is the whole
+   point of the layered build — this file is its control pair.
+   ============================================================ */
+const BIBLE='toybox';                 // 'toybox' | 'midnight'
+const BIBLES={
+  toybox:{                            // daylight paper-cutout, gentle and warm
+    bg:0xdfe6ea, floor:0xe7dcc8, exposure:1.0,
+    ink:0x26221c,
+    body:0x2a9d8f, accent:0xe05d3d, trim:0xe9b44c,
+    tree:0x37806b, trunk:0x6b4a32,
+    matcap:['#f6e0c8','#c76b4a','#2a1409'],
+    toonSteps:3,
+    outline:1.055,
+    lens:42, energy:'steadicam',
+    cutDur:{},                        // template pace: blends at .8s
+    lights:{hemi:[0xdfeaf2,0xcbb89a,.45],key:[0xfff2dc,1.45],rim:[0xbfd8ff,.8]},
+    post:{bloomStrength:.55,bloomRadius:.3,bloomThreshold:.82,aperture:.00032,maxblur:.006},
+  },
+  midnight:{                          // low-key noir: long glass, locked camera, glow
+    bg:0x0b0e1a, floor:0x121830, exposure:1.05,
+    ink:0x05060c,
+    body:0x2e4a8a, accent:0xff3d81, trim:0x00e5ff,
+    tree:0x16324a, trunk:0x0e1f30,
+    matcap:['#cfe6ff','#48608f','#0a0d1c'],
+    toonSteps:2,                      // harder banding — noir contrast
+    outline:1.055,
+    lens:30, energy:'locked',         // longer lens flattens; tripod stillness
+    cutDur:{blend:1.3},               // slow, deliberate dollies
+    lights:{hemi:[0x24365e,0x05070f,.3],key:[0x9fc0ff,1.5],rim:[0xff3d81,1.5]},
+    post:{bloomStrength:1.0,bloomRadius:.35,bloomThreshold:.55,aperture:.00045,maxblur:.008},
   },
 };
+const STYLE=BIBLES[BIBLE];
+if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
@@ -240,13 +264,13 @@ function om(g,m,parent,px,py,pz){                 // outlined mesh
 // hemisphere irradiance is smooth and washes the cel look out on top.
 // Hemisphere stays LOW: toon quantizes directional light into bands, but
 // hemisphere irradiance is smooth and washes the cel look out on top.
-scene.add(new THREE.HemisphereLight(0xdfeaf2,0xcbb89a,.45));
-const key=new THREE.DirectionalLight(0xfff2dc,1.45);
+scene.add(new THREE.HemisphereLight(STYLE.lights.hemi[0],STYLE.lights.hemi[1],STYLE.lights.hemi[2]));
+const key=new THREE.DirectionalLight(STYLE.lights.key[0],STYLE.lights.key[1]);
 key.position.set(7,11,7);key.castShadow=true;
 key.shadow.mapSize.set(2048,2048);
 key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=16;key.shadow.camera.bottom=-16;
 scene.add(key);
-const rim=new THREE.DirectionalLight(0xbfd8ff,.8);rim.position.set(-6,7,-8);scene.add(rim);
+const rim=new THREE.DirectionalLight(STYLE.lights.rim[0],STYLE.lights.rim[1]);rim.position.set(-6,7,-8);scene.add(rim);
 
 /* ============================================================
    WORLD — the bot, its ground, and one prop to rack focus onto.
@@ -269,7 +293,7 @@ om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
    sculpted-clay shading with zero lights and zero files. ---------- */
 {
   const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
-  const treeM=toon(0x37806b),trunkM=toon(0x6b4a32);
+  const treeM=toon(STYLE.tree),trunkM=toon(STYLE.trunk);
   const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
   const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
   const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
@@ -295,7 +319,7 @@ om(new THREE.LatheGeometry(
   const cv=document.createElement('canvas');cv.width=cv.height=256;
   const c=cv.getContext('2d');
   const g=c.createRadialGradient(96,84,18,128,128,132);
-  g.addColorStop(0,'#f6e0c8');g.addColorStop(.55,'#c76b4a');g.addColorStop(1,'#2a1409');
+  g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
   c.fillStyle=g;c.fillRect(0,0,256,256);
   const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
   const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
@@ -405,16 +429,20 @@ const SHOTS=[
   {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
+                                // match check below compares framing with it
 SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not hoped
   if(!sh.match)return;
   const q=SHOTS[i-1]||{};
   const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
     &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
-    &&(sh.fov===undefined?42:sh.fov)===(q.fov===undefined?42:q.fov)
+    &&(sh.fov===undefined?LENS:sh.fov)===(q.fov===undefined?LENS:q.fov)
     &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
   if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
 });
-const CUT_DUR={hard:0,whip:.16,blend:.8};
+// Cut durations and the default lens come from STYLE when a bible sets them —
+// pace and glass are register, and register belongs to the bible layer.
+const CUT_DUR=Object.assign({hard:0,whip:.16,blend:.8},STYLE.cutDur||{});
 let shotFocus=12;               // DoF plane distance, refreshed by setCamera each frame
 function solveShot(sh,t){
   const S=SUBJECTS[sh.subject];if(!S)throw new Error('unknown subject: '+sh.subject);
@@ -425,7 +453,7 @@ function solveShot(sh,t){
   const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
   const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
-  const fovd=sh.fov===undefined?42:sh.fov;
+  const fovd=sh.fov===undefined?LENS:sh.fov;
   const[cx,cy,cz]=S.pos(t);
   const dist=S.h/f/(2*Math.tan(fovd*Math.PI/360));     // the framing solver: size -> distance
   const aimY=cy+(anchor-.5)*S.h;
@@ -448,8 +476,9 @@ function setCamera(t){
   /* camera energy — noise from the frozen pool, amplitude riding CONFIG.sway
      so `build.js loop`'s held-camera warning stays honest:
      locked = tripod, steadicam = the old gentle drift, handheld = nerves. */
-  const E={locked:0,steadicam:1,handheld:4}[CONFIG.energy||'steadicam']*CONFIG.sway;
-  const F=CONFIG.energy==='handheld'?1.9:.55;
+  const en=STYLE.energy||CONFIG.energy||'steadicam';
+  const E={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
+  const F=en==='handheld'?1.9:.55;
   camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
   camera.fov=fovd;camera.updateProjectionMatrix();
   camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);

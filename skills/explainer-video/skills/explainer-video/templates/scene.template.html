@@ -260,16 +260,20 @@ const SHOTS=[
   {at:['three',0], subject:'knot', size:'WS', angle:35, size2:'FS', cut:'blend'},  // push in on the payoff
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
+                                // match check below compares framing with it
 SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not hoped
   if(!sh.match)return;
   const q=SHOTS[i-1]||{};
   const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
     &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
-    &&(sh.fov===undefined?42:sh.fov)===(q.fov===undefined?42:q.fov)
+    &&(sh.fov===undefined?LENS:sh.fov)===(q.fov===undefined?LENS:q.fov)
     &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
   if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
 });
-const CUT_DUR={hard:0,whip:.16,blend:.8};
+// Cut durations and the default lens come from STYLE when a bible sets them —
+// pace and glass are register, and register belongs to the bible layer.
+const CUT_DUR=Object.assign({hard:0,whip:.16,blend:.8},STYLE.cutDur||{});
 let shotFocus=12;               // DoF plane distance, refreshed by setCamera each frame
 function solveShot(sh,t){
   const S=SUBJECTS[sh.subject];if(!S)throw new Error('unknown subject: '+sh.subject);
@@ -280,7 +284,7 @@ function solveShot(sh,t){
   const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
   const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
-  const fovd=sh.fov===undefined?42:sh.fov;
+  const fovd=sh.fov===undefined?LENS:sh.fov;
   const[cx,cy,cz]=S.pos(t);
   const dist=S.h/f/(2*Math.tan(fovd*Math.PI/360));     // the framing solver: size -> distance
   const aimY=cy+(anchor-.5)*S.h;
@@ -303,8 +307,9 @@ function setCamera(t){
   /* camera energy — noise from the frozen pool, amplitude riding CONFIG.sway
      so `build.js loop`'s held-camera warning stays honest:
      locked = tripod, steadicam = the old gentle drift, handheld = nerves. */
-  const E={locked:0,steadicam:1,handheld:4}[CONFIG.energy||'steadicam']*CONFIG.sway;
-  const F=CONFIG.energy==='handheld'?1.9:.55;
+  const en=STYLE.energy||CONFIG.energy||'steadicam';
+  const E={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
+  const F=en==='handheld'?1.9:.55;
   camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
   camera.fov=fovd;camera.updateProjectionMatrix();
   camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);

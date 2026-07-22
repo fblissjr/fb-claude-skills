@@ -1,5 +1,14 @@
 # changelog
 
+## 0.59.0
+
+### added
+- **explainer-video 0.14.0 -> 0.15.0**: Phase 4 (style bibles) — gate met, and with it the generalization plan's back-to-back run (Phases 0-4) completes. A style bible is one object constraining every register layer — palette, lights, post, glass (`STYLE.lens`, the solver's default), cut pace (`STYLE.cutDur`), camera energy — while `BEATS`, cast, world, and the shot list stay content, untouched.
+
+  The gate is the committed control pair: `examples/toybot-walk.html` carries a `BIBLES` table and a one-line switch. `toybox` (default) is the daylight paper-cutout film; `midnight` (`toybot-walk.midnight.avif`, 0.15 MB) is the same eight shots, same beats, zero geometry edits — as a low-key neon noir: 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom threshold at .55 so glow carries the frame. The crush lint fires at 84% on midnight and that is the register by intent, judged by looking — precisely the hazard the neon-dark pack predicted when it was written, two phases before this film existed. If the swap had NOT categorically changed the film, the layers would not actually be separated; the pair is the standing proof they are.
+
+  `references/styles/bibles.md` holds the spec (every key annotated as register), the pair's summary table, and the bible-writing recipe. Full regression green: three examples + both templates, source and bundled, kernel parity holding. Cast/set modules stay deliberately informal (no second film reuses a character yet — the plan's own rule); cut-rhythm-as-average-shot-length stays unbuilt with `cutDur` as the pace lever until a film needs more.
+
 ## 0.58.0
 
 ### added

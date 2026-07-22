@@ -51,6 +51,16 @@ has been waiting for: if it animates inline above, the last row of the table
 in `references/delivery.md` gets its second observation. Source:
 [`toybot-walk.html`](skills/explainer-video/examples/toybot-walk.html).*
 
+The same film also ships under a second **style bible** — one line changed
+(`BIBLE='midnight'`), zero edits to beats, geometry, or the shot list:
+
+![toybot at midnight](skills/explainer-video/examples/toybot-walk.midnight.avif)
+
+*Low-key neon noir: 30° lens, locked tripod, 1.3s dollies, magenta rim,
+bloom-forward. This pair is the standing proof that the layers are actually
+separated — register swaps; content does not. Spec:
+[`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).*
+
 The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
 [`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
@@ -188,6 +198,7 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/delivery.md` | GitHub delivery forensics: format tradeoffs, encoder settings, content-type evidence chain |
 | `skills/explainer-video/references/styles/` | Style packs — swappable `STYLE` blocks + register rules (paper-cutout, blueprint, neon-dark) |
 | `skills/explainer-video/references/film-language.md` | Shot vocabulary: sizes, cuts, the match-cut constraint, rack-as-shots, camera energy |
+| `skills/explainer-video/references/styles/bibles.md` | Style bibles: one object constraining palette, lights, post, lens, cut pace, energy — with the committed control pair |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
 | `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
 | `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |

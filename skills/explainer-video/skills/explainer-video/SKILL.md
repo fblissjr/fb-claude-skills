@@ -332,7 +332,11 @@ register of the captions. The contract, the beats and the pipeline do not.
   default, documented as a choice), `blueprint`, `neon-dark`. Swapping the
   block is the whole mechanism; verified to produce a categorically
   different film from the same beats. Worked 2D example in the paper-cutout
-  pack: `examples/one-scene-every-format.html`.
+  pack: `examples/one-scene-every-format.html`. For the 3D register the pack
+  idea grows into **style bibles** (`references/styles/bibles.md`): one
+  object constraining palette, lights, post, lens, cut pace, and camera
+  energy — `examples/toybot-walk.html` ships the committed control pair
+  (`toybox` / `midnight`, one line apart).
 
 ## Environment
 
