@@ -93,15 +93,18 @@ const EXPOSURE_CRUSHED_THRESHOLD = 0.35; // warn if worst-case crushed fraction 
 // judgement about what reads. It was 40, which fired on that known-good example
 // — a threshold with no observation beneath it is a guess wearing a number.
 //
-// INSTRUMENT ARTIFACT, RECORDED: this check once reported 0.0 on the flat
-// Canvas2D template and, separately, "crushed 100%" on the known-good pale 3D
-// template. NEITHER was an observation — both were one sampling race (the
-// canvas read mid-resize or mid-clear), fixed structurally below. Sampled
-// deterministically, the Canvas2D template measures ABOVE this floor. Whether
-// a legitimately flat design can sit below it is plausible and currently
-// UNMEASURED — if a real one does, treat it as the wash-rule case (the metric
-// is style-conditional; annotate, don't gate). A measurement taken by a racy
-// instrument is not a bracket, and it briefly stood here as one.
+// INSTRUMENT ARTIFACT, THEN A REAL OBSERVATION. This check once reported 0.0
+// on the flat Canvas2D template and, separately, "crushed 100%" on the
+// known-good pale 3D template — NEITHER was an observation; both were one
+// sampling race (the canvas read mid-resize or mid-clear), fixed structurally
+// below. With sampling settled, the measurement was redone honestly: the
+// Canvas2D placeholder measures ABOVE this floor, and the committed 2D film
+// (examples/one-scene-every-format.html) measures 0.0 at its flattest sample
+// while every frame is legible on review — a KNOWN-GOOD scene genuinely below
+// the floor. So the metric is style-conditional the way the wash rule was
+// palette-conditional: it can flag a nearly-blank 3D render; it cannot judge
+// flat paper-and-ink design. Advisory wording reflects that. Catastrophic
+// blankness on any backend stays covered by the PNG-size check.
 const EXPOSURE_DYNRANGE_THRESHOLD = 18;
 const EXPOSURE_SAMPLE_WIDTH = 320;       // downscale width for the offscreen luma sample
 const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of

@@ -37,5 +37,7 @@ const STYLE = {
 - Label ink on accents must go through `contrastOn()` — white-on-mustard
   shipped once in the template's first render.
 - The dynamic-range lint can read low on this style; that is the metric's
-  blind spot, not a defect — judge frames by looking (see the threshold note
-  in `smoke.js`).
+  blind spot, not a defect — **observed**: the committed film in this pack
+  (`examples/one-scene-every-format.html`) measures 0.0 at its flattest
+  sample with every frame legible on review. Judge frames by looking (see
+  the threshold note in `smoke.js`).

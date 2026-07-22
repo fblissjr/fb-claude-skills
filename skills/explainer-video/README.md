@@ -19,7 +19,21 @@ camera, three beats, and the best-verified case for inline rendering on
 GitHub. Source:
 [`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
 
-The same film is also committed as a **28.5 KB** animated AVIF —
+A second bundled example is built on the **Canvas2D backend** in the
+paper-cutout style pack — the plugin explaining its own pipeline:
+
+![one scene, every format](skills/explainer-video/examples/one-scene-every-format.webp)
+
+*20.8s, six beats, held camera, flat 2D — committed as a 0.96 MB WebP and a
+0.10 MB AVIF
+([`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif)).
+Source:
+[`one-scene-every-format.html`](skills/explainer-video/examples/one-scene-every-format.html)
+— no three.js, no vendor step; the source file is the artifact. It is the
+Phase 1 proving film of the generalization plan: same tooling, second
+renderer.*
+
+The same 3D film above is also committed as a **28.5 KB** animated AVIF —
 [`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
@@ -156,4 +170,5 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/delivery.md` | GitHub delivery forensics: format tradeoffs, encoder settings, content-type evidence chain |
 | `skills/explainer-video/references/styles/` | Style packs — swappable `STYLE` blocks + register rules (paper-cutout, blueprint, neon-dark) |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 11s, 3 beats, held camera, diagrammatic — the one shown above |
+| `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
+| `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |

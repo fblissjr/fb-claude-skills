@@ -1,5 +1,18 @@
 # changelog
 
+## 0.55.0
+
+### added
+- **explainer-video 0.10.0 -> 0.11.0**: the Phase 1 proving film ships, and Phase 1 of the generalization plan closes at its gate.
+
+  `examples/one-scene-every-format.html` — the plugin explaining its own pipeline on the Canvas2D backend in the paper-cutout pack: 20.8s, six beats of varied duration, held camera, committed as a 0.96 MB WebP and a 0.10 MB AVIF (verified animated, 250 frames). Every beat carries its idea in geometry: the beats table draws itself in and *retimes on screen* (stretch one duration, the downstream segment shifts — accumulation shown, not asserted); one scrubber spanning two beats drives the mini-scene, the ruler dot, and the capture row from a single expression; captured frames each hold the sun pose from their capture instant; the frames become the four delivery chips; the retime makes the chips answer.
+
+  The film went through the full method and the method caught things: the contact sheet flagged a middle-third violation (the table is beat 2's subject and sat on the top rail during its own beat — it now owns the center, then migrates), a false color pairing (chip four wrapped onto chip one's accent; it is now a paper chip), and a timid title motif; the consecutive-frame strip caught the table migration tangled with the stage's entrance (now sequenced: clear first, enter second); the motion profile shows varied per-beat energy and zero dead air; the spanning scrub crosses its beat boundary without a stall by construction.
+
+  One bracket upgraded from artifact to observation: with the sampling race fixed, the dynamic-range lint's 0.0 reading on this film is a genuine known-good-below-the-floor case — flat paper-and-ink design sits below a floor bracketed on 3D renders while reading perfectly. The threshold note and the paper-cutout pack record it as the measured fact it now is.
+
+  Phase 1 exit checkpoint: harvest done (threshold note, pack hazards, kernel-comment rules), release cut (this one), regression green (`skill-retrieval.html` passes smoke untouched, 0 warnings; template kernels byte-identical), prune reviewed (`noise1` is consumed by the 2D camera's sway path rather than any proving film yet — kept as part of the camera-energy mechanism, flagged for Phase 3, which formalizes camera energy).
+
 ## 0.54.0
 
 ### added

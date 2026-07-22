@@ -326,7 +326,8 @@ register of the captions. The contract, the beats and the pipeline do not.
   energy, fill/line vocabulary. Current packs: `paper-cutout` (the 2D
   default, documented as a choice), `blueprint`, `neon-dark`. Swapping the
   block is the whole mechanism; verified to produce a categorically
-  different film from the same beats.
+  different film from the same beats. Worked 2D example in the paper-cutout
+  pack: `examples/one-scene-every-format.html`.
 
 ## Environment
 
