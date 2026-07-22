@@ -294,17 +294,174 @@ expect the first-cut framing to be wrong in the same quiet way.
 
 ---
 
-## Recommended priority run
+## Test rounds
 
-Covers the most surface *and* the most opens, cheap-first:
+Cases are grouped into **rounds**, not a flat ranking. A round is a batch whose
+results are read *together*, so each round must be internally diverse — a round
+that is all-2D, all-explainer, or all-happy-path tells you about one axis and
+lets the others hide.
 
-1. **B1 · toybot dance** — asset exists, fast, fun, tests review-without-captions.
-2. **A3 · external doc** — the highest-value untested claim (semantics on
-   someone else's subject).
-3. **D1 · simulation-shaped scene** — the prime directive under active pressure.
-4. **C1 · match cut** — verifies a headline feature actually enforces.
-5. **B3 · Rube Goldberg** — fun + causality + compression-hostile in one film.
-6. **A2 · approval flow** — the clean happy-path baseline to anchor the rest.
+### The diversity rule
+
+Every round spans these seven dimensions. Check a proposed round against the
+list before running it; a deliberate skew is fine, an accidental one is not, so
+**name the skew and its rationale** when a round doesn't balance.
+
+| Dimension | Values to spread across |
+|---|---|
+| Backend | 3D three.js / 2D Canvas2D |
+| Style register | cel-cinematic / blueprint / paper-cutout / neon-dark / cross-section |
+| Posture | explainer / fun |
+| Caption | captioned / uncaptioned |
+| Camera | held / moving |
+| Delivery | WebP / AVIF / MP4 / HTML |
+| Probe type | capability (should work) / negative-or-gap (should break or reveal) |
+
+**Camera** carries more weight than it looks: held-vs-moving is the axis the
+whole delivery tradeoff is built on (`delivery.md`), so a round with no held
+camera can't say anything about WebP and a round with no moving camera can't
+say anything about AVIF.
+
+### Film-level cases vs riders
+
+Not every case needs its own scene file, and treating them as if they did was
+the first draft's mistake. Three classes:
+
+- **Film-level** — needs its own scene and full render: A1–A5, B1–B6, D1, D2,
+  D4, D5.
+- **Shot-level riders** — fold into an existing 3D film as extra shots, costing
+  a re-render and no new scene: **C1** (match cut), **C2** (rack focus),
+  **C4** (whip pan). All three are `SHOTS[]` entries, which is exactly what
+  shots-as-data bought.
+- **One-line riders** — nearly free. **C3** (camera energy) is a single
+  `CONFIG.energy` swap plus a re-render, the same shape as the bible control
+  pair. **D3** (caption density) is one beat's caption authored into the target
+  band on whatever film is standing.
+- **Not a film** — **D6** (convention pre-flight) is a discipline applied to
+  whichever case introduces new craft vocabulary; **C5** (IBL) is gated on the
+  render environment, not on scheduling.
+
+Attach **D3 to a different film in each round**: three observations in the
+unmapped 37–50 CPS band builds a bracket, where one observation only builds an
+anecdote.
+
+---
+
+### Round 0 · Environment check (do this first — minutes, not hours)
+
+**Newly relevant: the whole generalization run executed on a software-GL
+container (SwiftShader).** The postmortem's standing recommendation is to
+"book a hardware-GL session" to close three opens at once. Confirm what this
+machine actually gives Chromium before budgeting any render time, because the
+answer changes everything downstream:
+
+- If **hardware GL**: render cost drops ~5–10x, which re-prices every round
+  below; **C5 (IBL/PMREM) becomes testable** for the first time; parallel
+  capture can be re-measured where it was predicted to win (roadmap item 5's
+  open); and the quality-tier question can be honestly re-judged.
+- If **software GL**: C5 stays blocked (PMREM `fromScene` blacks out on
+  SwiftShader — a bisected negative result), and the rounds stay expensive.
+
+This is the cheapest high-leverage step in the suite. Record the answer here.
+*Outcome:* —
+
+---
+
+### Round 1 · Breadth and baselines
+
+**Purpose:** prove both backends, four distinct style registers, and both
+inline formats work end to end — and produce the baselines every later round is
+judged against. All cases cheap by design.
+
+| # | Case | Backend | Register | Posture | Camera | Delivery | Probe |
+|---|---|---|---|---|---|---|---|
+| 1 | **D4** micro-explainer (3 beats, <10s) | 3D | cel | explainer | moving | AVIF | capability + toolchain smoke |
+| 2 | **A2** approval flow | 2D | blueprint | explainer | held | WebP | capability (baseline) |
+| 3 | **B1** toybot dance | 3D | toybox cel | **fun** | moving | AVIF | **uncaptioned** review |
+| 4 | **B5** greeting card | 2D | paper-cutout | **fun** | held | WebP | warmth as register |
+
+**Riders:** C1 (match cut) on B1 — and deliberately break it once, so the
+load-time throw is verified as a negative control, not assumed.
+
+**Run D4 first.** It is the fastest complete pass through the toolchain and
+will surface a broken install or a regression before you spend real render time
+on anything else.
+
+Diversity: 2/2 backend, 4 distinct registers, 2 explainer / 2 fun, 2 held /
+2 moving, 2 WebP / 2 AVIF, one negative control. Balanced with no skew.
+
+---
+
+### Round 2 · The hard axes
+
+**Purpose:** attack the three things that rounds of *looking* never converge —
+semantics, causality, continuity. These are the cases most likely to produce
+real ledger entries.
+
+| # | Case | Backend | Register | Posture | Camera | Delivery | Probe |
+|---|---|---|---|---|---|---|---|
+| 1 | **A3** external doc → film | 3D | per doc | explainer | moving | AVIF | **semantics** (the "Phase 6" stress) |
+| 2 | **B3** Rube Goldberg | 3D | cross-section-ish | **fun** | moving | MP4/AVIF | **causality** + compression-hostile |
+| 3 | **D1** simulation-shaped scene | 2D | neon-dark | fun/abstract | moving | AVIF | **determinism** negative probe |
+| 4 | **C3** handheld energy swap | 3D | (on B1) | — | moving | — | **continuity** / watch-the-loop gap |
+
+**Riders:** C2 (rack focus) on A3 — a reveal shot is natural in an explainer
+and gives the rack two genuinely visible subjects, which is the calibration the
+first cut got wrong.
+
+**Named skew:** this round is 3D-heavy and entirely moving-camera. That is
+deliberate, not accidental — causality, camera energy, and the shot layer all
+live in the 3D backend, and every hard axis here involves motion. D1 carries
+the 2D representation, and picking neon-dark for it is not arbitrary: the
+deterministic **trail idiom is that pack's signature move**, which is exactly
+the shape that tempts you into carrying state across frames.
+
+**Sequencing within the round:** spike B3's busiest link before building the
+rest of its chain (the hostile-beat rule). C3 is last and nearly free — it
+rides on B1 from Round 1.
+
+---
+
+### Round 3 · Ceilings, gaps, and the unbuilt
+
+**Purpose:** find the limits and log earn-in items. Expect at least one case
+here to produce a roadmap entry rather than a film.
+
+| # | Case | Backend | Register | Posture | Camera | Delivery | Probe |
+|---|---|---|---|---|---|---|---|
+| 1 | **D2** a 2D film that wants shots | 2D | any | explainer | wants moving | — | **known-unbuilt gap** |
+| 2 | **D5** 40s, 8–10 beats, multi-world | 3D | cinematic | explainer | moving | MP4/AVIF | **ceiling** + world cuts |
+| 3 | **A1** heat pump | 3D | **cross-section** | explainer | held | WebP | the third documented register |
+| 4 | **B2** generative particle/flow loop | 2D or 3D | neon-dark | **fun** | moving | AVIF | **no subject** + AVIF playback |
+
+**Riders:** C4 (whip pan) on D5 — a hostile transition belongs in the long film
+where there is room for it.
+
+**A1 earns its slot** because cross-section is one of the three registers
+SKILL.md names and no earlier round touches it; it also has a rule of its own
+(internals must sit proud of the front face) that nothing else tests.
+
+**D2's deliverable is a ledger entry, not a film.** If the `{x,y,zoom}` rail
+turns out to be enough, that is the finding — and it means the 2D solver stays
+correctly unbuilt.
+
+---
+
+### Reserve bench
+
+Pull these when a round has capacity, or when a specific question comes up.
+Deliberately not scheduled — the suite should not become a completionist
+checklist:
+
+- **A4** photosynthesis — organism geometry, if a biology subject is wanted.
+- **A5** market flywheel — the hardest non-character semantics case; overlaps
+  A3's probe, so it is redundant *unless* A3 comes back clean.
+- **B4** kinetic typography — text-as-hero; pull if B5 suggests the overlay
+  layer is a limit.
+- **B6** one-joke gag — timing as authorship; cheapest possible fun case.
+- **C5** IBL open-sky — **unblocked only if Round 0 reports hardware GL.**
+- **D6** convention pre-flight — a discipline, applied to whichever case
+  introduces new craft vocabulary.
 
 ---
 
