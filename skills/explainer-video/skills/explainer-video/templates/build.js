@@ -55,7 +55,8 @@ function vendor(dir = process.cwd()) {
     "import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';",
     "import {BokehPass} from 'three/addons/postprocessing/BokehPass.js';",
     "import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';",
-    "globalThis.THREE = Object.assign({}, THREE, {EffectComposer, RenderPass, UnrealBloomPass, BokehPass, OutputPass});",
+    "import {Sky} from 'three/addons/objects/Sky.js';",
+    "globalThis.THREE = Object.assign({}, THREE, {EffectComposer, RenderPass, UnrealBloomPass, BokehPass, OutputPass, Sky});",
     "",
   ].join('\n'));
   try {

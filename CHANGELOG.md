@@ -1,5 +1,14 @@
 # changelog
 
+## 0.57.0
+
+### added
+- **explainer-video 0.12.0 -> 0.13.0**: Phase 2 (cinematic 3D) closes. The toybot film gains its world — a 46-tree instanced forest (one draw call, plus one more for the whole field's inverted-hull outlines via a second `InstancedMesh` sharing the same seeded matrices), a `LatheGeometry` urn, a chrome `MeshPhysicalMaterial` pod, and a matcap boulder whose shading is painted at load on a canvas (zero lights, zero files). Re-encoded at 0.22 MB AVIF; smoke, motion profile, and the full-example regression all green.
+
+  Two negative results, both bisected against controls and recorded in `style-3d.md` rather than shipped around silently: **`PMREMGenerator.fromScene` renders every subsequent frame black on SwiftShader** (software GL) — the IBL recipe is documented, expected to work on hardware GL, honestly marked unverified there, with the measured consolation that a metal physical material reads convincingly from the directional rig alone; and **the visible Sky dome, though it works, lost to the flat-background control on this film's low-horizon composition** — HDR-bright, fighting ACES at any exposure. `THREE.Sky` stays bundled for the compositions it suits (open sky, high angles, exposure ~0.5-0.6, bloom threshold above sky luminance).
+
+  Phase 2 exit checkpoint: harvest done (instanced-field recipe moves from "not yet built" sketch to built-with-a-trick; Sky/IBL status section; matcap recipe), release cut (this one), regression green (three examples + both templates, source and bundled, kernels byte-identical), prune reviewed (Sky bundled-but-unused-by-a-film is kept: it was built, measured, and rejected *for this composition* with the rationale recorded — that is used knowledge, not speculation; quality tiers remain unbuilt by design with their rule pre-decided). Phase 3 — film language — is next.
+
 ## 0.56.0
 
 ### added

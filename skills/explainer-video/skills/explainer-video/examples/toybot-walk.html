@@ -70,7 +70,7 @@ const BEATS = [
 const STYLE = {
   bg: 0xdfe6ea,                       // soft daylight
   floor: 0xe7dcc8,                    // warm sand
-  exposure: 1.0,
+  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
   ink: 0x26221c,                      // outline + dark details
   body: 0x2a9d8f, accent: 0xe05d3d, trim: 0xe9b44c,   // the plugin palette, in 3D
   toonSteps: 3,                       // cel bands in the gradient map
@@ -181,6 +181,19 @@ scene.background=new THREE.Color(STYLE.bg);
 scene.fog=new THREE.Fog(STYLE.bg,26,90);
 const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
 
+/* ---------- sky + IBL: measured, and deliberately NOT in this film ----------
+   Both were built and bisected here, and both are recorded in style-3d.md:
+   - PMREMGenerator.fromScene left every subsequent frame BLACK on SwiftShader
+     (software GL, the dev-container case), confirmed against a no-PMREM
+     control. Standard recipe, expected to work on hardware GL; unverified
+     there. The chrome pod below reads convincingly from the directional rig
+     alone, which is why the film does not miss it.
+   - The visible Sky dome WORKS but is HDR-bright: on this film's low-horizon
+     composition it put a blinding band across every frame and fought ACES at
+     any exposure. Judged against the flat-background control, the control
+     won. Sky suits open-sky compositions with high camera angles — it stays
+     bundled (THREE.Sky) for films shaped like that. */
+
 /* ---------- post chain: per-frame pure, so seekTo stays byte-deterministic.
    RenderPass -> Bokeh (DoF) -> Bloom -> OutputPass (tone map + sRGB).
    NEVER add temporal passes (TAA, accumulation blur): they carry state across
@@ -224,6 +237,8 @@ function om(g,m,parent,px,py,pz){                 // outlined mesh
 /* ---------- lights (toon reads them as bands) ---------- */
 // Hemisphere stays LOW: toon quantizes directional light into bands, but
 // hemisphere irradiance is smooth and washes the cel look out on top.
+// Hemisphere stays LOW: toon quantizes directional light into bands, but
+// hemisphere irradiance is smooth and washes the cel look out on top.
 scene.add(new THREE.HemisphereLight(0xdfeaf2,0xcbb89a,.45));
 const key=new THREE.DirectionalLight(0xfff2dc,1.45);
 key.position.set(7,11,7);key.castShadow=true;
@@ -243,6 +258,48 @@ floor.rotation.x=-Math.PI/2;floor.castShadow=false;
 const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
 om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
 om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+
+/* ---------- world dressing: the three remaining material families ----------
+   Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
+   matching BackSide instanced shell so the outlines are one draw call too.
+   Urn: LatheGeometry, toon — curves without an asset file.
+   Pod: MeshPhysicalMaterial reading scene.environment — the IBL proof.
+   Boulder: MeshMatcapMaterial with a matcap PAINTED at load on a canvas —
+   sculpted-clay shading with zero lights and zero files. ---------- */
+{
+  const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
+  const treeM=toon(0x37806b),trunkM=toon(0x6b4a32);
+  const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
+  const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
+  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
+  for(let i=0;i<N;i++){
+    const x=-60+120*R[i*3],z=-9-40*R[i*3+1],h=2.2+3.4*R[i*3+2];
+    P.set(x,h/2+.7,z);V.set(h*.42,h,h*.42);
+    M.compose(P,Q,V);tree.setMatrixAt(i,M);
+    M.compose(P,Q,V.clone().multiplyScalar(1.06));treeO.setMatrixAt(i,M);
+    M.compose(new THREE.Vector3(x,.35,z),Q,new THREE.Vector3(1,1,1));trunk.setMatrixAt(i,M);
+  }
+  tree.castShadow=trunk.castShadow=true;
+  world.add(tree,treeO,trunk);
+}
+om(new THREE.LatheGeometry(
+  [[0,0],[.62,.06],[.5,.5],[.3,.9],[.34,1.28],[.52,1.5],[.44,1.62]].map(p=>new THREE.Vector2(p[0],p[1])),18),
+  toon(STYLE.trim),world,-6.5,0,-3.5);
+{
+  const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
+    {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
+  pod.position.set(-7.5,.7,3.2);pod.castShadow=true;world.add(pod);
+}
+{
+  const cv=document.createElement('canvas');cv.width=cv.height=256;
+  const c=cv.getContext('2d');
+  const g=c.createRadialGradient(96,84,18,128,128,132);
+  g.addColorStop(0,'#f6e0c8');g.addColorStop(.55,'#c76b4a');g.addColorStop(1,'#2a1409');
+  c.fillStyle=g;c.fillRect(0,0,256,256);
+  const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
+  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
+  rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
+}
 
 // ---- the bot: every joint is a Group, so outlines and IK ride together ----
 const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;

@@ -135,15 +135,24 @@ geometry serves wildly different domains. Before reaching for one, derive your o
   disc against the backdrop, and distant stations recede instead of competing
   with the subject. Cheap, and it does what a vignette cannot.
 
+- **Field of instances** (forests, crowds, populations, fleets): one
+  `InstancedMesh` per geometry, transforms composed ONCE at load from the
+  seeded `R[]` pool — deterministic arrangement, one draw call however many
+  items. The cel trick: the outlines are a *second* `InstancedMesh` sharing
+  the same matrices scaled ~1.06 with the BackSide ink material — linework
+  for the whole field at one more draw call. Built: the 46-tree forest in
+  `examples/toybot-walk.html`. For a beat that animates the field, write
+  per-instance values as functions of `(t, R[i])` and recompose matrices in
+  `animate()` — still pure.
+- **Curves without asset files**: `LatheGeometry` from a `Vector2` profile
+  (the urn in toybot-walk), `ExtrudeGeometry` from a `Shape`, `TubeGeometry`
+  along a Catmull-Rom curve. A profile array is data; no download.
+
 ### Not yet built, but the shape is obvious
 
 Sketches, not battle-tested — treat them as starting points and add what you
 learn back here.
 
-- **Field of instances** (populations, portfolios, fleets, A/B cohorts): one
-  instanced primitive per item on a grid, driven by a seeded `R[]` offset so the
-  arrangement is deterministic. Colour or height encodes the variable; the beat
-  is a wave passing through the field.
 - **Mechanism** (gears, levers, pumps, linkages): cylinders and boxes in nested
   Groups where each rotation is a closed form of `t`. Meshing is faked — two
   gears at a fixed ratio never actually collide, so drive both from one ramp.
@@ -222,6 +231,35 @@ foot counter-rotated flat (`ankle = -(hip + knee)`). The kit:
 - **Sequence a payoff beat's events**: the first cut ran the hop and the
   orb glow simultaneously and neither read. Anticipation squash → hop →
   landing squash + `backOut` settle → THEN the glow. One event at a time.
+
+## Sky and IBL: measured status, both directions
+
+`build.js vendor` bundles `THREE.Sky`. Two results from building both into a
+real film and bisecting:
+
+- **`PMREMGenerator.fromScene` rendered every subsequent frame BLACK on
+  SwiftShader** (software GL — the cloud/dev-container case), confirmed
+  against a no-PMREM control. The standard recipe (a throwaway scene holding
+  a Sky, `pmrem.fromScene(es).texture` into `scene.environment`, generated
+  once before `sceneReady`) is expected to work on hardware GL and is
+  UNVERIFIED there — run it on a real GPU before relying on it. Note the
+  fallback is decent: a metal `MeshPhysicalMaterial` under the
+  key/rim/hemisphere rig reads convincingly without any env map.
+- **The visible Sky dome works but is HDR-bright.** On a low-horizon
+  composition it put a blinding band across every frame and fought ACES at
+  any exposure; judged against the flat-background control, the control won
+  and the film shipped flat. Sky is art-direction-conditional: reach for it
+  on open-sky compositions with high camera angles, budget an exposure pass
+  (~0.5-0.6), and keep the bloom threshold above the sky's luminance.
+
+## Matcap: sculpted shading, zero lights, zero files
+
+Paint a matcap at load — an offscreen canvas radial gradient (highlight
+off-center, mid tone, dark rim), `CanvasTexture` with
+`colorSpace = SRGBColorSpace`, into `MeshMatcapMaterial`. Lights are ignored
+by design: the shading is art-directed in the texture, which is exactly what
+makes it read as sculpted clay/wax at any lighting. Deterministic (painted
+once, before `sceneReady`). The boulder in toybot-walk is the built instance.
 
 ## Quality tiers: deliberately not built yet
 
