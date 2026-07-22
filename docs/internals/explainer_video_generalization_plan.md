@@ -76,6 +76,10 @@ payoff. 3 wants 2's DoF (rack focus) but not 1. 4 needs 1 (style as data) and
 are 1-2 focused sessions each plus their proving film; 4 is mostly authoring;
 5 is open-ended and demand-driven.
 
+The paragraph above assumes demand-driven pacing — phases landing as need
+shows up. **If executing all phases back-to-back as one continuous effort,
+four adjustments apply; see "Back-to-back execution mode" below.**
+
 ---
 
 ## Phase 0 — Doc re-layering (no behavior change)
@@ -265,6 +269,50 @@ same discipline that has audio.md sitting unwired today.
 - **Path-traced hero frames** (exploratory): deterministic per-frame-seeded
   path tracing for still/short "money shots"; offline capture makes slow
   affordable, parallel capture makes it tolerable.
+
+---
+
+## Back-to-back execution mode
+
+The phase contents above hold; four sequencing/scoping choices change when
+the phases run continuously instead of demand-driven.
+
+1. **Parallel frame capture moves to Phase 0/1.** Its "low priority, add
+   anytime" verdict (roadmap item 5) assumed occasional films on local
+   hardware GL. Back-to-back, render-look-edit is the inner loop for the
+   whole effort and Phase 2's post chain multiplies the ~1 fps software-GL
+   floor. Infrastructure that cheapens every subsequent iteration ships
+   first; it touches no scene code, so pulling it forward is risk-free.
+2. **Two persistent proving threads instead of a film per phase.** A 2D
+   diagrammatic thread (born in Phase 1) and a 3D character thread (born in
+   Phase 2, gains shots/editorial in Phase 3, becomes the Phase 4 control
+   pair). Gates attach to the threads' milestones rather than to fresh
+   throwaway films. Two threads, never one: a single evolving film would
+   overfit the system to itself — the disease this whole plan exists to cure.
+3. **Order is fixed: 0 → 1 → 2 → 3 → 4.** The 1↔2 swap option is for
+   appetite-driven pacing only. Running continuously, the kernel must be
+   extracted (Phase 1) before Phase 2 piles post-chain and quality-tier churn
+   onto the 3D template — extracting shared code from a moving target is how
+   the extraction goes wrong.
+4. **"All phases" means 0-4.** Phase 5 is demand-gated *by design*; building
+   bake/asset-vendoring/path-tracing speculatively is exactly the
+   overcomplication failure mode. Pull a Phase 5 item into the run only when
+   one of the two proving threads concretely hits its need (audio via
+   narration-drives-timing is the likeliest candidate).
+
+**Phase-exit checkpoint (mandatory in this mode).** Demand-driven pacing has
+natural pauses where observations get harvested; back-to-back momentum blows
+through them. Every phase ends with, in order:
+
+- Harvest: new brackets, gotchas, and negative results into `method.md` /
+  the style references, and the phase's status into the roadmap ledger.
+- Release: cut the plugin version (the cascade), so history stays bisectable
+  per phase instead of one mega-release at the end.
+- Regress: re-shoot the fixed sample timestamps of every committed example
+  and compare (byte-identical or the PSNR technique in `method.md`); a phase
+  may not open while a prior phase's example renders differently unexplained.
+- Prune: anything built this phase that the proving threads did not use gets
+  removed before the next phase starts, not "kept for later."
 
 ---
 
