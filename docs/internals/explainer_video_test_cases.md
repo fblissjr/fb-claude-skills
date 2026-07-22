@@ -78,7 +78,68 @@ reference shape.
 **Hypothesis:** the cleanest win in the suite; serves as the baseline the
 harder cases are judged against. If this needs more than 2 composition rounds,
 something regressed.
-*Outcome:* —
+
+**Outcome (2026-07-22): PASS — but it took 3 composition rounds, not the
+predicted ≤2, and it produced the run's best instrument finding.**
+Film: `internal/video-tests/a2-approval-flow.html` — a request travelling from
+filing to recorded decision. 5 beats / 15.8s, blueprint pack, locked camera
+(`sway:0`, KEYS pinned to zoom 1). Built by splicing the 2D template so the
+KERNEL block stays byte-identical; `smoke.js` kernel-parity check confirms it.
+Semantics passes: filed → routed with one branch **visibly not taken** →
+checked → recorded. Keeping the untaken `AUTO-OK` branch drawn but faint is
+what makes a decision legible; a single drawn path is just a pipe.
+
+**Two defects, both found only by the end-of-beat sheet (`sheet 480 0.95`),
+both invisible at the default 0.6 sample:**
+1. The payload dot **arrived at empty space** — the connector and dot completed
+   during `route`, but the APPROVER box did not draw until the following beat.
+   Fixed by drawing the box during route's tail, as the branch is chosen.
+2. The ledger connector **descended through the box interior** (vertical
+   segment at x=52 inside a box spanning x 46–70) instead of approaching from
+   outside. Fixed by moving the descent clear of the left edge.
+
+This is a direct argument for the 0.95 pass as a standing step, not an option:
+both defects are *timing/geometry* errors that a mid-beat sample cannot show.
+
+**INSTRUMENT FINDING — `build.js motion`'s dead-air detector is blind to
+low-contrast linework, and its threshold is global rather than per-beat.**
+The submit beat drew three evidence rules sequentially across 3.84–5.54s and
+`motion` still reported `DEAD AIR t=3.92–5.17` — the identical window before
+and after the rules were converted from an alpha fade to a sequential
+`drawOn`. Control run (same timing, same geometry, **only** stroke weight
+×3.7 and colour changed from `faint` to an accent):
+
+| | submit bar | dead-air flags |
+|---|---|---|
+| faint thin rules | 0.05 | `submit 3.92–5.17` |
+| bright thick rules | 0.07 | **submit clean**; three NEW flags in `review` and `record` |
+
+Two conclusions, both bracketed by that control:
+- The detector measures **pixel contrast, not activity**. Thin, low-alpha
+  linework animates without registering — and the blueprint pack (fine lines,
+  faint construction grid) is precisely the register that trips it.
+- The threshold is **relative to a global median**, so making one beat busier
+  pushes quieter beats below it and *manufactures* dead-air flags elsewhere.
+  A dead-air report is therefore not a stable per-beat property; it is a
+  statement about one beat relative to the rest of that particular cut.
+
+Same family as the documented pop/stall negative result: whole-frame
+statistics see *that* a film moves, not *what* moved. Recorded, threshold
+deliberately not touched — the submit beat genuinely animates and the flag is
+a false positive for this register.
+
+**Delivery — the held-camera case, and the bracket it completes.** Same
+encoder settings, 720px @ 12fps, against D4's moving camera:
+
+| film | camera | WebP | AVIF | AVIF advantage |
+|---|---|---|---|---|
+| A2 approval flow | **held** | **0.27 MB** | 0.051 MB | 5.3x |
+| D4 noise cancelling | **moving** | **4.58 MB** | 0.195 MB | 23.5x |
+
+A 17x swing in WebP cost from camera choice alone, on the same pipeline. This
+is a self-generated confirmation of the delivery table's central claim: WebP is
+entirely shippable on a held camera and ruinous on a moving one, and AVIF's
+advantage grows with how much of the frame changes per frame.
 
 ### A3 · A real external document → 30s film
 3D or 2D · register per doc · AVIF.
@@ -188,7 +249,24 @@ framing vocabulary (size/angle/elev/fov/anchor) differs, and hold silently when
 it matches? This is the compiler-verified cohesion device.
 **Hypothesis:** the headline film-language feature; confirming the throw fires
 (the negative control) matters as much as confirming a good match passes.
-*Outcome:* —
+
+**Outcome (2026-07-22): PASS in both directions — the constraint genuinely
+enforces.** Ridden on D4 rather than given its own film, and it needed **no
+rendering at all**: the check runs at load, so both directions cost one page
+open each. Two variants of the same scene, differing only in shot 3:
+
+| variant | shot 3 framing vs shot 2 | result |
+|---|---|---|
+| `c1-matchcut-bad` | `match:true`, angle 4 vs -17, elev 26 vs 12 | **throws** — `match cut into SHOTS[2] breaks framing: size/angle/elev/fov must equal the previous shot` |
+| `c1-matchcut-good` | `match:true`, framing vocabulary identical | loads and shoots clean |
+
+Critically, the failure is **loud, not advisory** — verified by exit code, not
+by reading the message: `shoot.js` exits **1**, and `smoke.js` exits **1** with
+`FAIL` on *both* source and bundled. A broken match cut cannot reach a render.
+
+Worth noting for authors: the constraint compares size/angle/elev/fov/anchor
+and deliberately **not** `subject` — so a match cut may change what is on
+screen while holding the framing, which is exactly the real editorial device.
 
 ### C2 · Rack-focus reveal
 3D · two subjects, focus-only shot change joined by `blend`.
