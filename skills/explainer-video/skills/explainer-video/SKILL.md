@@ -321,6 +321,12 @@ register of the captions. The contract, the beats and the pipeline do not.
   internals): a frontal cutaway slab. The one rule is that "inside" is invisible
   — internals must sit proud of the front face. See `references/style-3d.md`.
 - Subtitles off: beats still exist — they discipline pacing even uncaptioned.
+- **Style packs** (`references/styles/`): swappable `STYLE` blocks plus the
+  register rules that make a look coherent — easing temperament, camera
+  energy, fill/line vocabulary. Current packs: `paper-cutout` (the 2D
+  default, documented as a choice), `blueprint`, `neon-dark`. Swapping the
+  block is the whole mechanism; verified to produce a categorically
+  different film from the same beats.
 
 ## Environment
 
@@ -348,6 +354,8 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `references/method.md` — the universal method: failure axes, beats and
   controls discipline, continuity/semantics review, determinism rules
   (L3: read when building, any backend)
+- `references/styles/` — style packs: swappable `STYLE` blocks + register
+  rules (read the chosen pack at art-direction time)
 - `references/style-3d.md` — the three.js half: lighting, camera rail,
   procedural-asset cookbook, r185 notes (L3: read when building a 3D scene)
 - `references/delivery.md` — GitHub delivery forensics: format tradeoffs,

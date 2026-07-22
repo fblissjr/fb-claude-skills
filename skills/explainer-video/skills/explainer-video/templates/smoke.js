@@ -294,7 +294,7 @@ async function checkScene(browser, file) {
       await page.evaluate(`window.seekTo(${t})`); // restore after sampling across the film
 
       if (worstClipped > EXPOSURE_CLIPPED_THRESHOLD) {
-        warnings.push(`exposure [provisional threshold]: washed out — ${(worstClipped * 100).toFixed(1)}% of pixels clipped to white — lower CONFIG.exposure and desaturate/darken pale materials`);
+        warnings.push(`exposure [provisional threshold]: washed out — ${(worstClipped * 100).toFixed(1)}% of pixels clipped to white — lower the exposure (STYLE.exposure in current templates) and desaturate/darken pale materials`);
       }
       if (worstCrushed > EXPOSURE_CRUSHED_THRESHOLD) {
         warnings.push(`exposure [provisional threshold]: crushed — ${(worstCrushed * 100).toFixed(1)}% of pixels near black — raise exposure or add a fill/rim light`);
@@ -332,12 +332,34 @@ async function checkScene(browser, file) {
     execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'vendor'], { stdio: 'inherit' });
   }
 
+  // Kernel parity: templates carry a marked shared-kit block that must stay
+  // byte-identical across files — the two-copies-drift rule, enforced the way
+  // this repo family always enforces it: mirrored copies plus a check that
+  // fails on drift. Only applies when 2+ checked files carry markers, so
+  // scenes predating the kernel (or ones that legitimately diverged and
+  // removed their markers) never fail. A HARD FAIL, not advisory: drift is
+  // objective, and a drifted kit is exactly how the 2D and 3D backends stop
+  // rendering the same ramp the same way.
+  let kernelFail = false;
+  {
+    const KERNEL_RE = /\/\* ==== KERNEL-START ====[\s\S]*?\/\* ==== KERNEL-END ==== \*\//;
+    const kernels = scenes.map(f => {
+      try { const m = fs.readFileSync(f, 'utf8').match(KERNEL_RE); return m && { f, k: m[0] }; }
+      catch (e) { return null; }
+    }).filter(Boolean);
+    if (kernels.length >= 2 && new Set(kernels.map(x => x.k)).size > 1) {
+      kernelFail = true;
+      console.log('FAIL kernel drift — the marked shared-kit block differs between: '
+        + kernels.map(x => x.f).join(', '));
+    }
+  }
+
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
   });
 
-  let failed = 0;
+  let failed = kernelFail ? 1 : 0;
   let warned = 0;
   for (const scene of scenes) {
     const variants = [scene];

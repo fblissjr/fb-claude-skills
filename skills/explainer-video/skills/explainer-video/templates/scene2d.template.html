@@ -69,6 +69,7 @@ const STYLE = {
   accents: ['#e05d3d', '#2a9d8f', '#e9b44c'],// subjects, in palette order
   fontFamily: '"Avenir Next","Segoe UI",system-ui,sans-serif',
   stroke:  0.7,                              // world-unit line width
+  titleInk:'#26221c',                        // DOM title color — dark-bg packs set a light ink
 };
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
@@ -84,13 +85,25 @@ const CONFIG = {
   capFade: 0.35,                      // caption fade inset from each beat edge, seconds
 };
 
-/* ---------- deterministic kit (identical in every template) ---------- */
+/* ==== KERNEL-START ====================================================
+   The shared kit. This block is byte-identical in every scene template —
+   smoke.js FAILS the run if two checked files carry different kernels.
+   Edit it in ALL templates or in none; it is the seed of a future
+   extracted kernel file, kept inline so scenes stay single-file.
+   ======================================================================= */
+/* ---------- deterministic kit ---------- */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
 const rng=mulberry32(CONFIG.seed);
 const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp=(a,b,u)=>a+(b-a)*u;
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
 const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+// bump() is rise-AND-FALL: it is 0 at BOTH ends and peaks in the middle. Correct
+// for "flash and go"; wrong for "grow and stay" — a burst scaled by bump(u,0,1)
+// shrinks back to nothing exactly when it should be at full size, which shipped
+// once. Use ss() when the effect should arrive and remain.
 const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
 
 /* ---------- easing personalities (still pure functions) ----------
@@ -106,7 +119,10 @@ const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);ret
                    never inside seekTo itself.
    noise1(t,f,k) : seeded 1-D value noise in [-0.5,0.5] at frequency f Hz, from
                    the frozen R pool. Same k = same track, different k =
-                   independent track. Handheld/idle wobble; keep amplitudes small. */
+                   independent track. Handheld/idle wobble; keep amplitudes small.
+   GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE: backOut(0) carries positive
+   floating-point residue (~2e-16), so `if(eased<=0)` leaks one frame where
+   scaled geometry is invisible but anything unscaled beside it renders. */
 const backOut=(u,s=1.70158)=>{u=clamp(u,0,1);const v=u-1;return 1+(s+1)*v*v*v+s*v*v;};
 const elasticOut=(u,p=.3)=>{u=clamp(u,0,1);return u===0||u===1?u:Math.pow(2,-10*u)*Math.sin((u-p/4)*(2*Math.PI)/p)+1;};
 const quant=(t,n)=>Math.floor(t*n)/n;
@@ -114,18 +130,33 @@ const noise1=(t,f=1,k=0)=>{const x=t*f,i=Math.floor(x),u=x-i,
   g=j=>R[((j%R.length)+R.length)%R.length]-.5,s=u*u*(3-2*u);
   return g(i+k*997)+(g(i+1+k*997)-g(i+k*997))*s;};
 
-/* ---------- beat addressing (use these, never raw timestamps) ---------- */
+/* ---------- beat addressing (use these, never raw timestamps) ----------
+   Resolve durations into absolute spans once, then address them by name.
+   The a/b arguments are FRACTIONS of the beat, not seconds, so an effect
+   keeps its place when the beat is retimed — which is also what lets
+   narration-driven timing rewrite durations without breaking animate(). */
 const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
 const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
 function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
 function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
 const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
 const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+// during() is a hard boolean at the beat edges, so any expression gated by it MUST be zero at both edges
+// or it steps discontinuously in one frame and reads as a pop. Safe use: toggling .visible on something
+// with scale already reaching 0. Adding a nonzero offset to a rotation inside if(during(...)) is the exact
+// shape that produced a visible 20-degree arm snap in a real scene. Reach for ramp() or pulse() first.
 const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
 const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
+
+/* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
+   must not stretch when the beat is retimed: a 0.25s flash, a 0.06s world cut,
+   a fixed settle time. Stretching a cut window with its beat would uncover the
+   cut — which is the one bug method.md says already cost a re-render. Fractions
+   for "across this part of the beat", seconds for "this many seconds". */
 const secAt  =(name,s=0)=>beat(name).t0+s;
 const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
 const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
+/* ==== KERNEL-END ==== */
 
 /* ---------- renderer: one full repaint per frame ----------
    The whole frame is cleared and redrawn from scratch inside draw(t), so the
@@ -196,12 +227,18 @@ function alongPath(pts,u){
 }
 function label(txt,x,y,size){ctx.font=`600 ${size}px ${STYLE.fontFamily}`;
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y);}
-// Ink-or-paper for text sitting ON an accent fill, picked by the fill's
-// luminance — white-on-yellow shipped in this template's first render and is
-// exactly the class of decision the STYLE layer owns, not each call site.
-function contrastOn(hex){const n=parseInt(hex.slice(1),16),
-  l=.2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255);
-  return l>150?STYLE.ink:STYLE.bg;}
+// Ink-or-paper for text sitting ON an accent fill — the STYLE layer's
+// decision, not each call site's. White-on-yellow shipped in this template's
+// first render; then the first fix ("dark ink if the fill is light") shipped
+// the SAME bug inverted on the first dark pack, where ink is the LIGHT color.
+// The polarity-free rule: use whichever of ink/bg sits farther in luminance
+// from the fill. Non-#rrggbb fills fall back to ink.
+function contrastOn(hex){
+  const lum=h=>{const m=/^#([0-9a-f]{6})$/i.exec(h);if(!m)return null;
+    const n=parseInt(m[1],16);return .2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255);};
+  const f=lum(hex),i=lum(STYLE.ink),b=lum(STYLE.bg);
+  if(f===null||i===null||b===null)return STYLE.ink;
+  return Math.abs(i-f)>=Math.abs(b-f)?STYLE.ink:STYLE.bg;}
 
 /* ============================================================
    SCENE — replace this placeholder. It exists to demonstrate the
@@ -291,6 +328,8 @@ const capEl=document.getElementById('cap');
 const titleEl=document.getElementById('title');
 titleEl.querySelector('h1').textContent=CONFIG.title;
 titleEl.querySelector('p').textContent=CONFIG.subtitle;
+titleEl.style.color=STYLE.titleInk;          // once, at load — STYLE owns the look
+document.body.style.background=STYLE.bg;     // page bg matches before first draw
 const flashEl=document.getElementById('flash');
 function setOverlay(t){
   const T=BEAT[BEATS[0].name];

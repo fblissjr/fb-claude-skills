@@ -1,5 +1,14 @@
 # changelog
 
+## 0.54.0
+
+### added
+- **explainer-video 0.9.0 -> 0.10.0**: style packs, the kernel made drift-proof, and the STYLE split completed on both backends.
+
+  `references/styles/` ships three packs — `paper-cutout` (the 2D default, now documented as a choice), `blueprint`, `neon-dark` — each a swappable `STYLE` block plus the register rules that make a look coherent (easing temperament, camera energy, fill/line vocabulary, per-pack hazards). The mechanism is verified, not assumed: applying the blueprint block to the placeholder scene's unchanged beats produced a categorically different film, reviewed frame by frame. The swap also caught a real bug — `contrastOn()` assumed dark-ink-on-light-paper, so the first dark pack got light text on its amber fill; it now picks whichever of ink/bg sits farther in luminance from the fill, which is polarity-safe. The blueprint pack's predicted lint hazard became a recorded observation on the same run (dynamic-range 10.2, frames legible).
+
+  The shared kit + beat addressing in both templates is now a marked KERNEL block, byte-identical by construction, and `smoke.js` **hard-fails** when two checked files carry different kernels — the repo family's mirrored-copies-plus-drift-test pattern applied to scene templates. The check's positive control was run: a one-character kernel mutation fails the suite; restored, it passes. The 3D template gains the `STYLE` split (bg, exposure) to match the 2D one, and renders byte-identically after the refactor, verified by frame compare.
+
 ## 0.53.0
 
 ### added
