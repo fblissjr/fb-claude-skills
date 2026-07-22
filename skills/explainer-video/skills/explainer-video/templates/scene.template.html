@@ -96,6 +96,30 @@ const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,
 // once. Use ss() when the effect should arrive and remain.
 const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
 
+/* ---------- easing personalities (still pure functions) ----------
+   ss() is the neutral register. These are the other temperaments a style can
+   speak in — all closed forms, all safe anywhere a 0..1 u is in hand:
+   compose them with the beat addressing below, e.g. backOut(ramp(t,'one',0,.4)).
+   backOut(u)    : arrives with ~10% overshoot, then settles. Snappy, cartoonish.
+   elasticOut(u) : overshoots and rings down. Bigger personality than backOut —
+                   budget it for payoffs; EVERY arrival ringing reads as jelly.
+   quant(t,n)    : stop-motion. Quantize TIME before deriving a pose (n poses
+                   per second) and motion reads hand-made. Still deterministic —
+                   the quantized t is a pure function of t. Quantize per-object,
+                   never inside seekTo itself.
+   noise1(t,f,k) : seeded 1-D value noise in [-0.5,0.5] at frequency f Hz, from
+                   the frozen R pool. Same k = same track, different k =
+                   independent track. Handheld/idle wobble; keep amplitudes small.
+   This block is deliberately identical in every scene template — it is part of
+   the shared kit a future kernel extraction pulls out, so edit it in ALL
+   templates or in none. */
+const backOut=(u,s=1.70158)=>{u=clamp(u,0,1);const v=u-1;return 1+(s+1)*v*v*v+s*v*v;};
+const elasticOut=(u,p=.3)=>{u=clamp(u,0,1);return u===0||u===1?u:Math.pow(2,-10*u)*Math.sin((u-p/4)*(2*Math.PI)/p)+1;};
+const quant=(t,n)=>Math.floor(t*n)/n;
+const noise1=(t,f=1,k=0)=>{const x=t*f,i=Math.floor(x),u=x-i,
+  g=j=>R[((j%R.length)+R.length)%R.length]-.5,s=u*u*(3-2*u);
+  return g(i+k*997)+(g(i+1+k*997)-g(i+k*997))*s;};
+
 /* ---------- beat addressing (use these, never raw timestamps) ----------
    Resolve durations into absolute spans once, then address them by name.
    The a/b arguments are FRACTIONS of the beat, not seconds, so an effect

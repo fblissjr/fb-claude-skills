@@ -1,5 +1,16 @@
 # changelog
 
+## 0.53.0
+
+### added
+- **explainer-video 0.8.0 -> 0.9.0**: the second backend. `templates/scene2d.template.html` is a Canvas2D scene on the identical window contract — flat vector, paper-and-ink, born self-contained (no vendor step; `build.js bundle` correctly reports nothing to inline). Every tool ran unchanged against it on the first try: shoot, smoke (contract + byte-determinism + lints), sample review. It carries the first `STYLE` block split out of `CONFIG` — palette, linework, type in one place; timing in `BEATS`; camera energy in `CONFIG` — and a camera rail (`{x,y,zoom}` keyframes anchored to beats) that is the 3D `KEYS[]` convention minus one dimension.
+
+  The deterministic kit gains four easing personalities, identical in both templates (deliberately — they are part of the shared kernel a later extraction pulls out): `backOut` (overshoot-and-settle), `elasticOut` (rings down; budget for payoffs), `quant` (stop-motion — quantize TIME per object, still a pure function of t), `noise1` (seeded 1-D value noise from the frozen R pool, for handheld/idle wobble). The 3D template's rendered output after the kit addition is byte-identical to before it, verified frame-compare.
+
+  Two bugs shipped in the 2D template's first render and were fixed by looking at frames: `backOut(0)` carries positive floating-point residue (~2e-16), so a `pop<=0` gate leaked one frame where the box was invisible but its unscaled label rendered full-size (with `arcTo` spray from a radius wider than the box) — **gate on the raw ramp u, never on an eased value**, and clamp rrect radius; and a white label on the yellow accent — label ink is now picked by the fill's luminance (`contrastOn`), which is a STYLE-layer decision, not a call-site one.
+
+  And one instrument bug, found because its two symptoms looked like scene findings: the dynamic-range lint read **0.0** on the 2D template, and — once, unreproducibly — the crush lint read **100% near black** on the known-good pale 3D template. Neither was an observation. `smoke.js` ran `seekTo` and the pixel sample in separate `evaluate` calls, and the caption-overflow check ends with an async viewport restore whose resize event lands between them — sampling a cleared or stale-sized canvas. Fixed structurally (seek+sample in one JS task, plus waiting for the canvas buffer to settle to the viewport); four consecutive full runs now agree at zero warnings. The near-miss is recorded in the threshold note: the 0.0 reading briefly stood as "flat design measures below the floor," which is exactly the "green control you did not really run" failure — whether a legitimate flat design can sit below the floor is plausible and now honestly marked unmeasured.
+
 ## 0.52.0
 
 ### added

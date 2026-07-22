@@ -92,6 +92,16 @@ const EXPOSURE_CRUSHED_THRESHOLD = 0.35; // warn if worst-case crushed fraction 
 // observation anywhere, so this is a floor for "nearly blank", not a considered
 // judgement about what reads. It was 40, which fired on that known-good example
 // — a threshold with no observation beneath it is a guess wearing a number.
+//
+// INSTRUMENT ARTIFACT, RECORDED: this check once reported 0.0 on the flat
+// Canvas2D template and, separately, "crushed 100%" on the known-good pale 3D
+// template. NEITHER was an observation — both were one sampling race (the
+// canvas read mid-resize or mid-clear), fixed structurally below. Sampled
+// deterministically, the Canvas2D template measures ABOVE this floor. Whether
+// a legitimately flat design can sit below it is plausible and currently
+// UNMEASURED — if a real one does, treat it as the wash-rule case (the metric
+// is style-conditional; annotate, don't gate). A measurement taken by a racy
+// instrument is not a bracket, and it briefly stood here as one.
 const EXPOSURE_DYNRANGE_THRESHOLD = 18;
 const EXPOSURE_SAMPLE_WIDTH = 320;       // downscale width for the offscreen luma sample
 const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
@@ -234,11 +244,28 @@ async function checkScene(browser, file) {
     // the file header. Does not depend on window.BEATS: #c is part of the base
     // contract, not the beats extension.
     try {
+      // The overflow check above restored the viewport, and the scene's resize
+      // handler runs from the event loop — so without settling, the sample
+      // below races it and reads whichever canvas size happens to be current.
+      // Observed as run-to-run flips of the dynamic-range warning on the same
+      // scene: the ink fraction of a flat frame sits near the p05 percentile
+      // and moves with raster size. Wait for the buffer to match the viewport;
+      // scenes without a resize handler just eat the short timeout.
+      await page.waitForFunction('document.getElementById("c").width === window.innerWidth',
+        { timeout: 2000 }).catch(() => {});
       const times = EXPOSURE_SAMPLE_TIMES.map(f => f * dur);
       let worstClipped = 0, worstCrushed = 0, worstSpread = Infinity;
       for (const et of times) {
-        await page.evaluate(`window.seekTo(${et})`);
+        // seekTo and the pixel sample run in ONE evaluate — a single JS task.
+        // They were two, and the caption-overflow check above ends with an
+        // async setViewportSize whose resize event can fire BETWEEN two
+        // evaluates; the scene's resize handler clears the canvas, and the
+        // sample reads an all-black frame. Observed once in a real run as
+        // "crushed — 100.0%" on a known-good pale scene, 0-for-3 on reruns —
+        // a flaky advisory is the detector-that-cries-wolf failure mode, so
+        // the interleaving is removed structurally rather than retried.
         const stats = await page.evaluate(`(() => {
+          window.seekTo(${et});
           const src = document.getElementById('c');
           const w = ${EXPOSURE_SAMPLE_WIDTH};
           const h = Math.max(1, Math.round(src.height / src.width * w) || Math.round(innerHeight / innerWidth * w));
@@ -273,7 +300,7 @@ async function checkScene(browser, file) {
         warnings.push(`exposure [provisional threshold]: crushed — ${(worstCrushed * 100).toFixed(1)}% of pixels near black — raise exposure or add a fill/rim light`);
       }
       if (worstSpread < EXPOSURE_DYNRANGE_THRESHOLD) {
-        warnings.push(`exposure [provisional threshold]: low dynamic range — the frame is nearly flat, ${worstSpread.toFixed(1)} points between p05 and p95`);
+        warnings.push(`exposure [provisional threshold]: low dynamic range — the frame is nearly flat, ${worstSpread.toFixed(1)} points between p05 and p95 (a deliberately flat design can legitimately read low here — judge by looking; see the threshold note)`);
       }
     } catch (e) {
       warnings.push('exposure: check errored — ' + e.message.split('\n')[0]);

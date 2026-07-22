@@ -102,7 +102,16 @@ Three things to settle here, because they are expensive to fix after building:
 
 ### 2. Scaffold from the template
 
-Copy the template files into your working directory, then vendor three:
+Two scene templates implement the identical window contract; every tool works
+unchanged on both. Pick by the look the spec calls for:
+
+- `scene.template.html` — three.js 3D: rendered depth, lighting, camera in
+  space. Needs the vendor step below.
+- `scene2d.template.html` — Canvas2D: flat vector illustration, paper-and-ink
+  diagrams, motion graphics. Born self-contained — **skip the `bun add three`
+  and `vendor` lines entirely** (only `playwright-core` is needed, for the
+  recorder). Carries a `STYLE` block split out of `CONFIG`, so the look swaps
+  without touching timing or camera.
 
 ```bash
 # ${CLAUDE_SKILL_DIR} is substituted when this skill loads. If it comes through
@@ -113,13 +122,15 @@ bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor            # writes three.global.js beside the scene
 ```
 
-The scene is runnable as-is (placeholder scene, 12s) and already contains the
-full contract:
+Either scene is runnable as-is (placeholder scene, 12s) and already contains
+the full contract:
 
 - `BEATS` — the single source of timing truth; nothing else holds a timestamp
 - `CONFIG` — title, style tokens, seed: everything that is *not* timing
 - deterministic kit — seeded PRNG (`R[]` pool), `ss()` smoothstep, `bump()`,
-  `lerp()`; **never** call `Math.random()`/`Date.now()` in scene code
+  `lerp()`, plus the easing personalities (`backOut`, `elasticOut`, stop-motion
+  `quant`, seeded `noise1`) — identical in every template, part of the future
+  shared kernel; **never** call `Math.random()`/`Date.now()` in scene code
 - beat addressing — `ramp(t,'beat',a,b)` and `pulse(t,'beat',a,b)` take
   **fractions of the beat**, so an effect keeps its place when you retime.
   `rampS`/`pulseS`/`secAt` take **seconds from the beat start**, for durations
@@ -327,7 +338,9 @@ Two constraints that dictate the setup — do not "simplify" them away:
 
 ## Files
 
-- `templates/scene.template.html` — the scaffold (start here)
+- `templates/scene.template.html` — the 3D scaffold (three.js)
+- `templates/scene2d.template.html` — the 2D scaffold (Canvas2D, self-contained,
+  `STYLE` split from `CONFIG`)
 - `templates/shoot.js` / `templates/build.js` — recorder + pipeline, incl. `sheet`
   and `motion` review passes (copy beside the scene)
 - `templates/smoke.js` — contract + determinism check, plus caption and exposure

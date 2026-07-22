@@ -60,7 +60,8 @@ into a 30-second video".
   Chrome; `bunx playwright install chromium` if none
 
 Pinned dependencies, installed into the working directory (not this repo):
-`three@0.185.1`, `playwright-core@1.61.1`.
+`three@0.185.1` (3D scenes only — a Canvas2D scene never needs it),
+`playwright-core@1.61.1`.
 
 ## Reviewing a scene
 
@@ -145,7 +146,8 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | Path | What it is |
 |------|-----------|
 | `skills/explainer-video/SKILL.md` | The skill: workflow, contract, style quick-reference |
-| `skills/explainer-video/templates/scene.template.html` | Runnable scaffold with the full recorder contract |
+| `skills/explainer-video/templates/scene.template.html` | Runnable 3D scaffold (three.js) with the full recorder contract |
+| `skills/explainer-video/templates/scene2d.template.html` | Runnable 2D scaffold (Canvas2D) — same contract, self-contained, `STYLE` split from `CONFIG` |
 | `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting; `full --workers N` shoots contiguous chunks in parallel (byte-identical output, verified) |
 | `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video, avif, loop, poster, sheet, strip, motion |
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, plus caption and exposure lints |
