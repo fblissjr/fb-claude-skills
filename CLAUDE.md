@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-22
 
 # fb-claude-skills
 
@@ -36,6 +36,7 @@ These bite on the first edit if you don't know them.
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
 | Repo-specific gotchas (disabled plugins, `_deprecated`, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
+| The explainer-video generalization plan (phases, gates, execution status) and per-item roadmap | [docs/internals/explainer_video_generalization_plan.md](docs/internals/explainer_video_generalization_plan.md), [docs/internals/explainer_video_roadmap.md](docs/internals/explainer_video_roadmap.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
 | MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |

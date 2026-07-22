@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-22
 
 # fb-claude-skills
 
@@ -21,7 +21,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
-| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer sequences -- 3D or diagrammatic -- as a self-contained looping HTML page, a frame-exact MP4, or an inline-able animated WebP |
+| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF |
 
 ### decomposition & model routing
 
@@ -182,7 +182,7 @@ Once installed, invoke as namespaced slash commands:
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax
-/explainer-video                 # Build an animated explainer sequence (HTML / MP4 / WebP loop)
+/explainer-video                 # Build an animated explainer film (2D or 3D; HTML / MP4 / WebP / AVIF)
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:govuk-style             # Write or rewrite prose in GOV.UK / GDS house style
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models

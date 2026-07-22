@@ -8,8 +8,11 @@ description: >
   in any field: a process, mechanism, system, architecture, organism, market,
   supply chain, building, policy, or document (e.g. "turn docs/data-flywheel.md
   into a 30-second video", "animate how a heat pump works", "show how our
-  approval process flows"). Domain-agnostic — only the geometry and caption
-  register change by field, never the pipeline. Deterministic by construction:
+  approval process flows"). Two backends on one contract — three.js 3D (cel
+  shading, IK characters, a deterministic post chain, shots as data) and
+  Canvas2D flat vector — with the look chosen by swappable style packs and
+  bibles. Domain-agnostic — only the geometry and caption register change by
+  field, never the pipeline. Deterministic by construction:
   the film is a pure function of time t, so one scene file drives the live HTML
   loop and the frame-exact render alike. Do NOT use for editing existing video
   files, screen recordings, or slide decks. Audio narration is designed but not
