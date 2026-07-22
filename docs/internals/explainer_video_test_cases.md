@@ -269,7 +269,61 @@ Either backend · fastest possible full pipeline.
 toolchain.
 **Hypothesis:** works, and is the cheapest way to shake out a broken install or
 a toolchain regression before committing render time to a big case.
-*Outcome:* —
+
+**Outcome (2026-07-22): PASS on all three axes — hypothesis confirmed, plus
+one new finding worth promoting to `film-language.md`.**
+Film: `internal/video-tests/d4-noise-cancelling.html` — how noise-cancelling
+headphones work. 3 beats / 9.4s / 3 shots, no title card. The anti-wave is
+computed as the negation of the source wave's own expression and the sum trace
+is `a+b`, so causality is structural rather than co-incidental
+(`method.md` Axis 3). Composition converged in **3 rounds**, inside budget.
+
+- **Composition:** pass after 3 rounds (see finding below).
+- **Continuity:** `smoke.js` determinism green source+bundled; `motion` reports
+  0 dead-air and good variety (1.66 / 10.54 / 9.67 — beat 1 is legitimately
+  quieter as an establishing shot, not a failed action); `strip` across the
+  0.8s blend into the payoff shows smooth per-cell motion, no pop.
+- **Semantics:** passes the cover-the-caption test on all three beats — a wave
+  arriving at an earbud, a mirrored wave, two waves summing to a flat line.
+- **The floor claim holds.** Shot vocabulary reads fine at 3 beats: WS
+  establishing → WS detail on a sub-subject → elevated WS payoff.
+
+**NEW FINDING — the size ladder is height-calibrated and cannot frame a wide
+subject.** `SIZES.f` is "subject height ÷ frame height", so the solver derives
+distance from height alone and never consults width. On this bench (12.8 wide
+× 2.6 tall, `h:4.3`, 40° lens) the frame widths are:
+
+| size | horizontal extent | fits a 13-wide subject? |
+|---|---|---|
+| EWS | 44.4 | yes (too wide to be useful) |
+| WS | 17.8 | yes |
+| FS | 9.4 | **no — crops** |
+| MS | 5.6 | no |
+| MCU | 3.7 | no |
+
+Anything wider than ~1.8x its declared height crops at FS and tighter, so a
+wide subject can only use EWS/WS — which collapses the shot variety the ladder
+exists to provide. **Inflating `h` is the wrong fix** (it pulls back but leaves
+the subject small in a tall empty frame, which was this film's first-round
+defect). The right fix is the one the craft already has: push in on a
+**narrower named sub-subject**. Here beat 2 reframed from `field` onto `cross`
+(the region where the two waves meet, by the earbud) — better cinema *and*
+uncropped, because the detail beat is genuinely about that region.
+This is a second instance of the postmortem's convention-pre-flight pattern:
+the ladder silently assumes an upright subject, the way the first cut of the
+table silently assumed MS meant full-shot framing.
+
+**Delivery data point (moving camera, 720px @ 12fps):** AVIF **0.195 MB** vs
+WebP **4.577 MB** — **23.5x**. Third measurement of the moving-camera case and
+consistent with the existing two (55x on the template scene, 7x held-camera);
+the ratio scales with how much of the frame changes per frame.
+
+**Lint observation:** the exposure lint reports `0.0 points` dynamic range on
+this scene at both tails, on a film that is correctly exposed by eye. Sparse
+bright subjects on a near-black field put *both* p05 and p95 in the background,
+so the percentile spread collapses. Same family as the hazard the `neon-dark`
+pack predicted for the crush lint — a dark register trips the lint by design.
+Judge by looking; do not chase it by moving the threshold.
 
 ### D5 · 40s, 8–10 beats, multiple world cuts
 3D · dive-in / pull-out structure, two or more worlds under flashes.
