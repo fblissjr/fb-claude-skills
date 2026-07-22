@@ -76,6 +76,134 @@ every phase closed at its gate with its checkpoint run. Phase 5 items remain
 demand-gated as designed — audio (narration-drives-timing) is the likeliest
 first pull.
 
+## Postmortem (the 2026-07-22 run)
+
+Written at run close, while the evidence is fresh. Four sections: what
+worked, what did not, where execution deviated from this document, and how
+to think about what comes next.
+
+### What went well
+
+1. **The contract seam was the right bet, and it paid exactly as predicted.**
+   Every tool ran unchanged against the Canvas2D backend on the first try —
+   shoot, smoke, sheet, strip, motion, loop, avif. The window contract
+   (`seekTo`/`DURATION`/`BEATS`/`sceneReady`) turned "add a renderer" from an
+   architecture project into a template-authoring task. The plan's core
+   thesis — kernel and contract don't move, everything else is data — held
+   without amendment.
+2. **Gates-as-real-films earned their cost many times over.** Frame review
+   caught roughly a dozen genuine defects that code review would never have
+   seen: the fp-residue gate leak, the origin-anchored gait swinging legs
+   horizontal, the rack focusing on an off-frame subject, the bloom payoff
+   sitting one unit above the frame edge, the tangled table/stage handoff.
+   Every one was invisible in source and obvious in pixels — the skill's own
+   doctrine, revalidated on its own construction.
+3. **The controls discipline transferred from film review to architecture.**
+   Five negative results were caught before being trusted, each now recorded
+   where it guards future work: parallel capture at ~1.0x on the container
+   it was predicted to help; PMREM blacking out SwiftShader (bisected);
+   the Sky dome losing to the flat-background control; the smoke.js sampling
+   race whose symptoms masqueraded as scene findings; and the "0.0 dynrange
+   on flat design" bracket that turned out to be that race — a green control
+   nearly entered the ledger as an observation and was caught on re-run.
+4. **The back-to-back amendments mostly proved right.** Two persistent
+   proving threads were enough, and the evolving-film pattern compounded:
+   toybot absorbed Phase 2's materials, Phase 3's shot language, and Phase
+   4's bibles without a rebuild. The phase-exit checkpoint kept history
+   bisectable (one plugin version per increment) and forced harvests while
+   context was hot.
+5. **Vocabulary-with-verification beat vocabulary-with-hope.** The match-cut
+   constraint throwing at load, kernel parity hard-failing smoke, the lints
+   staying advisory-with-recorded-brackets — every rule that shipped with an
+   enforcement mechanism stayed true; the ones that shipped as prose (see
+   below) drifted.
+
+### What did not go well
+
+1. **The run's one process amendment with a stated rationale was refuted by
+   its own measurement.** Parallel capture was pulled forward because
+   "iteration cost becomes the inner loop" — correct premise, wrong remedy:
+   SwiftShader already saturates the cores, so the reordering bought zero
+   wall-clock on the container it was justified by. The feature is sound
+   and the win case (hardware GL, many cores) is real but unmeasured. Cost
+   was small; the lesson is that even process decisions deserve the bracket
+   treatment before being acted on, not after.
+2. **Phase 2's sky/IBL work was mostly discarded on its film.** Built,
+   bisected, reverted in one session — the recipe and negative results
+   survive as documentation, but the render rounds were spent on a feature
+   the standing film's composition could never have used (low horizon vs. a
+   sky dome). Lesson recorded below: art-direction-conditional features get
+   spiked on a composition that matches their premise, not on whatever film
+   is standing.
+3. **Three first-cut convention errors of the same shape.** The size ladder
+   shipped MS at full-shot framing; `contrastOn` assumed dark-ink-on-paper;
+   the plant grid anchored at the origin. All three invented a convention
+   that already exists in the world (film shot sizes, ink polarity, gait
+   anchoring) instead of calibrating against it, and all three shipped in
+   their first render. The method caught each cheaply, but three instances
+   is a pattern: **when new vocabulary mirrors a real craft, check the table
+   against the craft before first use.**
+4. **Render cost taxed every review round.** Sheets ran minutes each on
+   software GL; the iteration loop's pacing was dominated by waiting on
+   frames. Quality tiers stayed correctly unbuilt (the rule held), but the
+   run would have gone meaningfully faster on hardware GL — worth weighing
+   when choosing where future film-heavy sessions run.
+5. **The watch-the-loop pass is outstanding on all three films.** Everything
+   shipped was verified by stills, strips, profiles, and determinism checks —
+   but the method's own strongest continuity instrument, watching the film
+   at speed, requires a human and has not happened inside the run. The
+   films' continuity claims carry that asterisk until the owner watches
+   them. This is the standing acceptance step, not a formality.
+6. **Marketplace churn.** Nine releases in a day is noisy for installed
+   users. Mechanically honest (every content change carried its cascade),
+   but future runs could batch to one release per phase exit without losing
+   bisectability where it matters.
+
+### Deviations from this document
+
+| Planned | Shipped | Verdict |
+|---|---|---|
+| Kernel "extracted into one place" | Marked byte-identical block in each template + smoke hard-fail on drift | Better than planned — scenes stay single-file; the repo's own mirrored-copies-plus-test pattern |
+| IBL as a Phase 2 capability | Recipe + bundled `Sky` + two bisected negatives; no film uses it | Environment-limited; honest record beats a fake capability |
+| Quality tiers (Phase 2, "load-bearing") | Never built; rule pre-decided and recorded | Correct restraint — nothing hurt enough |
+| Phase 3 film language (implied general) | 3D template only; 2D keeps its `{x,y,zoom}` rail | Scoped honestly; 2D solver is an earn-in item |
+| Bibles as reference files | In-scene `BIBLES` table + one spec reference (`bibles.md`) | Shape differs: register belongs next to the scene it constrains; the file documents, the object executes |
+| Cut rhythm as a bible parameter | `cutDur` per cut type; no average-shot-length metric | Pace lever exists; the metric never had a customer |
+| 1-2 sessions per phase | Whole run in ~2 working sessions | Cost model was conservative ~3-4x; gates, not time, were the real constraint |
+
+One deviation to watch rather than celebrate: the cinematography solver now
+exists in two copies (template + toybot) with no drift guard — the kernel
+markers cover only the kit. Two copies is the repo's tolerated maximum; **at
+a third consumer, extract or marker-fence it.**
+
+### How to think about future phases
+
+1. **Phase 5 stays demand-gated, and audio is the likeliest first pull.**
+   Narration-drives-timing is what beats-as-data was built for; when it
+   lands, expect a bracket pass on TTS pacing (padding per clip, minimum
+   beat) — plan for observations, not arithmetic.
+2. **The real Phase 6 is a film about someone else's subject.** Every
+   proving film so far is self-referential (the plugin explaining itself,
+   the demo character). An external subject — a real doc, a real mechanism —
+   will stress the semantics axis harder than anything in this run did.
+   Treat the first such film as a gate, with the same review budget.
+3. **Book a hardware-GL session** to close three opens at once: verify the
+   PMREM recipe, re-measure parallel capture where it can win, and re-judge
+   whether quality tiers are still unneeded when renders are 5-10x faster.
+4. **The owner's watch-through of the three films is the outstanding
+   acceptance step** — and viewing the rendered README settles the
+   animated-AVIF-inline question with three data points; record the outcome
+   in `delivery.md` either way.
+5. **Convention pre-flight, adopted as a rule:** vocabulary that mirrors a
+   real craft (film grammar, typography, music, cartography) gets checked
+   against the craft's actual definitions before its first render, not
+   after. Three same-shaped bugs in one run is the bracket for this rule.
+6. **Spike art-direction-conditional features on matching compositions.**
+   A sky needs an open-sky shot; a fog system needs depth; a crowd needs a
+   wide. The standing film is not automatically the right testbed.
+7. **Release cadence:** batch to phase exits unless a mid-phase landing has
+   independent users. The cascade discipline stays; the frequency relaxes.
+
 ## Phase overview
 
 | Phase | Theme | Headline deliverables | Gate (a real film, per the build-the-control rule) |
