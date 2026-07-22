@@ -151,7 +151,7 @@ function video(name, fps = 30) {
 // scene at 960px/24fps: mp4 0.52MB, gif 12.08MB, webp 15.56MB. WebP loses to GIF
 // there because the template's camera sway moves every pixel every frame, which
 // defeats inter-frame compression. Hold the camera (CONFIG.sway = 0) and keep it
-// short; see references/method.md.
+// short; see references/delivery.md.
 //
 // ...unless you ship AVIF, which dissolves the size side of that constraint but
 // adds a playback cost. Same 12s moving-camera scene re-measured today: webp

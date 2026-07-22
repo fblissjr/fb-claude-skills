@@ -58,6 +58,14 @@ Any feature that cannot be had under those two rules is either reformulated
 
 ---
 
+## Execution status (back-to-back mode, started 2026-07-22)
+
+| Phase | Status |
+|---|---|
+| 0 | **DONE** — shipped as explainer-video 0.7.0. Checkpoint: split verified lossless (every heading and spot-checked measured fact present in exactly one new home), `smoke.js` green source+bundled on the template scene, code untouched so frame regression is trivially satisfied. |
+| 1-4 | not started |
+| 5 | demand-gated, out of the run |
+
 ## Phase overview
 
 | Phase | Theme | Headline deliverables | Gate (a real film, per the build-the-control rule) |

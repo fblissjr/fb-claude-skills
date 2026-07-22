@@ -1,5 +1,12 @@
 # changelog
 
+## 0.51.0
+
+### changed
+- **explainer-video 0.6.0 -> 0.7.0**: `references/method.md` is re-layered by audience, with no rule changed and no observation dropped — Phase 0 of [docs/internals/explainer_video_generalization_plan.md](docs/internals/explainer_video_generalization_plan.md).
+
+  The file conflated three documents: the universal method, a three.js cookbook, and delivery forensics — which made renderer-specific rules read as universal law (the wash rule shipped exactly that way and was refuted by one dark-palette scene). The split makes the boundary structural: `method.md` keeps what holds for any backend implementing the window contract (the three failure axes, beats and controls discipline, continuity source shapes, semantics tests, the iteration loop, determinism rules — the shared-material purity block moves here from the cookbook, since `smoke.js` enforces it for every backend); `style-3d.md` takes the three.js half (camera rail, lighting wash/crush, texture labels, procedural-asset cookbook, r185 notes, performance envelope) and is explicitly the *first* style reference, not the only possible one; `delivery.md` takes the GitHub forensics (format tradeoffs, encoder settings, the content-type evidence chain). SKILL.md, the plugin README, and one `build.js` comment re-point at the new homes.
+
 ## 0.50.0
 
 ### added

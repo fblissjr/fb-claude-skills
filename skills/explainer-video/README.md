@@ -1,6 +1,6 @@
 # explainer-video
 
-*Last updated: 2026-07-21*
+*Last updated: 2026-07-22*
 
 Build short animated explainer sequences — 3D or diagrammatic — from a topic, a
 process, or an existing document. Output is a self-contained looping HTML page,
@@ -105,7 +105,7 @@ player — but not inline: a repo-relative mp4 is served with a content type no
 browser treats as media, so it has to be attached to an issue or PR to play.
 
 GitHub renders animated WebP inline, and, per one confirming real-world
-observation (not yet independently verified — see `references/method.md`),
+observation (not yet independently verified — see `references/delivery.md`),
 animated AVIF. WebP and AVIF are a tradeoff between size and playback cost,
 not a ranking:
 
@@ -124,7 +124,7 @@ capable → AVIF; audience hardware is unknown or weak, or the camera moves →
 WebP; audio or a guaranteed player → MP4 via attachment; the interactive
 scene itself → HTML via Pages or an Artifact. Full tradeoff, encoder settings,
 the content-type mechanism, and the inline-rendering evidence chain:
-`references/method.md`, "Delivering inline on GitHub".
+`references/delivery.md`.
 
 ## Two constraints worth knowing before you edit the template
 
@@ -149,6 +149,8 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting |
 | `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video, avif, loop, poster, sheet, strip, motion |
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, plus caption and exposure lints |
-| `skills/explainer-video/references/method.md` | Design method by failure axis, procedural-asset cookbook, r185 API notes |
+| `skills/explainer-video/references/method.md` | The universal method: failure axes, beats + controls discipline, continuity/semantics review, determinism rules |
+| `skills/explainer-video/references/style-3d.md` | The three.js half: lighting, camera rail, procedural-asset cookbook, r185 API notes |
+| `skills/explainer-video/references/delivery.md` | GitHub delivery forensics: format tradeoffs, encoder settings, content-type evidence chain |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
 | `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 11s, 3 beats, held camera, diagrammatic — the one shown above |

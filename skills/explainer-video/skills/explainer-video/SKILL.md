@@ -171,7 +171,9 @@ Budget 3-4 rounds of look-and-edit for composition — that's the axis rounds
 converge. Continuity and semantics don't get better from repeating this loop;
 they need their own passes, watching the film and covering the caption.
 `references/method.md` organizes the recurring failure modes by axis, with the
-fix for each — read it before the first render, it saves two rounds.
+fix for each — read it before the first render, it saves two rounds. For a
+three.js scene, `references/style-3d.md` carries the renderer-specific half
+(lighting, camera lenses, the asset cookbook).
 
 ### 4. Smoke-test the contract
 
@@ -257,7 +259,7 @@ player in a README — GitHub serves it from `raw` with a content type no
 browser will treat as media, and `<video>` is stripped from GFM on top of
 that. To get a real player, drag the file into an issue or PR composer and use
 the `github.com/user-attachments/assets/...` URL it returns. The mechanism,
-verified by fetching both, is in `references/method.md`.
+verified by fetching both, is in `references/delivery.md`.
 
 **Do not track the loop under Git LFS.** `raw` returns the LFS pointer file, not
 the image, and the README shows a broken image. Most repos with demo videos hit
@@ -282,8 +284,8 @@ decoded in software, so it costs decode CPU at playback and was observed to
 stutter (worse in macOS Preview than Chrome). Whether it stays smooth on
 genuinely low-end hardware is an open, unconfirmed question — weigh that
 against WebP's better-verified inline rendering when choosing. Full tradeoff,
-encoder settings, and the inline-rendering evidence chain: "Delivering inline
-on GitHub" in `references/method.md`.
+encoder settings, and the inline-rendering evidence chain:
+`references/delivery.md`.
 
 Whatever you ship, the scene file stays the single source: never maintain two.
 
@@ -297,7 +299,7 @@ register of the captions. The contract, the beats and the pipeline do not.
 - **Playful** (a figure carrying the story — onboarding, explainers for
   non-specialists, anything with a mascot or a person to follow): saturated
   pastels, soft shadows, big shapes, a character "presenting". Build the figure
-  procedurally from primitives — recipes in `references/method.md`. No bundled
+  procedurally from primitives — recipes in `references/style-3d.md`. No bundled
   example currently ships for this style; start from the template scaffold.
 - **Technical/diagrammatic** (architecture, data flow, supply chains, org
   processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
@@ -306,7 +308,7 @@ register of the captions. The contract, the beats and the pipeline do not.
   20-25). See `examples/skill-retrieval.html`.
 - **Cross-section** (geology, buildings, machinery, soil, anything with hidden
   internals): a frontal cutaway slab. The one rule is that "inside" is invisible
-  — internals must sit proud of the front face. See `references/method.md`.
+  — internals must sit proud of the front face. See `references/style-3d.md`.
 - Subtitles off: beats still exist — they discipline pacing even uncaptioned.
 
 ## Environment
@@ -330,6 +332,11 @@ Two constraints that dictate the setup — do not "simplify" them away:
   and `motion` review passes (copy beside the scene)
 - `templates/smoke.js` — contract + determinism check, plus caption and exposure
   lints (run before a full shoot)
-- `references/method.md` — design method by failure axis, procedural-asset
-  cookbook, gotchas (L3: read when building)
+- `references/method.md` — the universal method: failure axes, beats and
+  controls discipline, continuity/semantics review, determinism rules
+  (L3: read when building, any backend)
+- `references/style-3d.md` — the three.js half: lighting, camera rail,
+  procedural-asset cookbook, r185 notes (L3: read when building a 3D scene)
+- `references/delivery.md` — GitHub delivery forensics: format tradeoffs,
+  encoder settings, the content-type evidence chain (read at ship time)
 - `references/audio.md` — narration/music extension design (not yet wired)
