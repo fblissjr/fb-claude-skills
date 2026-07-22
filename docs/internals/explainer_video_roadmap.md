@@ -8,6 +8,12 @@ beats refactor that fixed it, and most of the review tooling designed here, have
 since shipped. The design write-ups below are kept as history even where DONE —
 several shipped *differently* than designed, and the deltas are the useful part.
 
+The larger arc — style generalization, cinematic 3D, film language, style
+bibles — lives in
+[explainer_video_generalization_plan.md](explainer_video_generalization_plan.md);
+this file remains the per-item ledger. Note the plan's Phase 1 triggers the
+flip condition the "Not doing: a 2D backend" entry below set for itself.
+
 | # | Item | Status | Blocked by |
 |---|---|---|---|
 | 1 | [Named beats as the timing source](#1-named-beats-as-the-timing-source) | **DONE** (0.2.0) | — |
