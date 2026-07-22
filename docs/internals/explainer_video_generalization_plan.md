@@ -342,3 +342,11 @@ through them. Every phase ends with, in order:
 5. **Version cascade** fires on every phase that touches `templates/`,
    `references/`, or `examples/` (CLAUDE.md invariant 1) — which is all of
    them except this document.
+6. **Duration stays the user's spec input; nothing in any phase assumes
+   long-form.** "Film language" here means craft density, not runtime: the
+   shot vocabulary, editorial grammar, and style bibles must read correctly
+   on a 10-second three-shot explainer exactly as on a 40-second piece —
+   `duration_s` and the beats table remain the only place length exists,
+   set per spec by what the content needs. Every proving film in this plan
+   is explainer-scale (the 15-40s SKILL.md pacing guidance), and a phase
+   deliverable that only works at length is overfit and fails its gate.
