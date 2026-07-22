@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Explainer sequence (2D)</title>
+<style>
+  /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
+     and restyles without touching the scene. Same overlay contract as the 3D
+     template — smoke.js measures #cap at the shipping viewport for both. */
+  html,body{margin:0;padding:0;overflow:hidden;background:#f4efe7;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  #cap{position:fixed;left:50%;bottom:5.5%;transform:translateX(-50%);
+    font:600 30px/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(38,34,28,.78);padding:14px 34px;border-radius:999px;
+    white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.18);}
+  #title{position:fixed;left:50%;top:7%;transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#26221c;opacity:0;}
+  #title h1{font-size:44px;margin:0;font-weight:800;}
+  #title p{font-size:24px;margin:6px 0 0;font-weight:500;opacity:.75;}
+  /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
+     the text with a different AA mode after opacity round-trips through 0, so the
+     same t can differ by a few pixels depending on seek ORDER -- which breaks the
+     frames-shot-in-any-order guarantee for any frame containing overlay text. */
+  #cap,#title{will-change:opacity;}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title"><h1></h1><p></p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<!-- No vendored library: a Canvas2D scene is born self-contained. `build.js
+     bundle` correctly reports "no vendor tag" and the source file IS the
+     single-file artifact. Every other tool (shoot, sheet, strip, motion,
+     smoke, loop, avif, video) works unchanged — they talk to the window
+     contract, never to the renderer. -->
+<script>
+"use strict";
+/* ============================================================
+   CONTRACT (do not rename): window.seekTo(t), window.DURATION,
+   window.stopPlayback(), window.sceneReady.
+   Everything on screen is a pure function of t — no Math.random(),
+   no Date.now(), no accumulated state. That is what makes the
+   HTML loop and the MP4 render provably identical.
+   ============================================================ */
+
+/* ============================================================
+   BEATS — the single source of timing truth. Durations, not
+   absolute times: they accumulate, so lengthening one beat
+   shifts every later beat instead of silently overlapping it.
+   NOTHING else in this file may contain a literal timestamp.
+   ============================================================ */
+const BEATS = [
+  {name:'title',  dur:2.6},
+  {name:'beats',  dur:3.6, cap:"1 · Timing is a table of named beats"},
+  {name:'pure',   dur:3.8, cap:"2 · Every frame is a pure function of t"},
+  {name:'record', dur:3.4, cap:"3 · A headless browser shoots every frame"},
+  {name:'encode', dur:4.0, cap:"4 · The same frames become every format"},
+  {name:'payoff', dur:3.4, cap:"Retime a beat — everything follows"},
+];
+
+/* ---------- STYLE: everything that is the LOOK. ----------
+   Split from CONFIG so a style pack swaps this block and nothing else.
+   Timing lives in BEATS; camera energy and cuts live in CONFIG; the
+   palette, linework and type live here. */
+const STYLE = {
+  bg:      '#f4efe7',                        // paper
+  ink:     '#26221c',                        // linework and canvas labels
+  faint:   'rgba(38,34,28,.28)',             // not-yet-active linework
+  accents: ['#e05d3d', '#2a9d8f', '#e9b44c'],// subjects, in palette order
+  fontFamily: '"Avenir Next","Segoe UI",system-ui,sans-serif',
+  stroke:  0.7,                              // world-unit line width
+  titleInk:'#26221c',                        // DOM title color — dark-bg packs set a light ink
+};
+
+/* ---------- CONFIG: everything that is neither timing nor look. ---------- */
+const CONFIG = {
+  title: "One scene, every format",
+  subtitle: "how an explainer-video film is built",
+  flashes: [],                        // world-cut flashes, as {beat, at}
+  seed: 20260722,                     // change to reshuffle all seeded randomness
+  sway: 0,                            // camera drift. 2D scenes usually ship as
+                                      // inline loops, and sway moves every pixel
+                                      // every frame — expensive in WebP. Off by
+                                      // default here, unlike the 3D template.
+  capFade: 0.35,                      // caption fade inset from each beat edge, seconds
+};
+
+/* ==== KERNEL-START ====================================================
+   The shared kit. This block is byte-identical in every scene template —
+   smoke.js FAILS the run if two checked files carry different kernels.
+   Edit it in ALL templates or in none; it is the seed of a future
+   extracted kernel file, kept inline so scenes stay single-file.
+   ======================================================================= */
+/* ---------- deterministic kit ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(CONFIG.seed);
+const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
+const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+// bump() is rise-AND-FALL: it is 0 at BOTH ends and peaks in the middle. Correct
+// for "flash and go"; wrong for "grow and stay" — a burst scaled by bump(u,0,1)
+// shrinks back to nothing exactly when it should be at full size, which shipped
+// once. Use ss() when the effect should arrive and remain.
+const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+
+/* ---------- easing personalities (still pure functions) ----------
+   ss() is the neutral register. These are the other temperaments a style can
+   speak in — all closed forms, all safe anywhere a 0..1 u is in hand:
+   compose them with the beat addressing below, e.g. backOut(ramp(t,'one',0,.4)).
+   backOut(u)    : arrives with ~10% overshoot, then settles. Snappy, cartoonish.
+   elasticOut(u) : overshoots and rings down. Bigger personality than backOut —
+                   budget it for payoffs; EVERY arrival ringing reads as jelly.
+   quant(t,n)    : stop-motion. Quantize TIME before deriving a pose (n poses
+                   per second) and motion reads hand-made. Still deterministic —
+                   the quantized t is a pure function of t. Quantize per-object,
+                   never inside seekTo itself.
+   noise1(t,f,k) : seeded 1-D value noise in [-0.5,0.5] at frequency f Hz, from
+                   the frozen R pool. Same k = same track, different k =
+                   independent track. Handheld/idle wobble; keep amplitudes small.
+   GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE: backOut(0) carries positive
+   floating-point residue (~2e-16), so `if(eased<=0)` leaks one frame where
+   scaled geometry is invisible but anything unscaled beside it renders. */
+const backOut=(u,s=1.70158)=>{u=clamp(u,0,1);const v=u-1;return 1+(s+1)*v*v*v+s*v*v;};
+const elasticOut=(u,p=.3)=>{u=clamp(u,0,1);return u===0||u===1?u:Math.pow(2,-10*u)*Math.sin((u-p/4)*(2*Math.PI)/p)+1;};
+const quant=(t,n)=>Math.floor(t*n)/n;
+const noise1=(t,f=1,k=0)=>{const x=t*f,i=Math.floor(x),u=x-i,
+  g=j=>R[((j%R.length)+R.length)%R.length]-.5,s=u*u*(3-2*u);
+  return g(i+k*997)+(g(i+1+k*997)-g(i+k*997))*s;};
+
+/* ---------- beat addressing (use these, never raw timestamps) ----------
+   Resolve durations into absolute spans once, then address them by name.
+   The a/b arguments are FRACTIONS of the beat, not seconds, so an effect
+   keeps its place when the beat is retimed — which is also what lets
+   narration-driven timing rewrite durations without breaking animate(). */
+const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
+const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
+function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
+function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
+const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
+const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+// during() is a hard boolean at the beat edges, so any expression gated by it MUST be zero at both edges
+// or it steps discontinuously in one frame and reads as a pop. Safe use: toggling .visible on something
+// with scale already reaching 0. Adding a nonzero offset to a rotation inside if(during(...)) is the exact
+// shape that produced a visible 20-degree arm snap in a real scene. Reach for ramp() or pulse() first.
+const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
+const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
+
+/* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
+   must not stretch when the beat is retimed: a 0.25s flash, a 0.06s world cut,
+   a fixed settle time. Stretching a cut window with its beat would uncover the
+   cut — which is the one bug method.md says already cost a re-render. Fractions
+   for "across this part of the beat", seconds for "this many seconds". */
+const secAt  =(name,s=0)=>beat(name).t0+s;
+const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
+const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
+/* ==== KERNEL-END ==== */
+
+/* ---------- renderer: one full repaint per frame ----------
+   The whole frame is cleared and redrawn from scratch inside draw(t), so the
+   canvas holds no state between frames — "restate, never adjust" is satisfied
+   by construction. ctx settings (fillStyle, lineWidth, transform) are assigned
+   before every use, never trusted to persist. */
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+addEventListener('resize',resize);resize();
+
+/* ---------- world space + camera rail ----------
+   World units: the design space is 90 units tall (about 160 wide at 16:9),
+   y down, (0,0) at the center of the home view. Drawing in world units keeps
+   the scene resolution-independent; the shipping render is whatever viewport
+   shoot.js opens. The camera is {x,y,zoom} keyframes anchored to beats —
+   the exact convention the 3D template's KEYS[] uses, minus one dimension. */
+const VIEW_H=90;
+const KEYS=[
+  {beat:'title', at:0, x:0, y:0, zoom:1},      // held camera: this film ships as an inline WebP
+].map(k=>({...k,t:beatAt(k.beat,k.at)}));
+function applyCamera(t){
+  let a=KEYS[0],b=KEYS[KEYS.length-1];
+  for(let i=0;i<KEYS.length-1;i++)if(t>=KEYS[i].t&&t<=KEYS[i+1].t){a=KEYS[i];b=KEYS[i+1];break;}
+  const u=ss(t,a.t,b.t),sw=CONFIG.sway;
+  const cx=lerp(a.x,b.x,u)+noise1(t,.5,1)*sw*8;
+  const cy=lerp(a.y,b.y,u)+noise1(t,.5,2)*sw*5;
+  const zoom=lerp(a.zoom,b.zoom,u);
+  const s=(canvas.height/VIEW_H)*zoom;
+  ctx.setTransform(s,0,0,s,canvas.width/2-cx*s,canvas.height/2-cy*s);
+}
+
+/* ---------- draw helpers (world units; set style, then draw) ---------- */
+function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function dot(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.closePath();}
+// Partial polyline: draws the first `u` (0..1) of the path's total length.
+// This is the 2D draw-on idiom — u comes from ramp(), so the line grows with
+// the beat and anything derived from the SAME u (a travelling dot) is
+// phase-locked to it by construction, which is what makes causality read.
+function drawOn(pts,u){
+  u=clamp(u,0,1);if(u===0)return;
+  let total=0;const seg=[];
+  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);total+=d;}
+  let left=u*total;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++){
+    if(left<=0)break;
+    const d=seg[i-1],f=Math.min(1,left/d);
+    ctx.lineTo(lerp(pts[i-1][0],pts[i][0],f),lerp(pts[i-1][1],pts[i][1],f));
+    left-=d;
+  }
+  ctx.stroke();
+}
+// Point at fraction u along the same polyline — pair with drawOn's u.
+function alongPath(pts,u){
+  u=clamp(u,0,1);let total=0;const seg=[];
+  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);total+=d;}
+  let left=u*total;
+  for(let i=1;i<pts.length;i++){
+    const d=seg[i-1];
+    if(left<=d)return[lerp(pts[i-1][0],pts[i][0],d?left/d:0),lerp(pts[i-1][1],pts[i][1],d?left/d:0)];
+    left-=d;
+  }
+  return pts[pts.length-1].slice();
+}
+function label(txt,x,y,size){ctx.font=`600 ${size}px ${STYLE.fontFamily}`;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y);}
+// Ink-or-paper for text sitting ON an accent fill — the STYLE layer's
+// decision, not each call site's. White-on-yellow shipped in this template's
+// first render; then the first fix ("dark ink if the fill is light") shipped
+// the SAME bug inverted on the first dark pack, where ink is the LIGHT color.
+// The polarity-free rule: use whichever of ink/bg sits farther in luminance
+// from the fill. Non-#rrggbb fills fall back to ink.
+function contrastOn(hex){
+  const lum=h=>{const m=/^#([0-9a-f]{6})$/i.exec(h);if(!m)return null;
+    const n=parseInt(m[1],16);return .2126*(n>>16&255)+.7152*(n>>8&255)+.0722*(n&255);};
+  const f=lum(hex),i=lum(STYLE.ink),b=lum(STYLE.bg);
+  if(f===null||i===null||b===null)return STYLE.ink;
+  return Math.abs(i-f)>=Math.abs(b-f)?STYLE.ink:STYLE.bg;}
+
+/* ============================================================
+   SCENE — "One scene, every format": this plugin's own pipeline.
+   Beat map: a beats TABLE draws itself in; a mini-scene proves
+   frame = f(t) by riding one scrubber; a recorder captures the
+   frames; the frames become the four delivery chips; retiming one
+   beat shifts everything downstream and the chips answer.
+   ============================================================ */
+const TBL={x:-44,y:-26,h:6,perSec:4.2,gap:1.2,segs:[
+  {name:'title',dur:2},{name:'scan',dur:3},{name:'load',dur:4},{name:'payoff',dur:3}]};
+const STAGE={x:0,y:-4,w:30,h:18};
+const RUL={y:16,x0:-40,x1:40};
+const FR={x0:20.5,y:-4,n:8,step:3.6,s:4.2};       // captured-frame row
+const CHIPS={y:16,w:15,h:7,gap:4,labels:['HTML','MP4','WEBP','AVIF']};
+
+// One scrubber drives the mini-scene, the ruler dot, AND the capture row —
+// a single ramp spanning two beats via beatAt (never a literal), so motion
+// carries across the boundary instead of stalling on a per-beat ss().
+// Endpoints defined ONCE: the capture row re-derives sun poses from them.
+const SCRUB0=beatAt('pure',.34),SCRUB1=beatAt('record',.85);
+const scrub=t=>ss(t,SCRUB0,SCRUB1);
+const sunAt=u=>[lerp(-11,11,u), STAGE.y+7.5-Math.sin(u*Math.PI)*11];
+
+function drawTable(t,alpha){
+  if(alpha<=0)return;
+  // The table is the SUBJECT of the 'beats' beat, so it owns the middle third
+  // there — then migrates to the top rail as the stage takes the frame.
+  const yy=lerp(-6,TBL.y,ramp(t,'pure',.02,.26));   // clear the center FIRST
+  // The payoff: 'load' stretches, and because durations ACCUMULATE the
+  // downstream segment shifts — the retiming story told in geometry.
+  const stretch=8*ss(t,beatAt('payoff',.15),beatAt('payoff',.55));
+  let x=TBL.x;
+  TBL.segs.forEach((sg,i)=>{
+    const grow=ramp(t,'beats',.08+i*.16,.34+i*.16);
+    if(grow<=0)return;
+    const w=(sg.dur*TBL.perSec)*grow+(sg.name==='load'?stretch:0);
+    const hot=sg.name==='load'&&stretch>0;
+    ctx.globalAlpha=alpha*.9;
+    ctx.fillStyle=hot?STYLE.accents[0]:(i%2?STYLE.accents[1]:STYLE.accents[2]);
+    rrect(x,yy-TBL.h/2,w,TBL.h,1.4);ctx.fill();
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke;rrect(x,yy-TBL.h/2,w,TBL.h,1.4);ctx.stroke();
+    const lu=ss(grow,.75,1);
+    if(lu>0){ctx.globalAlpha=alpha*lu;ctx.fillStyle=STYLE.ink;label(sg.name,x+w/2,yy+TBL.h/2+2.6,2.6);}
+    x+=w+TBL.gap;
+  });
+  ctx.globalAlpha=1;
+}
+
+function drawStage(t,alpha){
+  if(alpha<=0)return;
+  const u=scrub(t);
+  ctx.globalAlpha=alpha;
+  // stage frame + ground
+  ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke;
+  rrect(STAGE.x-STAGE.w/2,STAGE.y-STAGE.h/2,STAGE.w,STAGE.h,1.8);ctx.stroke();
+  ctx.strokeStyle=STYLE.faint;
+  ctx.beginPath();ctx.moveTo(-12,STAGE.y+7.5);ctx.lineTo(12,STAGE.y+7.5);ctx.stroke();
+  // the sun: position derived from the SAME u as the scrubber — the coupling
+  // IS the explanation, so both come from one expression (method.md, semantics)
+  const[sx,sy]=sunAt(u);
+  const tq=quant(t,8);                       // stop-motion rays, hand-made feel
+  ctx.strokeStyle=STYLE.accents[2];ctx.lineWidth=STYLE.stroke*.8;
+  for(let i=0;i<8;i++){const a=tq*1.6+i*Math.PI/4;
+    ctx.beginPath();ctx.moveTo(sx+Math.cos(a)*3.4,sy+Math.sin(a)*3.4);
+    ctx.lineTo(sx+Math.cos(a)*4.6,sy+Math.sin(a)*4.6);ctx.stroke();}
+  ctx.fillStyle=STYLE.accents[2];dot(sx,sy,2.6);ctx.fill();
+  ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke*.8;dot(sx,sy,2.6);ctx.stroke();
+  ctx.globalAlpha=1;
+}
+
+function drawRuler(t,alpha){
+  if(alpha<=0)return;
+  const u=scrub(t);
+  ctx.globalAlpha=alpha;
+  ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke*.8;
+  ctx.beginPath();ctx.moveTo(RUL.x0,RUL.y);ctx.lineTo(RUL.x1,RUL.y);ctx.stroke();
+  for(let i=0;i<=10;i++){const x=lerp(RUL.x0,RUL.x1,i/10);
+    ctx.beginPath();ctx.moveTo(x,RUL.y-(i%5?0.9:1.6));ctx.lineTo(x,RUL.y+(i%5?0.9:1.6));ctx.stroke();}
+  ctx.fillStyle=STYLE.ink;label("t",RUL.x1+3.2,RUL.y,3.4);
+  const dx=lerp(RUL.x0,RUL.x1,u);
+  ctx.fillStyle=STYLE.accents[0];dot(dx,RUL.y,1.5);ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+function drawRecorder(t,alpha){
+  if(alpha<=0)return;
+  ctx.globalAlpha=alpha;
+  // viewfinder brackets: physical pop at record start (seconds, not fractions)
+  const bu=rampS(t,'record',0,.3);
+  if(bu>0){
+    const g=2.2*backOut(bu),L=5.5;
+    ctx.strokeStyle=STYLE.accents[0];ctx.lineWidth=STYLE.stroke*1.3;
+    const x0=STAGE.x-STAGE.w/2-g,x1=STAGE.x+STAGE.w/2+g,y0=STAGE.y-STAGE.h/2-g,y1=STAGE.y+STAGE.h/2+g;
+    for(const[cx,cy,dx,dy]of[[x0,y0,1,1],[x1,y0,-1,1],[x0,y1,1,-1],[x1,y1,-1,-1]]){
+      ctx.beginPath();ctx.moveTo(cx+dx*L,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,cy+dy*L);ctx.stroke();}
+  }
+  // captured frames: each square appears as the scrubber passes its moment and
+  // keeps the sun where it WAS — eight different poses from one function of t
+  for(let i=0;i<FR.n;i++){
+    const ti=beatAt('record',.08+i*(.8/FR.n));
+    const su=ss(t,ti,ti+.3);
+    if(su<=0)continue;                       // raw-u gate (kernel comment rule)
+    const pop=backOut(su);
+    const x=FR.x0+i*FR.step;
+    // the sun pose this frame captured = the scrubber's value at its capture time
+    const uu=clamp((ti-SCRUB0)/(SCRUB1-SCRUB0),0,1);
+    ctx.save();ctx.translate(x,FR.y);ctx.scale(pop,pop);
+    ctx.fillStyle=STYLE.bg;rrect(-FR.s/2,-FR.s/2,FR.s,FR.s,.8);ctx.fill();
+    ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke*.8;rrect(-FR.s/2,-FR.s/2,FR.s,FR.s,.8);ctx.stroke();
+    ctx.fillStyle=STYLE.accents[2];
+    dot(lerp(-1.2,1.2,uu),1.2-Math.sin(uu*Math.PI)*2.2,.55);ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawChips(t,alpha){
+  if(alpha<=0)return;
+  const total=CHIPS.labels.length*CHIPS.w+(CHIPS.labels.length-1)*CHIPS.gap;
+  // payoff ring: elastic, budgeted to this one moment, driven to 1 at the end
+  const ep=ss(t,beatAt('payoff',.5),beatAt('payoff',.78));
+  const ring=1+.14*elasticOut(ep)*(1-ramp(t,'payoff',.9,1));
+  CHIPS.labels.forEach((nm,i)=>{
+    const cu=ramp(t,'encode',.12+i*.13,.34+i*.13);
+    if(cu<=0)return;
+    const pop=backOut(cu);
+    const cx=-total/2+CHIPS.w/2+i*(CHIPS.w+CHIPS.gap);
+    // funnel line from the frame row down to the chip
+    ctx.globalAlpha=alpha*.5*cu;
+    ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke*.6;
+    drawOn([[FR.x0+3.5*FR.step,FR.y+3],[cx,CHIPS.y-CHIPS.h/2-1]],cu);
+    ctx.globalAlpha=alpha;
+    ctx.save();ctx.translate(cx,CHIPS.y);ctx.scale(pop*ring,pop*ring);
+    const fill=i<3?STYLE.accents[i]:STYLE.bg;   // 4th chip is paper — 3 accents must not imply a false pairing
+    ctx.fillStyle=fill;rrect(-CHIPS.w/2,-CHIPS.h/2,CHIPS.w,CHIPS.h,1.6);ctx.fill();
+    ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke;rrect(-CHIPS.w/2,-CHIPS.h/2,CHIPS.w,CHIPS.h,1.6);ctx.stroke();
+    ctx.fillStyle=i<3?contrastOn(fill):STYLE.ink;label(nm,0,0,3.1);
+    ctx.restore();
+  });
+  ctx.globalAlpha=1;
+}
+
+function draw(t){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle=STYLE.bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+  applyCamera(t);
+  ctx.lineJoin='round';ctx.lineCap='round';
+
+  // title motif: a little filmstrip, gone as the real table arrives
+  const stA=ramp(t,'title',.25,.6)*(1-ramp(t,'beats',0,.25));
+  if(stA>0){
+    ctx.globalAlpha=stA;
+    for(let i=0;i<5;i++){
+      const pu=ramp(t,'title',.25+i*.08,.5+i*.08);
+      if(pu<=0)continue;
+      const p=backOut(pu);
+      ctx.save();ctx.translate(-22+i*11,5);ctx.scale(p,p);
+      ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke*1.1;rrect(-4.2,-3,8.4,6,.9);ctx.stroke();
+      ctx.fillStyle=STYLE.accents[2];dot(lerp(-2,2,i/4),.8-Math.sin(i/4*Math.PI)*1.8,.7);ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // focus weights: the thing changing this beat owns full ink; the rest dims
+  const dim=.5;
+  const tableIn=ramp(t,'beats',.02,.2);
+  const aTable=tableIn*(1-dim*ramp(t,'pure',.02,.3)+dim*ramp(t,'payoff',0,.3));
+  const gIn=ramp(t,'pure',.28,.5);                  // ...THEN the stage enters
+  const aStage=gIn*(1-.68*ramp(t,'payoff',0,.3));
+  const aRuler=aStage*(1-ramp(t,'encode',0,.25));
+  const aRec=ramp(t,'record',0,.05)>0?aStage:0;
+  const aChips=1-dim*ramp(t,'payoff',0,.3)+dim*ss(t,beatAt('payoff',.5),beatAt('payoff',.6));
+
+  drawTable(t,clamp(aTable,0,1));
+  drawStage(t,clamp(aStage,0,1));
+  drawRuler(t,clamp(aRuler,0,1));
+  drawRecorder(t,clamp(aRec,0,1));
+  drawChips(t,clamp(aChips,0,1));
+}
+
+/* ---------- overlay (captions, title, flashes) — identical to 3D ---------- */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+titleEl.querySelector('h1').textContent=CONFIG.title;
+titleEl.querySelector('p').textContent=CONFIG.subtitle;
+titleEl.style.color=STYLE.titleInk;          // once, at load — STYLE owns the look
+document.body.style.background=STYLE.bg;     // page bg matches before first draw
+const flashEl=document.getElementById('flash');
+function setOverlay(t){
+  const T=BEAT[BEATS[0].name];
+  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
+  const F=CONFIG.capFade;
+  let txt="",op=0;
+  for(const b of BEATS){
+    if(!b.cap)continue;
+    const B=BEAT[b.name];
+    if(t>=B.t0&&t<=B.t1){txt=b.cap;op=ss(t,B.t0,B.t0+F)*(1-ss(t,B.t1-F,B.t1));break;}
+  }
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=op.toFixed(3);
+  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0);f=Math.max(f,bump(t,c-.25,c+.25));}
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ---------- driver (the recorder contract) ---------- */
+window.DURATION=TOTAL;
+window.BEATS=BEATS;
+window.seekTo=function(t){t=clamp(t,0,TOTAL);draw(t);setOverlay(t);};
+let playing=true,t0=null;
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
+window.stopPlayback=function(){playing=false;};
+window.sceneReady=true;
+if(!location.search.includes('record'))requestAnimationFrame(loop);else window.seekTo(0);
+</script>
+</body>
+</html>

@@ -1,5 +1,90 @@
 # changelog
 
+## 0.59.0
+
+### added
+- **explainer-video 0.14.0 -> 0.15.0**: Phase 4 (style bibles) — gate met, and with it the generalization plan's back-to-back run (Phases 0-4) completes. A style bible is one object constraining every register layer — palette, lights, post, glass (`STYLE.lens`, the solver's default), cut pace (`STYLE.cutDur`), camera energy — while `BEATS`, cast, world, and the shot list stay content, untouched.
+
+  The gate is the committed control pair: `examples/toybot-walk.html` carries a `BIBLES` table and a one-line switch. `toybox` (default) is the daylight paper-cutout film; `midnight` (`toybot-walk.midnight.avif`, 0.15 MB) is the same eight shots, same beats, zero geometry edits — as a low-key neon noir: 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom threshold at .55 so glow carries the frame. The crush lint fires at 84% on midnight and that is the register by intent, judged by looking — precisely the hazard the neon-dark pack predicted when it was written, two phases before this film existed. If the swap had NOT categorically changed the film, the layers would not actually be separated; the pair is the standing proof they are.
+
+  `references/styles/bibles.md` holds the spec (every key annotated as register), the pair's summary table, and the bible-writing recipe. Descriptions caught up with the run: plugin.json, marketplace.json, the root README's plugin row, and SKILL.md's retrieval description now state the two-backend/packs/bibles reality; CLAUDE.md's where-to-find table gains the generalization plan + roadmap row. Full regression green: three examples + both templates, source and bundled, kernel parity holding. Cast/set modules stay deliberately informal (no second film reuses a character yet — the plan's own rule); cut-rhythm-as-average-shot-length stays unbuilt with `cutDur` as the pace lever until a film needs more.
+
+## 0.58.0
+
+### added
+- **explainer-video 0.13.0 -> 0.14.0**: Phase 3 (film language) — shots as data, gate met and phase closed. The 3D template's raw camera keyframes are GONE, replaced by a cinematography system: `SUBJECTS` (positions as pure functions of t — tracking shots for free), a calibrated size ladder (EWS→ECU), a framing solver (`dist = h/f/(2·tan(fov/2))`), moves as eased end-values (`size2`/`angle2`), cuts as entry vocabulary (`hard`/`whip`/`blend`), **the match-cut constraint checked at load** (identical framing vocabulary or throw), focus as a per-shot subject with racks expressed as two shots differing only in `focus`, and camera energy profiles (`locked`/`steadicam`/`handheld`) driven by seeded noise — closing the Phase 1 flag on `noise1`.
+
+  Gate: `examples/toybot-walk.html` re-authored as an eight-shot list with zero hand-written keyframes — a compiler-verified match cut (MS on the sign plate, hard cut, MS on the bot's torso: the frames rhyme because they must), a whip into the finale, and the rack rebuilt as focus-only shot changes. Two calibration lessons recorded in `references/film-language.md`: the first size ladder shipped MS at full-shot framing (sizes are conventions with meanings, not free parameters — FS added, ladder recalibrated), and a rack to an off-screen subject explains nothing (both subjects must be visible at different depths, which set the rack triplet's size and anchor).
+
+  Deliberately not built, per the earn-in rule, recorded with reasons: dissolve/wipe, ffmpeg edit lists, cut rhythm (belongs to Phase 4's style bibles), the 2D solver analog. Exit checkpoint: harvest in film-language.md + SKILL.md contract, release cut, regression green (all examples + both templates), prune reviewed (unused ladder sizes kept — the ladder is one conventional table, not speculative machinery).
+
+## 0.57.0
+
+### added
+- **explainer-video 0.12.0 -> 0.13.0**: Phase 2 (cinematic 3D) closes. The toybot film gains its world — a 46-tree instanced forest (one draw call, plus one more for the whole field's inverted-hull outlines via a second `InstancedMesh` sharing the same seeded matrices), a `LatheGeometry` urn, a chrome `MeshPhysicalMaterial` pod, and a matcap boulder whose shading is painted at load on a canvas (zero lights, zero files). Re-encoded at 0.22 MB AVIF; smoke, motion profile, and the full-example regression all green.
+
+  Two negative results, both bisected against controls and recorded in `style-3d.md` rather than shipped around silently: **`PMREMGenerator.fromScene` renders every subsequent frame black on SwiftShader** (software GL) — the IBL recipe is documented, expected to work on hardware GL, honestly marked unverified there, with the measured consolation that a metal physical material reads convincingly from the directional rig alone; and **the visible Sky dome, though it works, lost to the flat-background control on this film's low-horizon composition** — HDR-bright, fighting ACES at any exposure. `THREE.Sky` stays bundled for the compositions it suits (open sky, high angles, exposure ~0.5-0.6, bloom threshold above sky luminance).
+
+  Phase 2 exit checkpoint: harvest done (instanced-field recipe moves from "not yet built" sketch to built-with-a-trick; Sky/IBL status section; matcap recipe), release cut (this one), regression green (three examples + both templates, source and bundled, kernels byte-identical), prune reviewed (Sky bundled-but-unused-by-a-film is kept: it was built, measured, and rejected *for this composition* with the rationale recorded — that is used knowledge, not speculation; quality tiers remain unbuilt by design with their rule pre-decided). Phase 3 — film language — is next.
+
+## 0.56.0
+
+### added
+- **explainer-video 0.11.0 -> 0.12.0**: Phase 2 (cinematic 3D) opens and its spike gate is met — `examples/toybot-walk.html`, a cel-shaded character with an analytic IK walk, rack-focus depth of field, and bloom, rendered through a post-processing chain that **passes the byte-determinism check with the chain enabled**, source and bundled.
+
+  `build.js vendor` now bundles the composer classes onto the THREE namespace (`EffectComposer`, `RenderPass`, `UnrealBloomPass`, `BokehPass`, `OutputPass`) — always included, one bundle, no second vendor file to drift. The hard rule ships in the vendor comment and the new "cinematic kit" section of `references/style-3d.md`: **no temporal passes, ever** — TAA and accumulation blur carry state across frames and break the seekTo contract; every bundled pass is per-frame pure, and smoke.js is the enforcement.
+
+  The spike earned four recorded lessons the docs now carry: the gait's plant grid must anchor at the walk's START (anchored at the origin, the first frame's target sat 16 units ahead and the IK swung both legs horizontal — the contact sheet caught it); hemisphere light washes toon bands out (toon quantizes directional light only — measured, energy shifted to the key); the inverted-hull outline shell exposes every geometry intersection seam (clear the joins); and a payoff beat's events must be sequenced, not simultaneous (the first cut ran the hop and the orb glow together and neither read — now anticipation → hop → land → settle → glow). Rack focus is computed per frame from live camera distances and lerped between subjects under a bump — pure, and the cheapest big "filmed" win in the kit.
+
+  Committed as a 0.13 MB animated AVIF (moving camera — WebP's punishing case), embedded in the README where it doubles as the second observation the animated-AVIF-inline evidence chain has been waiting for. Roadmap item 10 (committed character/moving-camera example) closes with this. Quality tiers deliberately deferred with the rule pre-decided (determinism and shipping run at FINAL); remaining in phase: procedural-sky IBL, matcap/physical packs, instanced geometry.
+
+## 0.55.0
+
+### added
+- **explainer-video 0.10.0 -> 0.11.0**: the Phase 1 proving film ships, and Phase 1 of the generalization plan closes at its gate.
+
+  `examples/one-scene-every-format.html` — the plugin explaining its own pipeline on the Canvas2D backend in the paper-cutout pack: 20.8s, six beats of varied duration, held camera, committed as a 0.96 MB WebP and a 0.10 MB AVIF (verified animated, 250 frames). Every beat carries its idea in geometry: the beats table draws itself in and *retimes on screen* (stretch one duration, the downstream segment shifts — accumulation shown, not asserted); one scrubber spanning two beats drives the mini-scene, the ruler dot, and the capture row from a single expression; captured frames each hold the sun pose from their capture instant; the frames become the four delivery chips; the retime makes the chips answer.
+
+  The film went through the full method and the method caught things: the contact sheet flagged a middle-third violation (the table is beat 2's subject and sat on the top rail during its own beat — it now owns the center, then migrates), a false color pairing (chip four wrapped onto chip one's accent; it is now a paper chip), and a timid title motif; the consecutive-frame strip caught the table migration tangled with the stage's entrance (now sequenced: clear first, enter second); the motion profile shows varied per-beat energy and zero dead air; the spanning scrub crosses its beat boundary without a stall by construction.
+
+  One bracket upgraded from artifact to observation: with the sampling race fixed, the dynamic-range lint's 0.0 reading on this film is a genuine known-good-below-the-floor case — flat paper-and-ink design sits below a floor bracketed on 3D renders while reading perfectly. The threshold note and the paper-cutout pack record it as the measured fact it now is.
+
+  Phase 1 exit checkpoint: harvest done (threshold note, pack hazards, kernel-comment rules), release cut (this one), regression green (`skill-retrieval.html` passes smoke untouched, 0 warnings; template kernels byte-identical), prune reviewed (`noise1` is consumed by the 2D camera's sway path rather than any proving film yet — kept as part of the camera-energy mechanism, flagged for Phase 3, which formalizes camera energy).
+
+## 0.54.0
+
+### added
+- **explainer-video 0.9.0 -> 0.10.0**: style packs, the kernel made drift-proof, and the STYLE split completed on both backends.
+
+  `references/styles/` ships three packs — `paper-cutout` (the 2D default, now documented as a choice), `blueprint`, `neon-dark` — each a swappable `STYLE` block plus the register rules that make a look coherent (easing temperament, camera energy, fill/line vocabulary, per-pack hazards). The mechanism is verified, not assumed: applying the blueprint block to the placeholder scene's unchanged beats produced a categorically different film, reviewed frame by frame. The swap also caught a real bug — `contrastOn()` assumed dark-ink-on-light-paper, so the first dark pack got light text on its amber fill; it now picks whichever of ink/bg sits farther in luminance from the fill, which is polarity-safe. The blueprint pack's predicted lint hazard became a recorded observation on the same run (dynamic-range 10.2, frames legible).
+
+  The shared kit + beat addressing in both templates is now a marked KERNEL block, byte-identical by construction, and `smoke.js` **hard-fails** when two checked files carry different kernels — the repo family's mirrored-copies-plus-drift-test pattern applied to scene templates. The check's positive control was run: a one-character kernel mutation fails the suite; restored, it passes. The 3D template gains the `STYLE` split (bg, exposure) to match the 2D one, and renders byte-identically after the refactor, verified by frame compare.
+
+## 0.53.0
+
+### added
+- **explainer-video 0.8.0 -> 0.9.0**: the second backend. `templates/scene2d.template.html` is a Canvas2D scene on the identical window contract — flat vector, paper-and-ink, born self-contained (no vendor step; `build.js bundle` correctly reports nothing to inline). Every tool ran unchanged against it on the first try: shoot, smoke (contract + byte-determinism + lints), sample review. It carries the first `STYLE` block split out of `CONFIG` — palette, linework, type in one place; timing in `BEATS`; camera energy in `CONFIG` — and a camera rail (`{x,y,zoom}` keyframes anchored to beats) that is the 3D `KEYS[]` convention minus one dimension.
+
+  The deterministic kit gains four easing personalities, identical in both templates (deliberately — they are part of the shared kernel a later extraction pulls out): `backOut` (overshoot-and-settle), `elasticOut` (rings down; budget for payoffs), `quant` (stop-motion — quantize TIME per object, still a pure function of t), `noise1` (seeded 1-D value noise from the frozen R pool, for handheld/idle wobble). The 3D template's rendered output after the kit addition is byte-identical to before it, verified frame-compare.
+
+  Two bugs shipped in the 2D template's first render and were fixed by looking at frames: `backOut(0)` carries positive floating-point residue (~2e-16), so a `pop<=0` gate leaked one frame where the box was invisible but its unscaled label rendered full-size (with `arcTo` spray from a radius wider than the box) — **gate on the raw ramp u, never on an eased value**, and clamp rrect radius; and a white label on the yellow accent — label ink is now picked by the fill's luminance (`contrastOn`), which is a STYLE-layer decision, not a call-site one.
+
+  And one instrument bug, found because its two symptoms looked like scene findings: the dynamic-range lint read **0.0** on the 2D template, and — once, unreproducibly — the crush lint read **100% near black** on the known-good pale 3D template. Neither was an observation. `smoke.js` ran `seekTo` and the pixel sample in separate `evaluate` calls, and the caption-overflow check ends with an async viewport restore whose resize event lands between them — sampling a cleared or stale-sized canvas. Fixed structurally (seek+sample in one JS task, plus waiting for the canvas buffer to settle to the viewport); four consecutive full runs now agree at zero warnings. The near-miss is recorded in the threshold note: the 0.0 reading briefly stood as "flat design measures below the floor," which is exactly the "green control you did not really run" failure — whether a legitimate flat design can sit below the floor is plausible and now honestly marked unmeasured.
+
+## 0.52.0
+
+### added
+- **explainer-video 0.7.0 -> 0.8.0**: parallel frame capture — `shoot.js <scene> full 30 --workers N`, or `SHOOT_WORKERS=N` which `build.js` callers inherit. N pages in one browser, each shooting a **contiguous** 1/N chunk so a dead worker leaves one obvious gap instead of a comb the encoder would hide. Phase 1 of the generalization plan opens here (back-to-back mode pulls capture infrastructure forward).
+
+  Both halves measured before trusting, and one refutes the design note that motivated the feature. Correctness: 4-worker output is byte-identical to 1-worker output on the template scene, 48/48 frames. Speed: on a 4-core software-GL container — the exact case roadmap item 5 predicted this would matter for — 25.1s single vs 26.1s with 4 workers, ~1.0x, because SwiftShader already multithreads a single page's rasterization across the cores and extra pages only contend. The remaining win case (many-core, or hardware GL where one page cannot saturate the machine) is plausible and unmeasured; the docs say so instead of promising a speedup that was not observed.
+
+## 0.51.0
+
+### changed
+- **explainer-video 0.6.0 -> 0.7.0**: `references/method.md` is re-layered by audience, with no rule changed and no observation dropped — Phase 0 of [docs/internals/explainer_video_generalization_plan.md](docs/internals/explainer_video_generalization_plan.md).
+
+  The file conflated three documents: the universal method, a three.js cookbook, and delivery forensics — which made renderer-specific rules read as universal law (the wash rule shipped exactly that way and was refuted by one dark-palette scene). The split makes the boundary structural: `method.md` keeps what holds for any backend implementing the window contract (the three failure axes, beats and controls discipline, continuity source shapes, semantics tests, the iteration loop, determinism rules — the shared-material purity block moves here from the cookbook, since `smoke.js` enforces it for every backend); `style-3d.md` takes the three.js half (camera rail, lighting wash/crush, texture labels, procedural-asset cookbook, r185 notes, performance envelope) and is explicitly the *first* style reference, not the only possible one; `delivery.md` takes the GitHub forensics (format tradeoffs, encoder settings, the content-type evidence chain). SKILL.md, the plugin README, and one `build.js` comment re-point at the new homes.
+
 ## 0.50.0
 
 ### added

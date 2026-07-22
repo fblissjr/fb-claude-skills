@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Explainer sequence</title>
+<title>Toybot takes a walk</title>
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -60,29 +60,58 @@
    here, and animate() addresses beats by NAME via ramp()/pulse().
    ============================================================ */
 const BEATS = [
-  {name: 'title', dur: 2.8},
-  {name: 'one',   dur: 3.0, cap: "1 · First beat — what the viewer should notice"},
-  {name: 'two',   dur: 3.2, cap: "2 · Second beat"},
-  {name: 'three', dur: 3.0, cap: "3 · Payoff"},
+  {name:'title',  dur:2.4},
+  {name:'arrive', dur:4.2, cap:"Two-bone IK — feet that actually plant"},
+  {name:'rack',   dur:3.6, cap:"Rack focus — a real depth of field"},
+  {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
 ];
 
-/* ---------- STYLE: everything that is the LOOK. ----------
-   Split from CONFIG so a style pack (references/styles/) swaps this block and
-   nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
-   Materials are still created inline in buildWorlds(); lift shared palette
-   constants up here as the scene grows. */
-const STYLE = {
-  bg: 0x1a1426,
-  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+/* ============================================================
+   STYLE BIBLES — one object constrains EVERY layer: palette,
+   lights, post, glass (default lens), cut pace, camera energy.
+   BIBLE is the one-line film switch; BEATS, the cast, the world
+   and the SHOT LIST never change. That separation is the whole
+   point of the layered build — this file is its control pair.
+   ============================================================ */
+const BIBLE='toybox';                 // 'toybox' | 'midnight'
+const BIBLES={
+  toybox:{                            // daylight paper-cutout, gentle and warm
+    bg:0xdfe6ea, floor:0xe7dcc8, exposure:1.0,
+    ink:0x26221c,
+    body:0x2a9d8f, accent:0xe05d3d, trim:0xe9b44c,
+    tree:0x37806b, trunk:0x6b4a32,
+    matcap:['#f6e0c8','#c76b4a','#2a1409'],
+    toonSteps:3,
+    outline:1.055,
+    lens:42, energy:'steadicam',
+    cutDur:{},                        // template pace: blends at .8s
+    lights:{hemi:[0xdfeaf2,0xcbb89a,.45],key:[0xfff2dc,1.45],rim:[0xbfd8ff,.8]},
+    post:{bloomStrength:.55,bloomRadius:.3,bloomThreshold:.82,aperture:.00032,maxblur:.006},
+  },
+  midnight:{                          // low-key noir: long glass, locked camera, glow
+    bg:0x0b0e1a, floor:0x121830, exposure:1.05,
+    ink:0x05060c,
+    body:0x2e4a8a, accent:0xff3d81, trim:0x00e5ff,
+    tree:0x16324a, trunk:0x0e1f30,
+    matcap:['#cfe6ff','#48608f','#0a0d1c'],
+    toonSteps:2,                      // harder banding — noir contrast
+    outline:1.055,
+    lens:30, energy:'locked',         // longer lens flattens; tripod stillness
+    cutDur:{blend:1.3},               // slow, deliberate dollies
+    lights:{hemi:[0x24365e,0x05070f,.3],key:[0x9fc0ff,1.5],rim:[0xff3d81,1.5]},
+    post:{bloomStrength:1.0,bloomRadius:.35,bloomThreshold:.55,aperture:.00045,maxblur:.008},
+  },
 };
+const STYLE=BIBLES[BIBLE];
+if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
-  title: "Your Title Here",
-  subtitle: "and a subtitle",
+  title: "Toybot takes a walk",
+  subtitle: "cel shading · analytic IK · rack focus · bloom",
   flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
   seed: 20260721,                     // change to reshuffle all seeded randomness
-  sway: 0.06,                         // idle camera drift. Set to 0 for `build.js loop`:
+  sway: 0.04,                         // idle camera drift. Set to 0 for `build.js loop`:
                                       // sway moves every pixel every frame, which defeats
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
@@ -174,8 +203,36 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=STYLE.exposure;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(STYLE.bg);
+scene.fog=new THREE.Fog(STYLE.bg,26,90);
 const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+
+/* ---------- sky + IBL: measured, and deliberately NOT in this film ----------
+   Both were built and bisected here, and both are recorded in style-3d.md:
+   - PMREMGenerator.fromScene left every subsequent frame BLACK on SwiftShader
+     (software GL, the dev-container case), confirmed against a no-PMREM
+     control. Standard recipe, expected to work on hardware GL; unverified
+     there. The chrome pod below reads convincingly from the directional rig
+     alone, which is why the film does not miss it.
+   - The visible Sky dome WORKS but is HDR-bright: on this film's low-horizon
+     composition it put a blinding band across every frame and fought ACES at
+     any exposure. Judged against the flat-background control, the control
+     won. Sky suits open-sky compositions with high camera angles — it stays
+     bundled (THREE.Sky) for films shaped like that. */
+
+/* ---------- post chain: per-frame pure, so seekTo stays byte-deterministic.
+   RenderPass -> Bokeh (DoF) -> Bloom -> OutputPass (tone map + sRGB).
+   NEVER add temporal passes (TAA, accumulation blur): they carry state across
+   frames and break the HTML/MP4 parity this whole architecture exists for.
+   smoke.js's byte-identity check is the enforcement. ---------- */
+const composer=new THREE.EffectComposer(renderer);
+composer.addPass(new THREE.RenderPass(scene,camera));
+const bokeh=new THREE.BokehPass(scene,camera,{focus:12,aperture:STYLE.post.aperture,maxblur:STYLE.post.maxblur});
+composer.addPass(bokeh);
+composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),
+  STYLE.post.bloomStrength,STYLE.post.bloomRadius,STYLE.post.bloomThreshold));
+composer.addPass(new THREE.OutputPass());
+
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 
 /* ---------- shared helpers ---------- */
@@ -183,69 +240,174 @@ const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
 const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
 const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
 function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
-function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
 
-/* ---------- lights (a sane default rig; tune per scene) ---------- */
-scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
-const key=new THREE.DirectionalLight(0xfff1dd,1.3);
-key.position.set(6,12,8);key.castShadow=true;
-key.shadow.mapSize.set(2048,2048);
-key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
-scene.add(key);
-const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
-
-/* ============================================================
-   WORLDS — replace this placeholder with your scene.
-   Pattern: one Group per world, offset far apart (e.g. y -60),
-   toggle .visible in animate(t), cut the camera under a flash.
-   ============================================================ */
-let demoKnot;   // handles you need in animate() get declared here
-function buildWorlds(){
-  const world=new THREE.Group();scene.add(world);
-  const floor=mesh(new THREE.PlaneGeometry(60,60),std(0xbfd3d6,{roughness:.9}),world);
-  floor.rotation.x=-Math.PI/2;floor.castShadow=false;
-  demoKnot=mesh(new THREE.TorusKnotGeometry(1.4,.42,120,16),std(0x2a9d8f,{roughness:.35}),world,0,3,0);
+/* ---------- cel kit: stepped gradient map + inverted-hull outlines ----------
+   MeshToonMaterial + a NearestFilter gradient map gives the banded light;
+   the linework is a BackSide black shell 4.5% larger, ADDED AS A CHILD so it
+   rides every pivot the IK moves. Emissive-driven bloom passes through the
+   toon bands untouched, which is why the threshold sits above the palette. */
+const GRAD=(()=>{const n=STYLE.toonSteps,d=new Uint8Array(n);
+  for(let i=0;i<n;i++)d[i]=Math.round(90+165*i/(n-1));
+  const t=new THREE.DataTexture(d,n,1,THREE.RedFormat);
+  t.minFilter=t.magFilter=THREE.NearestFilter;t.needsUpdate=true;return t;})();
+const toon=(color,opts={})=>new THREE.MeshToonMaterial(Object.assign({color,gradientMap:GRAD},opts));
+const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:STYLE.ink,side:THREE.BackSide});
+function om(g,m,parent,px,py,pz){                 // outlined mesh
+  const o=mesh(g,m,parent,px,py,pz);
+  const s=new THREE.Mesh(g,OUTLINE_MAT);s.scale.setScalar(STYLE.outline);
+  s.castShadow=false;s.receiveShadow=false;o.add(s);
+  return o;
 }
-buildWorlds();
+
+/* ---------- lights (toon reads them as bands) ---------- */
+// Hemisphere stays LOW: toon quantizes directional light into bands, but
+// hemisphere irradiance is smooth and washes the cel look out on top.
+// Hemisphere stays LOW: toon quantizes directional light into bands, but
+// hemisphere irradiance is smooth and washes the cel look out on top.
+scene.add(new THREE.HemisphereLight(STYLE.lights.hemi[0],STYLE.lights.hemi[1],STYLE.lights.hemi[2]));
+const key=new THREE.DirectionalLight(STYLE.lights.key[0],STYLE.lights.key[1]);
+key.position.set(7,11,7);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=16;key.shadow.camera.bottom=-16;
+scene.add(key);
+const rim=new THREE.DirectionalLight(STYLE.lights.rim[0],STYLE.lights.rim[1]);rim.position.set(-6,7,-8);scene.add(rim);
 
 /* ============================================================
-   CINEMATOGRAPHY — shots as data, solved per frame.
-
-   SUBJECTS names the things a camera can frame. pos is a pure
-   function of t returning the subject's CENTER, so a moving
-   subject is a tracking shot for free. h is the height the
-   framing math uses. Craft note: track a subject's TRAVEL, not
-   its jumps — leave vertical action out of pos so it moves in
-   the frame instead of being cancelled by the camera.
-
-   SHOTS is the film's shot list — the cinematographer's half of
-   the film, the way BEATS is the editor's. Each shot starts at
-   a beat anchor and runs until the next shot starts:
-     subject  what the shot frames (a SUBJECTS key)
-     size     EWS WS FS MS MCU CU ECU — fraction of frame height
-              the subject occupies (see SIZES)
-     angle    degrees around the subject, 0 = from +Z
-     elev     degrees above level (default 6)
-     fov      this shot's lens (vertical degrees, default 42) —
-              long lens flattens, short lens dramatizes
-     size2 / angle2   optional end values: a push/pull or an
-              orbit eased across the shot's duration
-     focus    subject the DoF plane sits on (default: subject).
-              Scenes with a BokehPass read shotFocus each frame;
-              two adjacent shots differing only in focus, joined
-              by cut:'blend', ARE a rack focus.
-     cut      how the shot ENTERS: 'hard' (default), 'whip'
-              (0.16s snap), 'blend' (0.8s dolly-morph)
-     match    true = must enter with the SAME framing vocabulary
-              (size/angle/elev/fov) as the previous shot — the
-              match-cut constraint, checked at load, throws loud.
-   Raw keyframes are gone on purpose: coordinates were never the
-   author's intent, framing was. If a shot the vocabulary cannot
-   say is genuinely needed, extend the vocabulary — do not sneak
-   coordinates back in.
+   WORLD — the bot, its ground, and one prop to rack focus onto.
    ============================================================ */
+const world=new THREE.Group();scene.add(world);
+const floor=mesh(new THREE.PlaneGeometry(200,200),toon(STYLE.floor),world);
+floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+
+// the prop: a little signpost near the lens — the OTHER subject of the rack
+const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
+om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
+om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+
+/* ---------- world dressing: the three remaining material families ----------
+   Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
+   matching BackSide instanced shell so the outlines are one draw call too.
+   Urn: LatheGeometry, toon — curves without an asset file.
+   Pod: MeshPhysicalMaterial reading scene.environment — the IBL proof.
+   Boulder: MeshMatcapMaterial with a matcap PAINTED at load on a canvas —
+   sculpted-clay shading with zero lights and zero files. ---------- */
+{
+  const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
+  const treeM=toon(STYLE.tree),trunkM=toon(STYLE.trunk);
+  const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
+  const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
+  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
+  for(let i=0;i<N;i++){
+    const x=-60+120*R[i*3],z=-9-40*R[i*3+1],h=2.2+3.4*R[i*3+2];
+    P.set(x,h/2+.7,z);V.set(h*.42,h,h*.42);
+    M.compose(P,Q,V);tree.setMatrixAt(i,M);
+    M.compose(P,Q,V.clone().multiplyScalar(1.06));treeO.setMatrixAt(i,M);
+    M.compose(new THREE.Vector3(x,.35,z),Q,new THREE.Vector3(1,1,1));trunk.setMatrixAt(i,M);
+  }
+  tree.castShadow=trunk.castShadow=true;
+  world.add(tree,treeO,trunk);
+}
+om(new THREE.LatheGeometry(
+  [[0,0],[.62,.06],[.5,.5],[.3,.9],[.34,1.28],[.52,1.5],[.44,1.62]].map(p=>new THREE.Vector2(p[0],p[1])),18),
+  toon(STYLE.trim),world,-6.5,0,-3.5);
+{
+  const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
+    {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
+  pod.position.set(-9,.7,4.2);pod.castShadow=true;world.add(pod);
+}
+{
+  const cv=document.createElement('canvas');cv.width=cv.height=256;
+  const c=cv.getContext('2d');
+  const g=c.createRadialGradient(96,84,18,128,128,132);
+  g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
+  c.fillStyle=g;c.fillRect(0,0,256,256);
+  const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
+  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
+  rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
+}
+
+// ---- the bot: every joint is a Group, so outlines and IK ride together ----
+const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;
+const bot=new THREE.Group();world.add(bot);
+const torso=new THREE.Group();bot.add(torso);torso.position.y=HIP;
+om(B(2.2,2.5,1.4),toon(STYLE.body),torso,0,1.25,0);
+om(B(2.4,.5,1.55),toon(STYLE.trim),torso,0,.15,0);            // belt
+const head=new THREE.Group();torso.add(head);head.position.y=3.3;   // clear of the torso: the outline shell shows any seam
+om(S(1.05),toon(STYLE.body),head,0,.35,0);
+// eyes: small emissives — the bloom budget lives here and on the orb
+const eyeMat=new THREE.MeshBasicMaterial({color:0xbfe9ff});
+mesh(S(.16,10,8),eyeMat,head,.42,.5,.88).castShadow=false;
+mesh(S(.16,10,8),eyeMat,head,-.42,.5,.88).castShadow=false;
+const ant=new THREE.Group();head.add(ant);ant.position.y=1.35;
+om(C(.05,.05,.9),toon(STYLE.ink),ant,0,.45,0);
+const orbMat=new THREE.MeshStandardMaterial({color:STYLE.trim,emissive:STYLE.trim,emissiveIntensity:.25,roughness:.4});
+const orb=mesh(S(.34,18,12),orbMat,ant,0,1.05,0);orb.castShadow=false;
+
+function arm(side){const a=new THREE.Group();torso.add(a);a.position.set(side*1.35,2.0,0);
+  om(C(.22,.18,1.9),toon(STYLE.body),a,0,-.95,0);
+  om(S(.3),toon(STYLE.accent),a,0,-2.0,0);return a;}
+const armL=arm(1),armR=arm(-1);
+
+// leg: hip Group -> thigh (pivot at top) -> knee Group -> shin -> flat foot.
+// Geometries are pre-translated so each pivot rotates about the JOINT.
+function leg(side){
+  const hip=new THREE.Group();bot.add(hip);hip.position.set(0,HIP,side*.62);
+  const tg=C(.3,.24,L1);tg.translate(0,-L1/2,0);
+  om(tg,toon(STYLE.body),hip,0,0,0);
+  const knee=new THREE.Group();hip.add(knee);knee.position.y=-L1;
+  const sg=C(.22,.18,L2);sg.translate(0,-L2/2,0);
+  om(sg,toon(STYLE.body),knee,0,0,0);
+  const ankle=new THREE.Group();knee.add(ankle);ankle.position.y=-L2;
+  const fg=B(1.15,.38,.7);fg.translate(.22,-.19,0);
+  om(fg,toon(STYLE.accent),ankle,0,0,0);
+  return {hip,knee,ankle};
+}
+const legL=leg(1),legR=leg(-1);
+
+/* Analytic two-bone IK in the sagittal (x-up) plane — closed form, no solver,
+   no state. Given the foot target relative to the hip, law of cosines gives
+   the knee; the foot counter-rotates to stay flat. Pure function of its
+   inputs, so seekTo purity is untouched. */
+function solveLeg(l,dx,dy){
+  const d=clamp(Math.hypot(dx,dy),.2,L1+L2-.01);
+  const phi=Math.atan2(dx,-dy);
+  const a=Math.acos(clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1));
+  const g=Math.acos(clamp((L1*L1+L2*L2-d*d)/(2*L1*L2),-1,1));
+  l.hip.rotation.z=phi+a;
+  l.knee.rotation.z=-(Math.PI-g);
+  l.ankle.rotation.z=-(l.hip.rotation.z+l.knee.rotation.z);
+}
+
+/* Gait: everything derives from DISTANCE TRAVELLED s, never wall time — feet
+   freeze mid-plant when the bot stops (method.md, cyclic motion). Each foot
+   alternates stance/swing over a 2-stride cycle; its plant point is a pure
+   function of the cycle index. */
+const START=-16;                                   // where the walk begins, world x
+function footTarget(s,phase){
+  const cyc=s/(2*STRIDE)+phase;
+  const n=Math.floor(cyc),u=cyc-n;
+  // Plant grid anchored at START — anchored at the origin, dx hit +16 at the
+  // first frame and the IK swung both legs horizontal. Shipped, seen, fixed.
+  const x0=(n-phase)*2*STRIDE+START;
+  if(u<.55)return[x0,0];                           // stance: nailed to the floor
+  const w=ss(u,.55,1);                             // swing to the next plant
+  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
+}
+
+/* ============================================================
+   CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
+   camera keyframes; the solver in the template does the framing.
+   ============================================================ */
+// Travel and hop as named closed forms — the SUBJECTS registry and animate()
+// both derive from THESE, so the camera and the body can never disagree.
+const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
+const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+
 const SUBJECTS={
-  knot:{pos:t=>[0,3+Math.sin(t*1.3)*.2,0],h:3.6},   // mirrors animate(): the aim rides the bob
+  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
+  // a tracked jump cancels itself on screen.
+  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
+  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
 };
 // The size ladder, calibrated to the convention a cinematographer means:
 // f = how many frame-heights the subject's full height spans; a = the
@@ -254,10 +416,17 @@ const SUBJECTS={
 // framing and the rack's second subject fell out of frame.
 const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
 const SHOTS=[
-  {at:['title',0], subject:'knot', size:'WS', angle:35},
-  {at:['one',.1],  subject:'knot', size:'FS', angle:60,  cut:'blend'},
-  {at:['two',.1],  subject:'knot', size:'FS', angle:-40, cut:'whip'},
-  {at:['three',0], subject:'knot', size:'WS', angle:35, size2:'FS', cut:'blend'},  // push in on the payoff
+  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
+  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
+  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
+  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
+  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
+  // a rack to an off-screen subject explains nothing — both subjects must be
+  // visible at different depths for the focus pull to read.
+  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
+  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
+  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
+  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
@@ -318,13 +487,46 @@ function setCamera(t){
 
 /* ============================================================
    ANIMATE — every property a pure function of t.
-   Use ss(t, start, end) ramps per beat; never accumulate.
    ============================================================ */
 function animate(t){
-  demoKnot.rotation.y=t*.6;
-  demoKnot.rotation.x=Math.sin(t*.4)*.3;
-  demoKnot.position.y=3+Math.sin(t*1.3)*.2;
-  demoKnot.scale.setScalar(1+.3*pulse(t,'three'));   // payoff pulse, named not numbered
+  // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
+  const botX=botXAt(t);
+  const s=botX+16;
+  const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
+
+  // the spark beat, sequenced so its two events don't fight: anticipation
+  // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
+  // cut ran hop and glow together and the payoff read as neither.
+  const hop=hopAt(t);
+  const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
+              +.06*(backOut(ramp(t,'spark',.58,.78))-1);
+  bot.position.set(botX,hop,0);
+  torso.scale.set(1/Math.sqrt(squash),squash,1/Math.sqrt(squash));
+  torso.position.y=HIP+.14*Math.sin(Math.PI*s/STRIDE)*vAmp;
+  torso.rotation.z=.10*vAmp;                       // lean into the walk
+  head.rotation.z=-.06*vAmp+.08*Math.sin(Math.PI*s/STRIDE)*vAmp;
+
+  // legs: foot targets in WORLD, solved relative to each hip in bot space.
+  // Mid-hop the targets tuck toward the body instead of chasing the floor.
+  for(const[l,ph]of[[legL,0],[legR,.5]]){
+    let[fx,fy]=footTarget(s,ph);
+    fx=lerp(botX+(ph?-.7:.5),fx,clamp(vAmp*2.5,0,1)); // ease to a rest stance when stopped
+    fx+=(ph?-.45:.45)*clamp(hop,0,1);              // stagger the tuck so the feet read as two
+    fy=fy*vAmp+hop*(ph?.85:.62);                   // back leg tucks higher — jump-pose asymmetry
+    solveLeg(l,fx-botX,fy-HIP);
+  }
+  armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
+  armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
+
+  // DoF follows the shot list: shotFocus is solved per frame, and the rack
+  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
+  bokeh.uniforms.focus.value=shotFocus;
+
+  // bloom payoff: the orb wakes for the finale (park is deliberate — the film
+  // ends on it), plus a proud little spin. Restated every frame, never +=.
+  orbMat.emissiveIntensity=.25+5.2*ramp(t,'spark',.60,.76);
+  orb.scale.setScalar(1+.18*pulse(t,'spark',.60,.85));
+  head.rotation.y=.6*Math.sin(2*Math.PI*ramp(t,'spark',.78,.98));
 }
 
 /* ---------- overlay (captions, title, flashes) ---------- */
@@ -362,7 +564,7 @@ window.DURATION=TOTAL;                                 // derived from BEATS, ca
 // Exposing the beats table lets external tooling label frames by beat and check caption timing
 // without re-parsing scene source. Read by sheet and motion build commands and caption lints in smoke.js.
 window.BEATS=BEATS;
-window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
+window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);composer.render();};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};

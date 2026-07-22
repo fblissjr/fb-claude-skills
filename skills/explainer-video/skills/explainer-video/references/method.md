@@ -1,5 +1,17 @@
 # Method: designing a sequence that reads
 
+The backend-agnostic core: the three failure axes, the beats discipline, the
+controls discipline, continuity and semantics review, and the determinism
+rules. Everything here holds for any scene that implements the window
+contract, whatever renders the pixels.
+
+Two companion references hold what this file deliberately does not:
+
+- `style-3d.md` — the three.js cookbook: lighting, the camera rail, texture
+  labels, procedural-asset recipes, r185 API notes, the performance envelope.
+- `delivery.md` — the GitHub delivery forensics: format tradeoffs, encoder
+  settings, the content-type mechanism and its evidence chain.
+
 ## Three ways a sequence fails
 
 A film can fail on three independent axes, and they need different instruments.
@@ -118,8 +130,8 @@ Worked instances, each of which changed the outcome:
   lint warn at 30. Warning at 25, as it briefly did, flags a density that was
   directly observed to read fine. The threshold before that (17-21) had no
   observation on either side and was wrong by a wide margin.
-- The wash rule below was stated here as universal law for months. Rendering one
-  dark-palette scene refuted it. See "Lighting and colour".
+- The wash rule was stated as universal law for months. Rendering one
+  dark-palette scene refuted it. See `style-3d.md`, "Lighting and colour".
 - Phase-locking two coupled objects is *claimed* to make causality legible.
   Untested — and the way to test it is to break the phase deliberately and check
   whether the broken version reads differently. If it does not, the locking was
@@ -214,6 +226,11 @@ If you cannot describe one, you have not run a check.
 
 # Axis 1 — Composition: what fails inside one frame
 
+The rules here are about frames and framing, whatever draws them. The
+renderer-specific halves of this axis — lighting and colour, texture labels,
+camera lens choices, and the procedural-asset cookbook — live in
+`style-3d.md`.
+
 ## One frame per beat hides systematic error
 
 Shoot the contact sheet, not a pile of loose samples:
@@ -261,16 +278,6 @@ The rule underneath is the old one: the thing *changing this beat* occupies the
 middle third. If the mechanism is what animates, the mechanism gets the frame
 and the figure gestures from the edge.
 
-## The camera rail
-
-- Keyframes in `KEYS[]`, smoothstep between consecutive pairs. Ease-in-out per
-  segment is what makes it feel filmed rather than programmed.
-- A gentle sin() sway (amplitude ~0.06) keeps held shots alive.
-- Frame for the beat: the thing changing should occupy the middle third. When a
-  new object enters (a part rising, a pulse arriving), aim where it WILL be.
-- Long lens (fov 20-25) + frontal angles for diagram worlds; normal lens
-  (fov 40-45) + three-quarter angles for character worlds.
-
 ## Silhouette, and the instrument for it
 
 If a subject does not read as a black shape at thumbnail size, more detail will
@@ -286,65 +293,6 @@ invisible at the size you are authoring at.
 Fixes are structural, not additive: separate the masses (raise the head, narrow
 the neck, break the shoulder line), push limbs away from the torso in the rest
 pose, and give the signature feature a profile that survives filling in solid.
-
-## Lighting and colour — wash and crush
-
-ACES compresses highlights, so what goes wrong depends entirely on where your
-palette sits. Decide which case you are in *before* touching exposure.
-
-**Pale palettes wash.** Hemisphere + directional + fill over cream, plaster and
-pastel materials clips to white. In order of effectiveness:
-
-1. Lower exposure (1.0, not 1.1+) and hemisphere intensity (~0.6).
-2. Pick material colours 2 shades darker and more saturated than the target —
-   ACES lifts them. A "dark maroon" mouth (0x5e1f28) rendered salmon; 0x24090d
-   read as intended. Same for yellows and creams: 0xffd54d not 0xfffbe8.
-3. Big pale surfaces (plaster, walls) need speckle/detail dots or they read as
-   blank paper at every distance.
-4. Transparent glows (MeshBasic + opacity): opacity 0.5+ and saturated colours,
-   else they vanish against light backgrounds.
-
-**Dark palettes crush.** A deep background with mid-dark ground and materials has
-the opposite problem: everything sinks into the background and the subject stops
-separating from the floor. The flywheel walkthrough runs a 0x1b2745 background
-over a 0x33405f floor at `exposure: 1.18` with four lights including a warm rim
-from the far side — and still renders dark, arguably underlit. Raising exposure
-past 1.0 and adding the fourth light were both correct there.
-
-1. Raise exposure above 1.0 and say why in a comment, so the next reader does not
-   "fix" it back down.
-2. Add a rim light from behind and to the far side. Separating the subject from
-   the floor at every camera angle is what it is for.
-3. **The speckle advice inverts.** Detail dots earn their place only on a surface
-   bright enough for the dots to read against it. The flywheel walkthrough has
-   160 seeded floor dots that are invisible in every rendered frame — geometry
-   and shadow cost, zero legibility.
-4. Emissives do the separating work that ambient light does in a pale scene.
-   Budget them per beat rather than leaving everything glowing.
-
-This section is itself a control instance. Working from the previous text — which
-said flatly that ACES "WILL wash pale materials to white" and that "every first
-render comes out overexposed" — a reviewer predicted the flywheel walkthrough's
-payoff would clip, given exposure 1.18, four lights and emissive intensity up to
-5.0. The rendered frames refuted it outright: the film is dark end to end.
-Following the old text would have made that scene worse. A rule stated without
-its precondition gets applied where it does not hold.
-
-## Text on surfaces only reads near-frontal
-
-Draw to an offscreen canvas2d and use it as `CanvasTexture` with
-`tex.colorSpace = THREE.SRGBColorSpace`. Overlay text stays in the DOM.
-
-The caveat that used to be missing: **a texture label is only information while
-it faces the camera.** In a radial layout most labels never do. The flywheel
-walkthrough's station plates render as "1 INGE", "SE", and a "5 COMPILE" so
-foreshortened it is a smear. Three options, in order of preference:
-
-1. Keep the label in the DOM overlay, positioned per beat. Always crisp, always
-   readable, and it costs nothing at render time.
-2. Orient the plate to face the camera arc rather than radially outward.
-3. Accept that it is texture, not information, and carry the meaning in the
-   caption. Fine for background dressing; not fine for the label the beat is about.
 
 ## Dwell: measured, not derived
 
@@ -391,91 +339,6 @@ the surprise gets longer, the one that only re-establishes position gets shorter
 The flywheel walkthrough does this correctly in exactly one place: its approve
 beat runs 4.6s against the others' 3.4s, because something actually happens
 there.
-
-## Procedural assets (no files, no downloads)
-
-Everything is composed from primitives — spheres, boxes, cylinders, planes, tori.
-No model files, no textures, no downloads. That constraint is what keeps a scene a
-single self-contained HTML file, and it is far less limiting than it sounds.
-
-### The general move
-
-Recipes below are organized by **shape problem**, not by subject, because the same
-geometry serves wildly different domains. Before reaching for one, derive your own:
-
-1. **Decompose to primitives.** Almost anything reads as spheres, boxes and
-   cylinders in a Group hierarchy. Detail is not what makes it legible.
-2. **Silhouette first.** Check it on the squint strip, not at full resolution.
-3. **Signature feature, oversized ~30%.** Whatever identifies the subject — a
-   beak, a hat, a chimney, a rotor, a spike in a chart — push it past comfortable.
-   The first render is always too timid.
-4. **Costume beats anatomy.** A hard hat makes a figure a builder; a torus brim
-   and a cap make one a surgeon. Role reads instantly from accessories and never
-   from accurate proportions.
-5. **Signal over realism.** Emissive brightness, scale pulses and colour shifts
-   carry meaning. A photoreal object that does not change is worse than a crude
-   one that does.
-
-### Recipes that have actually been built
-
-- **Figure** (creature, mascot, person, robot — anything that presents or
-  reacts): body = sphere scaled ~(0.9, 1.1, 1.15); head sphere on a short neck
-  sphere; limbs = spheres or cylinders in pivot Groups at the shoulder/hip so
-  they rotate for gestures; feet = flattened boxes. A protruding feature (beak,
-  snout, visor) = cone scaled flat in one axis and rotated forward. Keep the neck
-  and shoulder visible — costume that swallows both kills the silhouette.
-- **Expressive face**: head sphere; eyes = white spheres scaled z≈0.5 sitting
-  PROUD of the face (bug-eyed reads at distance), pinpoint pupils, glint dots;
-  brows floated slightly off the head; blush = flat circles rotated to the
-  cheeks; open mouth = dark sphere in a Group (doubles as a portal for dive-ins;
-  scale to 0 and swap in a half-torus smile for a finale).
-- **Cutaway / cross-section** (geology strata, building floors, soil horizons,
-  battery internals, an engine block, a seabed): a flat slab box + bands for
-  layers, viewed frontally. CRITICAL: anything "inside" the slab is invisible —
-  cavities, thin layers and particles must sit PROUD of the front face by 0.1-0.3
-  units, like a museum diorama. A thin dark torus rim where a cavity meets the
-  surface sells the carved look.
-- **Network or flow** (data pipelines, supply chains, transit maps, circuits,
-  approval workflows, nutrient cycles): stations = labeled boxes on a ground
-  plane; the payload = a bright emissive sphere whose position is a piecewise
-  function of t along the edge path; arrival = `pulse()` scale bump on the
-  station.
-- **Atmosphere for a large ground plane**: `scene.fog = new THREE.Fog(bg, near,
-  far)` matched to the background colour. The floor edge stops reading as a hard
-  disc against the backdrop, and distant stations recede instead of competing
-  with the subject. Cheap, and it does what a vignette cannot.
-
-### Not yet built, but the shape is obvious
-
-Sketches, not battle-tested — treat them as starting points and add what you
-learn back here.
-
-- **Field of instances** (populations, portfolios, fleets, A/B cohorts): one
-  instanced primitive per item on a grid, driven by a seeded `R[]` offset so the
-  arrangement is deterministic. Colour or height encodes the variable; the beat
-  is a wave passing through the field.
-- **Mechanism** (gears, levers, pumps, linkages): cylinders and boxes in nested
-  Groups where each rotation is a closed form of `t`. Meshing is faked — two
-  gears at a fixed ratio never actually collide, so drive both from one ramp.
-
-### Mutating a shared material is pure only if you restate it
-
-This is the sneakiest form of accumulated state, and the determinism rules never
-called it out. A material is scene-global; touching its colour without resetting
-first carries the change into the next frame.
-
-```js
-mat.color.setHex(BASE).lerp(TARGET, u);   // pure — restated from a constant
-mat.color.lerp(TARGET, u);                // accumulates — desyncs on the 2nd pass
-```
-
-The second form renders correctly in the MP4, which is shot 0→N exactly once,
-and wrong in the HTML loop's second pass. `smoke.js`'s determinism check catches
-it; understanding why saves the debugging round. The flywheel walkthrough gets
-this right in four places, always via `setHex` before `lerp`.
-
-The same applies to `emissiveIntensity`, `opacity` and anything else you reach
-for on a shared material: assign it outright every frame, never adjust it.
 
 ---
 
@@ -796,12 +659,34 @@ Steps 5-7 are the ones that were missing. They are also the cheap ones.
   accumulated across frames — `seekTo(8)` after `seekTo(2)` must equal
   `seekTo(8)` cold.
 - Shared materials are state. Restate colour and intensity from a constant every
-  frame; never adjust them incrementally. See the cookbook entry above.
+  frame; never adjust them incrementally. See the next section.
 - `renderer.setPixelRatio(1)` and `preserveDrawingBuffer: true` — screenshots
   need both.
 - Physics is faked with closed forms: a drop is `y0 - k*(t-t0)²`, a wobble is
   `sin(t*ω) * ramp`, a screw-in is position + rotation both driven by the same
   ss() ramp.
+
+## Mutating a shared material is pure only if you restate it
+
+This is the sneakiest form of accumulated state, and the determinism rules never
+called it out. A material is scene-global; touching its colour without resetting
+first carries the change into the next frame.
+
+```js
+mat.color.setHex(BASE).lerp(TARGET, u);   // pure — restated from a constant
+mat.color.lerp(TARGET, u);                // accumulates — desyncs on the 2nd pass
+```
+
+The second form renders correctly in the MP4, which is shot 0→N exactly once,
+and wrong in the HTML loop's second pass. `smoke.js`'s determinism check catches
+it; understanding why saves the debugging round. The flywheel walkthrough gets
+this right in four places, always via `setHex` before `lerp`.
+
+The same applies to `emissiveIntensity`, `opacity` and anything else you reach
+for on a shared material: assign it outright every frame, never adjust it. The
+principle is backend-agnostic — any shared object a frame mutates (a canvas
+context's state, a DOM node's style) must be restated from constants, never
+nudged from its previous value.
 
 ## Where you will be tempted to break this
 
@@ -826,227 +711,3 @@ HTML loop and the MP4 disagreeing on the second pass.
 Note the interaction with the continuity axis: the closed form that keeps you
 deterministic is also the one that keeps velocity continuous across a beat
 boundary. Summed per-beat ramps satisfy determinism and still stall.
-
-# three r185 API notes (the renames that fail silently)
-
-Pinned at 0.185.1. Several r149-era names were removed outright, and because
-`THREE.<removed>` evaluates to `undefined` rather than throwing, the scene keeps
-rendering with wrong colors and no error. If output looks subtly off, check
-these first:
-
-| removed | use instead |
-|---|---|
-| `renderer.outputEncoding = THREE.sRGBEncoding` | `renderer.outputColorSpace = THREE.SRGBColorSpace` (also the default) |
-| `texture.encoding = THREE.sRGBEncoding` | `texture.colorSpace = THREE.SRGBColorSpace` |
-| `THREE.PCFSoftShadowMap` | `THREE.PCFShadowMap` (PCFSoft deprecated; silently downgrades and warns) |
-| `renderer.useLegacyLights` | gone — physical lighting is the only mode now |
-
-The directional/hemisphere rig in the template was re-checked under r185 and
-still exposes correctly at `exposure: 1.0` for the template's own pale palette.
-That figure is a property of that palette, not of the renderer — see "Lighting
-and colour".
-
-One more silent failure in the same family, which is why the build tooling
-insists on `--format=iife`: a non-IIFE bundle leaks its top-level identifiers
-into global scope, and a minified two-letter identifier from three once shadowed
-a scene variable in a real film and broke its rendering. Nothing errors. The
-symptom looks like a scene bug, and you will look for it in `animate()`.
-
-# Performance envelope
-
-Depends entirely on whether you have a real GPU, so know which case you're in
-before you budget time:
-
-| Environment | 1080p capture | 20s @ 30fps |
-|---|---|---|
-| Cloud container, SwiftShader software GL | ~1 fps | ~10 min |
-| Local machine, hardware GL | ~5 fps (measured: 288 frames in 54s) | ~2 min |
-
-The software-GL number is the one that shapes the design — keep polycounts modest
-(spheres at 24×16, one 2048 shadow map, no postprocessing). But do not let it
-scare you off a local render that finishes while you read this. Sample frames are
-cheap in both cases.
-
-Capture is embarrassingly parallel, and that falls straight out of determinism:
-frames are independent, so N headless pages can each shoot 1/N of the range with
-zero correctness risk. Not implemented yet — the obvious fix if long pieces start
-hurting.
-
-# Delivering inline on GitHub
-
-GitHub renders animated WebP and GIF inline, and — per one confirmed
-still-image fetch plus one real-world report, see below — animated AVIF as
-well. It does **not** render a repo-relative mp4 as a player, and it strips
-`<script>`, so the HTML artifact is inert on github.com (Pages or a published
-Artifact both run it fine).
-
-The HTML scene is a fourth, co-equal delivery option alongside mp4, WebP and
-AVIF — not a footnote to them. It is the interactive, deterministic source
-itself, not a rendering of it: `build.js bundle` makes it a single
-self-contained file that runs offline, and it plays fine served from GitHub
-Pages or published as an Artifact. It does not run from github.com directly,
-for the `<script>`-stripping reason above. A `build.js deploy` helper to
-automate that publish step is a plausible future addition; it does not exist
-yet.
-
-WebP's cost is driven by how much of the frame changes per frame, which makes
-the camera decision a file-size decision for WebP. AVIF does not have that blind
-spot — it is cheap on both camera styles — but it buys the smaller file with a
-cost that does not show up in a size table, so read the tradeoff below before
-reaching for it.
-
-| Scene | 12s template, 960px/24fps, moving camera | 11s held-camera diagram, 720px/12fps |
-|---|---|---|
-| mp4 | 0.52 MB | 0.23 MB |
-| gif | 12.08 MB | — |
-| webp | 15.56 MB | 0.20 MB |
-| **avif** | **0.28 MB** | **0.029 MB** |
-
-(A second measurement run reproduced this benchmark on the moving-camera case —
-mp4 0.68 MB, webp 15.16 MB — close enough to the figures above to trust the
-avif row as directly comparable to the rest of the table.)
-
-AVIF is ~54x smaller than WebP on the moving-camera scene and ~7x smaller on
-the held-camera one, and it beats the mp4 on both. Sway (`CONFIG.sway = 0.06`,
-every pixel changing every frame) is what makes WebP expensive; AVIF does not
-have the same blind spot.
-
-### The size win costs decode at playback
-
-This is the cost the table does not show, and it is the input that keeps this a
-genuine tradeoff rather than a size contest. An animated AVIF is an **AV1
-still-image sequence**, not a video stream: browsers and viewers decode it
-frame by frame in software, and it does not get the hardware video-decode path
-an mp4 gets. Animated WebP decode is far lighter. So the 29 KB AVIF that beats
-a 200 KB WebP on disk can be *heavier to play* than the WebP it replaced — a
-real cost to weigh against the size win, not a disqualifier.
-
-This is observed, not just predicted. The repo owner watched the committed
-animated AVIF play back with visible slowness, worse in macOS Preview than in
-Chrome — i.e. the same file decodes at different costs in different decoders, and
-the cost is high enough to see. Decode load scales with the viewer's machine, so
-a weak or busy one will drop frames on the AVIF while the WebP plays smoothly.
-One machine, two decoders — directional and consistent with the architecture,
-not a mapped threshold. It is exactly the axis the size measurement was blind to:
-bytes-on-disk and decode-cost-at-playback are different costs, and optimizing the
-first said nothing about the second.
-
-**The decode lever is resolution, not the encoder.** Because the player
-software-decodes every AV1 frame live, the decode budget is
-`width x height x fps` — pixels per second the viewer's machine must sustain. So
-dropping the resolution buys smoothness directly: 1280→960 cuts the budget ~44%
-(28 → 15.5 Mpx/s), and GitHub renders README images at well under native width
-anyway, so the drop is invisible where it matters. A lower-resolution AVIF was
-observed playing smoothly where a wider one stuttered — but on a capable machine.
-**Whether any resolution stays smooth on genuinely low-end hardware is the open
-question, not a settled result** — a real unknown to weigh when choosing
-between a controlled-resolution AVIF and WebP.
-
-Prefer cutting **resolution over frame rate**. On a moving-camera piece the fps
-carries the motion cadence, and lowering it reintroduces judder — a different
-defect than the decode stutter you were fixing. The command's `[width]` argument
-is the lever; the default 720 is deliberately conservative on decode. The
-encoder `-s` knob does **not** help — it trades encode time for file size and
-leaves the bitstream's pixel throughput, which is what costs decode, unchanged.
-
-There is a clean symmetry here: an AVIF software-decodes and an mp4
-hardware-decodes, which is the same split that makes the mp4 play smoothly
-everywhere *and* refuse to embed. Resolution is a playback cost for AVIF exactly
-because it never touches the hardware path.
-
-So this is a genuine tradeoff between two peer options, decided by context —
-neither is the default:
-
-- **WebP** — larger on disk (ruinous on a moving camera), but decodes cheaply
-  and smoothly on any hardware, and its inline rendering on GitHub is the
-  verified case. A reasonable pick when the audience hardware is unknown or
-  weak, or when a moving camera isn't in play.
-- **AVIF** — dramatically smaller on disk, lifts the held-camera constraint, and
-  its decode cost is tunable by resolution (above). What is *not* yet confirmed
-  is whether a controlled resolution stays smooth on genuinely low-end
-  hardware — that test is still open. A reasonable pick when size or bandwidth
-  matters most and the audience skews toward capable hardware; watch it on a
-  low-end target in the browser you will embed for before relying on it there.
-
-Holding the camera to fit a WebP loop under the 10MB inline cap is still a real
-constraint if you ship WebP. AVIF removes it — at the playback cost above.
-
-`loop` needs `img2webp` (`brew install webp`). Homebrew's ffmpeg ships without
-libwebp, so `-c:v libwebp` fails with "Encoder not found".
-
-## Encoding AVIF
-
-```bash
-bun run build.js avif <scene.html> [fps] [width]   # <name>.avif — defaults fps 12, width 720, same shape as loop
-```
-
-Under the hood: `avifenc --fps <fps> -q 60 -s 6`. Speed 6 is the measured knee
-— `-s 8` gave 2.3x larger files for one second less encode time, `-s 4` gave no
-further size gain for double the time. Encode cost is 11s for 288 frames,
-negligible against a 65s shoot.
-
-Visual check: decoded frames inspected by eye — crisp text, smooth gradients,
-no blocking — and SSIM 0.97 against the source frames.
-
-`avif` needs `avifenc` (macOS: `brew install libavif`), the exact parallel of
-`img2webp` for `loop`.
-
-## Why WebP (and, provisionally, AVIF) embed and mp4 does not
-
-It is a content-type allowlist, not a markdown-syntax problem. Verified by
-fetching from the URL a repo-relative reference resolves to:
-
-| committed file | `raw` Content-Type | result |
-|---|---|---|
-| `.webp` | `image/webp` | renders inline; `ANIM`/`ANMF` chunks arrive intact |
-| `.avif` (still) | `image/avif`, nosniff present but irrelevant since the type is correct | same allowlist mechanism as WebP, confirmed by fetch |
-| `.mp4` | `text/plain; charset=utf-8` + `nosniff` | inert — no browser will treat it as media |
-
-`<video>` being stripped from GFM is a second, independent block on the mp4 path.
-Both have to be true for the workaround (an issue/PR attachment URL) to be the
-only route to a player.
-
-**The `.avif` row in THIS table was fetched as a still image.** Not the AVIF row
-in the size table further up — those files are animated, verified at 132 and 288
-frames with `avifdec --info`. The distinction matters because only one half of
-the AVIF delivery path is actually confirmed:
-
-| link in the chain | status |
-|---|---|
-| AVIF encodes small enough to ship inline | **measured** — 0.28 MB moving-camera, 0.029 MB held |
-| the files are genuinely animated, not collapsed stills | **verified** — `avifdec --info` reports 132/288 frames, infinite repeat |
-| GitHub serves `.avif` as `image/avif`, passing the allowlist | **verified by fetch** — but against a *still* |
-| GitHub's image pipeline passes an *animated* AVIF through and it plays | **one real-world observation** |
-
-That last row is the whole of the evidence: the repo owner committed an animated
-AVIF and reported it renders and animates inline. Record it as exactly that — a
-single confirming observation, not a bracket, and not the same class of evidence
-as the fetch that backs the row above it.
-
-An animated `.avif` is now committed beside the example specifically so this is
-cheap to close: pointing the README's image at it is a one-line change, and
-viewing the rendered README settles the last row either way. It is committed as
-a peer delivery option and as the experiment that would settle the AVIF-inline
-question — the README currently points its hero image at the WebP, the case
-with real verification behind it; re-pointing it at the AVIF and writing down
-what happens is the open follow-up.
-
-Two traps that follow, plus one browser-support caveat:
-
-- **Never track the loop under Git LFS.** `raw` returns the pointer file rather
-  than the image and the README shows a broken image. This catches most repos
-  that ship demo media.
-- **Animated GIF, WebP and AVIF are all silent.** There is no format that gives
-  inline motion *with audio* in a README. Audio requires the attachment player,
-  which means the narration path and the inline path are different artifacts.
-- **Animated AVIF is expensive to decode; WebP is not.** See "The size win
-  costs decode at playback" above — this is a viewer-hardware cost, observed,
-  and a real input to weigh against AVIF's size win.
-- **Animated AVIF needs a newer browser than animated WebP.** Where the
-  audience's browser is old or unknown, that argues for WebP; its numbers, and
-  the fact that it renders and animates inline, are the well-verified ones in
-  this file.
-
-APNG is unverified — the issue-composer upload rejects `.apng`, and whether a
-committed `.png` carrying APNG frames animates is undocumented. Do not rely on it
-without testing.

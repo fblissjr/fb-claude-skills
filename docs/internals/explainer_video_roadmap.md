@@ -8,18 +8,24 @@ beats refactor that fixed it, and most of the review tooling designed here, have
 since shipped. The design write-ups below are kept as history even where DONE —
 several shipped *differently* than designed, and the deltas are the useful part.
 
+The larger arc — style generalization, cinematic 3D, film language, style
+bibles — lives in
+[explainer_video_generalization_plan.md](explainer_video_generalization_plan.md);
+this file remains the per-item ledger. Note the plan's Phase 1 triggers the
+flip condition the "Not doing: a 2D backend" entry below set for itself.
+
 | # | Item | Status | Blocked by |
 |---|---|---|---|
 | 1 | [Named beats as the timing source](#1-named-beats-as-the-timing-source) | **DONE** (0.2.0) | — |
 | 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | **DONE** (0.6.0, as `build.js sheet`) | 1 |
 | 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed, unbuilt | 1 |
 | 4 | [Caption lint](#4-caption-floor-lint-replaces-the-magic-number-lint) | **DONE** (0.6.0, advisory) | 1 |
-| 5 | [Parallel frame capture](#5-parallel-frame-capture) | designed, unbuilt | — |
+| 5 | [Parallel frame capture](#5-parallel-frame-capture) | **DONE** (0.8.0), with a negative speed result | — |
 | 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | open | — (not this plugin) |
 | 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
 | 8 | [The three-axis review model](#8-the-three-axis-review-model-06) | **DONE** (0.6.0) | 1 |
 | 9 | [Inline delivery: AVIF vs WebP](#9-inline-delivery-avif-vs-webp-06) | **DONE** (0.6.0), one test open | — |
-| 10 | [A committed flagship example](#10-a-committed-flagship-example) | open | — |
+| 10 | [A committed flagship example](#10-a-committed-flagship-example) | **DONE** (0.12.0, as `examples/toybot-walk.html`) | — |
 
 The 0.6.0 items (8, 9) and how 2 and 4 actually shipped are summarized next; the
 older design write-ups follow unchanged from item 1 down.
@@ -341,6 +347,21 @@ revisit promoting it.
 
 ## 5. Parallel frame capture
 
+> **Shipped in 0.8.0** (Phase 1 of the generalization plan pulled it forward —
+> back-to-back execution makes iteration cost the inner loop). Built as
+> designed: `--workers N` or `SHOOT_WORKERS=N`, contiguous chunks, N pages in
+> one browser. Correctness verified: 4-worker output is **byte-identical** to
+> 1-worker output on the template scene, 48/48 frames.
+>
+> **The speed prediction below was refuted where it was made.** "The ~1 fps
+> software-GL case is where this would matter" — measured on a 4-core
+> software-GL container: 25.1s single vs 26.1s with 4 workers, ~1.0x.
+> SwiftShader already multithreads a single page's rasterization across the
+> cores, so extra pages only contend. The remaining win case is a many-core box
+> or hardware GL, where one page cannot saturate the machine — plausible,
+> unmeasured. Recorded per the build-the-control rule: the mechanism is
+> correct, the benefit is environment-conditional and so far undemonstrated.
+
 Falls straight out of determinism: frames are independent, so N headless pages can
 each shoot a contiguous 1/N of the range with zero correctness risk. Contiguous
 chunks rather than a stride, so a failed worker leaves an obvious gap.
@@ -428,6 +449,15 @@ and the determinism, and it sidesteps the raster tradeoff entirely. Possible
 ---
 
 ## 10. A committed flagship example
+
+> **Shipped in 0.12.0** as `examples/toybot-walk.html` — the Phase 2 spike of
+> the generalization plan: a character, a moving camera, world entry to payoff
+> end-to-end, and beyond what this item asked for — cel shading with
+> inverted-hull outlines, analytic two-bone IK, rack-focus DoF, and bloom
+> through a post chain proven byte-deterministic. Committed as a 0.13 MB
+> animated AVIF (moving camera — WebP's punishing case). A longer multi-world
+> walkthrough remains possible later, but the character/moving-camera path
+> this item wanted demonstrated is demonstrated.
 
 The repo ships exactly one example: `examples/skill-retrieval.html` — 11s,
 held-camera, diagrammatic (now in html/webp/avif). There is **no committed

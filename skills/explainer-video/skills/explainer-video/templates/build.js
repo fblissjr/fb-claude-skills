@@ -41,7 +41,24 @@ const bundleName = (src) => src.replace(/\.html$/, '.bundled.html');
 function vendor(dir = process.cwd()) {
   const out = path.join(dir, VENDOR);
   const entry = path.join(dir, '.three-entry.js');
-  fs.writeFileSync(entry, "import * as THREE from 'three';\nglobalThis.THREE = THREE;\n");
+  // The post-processing addons ride in the same bundle, attached to the THREE
+  // namespace (THREE.EffectComposer etc). Always included: they cost bundle
+  // bytes when unused, and the alternative — a second vendor file with its own
+  // staleness and load-order rules — costs a failure mode. Determinism note
+  // for scene authors: every pass here is per-frame pure; temporal passes
+  // (TAA, accumulation motion blur) are NOT bundled and must stay out — they
+  // carry state across frames and break the seekTo byte-identity contract.
+  fs.writeFileSync(entry, [
+    "import * as THREE from 'three';",
+    "import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';",
+    "import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';",
+    "import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';",
+    "import {BokehPass} from 'three/addons/postprocessing/BokehPass.js';",
+    "import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';",
+    "import {Sky} from 'three/addons/objects/Sky.js';",
+    "globalThis.THREE = Object.assign({}, THREE, {EffectComposer, RenderPass, UnrealBloomPass, BokehPass, OutputPass, Sky});",
+    "",
+  ].join('\n'));
   try {
     // --format=iife is required, not cosmetic: the scene is a classic script, so
     // an esm/plain bundle's top-level identifiers land in global scope and
@@ -151,7 +168,7 @@ function video(name, fps = 30) {
 // scene at 960px/24fps: mp4 0.52MB, gif 12.08MB, webp 15.56MB. WebP loses to GIF
 // there because the template's camera sway moves every pixel every frame, which
 // defeats inter-frame compression. Hold the camera (CONFIG.sway = 0) and keep it
-// short; see references/method.md.
+// short; see references/delivery.md.
 //
 // ...unless you ship AVIF, which dissolves the size side of that constraint but
 // adds a playback cost. Same 12s moving-camera scene re-measured today: webp

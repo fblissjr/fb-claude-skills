@@ -8,8 +8,11 @@ description: >
   in any field: a process, mechanism, system, architecture, organism, market,
   supply chain, building, policy, or document (e.g. "turn docs/data-flywheel.md
   into a 30-second video", "animate how a heat pump works", "show how our
-  approval process flows"). Domain-agnostic — only the geometry and caption
-  register change by field, never the pipeline. Deterministic by construction:
+  approval process flows"). Two backends on one contract — three.js 3D (cel
+  shading, IK characters, a deterministic post chain, shots as data) and
+  Canvas2D flat vector — with the look chosen by swappable style packs and
+  bibles. Domain-agnostic — only the geometry and caption register change by
+  field, never the pipeline. Deterministic by construction:
   the film is a pure function of time t, so one scene file drives the live HTML
   loop and the frame-exact render alike. Do NOT use for editing existing video
   files, screen recordings, or slide decks. Audio narration is designed but not
@@ -102,7 +105,16 @@ Three things to settle here, because they are expensive to fix after building:
 
 ### 2. Scaffold from the template
 
-Copy the template files into your working directory, then vendor three:
+Two scene templates implement the identical window contract; every tool works
+unchanged on both. Pick by the look the spec calls for:
+
+- `scene.template.html` — three.js 3D: rendered depth, lighting, camera in
+  space. Needs the vendor step below.
+- `scene2d.template.html` — Canvas2D: flat vector illustration, paper-and-ink
+  diagrams, motion graphics. Born self-contained — **skip the `bun add three`
+  and `vendor` lines entirely** (only `playwright-core` is needed, for the
+  recorder). Carries a `STYLE` block split out of `CONFIG`, so the look swaps
+  without touching timing or camera.
 
 ```bash
 # ${CLAUDE_SKILL_DIR} is substituted when this skill loads. If it comes through
@@ -113,20 +125,25 @@ bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor            # writes three.global.js beside the scene
 ```
 
-The scene is runnable as-is (placeholder scene, 12s) and already contains the
-full contract:
+Either scene is runnable as-is (placeholder scene, 12s) and already contains
+the full contract:
 
 - `BEATS` — the single source of timing truth; nothing else holds a timestamp
 - `CONFIG` — title, style tokens, seed: everything that is *not* timing
 - deterministic kit — seeded PRNG (`R[]` pool), `ss()` smoothstep, `bump()`,
-  `lerp()`; **never** call `Math.random()`/`Date.now()` in scene code
+  `lerp()`, plus the easing personalities (`backOut`, `elasticOut`, stop-motion
+  `quant`, seeded `noise1`) — identical in every template, part of the future
+  shared kernel; **never** call `Math.random()`/`Date.now()` in scene code
 - beat addressing — `ramp(t,'beat',a,b)` and `pulse(t,'beat',a,b)` take
   **fractions of the beat**, so an effect keeps its place when you retime.
   `rampS`/`pulseS`/`secAt` take **seconds from the beat start**, for durations
   that must *not* stretch: a 0.25s flash, a 0.06s world cut. Write
   `ramp(t,'lift',0,.6)`, never `ss(t, 9.2, 11.4)`
-- camera rail — `KEYS[]` anchored to `{beat, at}`, smoothstep-interpolated, with
-  instant world-cuts hidden under white-flash overlays
+- cinematography — `SHOTS[]` in cinematographer vocabulary (subject, size,
+  angle, lens, cut, focus), solved to the camera per frame; match cuts are a
+  checked constraint, racks are two shots differing only in focus. See
+  `references/film-language.md`. (3D template; the 2D template keeps its
+  simpler `{x,y,zoom}` rail. World-cut flashes still work under any cut.)
 - caption + title overlay as DOM (crisp text in screenshots), styled from CONFIG
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
   `window.sceneReady`: the recorder contract; do not rename these. Plus
@@ -171,7 +188,9 @@ Budget 3-4 rounds of look-and-edit for composition — that's the axis rounds
 converge. Continuity and semantics don't get better from repeating this loop;
 they need their own passes, watching the film and covering the caption.
 `references/method.md` organizes the recurring failure modes by axis, with the
-fix for each — read it before the first render, it saves two rounds.
+fix for each — read it before the first render, it saves two rounds. For a
+three.js scene, `references/style-3d.md` carries the renderer-specific half
+(lighting, camera lenses, the asset cookbook).
 
 ### 4. Smoke-test the contract
 
@@ -257,7 +276,7 @@ player in a README — GitHub serves it from `raw` with a content type no
 browser will treat as media, and `<video>` is stripped from GFM on top of
 that. To get a real player, drag the file into an issue or PR composer and use
 the `github.com/user-attachments/assets/...` URL it returns. The mechanism,
-verified by fetching both, is in `references/method.md`.
+verified by fetching both, is in `references/delivery.md`.
 
 **Do not track the loop under Git LFS.** `raw` returns the LFS pointer file, not
 the image, and the README shows a broken image. Most repos with demo videos hit
@@ -282,8 +301,8 @@ decoded in software, so it costs decode CPU at playback and was observed to
 stutter (worse in macOS Preview than Chrome). Whether it stays smooth on
 genuinely low-end hardware is an open, unconfirmed question — weigh that
 against WebP's better-verified inline rendering when choosing. Full tradeoff,
-encoder settings, and the inline-rendering evidence chain: "Delivering inline
-on GitHub" in `references/method.md`.
+encoder settings, and the inline-rendering evidence chain:
+`references/delivery.md`.
 
 Whatever you ship, the scene file stays the single source: never maintain two.
 
@@ -297,8 +316,10 @@ register of the captions. The contract, the beats and the pipeline do not.
 - **Playful** (a figure carrying the story — onboarding, explainers for
   non-specialists, anything with a mascot or a person to follow): saturated
   pastels, soft shadows, big shapes, a character "presenting". Build the figure
-  procedurally from primitives — recipes in `references/method.md`. No bundled
-  example currently ships for this style; start from the template scaffold.
+  procedurally from primitives — recipes in `references/style-3d.md`. For the
+  cinematic register (cel shading + outlines, analytic IK, rack-focus DoF,
+  bloom through the post chain), see `examples/toybot-walk.html` and the
+  "cinematic kit" section of `references/style-3d.md`.
 - **Technical/diagrammatic** (architecture, data flow, supply chains, org
   processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
   edges; camera glides between stations rather than cutting between worlds. Same
@@ -306,8 +327,19 @@ register of the captions. The contract, the beats and the pipeline do not.
   20-25). See `examples/skill-retrieval.html`.
 - **Cross-section** (geology, buildings, machinery, soil, anything with hidden
   internals): a frontal cutaway slab. The one rule is that "inside" is invisible
-  — internals must sit proud of the front face. See `references/method.md`.
+  — internals must sit proud of the front face. See `references/style-3d.md`.
 - Subtitles off: beats still exist — they discipline pacing even uncaptioned.
+- **Style packs** (`references/styles/`): swappable `STYLE` blocks plus the
+  register rules that make a look coherent — easing temperament, camera
+  energy, fill/line vocabulary. Current packs: `paper-cutout` (the 2D
+  default, documented as a choice), `blueprint`, `neon-dark`. Swapping the
+  block is the whole mechanism; verified to produce a categorically
+  different film from the same beats. Worked 2D example in the paper-cutout
+  pack: `examples/one-scene-every-format.html`. For the 3D register the pack
+  idea grows into **style bibles** (`references/styles/bibles.md`): one
+  object constraining palette, lights, post, lens, cut pace, and camera
+  energy — `examples/toybot-walk.html` ships the committed control pair
+  (`toybox` / `midnight`, one line apart).
 
 ## Environment
 
@@ -325,11 +357,22 @@ Two constraints that dictate the setup — do not "simplify" them away:
 
 ## Files
 
-- `templates/scene.template.html` — the scaffold (start here)
+- `templates/scene.template.html` — the 3D scaffold (three.js)
+- `templates/scene2d.template.html` — the 2D scaffold (Canvas2D, self-contained,
+  `STYLE` split from `CONFIG`)
 - `templates/shoot.js` / `templates/build.js` — recorder + pipeline, incl. `sheet`
   and `motion` review passes (copy beside the scene)
 - `templates/smoke.js` — contract + determinism check, plus caption and exposure
   lints (run before a full shoot)
-- `references/method.md` — design method by failure axis, procedural-asset
-  cookbook, gotchas (L3: read when building)
+- `references/method.md` — the universal method: failure axes, beats and
+  controls discipline, continuity/semantics review, determinism rules
+  (L3: read when building, any backend)
+- `references/styles/` — style packs: swappable `STYLE` blocks + register
+  rules (read the chosen pack at art-direction time)
+- `references/film-language.md` — the shot vocabulary: sizes, cuts, match
+  constraint, focus, camera energy (read when planning shots)
+- `references/style-3d.md` — the three.js half: lighting, camera rail,
+  procedural-asset cookbook, r185 notes (L3: read when building a 3D scene)
+- `references/delivery.md` — GitHub delivery forensics: format tradeoffs,
+  encoder settings, the content-type evidence chain (read at ship time)
 - `references/audio.md` — narration/music extension design (not yet wired)

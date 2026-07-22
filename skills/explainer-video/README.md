@@ -1,6 +1,6 @@
 # explainer-video
 
-*Last updated: 2026-07-21*
+*Last updated: 2026-07-22*
 
 Build short animated explainer sequences — 3D or diagrammatic — from a topic, a
 process, or an existing document. Output is a self-contained looping HTML page,
@@ -19,7 +19,49 @@ camera, three beats, and the best-verified case for inline rendering on
 GitHub. Source:
 [`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
 
-The same film is also committed as a **28.5 KB** animated AVIF —
+A second bundled example is built on the **Canvas2D backend** in the
+paper-cutout style pack — the plugin explaining its own pipeline:
+
+![one scene, every format](skills/explainer-video/examples/one-scene-every-format.webp)
+
+*20.8s, six beats, held camera, flat 2D — committed as a 0.96 MB WebP and a
+0.10 MB AVIF
+([`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif)).
+Source:
+[`one-scene-every-format.html`](skills/explainer-video/examples/one-scene-every-format.html)
+— no three.js, no vendor step; the source file is the artifact. It is the
+Phase 1 proving film of the generalization plan: same tooling, second
+renderer.*
+
+The third bundled example is the **cinematic 3D spike** — cel shading with
+inverted-hull outlines, analytic two-bone IK with feet that plant, a rack-focus
+depth-of-field beat, and bloom budgeted to the payoff, all through the
+post-processing chain (`EffectComposer` → bokeh → bloom), which passes the
+byte-determinism check with the chain enabled:
+
+![toybot takes a walk](skills/explainer-video/examples/toybot-walk.avif)
+
+*13.6s, four beats, moving camera — which is exactly the case WebP punishes,
+so this one is committed as a 0.25 MB animated AVIF only. The camera is
+authored entirely as a SHOT LIST — eight shots, zero hand-written keyframes:
+a match cut verified by the compiler (sign plate → torso, identical framing),
+a whip into the finale, and a rack focus expressed as two shots differing
+only in `focus`. This image is ALSO the experiment the AVIF evidence chain
+has been waiting for: if it animates inline above, the last row of the table
+in `references/delivery.md` gets its second observation. Source:
+[`toybot-walk.html`](skills/explainer-video/examples/toybot-walk.html).*
+
+The same film also ships under a second **style bible** — one line changed
+(`BIBLE='midnight'`), zero edits to beats, geometry, or the shot list:
+
+![toybot at midnight](skills/explainer-video/examples/toybot-walk.midnight.avif)
+
+*Low-key neon noir: 30° lens, locked tripod, 1.3s dollies, magenta rim,
+bloom-forward. This pair is the standing proof that the layers are actually
+separated — register swaps; content does not. Spec:
+[`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).*
+
+The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
 [`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
@@ -60,7 +102,8 @@ into a 30-second video".
   Chrome; `bunx playwright install chromium` if none
 
 Pinned dependencies, installed into the working directory (not this repo):
-`three@0.185.1`, `playwright-core@1.61.1`.
+`three@0.185.1` (3D scenes only — a Canvas2D scene never needs it),
+`playwright-core@1.61.1`.
 
 ## Reviewing a scene
 
@@ -105,7 +148,7 @@ player — but not inline: a repo-relative mp4 is served with a content type no
 browser treats as media, so it has to be attached to an issue or PR to play.
 
 GitHub renders animated WebP inline, and, per one confirming real-world
-observation (not yet independently verified — see `references/method.md`),
+observation (not yet independently verified — see `references/delivery.md`),
 animated AVIF. WebP and AVIF are a tradeoff between size and playback cost,
 not a ranking:
 
@@ -124,7 +167,7 @@ capable → AVIF; audience hardware is unknown or weak, or the camera moves →
 WebP; audio or a guaranteed player → MP4 via attachment; the interactive
 scene itself → HTML via Pages or an Artifact. Full tradeoff, encoder settings,
 the content-type mechanism, and the inline-rendering evidence chain:
-`references/method.md`, "Delivering inline on GitHub".
+`references/delivery.md`.
 
 ## Two constraints worth knowing before you edit the template
 
@@ -145,10 +188,18 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | Path | What it is |
 |------|-----------|
 | `skills/explainer-video/SKILL.md` | The skill: workflow, contract, style quick-reference |
-| `skills/explainer-video/templates/scene.template.html` | Runnable scaffold with the full recorder contract |
-| `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting |
+| `skills/explainer-video/templates/scene.template.html` | Runnable 3D scaffold (three.js) with the full recorder contract |
+| `skills/explainer-video/templates/scene2d.template.html` | Runnable 2D scaffold (Canvas2D) — same contract, self-contained, `STYLE` split from `CONFIG` |
+| `skills/explainer-video/templates/shoot.js` | Headless frame shooter (sample, full, range, beats); `manifest` emits the beat table as JSON without shooting; `full --workers N` shoots contiguous chunks in parallel (byte-identical output, verified) |
 | `skills/explainer-video/templates/build.js` | vendor, bundle, frames, video, avif, loop, poster, sheet, strip, motion |
 | `skills/explainer-video/templates/smoke.js` | Contract + determinism check, plus caption and exposure lints |
-| `skills/explainer-video/references/method.md` | Design method by failure axis, procedural-asset cookbook, r185 API notes |
+| `skills/explainer-video/references/method.md` | The universal method: failure axes, beats + controls discipline, continuity/semantics review, determinism rules |
+| `skills/explainer-video/references/style-3d.md` | The three.js half: lighting, camera rail, procedural-asset cookbook, r185 API notes |
+| `skills/explainer-video/references/delivery.md` | GitHub delivery forensics: format tradeoffs, encoder settings, content-type evidence chain |
+| `skills/explainer-video/references/styles/` | Style packs — swappable `STYLE` blocks + register rules (paper-cutout, blueprint, neon-dark) |
+| `skills/explainer-video/references/film-language.md` | Shot vocabulary: sizes, cuts, the match-cut constraint, rack-as-shots, camera energy |
+| `skills/explainer-video/references/styles/bibles.md` | Style bibles: one object constraining palette, lights, post, lens, cut pace, energy — with the committed control pair |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/skill-retrieval.html` | Worked example: 11s, 3 beats, held camera, diagrammatic — the one shown above |
+| `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
+| `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |
+| `skills/explainer-video/examples/toybot-walk.html` | Worked example (cinematic 3D): cel + outlines, analytic IK, rack focus, bloom — post chain proven deterministic |
