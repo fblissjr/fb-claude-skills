@@ -363,7 +363,85 @@ answer changes everything downstream:
   SwiftShader — a bisected negative result), and the rounds stay expensive.
 
 This is the cheapest high-leverage step in the suite. Record the answer here.
-*Outcome:* —
+
+**Outcome (2026-07-22, Apple M2 Ultra / 24 cores, Chrome 1223, bun 1.3.14,
+ffmpeg 8.1.2): RUN — and it closed three opens at once, one of them by
+refutation.**
+
+**Finding 1 — the recorder pins software GL regardless of hardware.**
+`shoot.js:177` (and `smoke.js:362`) hardcode
+`--use-angle=swiftshader --enable-unsafe-swiftshader`. So "book a hardware-GL
+session" was never only about the machine — the tool opts out. Probed three
+flag sets on this box:
+
+| flags | renderer | maxTex |
+|---|---|---|
+| as shipped | ANGLE SwiftShader (software, Vulkan/LLVM) | 8192 |
+| `--use-angle=metal` | **ANGLE Metal, Apple M2 Ultra** | 16384 |
+| default (no angle flag) | ANGLE Metal, Apple M2 Ultra | 16384 |
+
+**Finding 2 — GL matters enormously, but only on a post-chain scene.** Timing
+120 frames at 1920×1080, `seekTo` alone vs `seekTo`+screenshot:
+
+| | template (no post) | toybot (cel + outlines + IK + bloom + DoF) |
+|---|---|---|
+| `seekTo` only, Metal | 0.4 ms/frame | 3.3 ms/frame |
+| `seekTo` only, SwiftShader | 0.4 ms/frame | **182.2 ms/frame** |
+| draw speedup from hardware GL | ~1x | **55x** |
+| end-to-end PNG, Metal | 164.6 ms/frame | 187.7 ms/frame |
+| end-to-end PNG, SwiftShader | 232.8 ms/frame | 489.2 ms/frame |
+| end-to-end speedup | 1.4x | **2.6x** |
+
+The SwiftShader column is what validates the control: 182 ms/frame on the
+same `seekTo`-only loop proves the timing path really does capture
+rasterization, so the template's 0.4 ms is a genuinely cheap draw and not an
+async-submit artifact. **Hardware GL is worth 2.6x end-to-end and 55x on the
+draw for post-chain scenes, and ~nothing for a flat one.**
+
+**Finding 3 — PNG screenshot is a second, unrecognized bottleneck, and it
+dominates as soon as GL is fast.** Same readback path, encode swapped:
+
+| scene / renderer | PNG | JPEG q90 | ratio |
+|---|---|---|---|
+| template, Metal | 164.6 ms | 29.1 ms | **5.7x** |
+| toybot, Metal | 187.7 ms | 28.8 ms | **6.5x** |
+| toybot, SwiftShader | 489.2 ms | 269.9 ms | 1.8x |
+
+So there are **two independent bottlenecks** — software rasterization of a
+post chain, and PNG encode/CDP transfer — and fixing either alone leaves the
+other. On hardware GL, ~95% of capture time is the screenshot, not the film.
+
+*Actionable:* the **review** passes (`sheet`, `strip`, samples) already emit
+`.jpg` and could shoot JPEG directly for ~6x, while final MP4/WebP/AVIF
+renders keep lossless PNG. Not yet implemented — logged as a roadmap
+candidate, not a change made under a test run.
+
+**Finding 4 — parallel capture is refuted on the exact hardware the roadmap
+predicted would rescue it.** Roadmap item 5 left the open as "a many-core box
+or hardware GL, where one page cannot saturate the machine — plausible,
+unmeasured." This is that box (24 cores + Metal), 288 frames @ 24fps:
+
+| workers | Metal | SwiftShader |
+|---|---|---|
+| 1 | 54.7s | 64.5s |
+| 4 | 49.1s (1.11x) | 61.6s (1.05x) |
+| 8 | 48.8s (1.12x) | 63.1s (1.02x) |
+
+**~1.1x, not the predicted win.** The premise was wrong at the root: capture
+was never GL-parallelism-bound, it is screenshot-bound, and PNG encode
+serializes through the browser process. Item 5's remaining open can be closed
+as *measured negative on its own predicted best case*.
+
+**Finding 5 — cross-renderer frames are NOT byte-identical, which limits a
+checkpoint instrument.** Metal vs SwiftShader on the same scene: **0 of 288
+frames identical**, PSNR 57–58 dB (below `method.md`'s 70 dB
+imperceptible bar), with differences confined to anti-aliased edges and
+specular highlights — invisible at 1x even amplified 20x. Each renderer is
+*self*-consistent: `smoke.js`'s determinism byte-check passes under Metal
+(4/4 scenes). **Implication for the phase-exit checkpoint:** "re-shoot the
+committed examples and compare byte-identical" only holds *within* one
+renderer. Switching GL backends invalidates byte-comparison as a regression
+instrument and forces the PSNR>70 fallback.
 
 ---
 
