@@ -33,7 +33,22 @@ Source:
 Phase 1 proving film of the generalization plan: same tooling, second
 renderer.*
 
-The same 3D film above is also committed as a **28.5 KB** animated AVIF —
+The third bundled example is the **cinematic 3D spike** — cel shading with
+inverted-hull outlines, analytic two-bone IK with feet that plant, a rack-focus
+depth-of-field beat, and bloom budgeted to the payoff, all through the
+post-processing chain (`EffectComposer` → bokeh → bloom), which passes the
+byte-determinism check with the chain enabled:
+
+![toybot takes a walk](skills/explainer-video/examples/toybot-walk.avif)
+
+*13.6s, four beats, moving camera — which is exactly the case WebP punishes,
+so this one is committed as a 0.13 MB animated AVIF only. This image is ALSO
+the experiment the AVIF evidence chain has been waiting for: if it animates
+inline above, the last row of the table in `references/delivery.md` gets its
+second observation. Source:
+[`toybot-walk.html`](skills/explainer-video/examples/toybot-walk.html).*
+
+The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
 [`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
@@ -172,3 +187,4 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
 | `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
 | `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |
+| `skills/explainer-video/examples/toybot-walk.html` | Worked example (cinematic 3D): cel + outlines, analytic IK, rack focus, bloom — post chain proven deterministic |

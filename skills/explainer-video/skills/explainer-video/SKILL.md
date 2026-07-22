@@ -310,8 +310,10 @@ register of the captions. The contract, the beats and the pipeline do not.
 - **Playful** (a figure carrying the story — onboarding, explainers for
   non-specialists, anything with a mascot or a person to follow): saturated
   pastels, soft shadows, big shapes, a character "presenting". Build the figure
-  procedurally from primitives — recipes in `references/style-3d.md`. No bundled
-  example currently ships for this style; start from the template scaffold.
+  procedurally from primitives — recipes in `references/style-3d.md`. For the
+  cinematic register (cel shading + outlines, analytic IK, rack-focus DoF,
+  bloom through the post chain), see `examples/toybot-walk.html` and the
+  "cinematic kit" section of `references/style-3d.md`.
 - **Technical/diagrammatic** (architecture, data flow, supply chains, org
   processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
   edges; camera glides between stations rather than cutting between worlds. Same

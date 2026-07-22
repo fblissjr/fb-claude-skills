@@ -113,7 +113,7 @@
       "name": "explainer-video",
       "source": "./skills/explainer-video",
       "description": "Deterministic animated explainer sequences for any domain — 3D, diagrammatic or cross-section — as a looping HTML page, a frame-exact MP4, or an animated WebP that plays inline in a README",
-      "version": "0.11.0"
+      "version": "0.12.0"
     }
   ],
   "renames": {

@@ -1,5 +1,16 @@
 # changelog
 
+## 0.56.0
+
+### added
+- **explainer-video 0.11.0 -> 0.12.0**: Phase 2 (cinematic 3D) opens and its spike gate is met — `examples/toybot-walk.html`, a cel-shaded character with an analytic IK walk, rack-focus depth of field, and bloom, rendered through a post-processing chain that **passes the byte-determinism check with the chain enabled**, source and bundled.
+
+  `build.js vendor` now bundles the composer classes onto the THREE namespace (`EffectComposer`, `RenderPass`, `UnrealBloomPass`, `BokehPass`, `OutputPass`) — always included, one bundle, no second vendor file to drift. The hard rule ships in the vendor comment and the new "cinematic kit" section of `references/style-3d.md`: **no temporal passes, ever** — TAA and accumulation blur carry state across frames and break the seekTo contract; every bundled pass is per-frame pure, and smoke.js is the enforcement.
+
+  The spike earned four recorded lessons the docs now carry: the gait's plant grid must anchor at the walk's START (anchored at the origin, the first frame's target sat 16 units ahead and the IK swung both legs horizontal — the contact sheet caught it); hemisphere light washes toon bands out (toon quantizes directional light only — measured, energy shifted to the key); the inverted-hull outline shell exposes every geometry intersection seam (clear the joins); and a payoff beat's events must be sequenced, not simultaneous (the first cut ran the hop and the orb glow together and neither read — now anticipation → hop → land → settle → glow). Rack focus is computed per frame from live camera distances and lerped between subjects under a bump — pure, and the cheapest big "filmed" win in the kit.
+
+  Committed as a 0.13 MB animated AVIF (moving camera — WebP's punishing case), embedded in the README where it doubles as the second observation the animated-AVIF-inline evidence chain has been waiting for. Roadmap item 10 (committed character/moving-camera example) closes with this. Quality tiers deliberately deferred with the rule pre-decided (determinism and shipping run at FINAL); remaining in phase: procedural-sky IBL, matcap/physical packs, instanced geometry.
+
 ## 0.55.0
 
 ### added

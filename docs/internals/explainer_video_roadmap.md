@@ -25,7 +25,7 @@ flip condition the "Not doing: a 2D backend" entry below set for itself.
 | 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
 | 8 | [The three-axis review model](#8-the-three-axis-review-model-06) | **DONE** (0.6.0) | 1 |
 | 9 | [Inline delivery: AVIF vs WebP](#9-inline-delivery-avif-vs-webp-06) | **DONE** (0.6.0), one test open | — |
-| 10 | [A committed flagship example](#10-a-committed-flagship-example) | open | — |
+| 10 | [A committed flagship example](#10-a-committed-flagship-example) | **DONE** (0.12.0, as `examples/toybot-walk.html`) | — |
 
 The 0.6.0 items (8, 9) and how 2 and 4 actually shipped are summarized next; the
 older design write-ups follow unchanged from item 1 down.
@@ -449,6 +449,15 @@ and the determinism, and it sidesteps the raster tradeoff entirely. Possible
 ---
 
 ## 10. A committed flagship example
+
+> **Shipped in 0.12.0** as `examples/toybot-walk.html` — the Phase 2 spike of
+> the generalization plan: a character, a moving camera, world entry to payoff
+> end-to-end, and beyond what this item asked for — cel shading with
+> inverted-hull outlines, analytic two-bone IK, rack-focus DoF, and bloom
+> through a post chain proven byte-deterministic. Committed as a 0.13 MB
+> animated AVIF (moving camera — WebP's punishing case). A longer multi-world
+> walkthrough remains possible later, but the character/moving-camera path
+> this item wanted demonstrated is demonstrated.
 
 The repo ships exactly one example: `examples/skill-retrieval.html` — 11s,
 held-camera, diagrammatic (now in html/webp/avif). There is **no committed

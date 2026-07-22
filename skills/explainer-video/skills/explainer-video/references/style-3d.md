@@ -152,6 +152,86 @@ Shared-material purity — the `setHex` before `lerp` rule — moved to
 `method.md`'s determinism section: the worked example is three.js, but the
 principle is backend-agnostic and `smoke.js` enforces it for every backend.
 
+# The cinematic kit: post chain, cel shading, analytic IK
+
+Everything in this section shipped in `examples/toybot-walk.html` and was
+verified the project's way — `smoke.js` byte-determinism with the full chain
+enabled, contact sheet, squint strip, motion profile.
+
+## The post chain (per-frame pure, or not at all)
+
+`build.js vendor` bundles the composer classes onto the THREE namespace:
+`EffectComposer`, `RenderPass`, `UnrealBloomPass`, `BokehPass`, `OutputPass`.
+The recipe: RenderPass → Bokeh → Bloom → OutputPass (which applies the
+renderer's tone mapping + sRGB), `composer.setSize` in the resize handler,
+`composer.render()` in `seekTo`.
+
+**The one hard rule: no temporal passes.** TAA and accumulation motion blur
+carry state across frames and break the `seekTo` byte-identity contract that
+the whole architecture rests on. Every bundled pass is per-frame pure —
+**measured**: the toybot scene passes smoke's byte-determinism check with the
+full chain enabled, source and bundled. If motion blur is ever wanted, do it
+the film way: N sub-samples at `t ± i·dt` averaged — pure, N× render cost,
+and an offline pipeline can pay that.
+
+**Rack focus** is the cheapest big cinematic win once BokehPass is in: the
+`focus` uniform is a camera-space distance, so compute it per frame from the
+live camera (`camera.position.distanceTo(subject)`) and lerp between two
+subjects' distances under a `bump()` — a there-and-back rack. Pure, and it
+reads instantly as "filmed".
+
+## Cel shading that actually bands
+
+- `MeshToonMaterial` + a `DataTexture` gradient map (3 steps, `NearestFilter`)
+  gives the banded light.
+- **Hemisphere light washes the bands out.** Toon quantizes *directional*
+  light; hemisphere irradiance is smooth and layers on top. Measured on the
+  toybot: hemisphere 0.75 read as soft gradients; 0.45 with a stronger key
+  restored the cel look. Shift energy from ambient to key.
+- **Outlines are inverted hulls added as children**: a `BackSide` black shell
+  of the same geometry, scaled ~1.05, parented to the mesh so it rides every
+  pivot the IK moves. Because geometries for limbs are pre-translated to
+  pivot at the joint, the shell scales about the joint too — close enough at
+  these scales.
+- **The outline shell exposes every intersection seam.** A head sphere sunk
+  into a torso reads fine flat-shaded and grows a hard line the moment the
+  shell goes on — clear the joins instead of burying them.
+- Bloom threshold sits ABOVE the palette's luminance (0.82 against this
+  palette) so only emissives bloom — which is what "budgeted to the payoff"
+  means mechanically: the orb's `emissiveIntensity` ramps in its beat and
+  nothing else crosses the threshold.
+
+## Analytic two-bone IK and a gait that plants
+
+Closed form, no solver, no state — law of cosines in the sagittal plane,
+foot counter-rotated flat (`ankle = -(hip + knee)`). The kit:
+
+- **The plant grid anchors at the walk's START.** Anchored at the world
+  origin, the first frame's foot target sat 16 units ahead and the IK swung
+  both legs horizontal. Shipped in this scene's first render; the contact
+  sheet caught it.
+- **Gait derives from distance travelled `s`, never wall time** (method.md,
+  cyclic motion): each foot alternates stance/swing over a 2-stride cycle,
+  its plant point a pure function of the cycle index — feet freeze mid-plant
+  when the body stops.
+- **Blend to a rest stance as the motion envelope dies** (`vAmp`, a `pulse`
+  over the walk beat) or the last cycle leaves the feet mid-stride.
+- **Hop = IK targets, not pose freezing**: mid-air the targets tuck toward
+  the body (asymmetrically — back leg higher — or the two feet overlap on
+  screen and read as one).
+- **Sequence a payoff beat's events**: the first cut ran the hop and the
+  orb glow simultaneously and neither read. Anticipation squash → hop →
+  landing squash + `backOut` settle → THEN the glow. One event at a time.
+
+## Quality tiers: deliberately not built yet
+
+The plan calls for preview/final tiers. The spike rendered acceptably in a
+4-core software-GL container (smoke at 640×360, sheets at 1080p), so the
+tier machinery would currently be speculation — it gets built when a
+full-length cinematic film actually hurts, and the rule is already decided:
+determinism checks and shipped films run at FINAL tier; preview exists only
+to iterate.
+
 # three r185 API notes (the renames that fail silently)
 
 Pinned at 0.185.1. Several r149-era names were removed outright, and because
