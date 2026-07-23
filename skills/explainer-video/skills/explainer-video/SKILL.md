@@ -375,6 +375,13 @@ register of the captions. The contract, the beats and the pipeline do not.
 
 Pinned: `three@0.185.1`, `playwright-core@1.61.1`, ffmpeg on PATH, bun.
 
+**GL backend defaults to hardware.** `ANGLE_BACKEND=swiftshader` forces software
+if you need cross-machine byte-identity; note frames are NOT byte-identical
+across backends (PSNR 57-58 dB, antialiased edges and speculars only). Hardware
+is ~2.6x faster end to end on a post-chain scene and 55x on the GL draw — and
+software silently rendered a Sky/PMREM scene 100% black. Review passes capture
+JPEG (~6x faster than PNG over the same readback); masters stay PNG.
+
 Two constraints that dictate the setup — do not "simplify" them away:
 
 - **three is vendored locally and EMBEDDED in the scene. Never CDN-loaded, never
@@ -410,6 +417,8 @@ Two constraints that dictate the setup — do not "simplify" them away:
   and `motion` review passes (copy beside the scene)
 - `templates/smoke.js` — contract + determinism check, plus caption and exposure
   lints (run before a full shoot)
+- `references/instruments.md` — what every check can and cannot see, with its
+  measured bracket (read before trusting a green result)
 - `references/method.md` — the universal method: failure axes, beats and
   controls discipline, continuity/semantics review, determinism rules
   (L3: read when building, any backend)

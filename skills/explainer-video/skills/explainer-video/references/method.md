@@ -5,7 +5,10 @@ controls discipline, continuity and semantics review, and the determinism
 rules. Everything here holds for any scene that implements the window
 contract, whatever renders the pixels.
 
-Two companion references hold what this file deliberately does not:
+Three companion references hold what this file deliberately does not:
+
+- `instruments.md` — what every check can and cannot see, with its measured
+  bracket. Read it before trusting a green result.
 
 - `style-3d.md` — the three.js cookbook: lighting, the camera rail, texture
   labels, procedural-asset recipes, r185 API notes, the performance envelope.
@@ -304,7 +307,14 @@ as starting points and re-measure rather than trusting the arithmetic:
   through. Width mattered more than beat length: stretching the beat alone just
   spaced the flickers further apart.
 - **A beat under ~3s felt rushed even when its caption was comfortably
-  legible.** Caption speed and motion speed are separate problems and the
+  legible.** Scope this correctly: the floor governs **the window in which a
+  MECHANISM must be read**, not beat length in general. A beat carrying a single
+  visible state change — a gag's punchline, a counter flipping — reads fine in
+  well under 2s, measured across four beats of one film. And the converse is
+  the trap nobody documents: **a physical event is often FASTER than a beat
+  wants to be.** A domino falls in 0.30s, a pendulum swings in 0.5s, while beats
+  want 3-4s. The honest options are several links per beat, or deliberately slow
+  physics — not stretching one event to fill the window. Caption speed and motion speed are separate problems and the
   caption is the weaker signal — a beat can pass a reading-speed check and still
   be too fast to follow.
 
@@ -554,9 +564,25 @@ Every frame is well composed, the motion is smooth, and the film still does not
 explain anything. This axis is what the whole exercise is for, and it has the
 weakest tooling: the test is a question you ask yourself.
 
-## Cover the caption
+## Cover everything except the geometry
 
-**Hide the caption and ask what the beat is about.** If you cannot tell, the
+**Hide every word and ask what the beat is about.**
+
+The older form of this test said "cover the caption", and that is too narrow in
+three directions, all found by building films it did not fit:
+
+- With **no captions** it degenerates to a silent pass — you cannot cover what is
+  not there. The underlying question survives and is sharper.
+- When **text is the subject** (kinetic typography, a title card), covering it
+  removes the film.
+- It **cannot see canvas text**, which is where a diagrammatic film's meaning
+  actually migrates. In one film built from an external document, 5 of 8 beats
+  survived with the DOM caption hidden and only **2 of 8** survived hiding the
+  canvas labels too — and those two were the beats built entirely from motion and
+  position. That ratio is the real result: geometry carried the mechanism beats,
+  and *labelled* geometry carried the rest.
+
+So: cover the DOM caption AND the drawn words. `?nocap` removes the first. If you cannot tell, the
 geometry is not carrying the explanation and you have built a slideshow with a
 3D background.
 

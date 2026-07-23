@@ -1,5 +1,17 @@
 # changelog
 
+## 0.64.0
+
+### added
+- **explainer-video 0.20.0 -> 0.21.0**: `references/instruments.md` — a consolidated ledger of what every check can and cannot see, with its measured bracket. This is the modularisation the test run actually earned: the limits were real, measured, and scattered across `method.md`, code comments and a postmortem, which is the shape knowledge takes right before it gets forgotten. It leads with the rule they all serve — **a proxy can reject, it cannot approve** — and records what has *no* instrument (watching the loop, semantics, whether a beat is funny, cross-machine reproducibility) as plainly as what does.
+
+### changed
+- **explainer-video: docs corrected where they were actively misleading.** `style-3d.md`'s SwiftShader note read as "PMREM is broken"; bisected, PMREM works for LDR and HDR on both backends, and only `Sky` into a **half-float** target fails — poisoning *direct* lighting on every `MeshStandardMaterial`, with a fallback that agrees across backends to 0.2%. The bloom-threshold rule now reads "above the **sky-lit** luminance of your brightest material", bracketed at 3.2 (blown) / 8.0 (right) / 14.0 (no-op).
+
+  `film-language.md` documents the vocabulary added in 0.20.0 (union subjects, `d`, `anchorX`, the `FSA` rung) and stops promising what the renderer cannot do: **`whip` is a fast cut, not a whip pan** — it differs from `blend` only in duration, and `focus` requires a `BokehPass` the base template does not have, so a scaffolded scene that sets it gets silence. `h` is now documented as "the extent that must stay in frame", not "the subject's height" — three films cropped their own payoff on that distinction.
+
+  `method.md`'s semantics axis is restated as **"cover everything except the geometry"**. The old "cover the caption" degenerates to a silent pass with no captions, removes the film when text is the subject, and cannot see canvas text — in one film built from an external document, 5 of 8 beats survived hiding the DOM caption and only **2 of 8** survived hiding the drawn labels too. The pacing floor is rescoped to the window in which a *mechanism* must be read, with the undocumented converse recorded: a physical event is often **faster** than a beat wants to be (a domino falls in 0.30s while beats want 3-4s).
+
 ## 0.63.0
 
 ### changed
