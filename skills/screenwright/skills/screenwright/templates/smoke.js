@@ -78,6 +78,65 @@ function chromiumPath() {
 const CONTRACT = ['seekTo', 'DURATION', 'stopPlayback', 'sceneReady'];
 const VIEWPORT = { width: 640, height: 360 };
 
+/* ---------- THE one way to read scene pixels in-page ------------------------
+   Renders at `ts` and hands the canvas to `reader` inside a SINGLE evaluate —
+   one JS task. This is structural, not stylistic: the node stack clears the
+   drawing buffer after compositing, so a read in a LATER task intermittently
+   sees zeros (or a stale canvas mid-resize). Three checks independently
+   reinvented this race before the helper existed — exposure ("crushed 100%"
+   on a known-good scene), the framing grid (MAD 84 on a correct scene), and a
+   canvas-change prototype (all-zero hashes read as "deterministic"). A new
+   pixel check goes through sampleAt or it is wrong by default.
+   `reader` is a plain function (stringified into the page); extra args are
+   JSON-encoded and passed after the canvas. */
+function sampleAt(page, ts, reader, ...args) {
+  const argSrc = args.map(a => JSON.stringify(a)).join(', ');
+  return page.evaluate(`(() => {
+    window.seekTo(${ts});
+    const canvas = document.querySelector('canvas');
+    return (${reader.toString()})(canvas${argSrc ? ', ' + argSrc : ''});
+  })()`);
+}
+
+// Reader for the framing-invariance check: map the design-frame rect out of
+// the canvas into a fixed 32x18 luma grid.
+function framingReader(canvas, AR) {
+  const W = window.innerWidth, H = window.innerHeight;
+  const fw = Math.min(W, H * AR), fh = fw / AR;
+  const fx = (W - fw) / 2, fy = (H - fh) / 2;
+  const GX = 32, GY = 18, out = [];
+  const sx = canvas.width / W, sy = canvas.height / H;
+  const tmp = document.createElement('canvas');
+  tmp.width = GX; tmp.height = GY;
+  const g = tmp.getContext('2d');
+  g.drawImage(canvas, fx * sx, fy * sy, fw * sx, fh * sy, 0, 0, GX, GY);
+  const d = g.getImageData(0, 0, GX, GY).data;
+  for (let i = 0; i < d.length; i += 4) out.push(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]);
+  return out;
+}
+
+// Reader for the exposure check: downscaled luma percentiles + tail fractions.
+function exposureReader(canvas, w, CLIP, CRUSH) {
+  const h = Math.max(1, Math.round(canvas.height / canvas.width * w) || Math.round(innerHeight / innerWidth * w));
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const ctx = off.getContext('2d');
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const lumas = [];
+  let clipped = 0, crushed = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    lumas.push(luma);
+    if (luma > CLIP) clipped++;
+    if (luma < CRUSH) crushed++;
+  }
+  lumas.sort((x, y) => x - y);
+  const pct = p => lumas[Math.floor(p * (lumas.length - 1))];
+  return { clipped: clipped / lumas.length, crushed: crushed / lumas.length,
+           p05: pct(0.05), p95: pct(0.95) };
+}
+
 // capFade fallback when a scene's CONFIG global isn't reachable (or omits it).
 // Matches CONFIG.capFade in scene.template.html.
 const CAP_FADE_DEFAULT = 0.35;
@@ -462,28 +521,8 @@ async function checkScene(browser, file) {
     // scores under 3.
     try {
       const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
-      // seekTo and the grid read share ONE evaluate — the node stack clears
-      // the drawing buffer after compositing, so a read in a later task
-      // intermittently sees zeros at whichever shapes a composite slipped in
-      // front of (measured: MAD 84 on a correct scene — worse than the real
-      // defect's 20-60 bracket). Same structural rule as the exposure sampler.
-      const grid = async (ts) => page.evaluate(`(() => {
-        window.seekTo(${ts});
-        const c = document.querySelector('canvas');
-        const W = window.innerWidth, H = window.innerHeight, AR = ${ar};
-        const fw = Math.min(W, H * AR), fh = fw / AR;
-        const fx = (W - fw) / 2, fy = (H - fh) / 2;
-        // map the frame rect out of the canvas into a fixed GX x GY luma grid
-        const GX = 32, GY = 18, out = [];
-        const sx = c.width / W, sy = c.height / H;
-        const tmp = document.createElement('canvas');
-        tmp.width = GX; tmp.height = GY;
-        const g = tmp.getContext('2d');
-        g.drawImage(c, fx * sx, fy * sy, fw * sx, fh * sy, 0, 0, GX, GY);
-        const d = g.getImageData(0, 0, GX, GY).data;
-        for (let i = 0; i < d.length; i += 4) out.push(0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]);
-        return out;
-      })()`);
+      // Through sampleAt — render and grid-read in one task (see the helper).
+      const grid = (ts) => sampleAt(page, ts, framingReader, ar);
       const shapes = [
         { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
         { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
@@ -549,37 +588,11 @@ async function checkScene(browser, file) {
       const times = SAMPLE_FRACTIONS.map(f => f * dur);
       let worstClipped = 0, worstCrushed = 0, worstSpread = Infinity;
       for (const et of times) {
-        // seekTo and the pixel sample run in ONE evaluate — a single JS task.
-        // They were two, and the caption-overflow check above ends with an
-        // async setViewportSize whose resize event can fire BETWEEN two
-        // evaluates; the scene's resize handler clears the canvas, and the
-        // sample reads an all-black frame. Observed once in a real run as
-        // "crushed — 100.0%" on a known-good pale scene, 0-for-3 on reruns —
-        // a flaky advisory is the detector-that-cries-wolf failure mode, so
-        // the interleaving is removed structurally rather than retried.
-        const stats = await page.evaluate(`(() => {
-          window.seekTo(${et});
-          const src = document.querySelector('canvas');
-          const w = ${EXPOSURE_SAMPLE_WIDTH};
-          const h = Math.max(1, Math.round(src.height / src.width * w) || Math.round(innerHeight / innerWidth * w));
-          const off = document.createElement('canvas');
-          off.width = w; off.height = h;
-          const ctx = off.getContext('2d');
-          ctx.drawImage(src, 0, 0, w, h);
-          const data = ctx.getImageData(0, 0, w, h).data;
-          const lumas = [];
-          let clipped = 0, crushed = 0;
-          for (let i = 0; i < data.length; i += 4) {
-            const luma = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-            lumas.push(luma);
-            if (luma > ${EXPOSURE_LUMA_CLIP}) clipped++;
-            if (luma < ${EXPOSURE_LUMA_CRUSH}) crushed++;
-          }
-          lumas.sort((x, y) => x - y);
-          const pct = p => lumas[Math.floor(p * (lumas.length - 1))];
-          return { clipped: clipped / lumas.length, crushed: crushed / lumas.length,
-                    p05: pct(0.05), p95: pct(0.95) };
-        })()`);
+        // Through sampleAt — render and sample in one task (see the helper;
+        // the interleaved-resize race this prevents was observed live as
+        // "crushed 100%" on a known-good pale scene, 0-for-3 on reruns).
+        const stats = await sampleAt(page, et, exposureReader,
+          EXPOSURE_SAMPLE_WIDTH, EXPOSURE_LUMA_CLIP, EXPOSURE_LUMA_CRUSH);
         worstClipped = Math.max(worstClipped, stats.clipped);
         worstCrushed = Math.max(worstCrushed, stats.crushed);
         worstSpread = Math.min(worstSpread, stats.p95 - stats.p05);

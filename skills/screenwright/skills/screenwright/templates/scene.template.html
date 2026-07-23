@@ -266,6 +266,16 @@ function applyFrameVars(){
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGPURenderer({canvas,antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(1);                            // fixed DPR = identical pixels everywhere
+/* sortObjects=false is LOAD-BEARING for determinism on r185's node renderer.
+   With depth sorting on, a camera CUT reorders the draw list and per-object
+   uniform state goes stale: objects rendered at a previous seek's pose,
+   sticky across re-renders, on BOTH backends — measured on a 25-mesh scene
+   as a ~12%-per-check byte-determinism failure that vanished (16/16) the
+   moment sorting was disabled. Isolated by ascending bisection: the same
+   world under ONE static shot was clean; multiple shots (hard cuts or
+   blends) broke it. Cost: transparent objects now draw in CREATION order —
+   when transparent things overlap on screen, create the farther one first. */
+renderer.sortObjects=false;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185
 renderer.outputColorSpace=THREE.SRGBColorSpace;   // r152+ name; outputEncoding is gone
@@ -286,7 +296,14 @@ addEventListener('resize',resize);resize();
 const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
 const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
 const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
-function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+/* frustumCulled=false is LOAD-BEARING for determinism, not a perf oversight.
+   The node renderer's per-mesh cull decision was measured consuming a STALE
+   pose: a mesh near the frustum edge rendered or vanished depending on which
+   t the camera arrived FROM, and the wrong answer persisted through repeated
+   renders at the same t (one gear tooth, present from one seek path, absent
+   from another — byte-determinism failure, arrival-path-keyed). Scenes here
+   are a few dozen meshes; culling buys nothing and costs the contract. */
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;if(parent)parent.add(o);return o;}
 function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
 
 /* ---------- lights (a sane default rig; tune per scene) ---------- */

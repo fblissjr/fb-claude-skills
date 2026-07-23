@@ -46,7 +46,7 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
 `renderAsync()` is deprecated in r185; after boot, the synchronous
 `renderer.render()` inside `seekTo` is the verified path on both backends.
 
-## The four determinism rules the node stack adds
+## The six determinism rules the node stack adds
 
 1. **Time reaches shaders through one uniform.** `const uTime = THREE.uniform(0)`,
    set from `seekTo`. The TSL `time` node auto-increments off a wall clock —
@@ -67,6 +67,21 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
    chromaticAberration) are per-frame pure.
 4. **No `ComputeNode` / storage buffers.** Stateful across dispatches, and the
    WebGL2 fallback cannot run them at all.
+5. **`renderer.sortObjects = false` stays off.** Found by the gearbox
+   regression film: with depth sorting on, a camera CUT reorders the draw
+   list and per-object uniform state goes stale — objects render at a
+   previous seek's pose, sticky across re-renders and settle time, on BOTH
+   backends (~12% of determinism checks on a 25-mesh multi-shot scene).
+   Isolated by ascending bisection: the same world under one static shot was
+   clean; multiple shots broke it; sorting off fixed it 16/16. Not settle
+   length (0.5s changed nothing), not culling, not transparency, not the
+   internal animation loop, not nesting — each refuted in isolation.
+   Consequence: transparent objects draw in CREATION order, so when
+   transparent things overlap on screen, create the farther one first.
+6. **`frustumCulled = false` on every mesh** (the template's `mesh()` helper
+   does it). The per-mesh cull decision was measured consuming a stale pose:
+   a mesh near the frustum edge rendered or vanished depending on which t the
+   camera arrived from. Scenes here are tens of meshes; culling buys nothing.
 
 ## Recorder mechanics that differ from the old stack
 
@@ -90,6 +105,18 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
   Chrome — an auto-updating build that disagreed with playwright's pinned one
   about WebGPU. `CHROMIUM_PATH` overrides; keep the gate and the recorder on
   the same binary.
+
+## The gearbox regression twin (measured 2026-07-23)
+
+The same scene body (beats, worlds, shots, animate) injected into this
+skill's template and frozen explainer-video's renders near-identically:
+composition, lighting, and read match cell for cell on the contact sheets;
+both pass their own smoke. Two honest residuals: a small constant framing
+delta (~3% zoom) between the stacks at identical `t` — visible only in
+direct A/B, unexplained, parked; and shadow acne on extruded faces at
+closeup in BOTH stacks until `key.shadow.normalBias = .035` (a scene-rig
+setting, not a stack difference). The shipped example is
+`examples/gearbox.html` / `examples/gearbox.avif`.
 
 ## Node materials in scene code
 

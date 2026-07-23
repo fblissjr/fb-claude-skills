@@ -1,5 +1,14 @@
 # changelog
 
+## 0.70.0
+
+### added
+- **`screenwright` 0.2.0 — Phase 1 steps 1–2: the sampling helper and the `gearbox` regression film.** The film shipped as the skill's first example (`examples/gearbox.html` + `.avif`), built from ONE scene body injected into both screenwright's and frozen explainer-video's templates and judged side-by-side: composition and read match cell for cell, both stacks smoke-green. It also did exactly what running the regression FIRST was for — it caught the biggest node-stack defect so far:
+
+  **With `renderer.sortObjects` on, a camera cut corrupts per-object uniform state.** The depth sort reorders the draw list and objects render at a *previous seek's* pose — sticky across re-renders, immune to settle time (0.5s changed nothing), on both backends, ~12% of determinism checks on a 25-mesh multi-shot scene. The proven template never hit it (4 meshes, stable order). Isolated by ascending bisection after seven descending bisects each refuted a suspect (settle length, frustum culling, transparency, nesting, the internal animation loop, fog, rim light): the same world under one static shot was clean, multiple shots broke it, `sortObjects=false` fixed it 16/16. Now a template default and determinism rule #5; per-mesh `frustumCulled=false` (a smaller cousin, measured separately) is rule #6. Consequence documented: overlapping transparent objects must be created farther-first.
+
+  Also: `sampleAt()` in smoke.js — THE one way to read scene pixels in-page (render + read in a single task), with the framing and exposure checks refactored onto it; a scene-rig lesson from the twin comparison (`key.shadow.normalBias = .035` kills extruded-face shadow acne in both stacks); and one parked honest residual — a ~3% constant framing delta between the stacks at identical `t`, visible only in direct A/B, unexplained.
+
 ## 0.69.0
 
 ### added

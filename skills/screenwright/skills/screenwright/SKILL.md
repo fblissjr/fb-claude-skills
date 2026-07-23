@@ -79,8 +79,11 @@ Replace the two marked sections: `buildWorlds()` (geometry) and `animate(t)`
 
 - Time reaches shaders only through the `uTime` uniform the template declares;
   never import the TSL `time` node (it wall-clocks).
-- The `seekTo` body's `nodeFrame.update()` tick and the boot block's
-  `compileAsync` are load-bearing for determinism — do not simplify them away.
+- The `seekTo` body's `nodeFrame.update()` tick, the boot block's
+  `compileAsync`, `renderer.sortObjects=false`, and `frustumCulled=false` in
+  `mesh()` are each load-bearing for determinism — measured, not stylistic;
+  do not simplify them away. Consequence of unsorted drawing: create
+  overlapping transparent objects farther-first.
 - No temporal post passes, no `ComputeNode`, no storage buffers.
 
 ### 3. Review on three axes (looking is the method)
@@ -164,4 +167,7 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `references/film-language.md` — shot vocabulary: sizes, cuts, match
   constraint, focus, camera energy
 - `references/webgpu-stack.md` — the node stack: backend policy, async boot,
-  the four determinism rules, recorder mechanics, measured brackets
+  the six determinism rules, recorder mechanics, measured brackets
+- `examples/gearbox.html` — the regression film against frozen
+  explainer-video: same scene body on both stacks, judged side-by-side
+  (`examples/gearbox.avif` is its inline render)

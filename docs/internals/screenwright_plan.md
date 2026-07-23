@@ -273,7 +273,8 @@ variable.
 1. *Structural chores first:* a shared same-task render-and-read sampling
    helper in smoke.js — three checks independently hit the buffer-clears-
    after-composite trap in Phase 0; the rule becomes construction, not
-   convention.
+   convention. **DONE 2026-07-23** (`sampleAt()`, both consumers refactored,
+   crop-control re-verified).
 2. *`gearbox` before any new capability.* The regression case has zero new
    variables, so it separates porting gaps from feature bugs, and it is the
    first real film through the instruments smoke does not cover (`motion`'s
@@ -283,6 +284,12 @@ variable.
    side-by-side visual review (sheets, squint strips, watched loops) judged
    no worse. NOT "every instrument matches" — the two skills' instruments
    now differ, and frames are not byte-comparable across renderers.
+   **DONE 2026-07-23** (screenwright 0.2.0, `examples/gearbox.html`): the
+   strategy paid immediately — gearbox exposed the sortObjects draw-order
+   uniform corruption (now determinism rule #5, template default) and the
+   stale frustum-cull decision (rule #6), both invisible to the 4-mesh
+   template. Twin judged no worse; one parked residual (a ~3% constant
+   framing delta between stacks at identical t, A/B-only, unexplained).
 3. *Post plumbing active by default.* The template runs a pass-through
    `RenderPipeline` (neutral look; bloom behind a `STYLE` flag) so smoke's
    determinism and shipped-frame checks ride the post path on every scene —
