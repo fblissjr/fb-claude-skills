@@ -55,6 +55,10 @@ control pair. Phase 2 (the character scaffold) is demonstrated: one
 parametric skeleton family with two-bone IK, planted gait, neck/tail
 chains, and fur/fabric packs — `examples/menagerie.html` walks a bear, a
 human, and an invented creature from one `buildCharacter`, squint-distinct
-and strip-checked. The phase's film deliverable (`bear-and-bees`) and later
-phases (physics bake, registers, the interactive spike) land as they pass
-their gates.
+and strip-checked — and its film deliverable shipped:
+`examples/bear-and-bees.html`, a comedy short whose pause-then-fast timing
+carries the register half of the gate. **Phase 2 is complete.** Next up by
+owner priority: Phase 4, the physics bake (bake-time simulation, runtime
+determinism intact — see the proposal in the repo's internals docs). Later
+phases (the human face rig, registers, the interactive spike) land as they
+pass their gates.

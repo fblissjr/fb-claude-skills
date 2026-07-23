@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-23
 
 # documentation
 
@@ -28,6 +28,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [explainer_video_test_cases.md](internals/explainer_video_test_cases.md) | The test suite: cases as falsifiable hypotheses, with outcomes filled in |
 | [explainer_video_hardening_plan.md](internals/explainer_video_hardening_plan.md) | The remediation: ~51 findings grouped by root cause, structural fixes separated from deliberate bandaids |
 | [screenwright_plan.md](internals/screenwright_plan.md) | Founding plan for the WebGPU/TSL successor skill: layer split, character scaffold, test-case portfolio, phase gates — explainer-video freezes |
+| [physics_bake_proposal.md](internals/physics_bake_proposal.md) | Owner-prioritized Phase 4 direction: bake-time simulation with runtime determinism intact — red lines against tier drift, eval criteria, spike list |
 
 ## package documentation
 

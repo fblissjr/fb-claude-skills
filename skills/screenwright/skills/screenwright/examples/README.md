@@ -39,6 +39,17 @@ byte-deterministic on both backends. Open the HTML — no rendered preview by
 policy (the scene file plays from disk at full quality; previews are cut on
 request only).
 
+## bear-and-bees
+
+The Phase 2 film deliverable — a 21.3s comedy short carrying the
+comedic-timing half of the gate: a furred bear ambles in, nose-boops a
+hanging hive, and the film HOLDS (2.6s of near-stillness, one scout bee at
+the bear's eyeline, a double blink to camera) before 1.1s of everything at
+once. Locked silent-comedy camera; the gag reads with zero captions (nocap
+pass). Every contact is probe-measured in all three axes: the boop solves
+to a surface graze (normalized 1.02), and the flee passes UNDER the hive
+with measured clearance. Open the HTML — no rendered preview by policy.
+
 ## materials
 
 The pack showcase: one film, three beats, three surfaces — TSL-native cel

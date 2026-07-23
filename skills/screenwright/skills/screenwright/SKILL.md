@@ -210,6 +210,9 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `examples/menagerie.html` — the character-scaffold demonstration: bear,
   human, and an invented strider from one `buildCharacter`, three gaits,
   fur and fabric packs live
+- `examples/bear-and-bees.html` — the comedy short: pause-then-fast timing
+  (a 2.6s hush against a 1.1s eruption), probe-measured contacts, locked
+  tableau camera — the register where the gag must read with no words
 - `examples/materials.html` — the pack showcase: cel, SSS, glass in one
   film, including the overlapping-transparency ordering case
   (rendered previews live in the repository outside the plugin subtree —

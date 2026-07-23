@@ -439,6 +439,27 @@ in smoke's parity loop (a second regex arm, since the block lives outside
 `<script>`). Plus four small cleanups; ledger in CHANGELOG 0.78.0. The
 standing cross-directory parity rule now covers six fences.
 
+*Phase 2 GATE MET 2026-07-23 (screenwright 0.11.0):*
+`examples/bear-and-bees.html` — the comedy short, carrying the
+comedic-timing half of the gate (2.6s hush against a 1.1s eruption, locked
+tableau camera, gag fully readable in the nocap pass). Film-reviewer pass
+found three HIGHs, all fixed and re-measured: the flee launch clipped the
+hive before the duck opened (now +0.01..+0.24 clearance through the pass);
+the face never faced the camera (a `face` 3/4-turn envelope spot→hush puts
+the blink and glance on screen); and the boop was a z-axis miss faked by
+the camera (contact-bug class instance five — restaged to a probe-measured
+surface graze, normalized 1.02, all three axes). Method notes: the paw-swipe
+staging died on probe data (the muzzle out-reaches the foreleg on this
+vector — a quadruped paw can never pass its own nose), and the neck-curl
+sign convention was bracketed empirically (+z RAISES this rig's head —
+menagerie's comment implies the opposite; trust the probe, not the comment).
+New carry-forwards: one intermittent WEBGPU=metal smoke determinism FAIL
+(1 in ~6 runs at t=17.04, never reproduced, cause unmeasured — the bee
+visibility gate added in the same round is hygiene, NOT the fix); a
+per-shot camera-energy override (the hush wanted `locked` while the film
+wanted `steadicam` — no vocabulary for it, so the film went all-locked,
+which suits this register but will not suit the next one).
+
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
 expressions carry the beat in the nocap pass — the caption is not doing the
@@ -448,6 +469,13 @@ acting.
 sampled trajectories as scene data, play back pure. *Gate:* `rube-goldberg`
 byte-deterministic across seeks and across re-bakes with the same seed;
 `crowd-cross` if instancing wants baked variety.
+*OWNER PRIORITY (2026-07-23):* the owner chose bake-time simulation as the
+next creative direction after `bear-and-bees` ships — "simulated creativity
+without an LLM". Phase 4 moves ahead of Phase 3 in priority. Runtime
+determinism stays; the sim happens once at build time. Constraints, red
+lines against tier drift, eval criteria and the spike list:
+[physics_bake_proposal.md](physics_bake_proposal.md) — read it before
+writing any Phase 4 code.
 
 **Phase 5 — Registers.** Cutscene and meme film-language extensions (dialogue
 staging, comedic timing, title cards); `boss-intro` and `meme-remix`.
