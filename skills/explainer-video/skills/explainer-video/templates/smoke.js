@@ -78,6 +78,10 @@ const CAP_OVERFLOW_FRACTION = 0.92;
 // 1920x1080. The caption is sized in fixed CSS px, so it must be measured here
 // and not at VIEWPORT above, which exists only to keep the render checks cheap.
 const SHIP_VIEWPORT = { width: 1920, height: 1080 };
+// Mean-absolute-luma tolerance for the framing-invariance check. Bracketed:
+// a correctly containing scene scores <3; the pre-fix cropping templates
+// scored 20-60. 8 sits in the gap, nearer the confirmed-good end.
+const FRAMING_INVARIANCE_MAD = 8;
 
 // Exposure thresholds — PROVISIONAL. Bracketed on a handful of scenes only;
 // re-bracket as more scenes are checked. Named here so that re-bracketing is
@@ -217,14 +221,19 @@ async function checkScene(browser, file) {
         await page.setViewportSize(SHIP_VIEWPORT);
         for (const b of beats) {
           if (!b.cap) continue;
-          const { width, innerWidth } = await page.evaluate(`(() => {
+          const { width, frameW } = await page.evaluate(`(() => {
             const el = document.getElementById('cap');
             el.textContent = ${JSON.stringify(b.cap)};
-            return { width: el.offsetWidth, innerWidth: window.innerWidth };
+            const ar = (window.FRAME && window.FRAME.aspect) || 16/9;
+            const frameW = Math.min(window.innerWidth, window.innerHeight * ar);
+            return { width: el.offsetWidth, innerWidth: window.innerWidth, frameW };
           })()`);
-          const limit = innerWidth * CAP_OVERFLOW_FRACTION;
+          // Measure against the FRAME, not the raw viewport. Overlays are sized
+          // as a fraction of the frame, so the frame is the only basis on which
+          // this number means the same thing at every window shape.
+          const limit = frameW * CAP_OVERFLOW_FRACTION;
           if (width > limit) {
-            warnings.push(`caption overflow: beat "${b.name}" measured ${width}px wide against ${innerWidth}px viewport (limit ${limit.toFixed(0)}px)`);
+            warnings.push(`caption overflow: beat "${b.name}" measured ${width}px wide against a ${frameW.toFixed(0)}px frame (limit ${limit.toFixed(0)}px)`);
           }
         }
         await page.setViewportSize(VIEWPORT);
@@ -234,6 +243,85 @@ async function checkScene(browser, file) {
       try { await page.setViewportSize(VIEWPORT); } catch (e2) {}
       warnings.push('caption overflow: check errored — ' + e.message.split('\n')[0]);
       try { await page.evaluate(`window.seekTo(${t})`); } catch (e2) {}
+    }
+
+    // CHECK: framing is invariant across window shapes.
+    //
+    // This is the guard for a whole bug CLASS, not one bug. Every other check in
+    // this file samples ONE window shape, and so did every other tool: shoot.js
+    // pinned 1920x1080, build.js opens no browser at all. A defect that only
+    // appears at a different aspect was therefore invisible to the entire test
+    // surface BY CONSTRUCTION -- which is exactly how both backends shipped a
+    // silent horizontal crop that only a human resizing a window ever saw.
+    //
+    // The invariant: the scene composes against FRAME.aspect and CONTAINS it, so
+    // the contents of the design frame must not depend on the window shape. We
+    // read the frame rect out of the canvas at three aspects, reduce each to a
+    // coarse luma grid, and compare. Cheap, because seekTo is pure.
+    //
+    // Tolerance, not equality: resampling a different pixel count into the same
+    // grid is never bit-exact. Bracketed on the real defect -- the pre-fix
+    // templates score 20-60 mean absolute difference here, a correct scene
+    // scores under 3.
+    try {
+      const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
+      const grid = async () => page.evaluate(`(() => {
+        const c = document.querySelector('canvas');
+        const W = window.innerWidth, H = window.innerHeight, AR = ${ar};
+        const fw = Math.min(W, H * AR), fh = fw / AR;
+        const fx = (W - fw) / 2, fy = (H - fh) / 2;
+        // map the frame rect out of the canvas into a fixed GX x GY luma grid
+        const GX = 32, GY = 18, out = [];
+        const sx = c.width / W, sy = c.height / H;
+        const tmp = document.createElement('canvas');
+        tmp.width = GX; tmp.height = GY;
+        const g = tmp.getContext('2d');
+        g.drawImage(c, fx * sx, fy * sy, fw * sx, fh * sy, 0, 0, GX, GY);
+        const d = g.getImageData(0, 0, GX, GY).data;
+        for (let i = 0; i < d.length; i += 4) out.push(0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]);
+        return out;
+      })()`);
+      const shapes = [
+        { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
+        { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
+        { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
+      ];
+      // Sample several points across the film and take the WORST. The first cut
+      // of this check sampled one t, landed on a near-blank title card, scored
+      // ~0 on a template known to crop, and reported all-clear -- a green
+      // control that never ran. A blank frame is invariant under every window
+      // shape precisely because it contains nothing.
+      const mad = (a, b) => a.reduce((s2, v, i) => s2 + Math.abs(v - b[i]), 0) / a.length;
+      const worst = { narrow: 0, wide: 0 };
+      for (const frac of EXPOSURE_SAMPLE_TIMES) {
+        const ts = dur * frac;
+        const grids = {};
+        for (const sh of shapes) {
+          await page.setViewportSize({ width: sh.w, height: sh.h });
+          // Wait for the scene's own resize handler to land before sampling.
+          // Without this the grid is read off a STALE canvas and the numbers are
+          // nonsense in both directions -- the first run of this check scored a
+          // correctly-fixed template WORSE than a known-broken one. Same class as
+          // the smoke.js sampling race already recorded in the plan's postmortem;
+          // any check that changes viewport must re-settle before it measures.
+          await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+          await page.evaluate(`window.seekTo(${ts})`);
+          grids[sh.tag] = await grid();
+        }
+        for (const tag of ['narrow', 'wide']) {
+          worst[tag] = Math.max(worst[tag], mad(grids.design, grids[tag]));
+        }
+      }
+      for (const tag of ['narrow', 'wide']) {
+        if (worst[tag] > FRAMING_INVARIANCE_MAD) {
+          fails.push(`framing not aspect-invariant: the design frame's contents change at the ${tag} window shape (worst mean abs luma diff ${worst[tag].toFixed(1)} > ${FRAMING_INVARIANCE_MAD}). The scene is cropping or reflowing instead of containing FRAME.aspect.`);
+        }
+      }
+      await page.setViewportSize(VIEWPORT);
+      await page.evaluate(`window.seekTo(${t})`);
+    } catch (e) {
+      try { await page.setViewportSize(VIEWPORT); await page.evaluate(`window.seekTo(${t})`); } catch (e2) {}
+      warnings.push('framing invariance: check errored — ' + e.message.split('\n')[0]);
     }
 
     // CHECK: exposure, both tails. This template's renderer uses ACES tone

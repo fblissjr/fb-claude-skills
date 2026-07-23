@@ -6,17 +6,18 @@
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
+  :root{--fx:0px;--fy:0px;--fw:1920px;--fh:1080px;}
   html,body{margin:0;padding:0;overflow:hidden;background:#0e0b14;width:100%;height:100%;}
   #c{display:block;width:100vw;height:100vh;}
-  #cap{position:fixed;left:50%;bottom:5.5%;transform:translateX(-50%);
-    font:600 30px/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
-    color:#fff;background:rgba(20,14,30,.62);padding:14px 34px;border-radius:999px;
+  #cap{position:fixed;left:calc(var(--fx) + var(--fw)/2);bottom:calc(var(--fy) + var(--fh)*.055);transform:translateX(-50%);
+    font:600 calc(var(--fw)*.015625)/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(20,14,30,.62);padding:calc(var(--fw)*.00729167) calc(var(--fw)*.01770833);border-radius:999px;
     white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.18);
     text-shadow:0 2px 8px rgba(0,0,0,.5);}
-  #title{position:fixed;left:50%;top:7%;transform:translateX(-50%);text-align:center;
+  #title{position:fixed;left:calc(var(--fx) + var(--fw)/2);top:calc(var(--fy) + var(--fh)*.07);transform:translateX(-50%);text-align:center;
     font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
-  #title h1{font-size:44px;margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
-  #title p{font-size:24px;margin:6px 0 0;font-weight:500;opacity:.9;}
+  #title h1{font-size:calc(var(--fw)*.02291667);margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:calc(var(--fw)*.0125);margin:calc(var(--fw)*.003125) 0 0;font-weight:500;opacity:.9;}
   /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
      the text with a different AA mode after opacity round-trips through 0, so the
      same t can differ by a few pixels depending on seek ORDER -- which breaks the
@@ -90,6 +91,18 @@ const CONFIG = {
   energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
 };
 
+/* ---------- FRAME: the one declared reference frame ----------
+   Everything composes and measures against this and nothing else. `aspect` is
+   the design frame the scene is authored for; `px` is what shoot.js renders at
+   (it reads window.FRAME.px, so changing this here is the ONLY edit needed to
+   ship 9:16 vertical or 1:1 square -- the tooling follows).
+
+   Before this existed the skill measured against ten different implicit frames:
+   the canvas scaled by window height, captions sized in fixed CSS px against
+   the window, the shot ladder against frame height, smoke's overflow check
+   against a hardcoded 1920. They disagreed the moment a window was not 16:9. */
+const FRAME = { aspect: 16/9, px: [1920, 1080] };
+
 /* ==== KERNEL-START ====================================================
    The shared kit. This block is byte-identical in every scene template —
    smoke.js FAILS the run if two checked files carry different kernels.
@@ -161,6 +174,23 @@ const beatAt=(name,at=0)=>span(name,at,at)[0];                                  
 const secAt  =(name,s=0)=>beat(name).t0+s;
 const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
 const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
+
+/* ---------- the frame rect: composition and overlays share one basis ----------
+   The largest FRAME.aspect rect inside the viewport, centred -- which is exactly
+   the region the contained scene fills, on both backends. Publishing it as CSS
+   vars puts the DOM overlays in the SAME coordinate system as the geometry, so a
+   caption is a fixed fraction of the frame instead of a fixed number of window
+   pixels. Identity at the design aspect; the vars simply track the frame. */
+function frameRect(){
+  const W=innerWidth,H=innerHeight;
+  const w=Math.min(W,H*FRAME.aspect),h=w/FRAME.aspect;
+  return{x:(W-w)/2,y:(H-h)/2,w,h};
+}
+function applyFrameVars(){
+  const r=frameRect(),s=document.documentElement.style;
+  s.setProperty('--fx',r.x+'px');s.setProperty('--fy',r.y+'px');
+  s.setProperty('--fw',r.w+'px');s.setProperty('--fh',r.h+'px');
+}
 /* ==== KERNEL-END ==== */
 
 /* ---------- renderer ---------- */
@@ -174,8 +204,8 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=STYLE.exposure;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(STYLE.bg);
-const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
 addEventListener('resize',resize);resize();
 
 /* ---------- shared helpers ---------- */
@@ -286,7 +316,13 @@ function solveShot(sh,t){
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
   const fovd=sh.fov===undefined?LENS:sh.fov;
   const[cx,cy,cz]=S.pos(t);
-  const dist=S.h/f/(2*Math.tan(fovd*Math.PI/360));     // the framing solver: size -> distance
+  // The framing solver. `f` is the subject fraction of the frame; a subject may
+  // declare `w` as well as `h`, and framing binds on whichever axis is tighter.
+  // Height-only was the old behaviour and is still what an upright subject gets
+  // (w <= h*aspect), but a WIDE subject -- a timeline, a waveform, an org chart --
+  // was silently cropped by every rung tighter than WS because the ladder only
+  // ever constrained height.
+  const dist=Math.max(S.h/f,(S.w||0)/(f*FRAME.aspect))/(2*Math.tan(fovd*Math.PI/360));
   const aimY=cy+(anchor-.5)*S.h;
   return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
          l:[cx,aimY,cz],fovd};
@@ -304,9 +340,8 @@ function focusDist(sh,t,p){const S=SUBJECTS[sh.focus||sh.subject];if(!S)throw ne
    sides. The SOLVER keeps the authored fov for framing distance; only the
    projection widens -- that split is what makes this contain rather than zoom out.
    Identity at 16:9, so every recorded frame is byte-identical (verified). */
-const DESIGN_AR=16/9;
-const fitFov=f=>camera.aspect>=DESIGN_AR?f:
-  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
+const fitFov=f=>camera.aspect>=FRAME.aspect?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*FRAME.aspect/camera.aspect)*180/Math.PI;
 function setCamera(t){
   let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
   const cur=SHOTS[i],c=solveShot(cur,t);
@@ -376,6 +411,10 @@ window.DURATION=TOTAL;                                 // derived from BEATS, ca
 // Exposing the beats table lets external tooling label frames by beat and check caption timing
 // without re-parsing scene source. Read by sheet and motion build commands and caption lints in smoke.js.
 window.BEATS=BEATS;
+// The declared frame is part of the contract: shoot.js sizes its viewport from
+// FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
+// does not export it renders at the historical 1920x1080 default.
+window.FRAME=FRAME;
 window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

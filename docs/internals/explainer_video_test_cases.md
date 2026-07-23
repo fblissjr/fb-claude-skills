@@ -2,9 +2,9 @@ last updated: 2026-07-22
 
 # explainer-video: test cases
 
-A diverse test suite for the `explainer-video` plugin at **0.15.0** — the state
-after the back-to-back Phase 0–4 run (two backends, shots-as-data, style
-bibles). Companion to
+A diverse test suite for the `explainer-video` plugin, written against **0.15.0**
+(the state after the back-to-back Phase 0–4 run) and executed through **0.17.0**,
+which shipped the fixes the suite found. Companion to
 [explainer_video_generalization_plan.md](explainer_video_generalization_plan.md)
 (the arc) and [explainer_video_roadmap.md](explainer_video_roadmap.md) (the
 per-item ledger). This file is the **exercise sheet**: films to build that span
@@ -755,6 +755,75 @@ deliberately own a scratch dir (`sheet`, `loop`, `avif`, `strip`) pass one
 explicitly and are unaffected. Verified with a positive control: the exact
 command that produced the 0.0 MB film now shoots 474 frames to the right place
 and encodes correctly.
+
+### 3. The root cause behind all of them: undeclared reference frames
+
+Both defects above, the D4 size-ladder finding, the `motion` dead-air false
+positive and the exposure collapse are **one failure**, not five: a measurement
+or a composition made against a reference frame nobody declared. An audit of
+the pipeline found **ten**, several mutually inconsistent:
+
+| Subsystem | Measured against |
+|---|---|
+| `shoot.js` viewport | hardcoded 1920x1080 |
+| `smoke.js` main checks | 640x360 |
+| `smoke.js` caption overflow | `innerWidth` at 1920x1080 |
+| caption size | `30px` fixed — the **window** |
+| caption position | `bottom:5.5%` — the **window** |
+| title size | `44px`/`24px` fixed — the **window** |
+| `SIZES.f` | fraction of frame **height** |
+| exposure lint | absolute luma + whole-frame percentile spread |
+| `motion` dead air | global median of that cut |
+| caption CPS | absolute chars/sec |
+
+The caption rule mixes fixed px with a percentage *inside a single CSS rule*,
+and `smoke.js` measures exposure at 640x360 while measuring caption overflow at
+1920x1080. Nothing was individually wrong; nothing was anchored.
+
+**Shipped as 0.17.0** — one declared frame, and everything resolves against it:
+
+- **`FRAME`** (`{aspect, px}`, exported as `window.FRAME`). `shoot.js` sizes its
+  viewport from `FRAME.px`, so **9:16 vertical and 1:1 square are now
+  first-class** — previously impossible by construction. SKILL.md's
+  `aspect: 16:9 default` field was decorative; it is now the single source.
+- **Frame-relative overlays** — captions and titles sized and positioned from
+  CSS vars carrying the frame rect. This closes open item 1; the 0.16.0
+  containment fix did **not** fix it. PSNR 79.0 dB (3D) / 74.0 dB (2D), above
+  the 70 dB bar, localized to the caption pill's antialiased edge.
+- **`EXTENT`** — subjects may declare `w` beside `h`; framing binds on whichever
+  axis is tighter. Closes the D4 finding at the root and unlocks wide subjects
+  (timelines, org charts, waveforms). Backward compatible: an upright subject
+  where `w <= h*aspect` is unchanged.
+- **Framing-invariance check in `smoke.js`** — closes open item 2. Bracketed
+  both ways: known-bad pre-fix templates 24-31 mean-abs-luma, correct scenes
+  0.07-0.12, threshold 8 in the gap.
+- **`build.js aspect`** — tiles one moment at four window shapes. The lint can
+  reject a scene; it cannot approve one, and the render is always the design
+  shape, so the author still has to look.
+
+**Two false starts on the guard, both worth keeping**, because both produced a
+confident all-clear on a scene known to be broken:
+
+1. Sampling a **single `t`** landed on a near-blank title card and scored ~0 on
+   a template known to crop. A blank frame is invariant under every window
+   shape precisely because it contains nothing. Now samples three timestamps
+   and takes the worst.
+2. Reading a **stale canvas** — sampling before the scene's own resize handler
+   ran — scored a correctly-fixed template *worse* than a broken one. Same
+   class as the `smoke.js` sampling race already in the plan's postmortem. Any
+   check that changes viewport must re-settle before it measures.
+
+Deliberately **not** built, pending a film that needs it: register-aware lints
+(having `STYLE`/`BIBLES` declare an expected exposure/ink envelope so lints
+check departure-from-intent rather than a universal constant). Two candidate
+instances exist — blueprint's fine-line dead-air false positive and
+neon-on-black's exposure collapse — which is arguably enough to earn it, but no
+film has been blocked by it yet.
+
+Also still open: the caption reading-speed bracket (27 comfortable / 37
+unreadable / 50 "serviceable") remains thin; and the cinematography solver now
+exists in **three** copies, past the postmortem's own "at a third consumer,
+extract or marker-fence it" threshold.
 
 ### Deliverable policy for the rest of the suite
 

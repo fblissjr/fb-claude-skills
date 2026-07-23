@@ -669,7 +669,33 @@ aspect-invariant; horizontal was not. On the shipped `toybot-walk`, that cut
 the sign out of the rack-focus shot at 1.40 — the exact failure that scene's
 own comment ("both subjects must be visible") was written to prevent.
 
-Both templates therefore compose against a fixed 16:9 **design frame** and
+The fix is architectural, not a patch. An audit found **ten different implicit
+reference frames** in the pipeline — the canvas scaled by window height, the
+shot ladder by frame height, captions sized in fixed CSS px against the window
+but positioned as a percentage of it, `smoke.js` measuring exposure at 640x360
+and caption overflow at a hardcoded 1920, `motion`'s dead-air threshold against
+a global median. Several disagreed. Every defect found in that audit came from
+the same shape: **a measurement or a composition made against a frame nobody
+declared.**
+
+So one frame is now declared, in the scene, and everything resolves against it:
+
+```js
+const FRAME = { aspect: 16/9, px: [1920, 1080] };   // exported as window.FRAME
+```
+
+`shoot.js` sizes its viewport from `FRAME.px`; `smoke.js` measures overlay fit
+against `FRAME.aspect`; the templates compose against it; the DOM overlays are
+sized and positioned from CSS vars carrying the frame rect, so a caption is a
+fraction of the frame rather than a fixed number of window pixels. That last
+one is a **separate** parity gap the containment fix alone did not close.
+
+It also makes non-16:9 output first-class: `{aspect: 9/16, px: [1080,1920]}` is
+the entire edit for a vertical film. Note honestly that shot-size conventions
+are aspect-dependent — a WS does not frame the same composition in vertical as
+in landscape — so the ladder needs re-judging by eye, not merely re-running.
+
+Both templates therefore compose against the declared **design frame** and
 *contain* it:
 
 - **2D** scales by `Math.min(canvas.width/VIEW_W, canvas.height/VIEW_H)` rather
@@ -678,8 +704,31 @@ Both templates therefore compose against a fixed 16:9 **design frame** and
   ratio, while the shot solver keeps using the **authored** lens for framing
   distance. That split is what makes it contain rather than merely zoom out.
 
-Both are the identity at 16:9, so every recorded frame is byte-identical
-(verified across all shipped scenes at two timestamps).
+Both are the identity at the design aspect, so every recorded frame is
+byte-identical (verified across all shipped scenes at two timestamps). The
+overlay change is not — it measures PSNR 79.0 dB (3D) / 74.0 dB (2D), above
+this file's 70 dB imperceptible bar, with the difference localized to the
+caption pill's antialiased edge.
+
+**The guard.** `smoke.js` now samples the design frame at three window shapes
+across three timestamps and fails if its contents change. Bracketed both ways:
+known-bad pre-fix templates score 24-31 mean absolute luma difference, correct
+scenes score 0.07-0.12, and the threshold sits at 8 in the gap. Two false
+starts are worth knowing, because both produced a confident all-clear:
+
+- The first version sampled a **single `t`** which landed on a near-blank title
+  card, scored ~0 on a template known to crop, and passed. A blank frame is
+  invariant under every window shape precisely because it contains nothing.
+- The second read a **stale canvas**, sampling before the scene's own resize
+  handler had run — which scored a correctly-fixed template *worse* than a
+  broken one. Same class as the `smoke.js` sampling race already recorded in
+  the generalization plan's postmortem. Any check that changes viewport must
+  re-settle before it measures.
+
+The lint is the floor, not the verdict: it can reject a scene, it cannot
+approve one, and the render is always the design shape so it can never show you
+this. `build.js aspect <scene> <t>` tiles one moment at four window shapes for
+the looking half.
 
 Three consequences to design around:
 

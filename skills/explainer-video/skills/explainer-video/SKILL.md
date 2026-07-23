@@ -30,12 +30,14 @@ scene file serves as both the interactive HTML artifact (a `requestAnimationFram
 loop mapping wall time onto `seekTo(t)`) and the source for a frame-exact MP4
 (headless Chromium stepping `seekTo(t)` frame by frame into ffmpeg).
 
-Parity has two halves, and `t` is only the first. **`t` fixes what happens; the
-16:9 design frame fixes what is on screen.** The render is always 1920x1080,
-but the HTML artifact is whatever shape the reader's window is — so both
-templates compose against a fixed design frame and *contain* it. A browser
-window narrower than 16:9 reveals more world above and below; it never crops
-the composition. See "Framing rules" in `references/method.md`.
+Parity has two halves, and `t` is only the first. **`t` fixes what happens;
+`FRAME` fixes what is on screen.** The render is whatever `FRAME.px` says; the
+HTML artifact is whatever shape the reader's window is — so both templates
+compose against the declared design frame and *contain* it. A window that is
+not the design shape reveals more world on the long axis; it never crops the
+composition. Everything measures against `FRAME` and nothing else: the canvas,
+the shot ladder, the DOM overlays, and the lints. See "Framing rules" in
+`references/method.md`.
 
 ## Workflow
 
@@ -49,11 +51,14 @@ topic:      what the sequence explains, one sentence
 source:     doc/file it's based on, if any (read it FIRST — facts before film)
 audience:   who watches, and what they should understand at the end
 duration_s: 15-40 typical; ~3-4s per beat is the pacing that reads well
-aspect:     16:9 — the design frame, and it is fixed. shoot.js renders
-            1920x1080 and both templates compose against 16:9; a narrower
-            browser window shows extra world above and below, never less to
-            the sides. Changing it means changing DESIGN_AR (3D) / VIEW_W (2D)
-            in the scene AND shoot.js's viewport together.
+aspect:     16:9 default — the DESIGN FRAME, declared once in the scene as
+            `const FRAME = {aspect: 16/9, px: [1920,1080]}`. This is the single
+            source: shoot.js sizes its viewport from FRAME.px, smoke.js measures
+            overlay fit against FRAME.aspect, and both templates compose against
+            it. Vertical (9:16) and square (1:1) are first-class — set
+            `{aspect: 9/16, px: [1080,1920]}` and the whole pipeline follows;
+            no flags, no other edit. A window that is not the design shape
+            reveals world on the long axis, it never crops the composition.
 domain:     what field this is from — it decides the geometry vocabulary, not
             the pipeline (a pump, a protein, a portfolio, a permit process)
 style:      palette (3-5 colors), tone (playful | neutral | technical),
@@ -159,7 +164,9 @@ the full contract:
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
   `window.sceneReady`: the recorder contract; do not rename these. Plus
   `window.BEATS`, which exposes the beats table so tooling can label frames by
-  beat and check caption timing without re-parsing the source
+  beat and check caption timing without re-parsing the source, and
+  `window.FRAME`, the declared design frame — `shoot.js` sizes its viewport from
+  `FRAME.px`, so changing it is the only edit needed to ship vertical or square
 
 Replace the placeholder in the two marked sections: `buildWorlds()` (geometry)
 and `animate(t)` (per-beat motion, every property a function of `t`).
@@ -169,8 +176,20 @@ and `animate(t)` (per-beat motion, every property a function of `t`).
 ```bash
 bun run build.js sheet <name>.html            # one frame per beat -> .sheet.jpg + .squint.jpg
 bun run build.js sheet <name>.html 480 0.95   # every beat at its END — catches effects that park
+bun run build.js aspect <name>.html 8.5       # one moment at four window shapes -> .aspect.jpg
 bun run shoot.js <name>.html sample 0,3,7,11  # arbitrary timestamps, one PNG each
 ```
+
+Run the **0.95 end-of-beat sheet as a standing pass, not an option.** The default
+0.6 sample cannot show an effect that never finishes or a beat whose target
+arrives late — two shipped defects were caught only there: a payload dot that
+travelled to a box which did not draw until the following beat, and a connector
+routed through the interior of the box it was entering.
+
+`build.js aspect` is the framing counterpart. `smoke.js` can *reject* a scene
+whose design frame changes with the window; it cannot *approve* one, and the
+render is always the design shape so it can never show you this. Look at the
+tiled sheet: every cell must be the same composition.
 
 **Read the generated images with the Read tool — it renders them visually.** A
 filename is not a review, and every check below depends on having actually seen
@@ -299,7 +318,7 @@ different costs — WebP's is on disk, AVIF's is at playback:
 
 | Scene | Inline artifact | Why |
 |---|---|---|
-| Held camera (diagram, architecture, data flow) | `loop` (WebP) or `avif` | Either decodes cheaply on a held camera. WebP's inline rendering is the best-verified case; `examples/skill-retrieval.html`: **204 KB** for 11s at 720px/12fps. |
+| Held camera (diagram, architecture, data flow) | `loop` (WebP) or `avif` | Either decodes cheaply on a held camera. WebP's inline rendering is the best-verified case; measured on a held-camera diagram: **0.27 MB** for 15.8s at 720px/12fps, against **4.58 MB** for the same pipeline on a moving camera — a 17x swing from camera choice alone. |
 | Moving camera you must ship inline | `avif` | A WebP loop here costs megabytes; AVIF stays small. Costs decode CPU at playback (below) — weigh against the audience's hardware. |
 | Size or bandwidth matters most | `avif` | ~7-54x smaller than WebP on disk. |
 | Authored diagram, motion *is* the explanation | Neither — hand-write an animated SVG | 10-25 KB, inline, no cap. Wrong tool for a rendered 3D scene; right tool for a diagram. |
@@ -335,7 +354,7 @@ register of the captions. The contract, the beats and the pipeline do not.
   processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
   edges; camera glides between stations rather than cutting between worlds. Same
   contract, just calmer keyframes and an orthographic-feeling long lens (fov
-  20-25). See `examples/skill-retrieval.html`.
+  20-25). See `examples/one-scene-every-format.html`.
 - **Cross-section** (geology, buildings, machinery, soil, anything with hidden
   internals): a frontal cutaway slab. The one rule is that "inside" is invisible
   — internals must sit proud of the front face. See `references/style-3d.md`.

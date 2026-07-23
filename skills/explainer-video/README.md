@@ -12,12 +12,12 @@ independently and identically, which is why one scene file drives both the
 interactive HTML loop and the headless MP4 render. There is never a second copy
 to keep in sync.
 
-![skills are retrieval](skills/explainer-video/examples/skill-retrieval.webp)
+![one scene, every format](skills/explainer-video/examples/one-scene-every-format.webp)
 
 *Built with this plugin and committed as a 204 KB animated WebP — 11s, held
 camera, three beats, and the best-verified case for inline rendering on
 GitHub. Source:
-[`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
+[`one-scene-every-format.html`](skills/explainer-video/examples/one-scene-every-format.html).*
 
 A second bundled example is built on the **Canvas2D backend** in the
 paper-cutout style pack — the plugin explaining its own pipeline:
@@ -62,7 +62,7 @@ separated — register swaps; content does not. Spec:
 [`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).*
 
 The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
-[`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
+[`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
 whether GitHub animates AVIF inline (one real-world observation says yes; not
@@ -200,6 +200,5 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/film-language.md` | Shot vocabulary: sizes, cuts, the match-cut constraint, rack-as-shots, camera energy |
 | `skills/explainer-video/references/styles/bibles.md` | Style bibles: one object constraining palette, lights, post, lens, cut pace, energy — with the committed control pair |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
 | `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |
 | `skills/explainer-video/examples/toybot-walk.html` | Worked example (cinematic 3D): cel + outlines, analytic IK, rack focus, bloom — post chain proven deterministic |

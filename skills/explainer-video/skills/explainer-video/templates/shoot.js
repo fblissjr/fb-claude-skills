@@ -144,6 +144,16 @@ async function openScenePage(browser, sceneFile) {
   await page.goto(url.pathToFileURL(path.resolve(sceneFile)).href + '?record=1');
   await page.waitForFunction('window.sceneReady === true', { timeout: 20000 })
     .catch(() => { throw new Error('scene never set window.sceneReady — check the errors above'); });
+  // The scene declares the frame it was authored for; the recorder follows it.
+  // This is the whole mechanism behind non-16:9 output -- a scene that sets
+  // FRAME.px = [1080,1920] records vertical with no flag and no other edit.
+  // Scenes predating window.FRAME keep the historical 1920x1080 above.
+  const framePx = await page.evaluate('window.FRAME && window.FRAME.px');
+  if (Array.isArray(framePx) && framePx.length === 2
+      && framePx.every(n => Number.isFinite(n) && n > 0)
+      && (framePx[0] !== 1920 || framePx[1] !== 1080)) {
+    await page.setViewportSize({ width: Math.round(framePx[0]), height: Math.round(framePx[1]) });
+  }
   await page.evaluate('window.stopPlayback()');
   // No `|| 20` fallback: a missing DURATION is a contract violation, and
   // defaulting it silently renders a truncated film. Fail loudly instead.
@@ -242,6 +252,29 @@ async function openScenePage(browser, sceneFile) {
     fs.mkdirSync(outDir, { recursive: true });
     for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
     console.log('range done');
+  } else if (mode === 'aspects') {
+    // One moment, several window shapes, relative to the scene's OWN design
+    // frame — so this is meaningful for a vertical or square scene too. Feeds
+    // `build.js aspect`; the settle wait matters because the scene resizes its
+    // canvas in a resize handler and sampling before that lands reads a stale
+    // canvas (the bug that first made this check report nonsense).
+    const at = num(rest[0], 0, 'time', { allowZero: true });
+    const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
+    const shapes = [
+      { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
+      { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
+      { tag: 'square', w: 1000, h: Math.round(1000 / (ar * 0.56)) },
+      { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
+    ];
+    const aDir = process.env.FRAMES_DIR || '.aspectframes';
+    clearFrames(aDir);
+    for (let i = 0; i < shapes.length; i++) {
+      await page.setViewportSize({ width: shapes[i].w, height: shapes[i].h });
+      await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+      await page.evaluate(`window.seekTo(${at.toFixed(4)})`);
+      await page.screenshot({ path: path.join(aDir, `f${String(i).padStart(5, '0')}.png`) });
+    }
+    console.log(JSON.stringify({ shapes }));
   } else if (mode === 'beats' || mode === 'manifest') {
     // beats: screenshot one frame per beat AND print the manifest (build.js
     // sheet tiles the frames). manifest: print the manifest only, no frames --

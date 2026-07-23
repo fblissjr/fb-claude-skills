@@ -76,6 +76,11 @@ every phase closed at its gate with its checkpoint run. Phase 5 items remain
 demand-gated as designed — audio (narration-drives-timing) is the likeliest
 first pull.
 
+**Since the run closed, its output has been stress-tested from outside** (0.16.0
+and 0.17.0). That is recorded in "After the run" below, after the postmortem it
+partly corrects. The completed phase history above is left as written — it was
+accurate about its gates; the gates were narrower than they looked.
+
 ## Postmortem (the 2026-07-22 run)
 
 Written at run close, while the evidence is fresh. Four sections: what
@@ -176,6 +181,11 @@ exists in two copies (template + toybot) with no drift guard — the kernel
 markers cover only the kit. Two copies is the repo's tolerated maximum; **at
 a third consumer, extract or marker-fence it.**
 
+> **Annotation (2026-07-22): the trigger has fired and was not acted on.** The
+> test suite's 3D films are a third consumer. The extraction is now due and is
+> not done — tracked as roadmap item 14. Recorded rather than quietly carried,
+> because a rule that slips its own stated condition is worse than no rule.
+
 ### How to think about future phases
 
 1. **Phase 5 stays demand-gated, and audio is the likeliest first pull.**
@@ -190,6 +200,10 @@ a third consumer, extract or marker-fence it.**
 3. **Book a hardware-GL session** to close three opens at once: verify the
    PMREM recipe, re-measure parallel capture where it can win, and re-judge
    whether quality tiers are still unneeded when renders are 5-10x faster.
+   *(Done 2026-07-22 — see "After the run" below. Two of the three closed, one
+   of them by refutation; the PMREM verification is unblocked but has not been
+   run. The premise of the item was also partly wrong: the recorder pinned
+   software GL itself, so the session was never only about the machine.)*
 4. **The owner's watch-through of the three films is the outstanding
    acceptance step** — and viewing the rendered README settles the
    animated-AVIF-inline question with three data points; record the outcome
@@ -203,6 +217,170 @@ a third consumer, extract or marker-fence it.**
    wide. The standing film is not automatically the right testbed.
 7. **Release cadence:** batch to phase exits unless a mid-phase landing has
    independent users. The cascade discipline stays; the frequency relaxes.
+
+## After the run: the external test suite (2026-07-22)
+
+Written after the postmortem above, and in two places it corrects it. A test
+suite ([explainer_video_test_cases.md](explainer_video_test_cases.md)) was
+authored against the 0.15.0 plugin and partially executed — Round 0 plus part
+of Round 1. It found real defects and produced two releases, 0.16.0 and 0.17.0.
+The per-item detail lives in the roadmap ledger (items 5, 11-16); what belongs
+*here* is the part that is about the plan's method rather than about the
+plugin's code.
+
+### The hardware-GL session happened
+
+Forward item 3 above asked for it to close three opens at once. On an M2 Ultra
+(24 cores), Chrome 1223:
+
+- **The premise was partly wrong.** `shoot.js` hardcodes
+  `--use-angle=swiftshader`, so the recorder pinned software GL regardless of
+  the hardware under it. "Book a hardware-GL session" was never only about
+  booking a machine; the tool opted out. Worth noting as a small instance of a
+  large pattern — an environmental constraint that was actually a configuration
+  one, believed for a whole run.
+- **Parallel capture: closed by refutation.** Roadmap item 5 named its own win
+  case — "a many-core box or hardware GL." Measured there: **~1.1x at both 4 and
+  8 workers**. The premise was wrong at the root. Capture was never
+  GL-parallelism-bound; it is **screenshot-bound**, and PNG encode serializes
+  through the browser process. This is the second time this feature's stated
+  rationale has been refuted by its own measurement (the first is in "What did
+  not go well" #1), and both refutations came from measuring the thing the
+  rationale named rather than something adjacent.
+- **Quality tiers: the question changed rather than resolving.** Hardware GL is
+  worth **55x** on the `seekTo` draw for a post-chain scene, **2.6x**
+  end-to-end, and ~nothing for a flat scene — not the 5-10x the item assumed.
+  The reason is the second bottleneck it found: JPEG q90 over the identical
+  readback path is **5.7-6.5x** faster than PNG, so on hardware GL roughly 95%
+  of capture time is the screenshot, not the film. *Inference, not measurement:*
+  that makes a JPEG review path (roadmap item 15) look like a better lever than
+  render-quality tiers, since a tier reduces draw cost and draw cost is no
+  longer what dominates. Tiers stay unbuilt; the rule holds.
+- **PMREM/IBL: unblocked, not verified.** The flag can now be swapped, but the
+  recipe has not been run on hardware GL. It remains the honest "documented,
+  unverified" it has been since Phase 2.
+- **A checkpoint instrument is narrower than believed.** Metal vs SwiftShader
+  on the same scene: **0 of 288 frames identical**, PSNR 57-58 dB — below
+  `method.md`'s 70 dB imperceptible bar — with differences confined to
+  antialiased edges and speculars. Each renderer is self-consistent
+  (`smoke.js`'s byte-check passes under Metal, 4/4). So the phase-exit
+  checkpoint's "re-shoot and compare byte-identical" holds **only within one
+  renderer**; switching GL backends invalidates byte-comparison as a regression
+  instrument and forces the PSNR fallback.
+
+### What the run could not have found, and why
+
+The framing defect (roadmap item 11) is the important one, and not because of
+its size. It is important because it was invisible to the entire verification
+surface **by construction**.
+
+The claim it broke is the skill's headline claim: one scene file drives the live
+HTML loop and the frame-exact render alike. They were identical in *time* — the
+property every instrument was built to check — and not in *framing*. Both
+backends pinned one axis (2D scaled by `canvas.height/VIEW_H`; the 3D solver
+pins vertical extent, `dist = h/f/(2·tan(fov/2))`), so visible width was a
+function of viewport aspect and any window narrower than 16:9 silently cropped
+the sides. Measured on a fixed world point at `(3,3,0)`, aspect 1.78 → 1.40:
+`ndc.x` went **0.913 → 1.161**, off-frame, while `ndc.y` held to four decimals.
+
+**No tool in the chain ever opened a non-16:9 viewport.** `shoot.js` pinned
+1920×1080. `smoke.js` used 640×360 and 1920×1080. `build.js` opens no browser
+at all. Every recorded artifact was 16:9 and therefore correct; every gate this
+plan defined was met, honestly, against artifacts that could not exhibit the
+defect. Only the live HTML in a resized window could, and only a human would
+look — the owner did.
+
+State the structural version plainly, because it generalizes past this bug:
+**every proving film in the back-to-back run was authored and reviewed at one
+viewport, so an aspect-dependent defect was not merely missed, it was
+unreachable.** Gates-as-real-films is still the right discipline — postmortem
+"What went well" #2 stands, it caught a dozen defects code review never would
+have — but a film gate proves what the film's *rendering conditions* can
+express. One viewport is one condition. The same is true of one renderer (see
+the byte-identical finding above), one window size, one aspect.
+
+The worst-hit scene makes the point better than the argument does: at 1.40 the
+sign was cut out of toybot's rack-focus shot — the exact failure that scene's
+own comment ("both subjects must be visible") exists to prevent. The comment was
+correct. The frame moved underneath it.
+
+Two more from the same session, both structural rather than incidental:
+
+- **`build.js all` could silently encode the wrong frames** — `frames()`
+  overrode ambient `FRAMES_DIR` while `video()` honored it. Measured: a stale
+  frame produced a **0.0 MB one-frame mp4, exit 0, printed as success.** This is
+  the same ship-the-wrong-film failure the comment inside `video()` claims to
+  have closed, reintroduced through the other half of the pair. A fix applied to
+  one call site does not close a class; only the seam does.
+- **SKILL.md's description was 1150 characters against the Agent Skills 1024
+  limit** — pre-existing, surfaced only because 0.17.0 had to touch the file.
+  Nothing in the run's checkpoint checks it.
+
+### The reference frame, as an architectural lesson
+
+This is the part worth carrying forward, and it is the reason 0.17.0 exists as
+a separate release rather than a patch: the framing bug was a symptom, and the
+diagnosis generalized.
+
+**Every defect found in this session came from a measurement or a composition
+made against an undeclared reference frame.** An audit found ten distinct
+implicit frames in the pipeline, several mutually inconsistent — the canvas
+scaled by window height; captions sized in fixed CSS px against the window but
+positioned in percent of the window; the shot ladder measured against frame
+height; `smoke.js` measuring exposure at 640×360 but caption overflow at a
+hardcoded 1920; `motion`'s dead-air threshold relative to a global median.
+
+Each of those is defensible alone. Together they are a system in which "how big
+is this" has no single answer, and any two components can disagree without
+either being wrong. That is the shape of the whole class:
+
+> **A quantity measured against an implicit frame is not a property of the
+> thing. It is a property of the pair, and the pair is invisible.**
+
+The fix pattern is the same one the plan already relies on elsewhere: make the
+implicit thing **data**, then make the tooling read it. `FRAME = {aspect, px}`
+is declared per scene and exported on `window`, exactly as `BEATS` made timing
+data and `SHOTS` made camera data. The consequences follow the same way they
+did there — timing became retimeable once it was data; framing became
+*choosable* once it was data. `shoot.js` sizing its viewport from `FRAME.px`
+made **9:16 vertical and 1:1 square output first-class**, and those were
+previously impossible by construction no matter what an author wrote.
+
+Three details worth keeping, because they are what the lesson costs:
+
+1. **A decorative spec field is a warning sign.** SKILL.md documented
+   `aspect: 16:9 default` and nothing read it. A declared parameter no code
+   consults is not a default; it is a description of an assumption, and it
+   dates from before the assumption became false.
+2. **Fixing the canvas did not fix the overlays.** 0.16.0 contained the design
+   frame on both backends and the DOM captions still measured against the
+   window — a separate parity gap inside the same class. Frame-relative
+   overlays (0.17.0) are the only change in either release that moved pixels at
+   16:9: PSNR **79.0 dB** 3D / **74.0 dB** 2D, above the 70 dB bar, localized to
+   the caption pill's antialiased edge. Everything else was verified
+   **byte-identical at 1920×1080 across all five shipped scenes at two
+   timestamps**, which is why no committed artifact needed re-rendering.
+3. **The instrument for a spatial property needs a spatial *and* temporal
+   control.** The framing-invariance check in `smoke.js` (three window shapes ×
+   three timestamps; known-bad templates score 24-31 mean-abs-luma, correct
+   scenes 0.07-0.12, threshold 8 in the gap) took two false starts, both of them
+   this repo's own documented failure modes recurring: the first sampled a
+   single `t` that landed on a near-blank title card and reported all-clear on a
+   template known to crop — a green control that never ran; the second read a
+   stale canvas by sampling before the resize handler landed — the same class as
+   the `smoke.js` sampling race in the postmortem above.
+
+Forward-looking, and *inference rather than measurement*: the same question
+should be asked of every remaining constant in the pipeline — what frame is this
+measured against, and is that frame declared? Two are already known to be
+undeclared in a way that matters. The caption reading-speed bracket (27
+comfortable / 37 unreadable / 50 serviceable) is a rate against *reader*, not
+against frame, and remains thin and unresolved. And the lints compare against
+universal constants when the register (`STYLE`/`BIBLES`) is a declared statement
+of intent that they could compare against instead — designed as register-aware
+lints, deliberately unbuilt pending a film that needs them, with two candidate
+instances standing (blueprint's fine-line dead-air false positive, neon-on-black's
+exposure collapse). Roadmap item 13.
 
 ## Phase overview
 
@@ -457,6 +635,10 @@ through them. Every phase ends with, in order:
 - Regress: re-shoot the fixed sample timestamps of every committed example
   and compare (byte-identical or the PSNR technique in `method.md`); a phase
   may not open while a prior phase's example renders differently unexplained.
+  *(Annotation 2026-07-22: byte-identical holds only **within one renderer** —
+  Metal vs SwiftShader is 0/288 identical at PSNR 57-58 dB. Change GL backends
+  and this step must fall back to PSNR. And it compares one viewport: see
+  "After the run".)*
 - Prune: anything built this phase that the proving threads did not use gets
   removed before the next phase starts, not "kept for later."
 

@@ -13,10 +13,27 @@ simpler `{x,y,zoom}` rail; a 2D solver analog is deliberately unbuilt until a
 ## The pieces
 
 **SUBJECTS** — named things a camera can frame: `pos` is a pure function of
-`t` returning the subject's center, `h` its height. A moving subject is a
-tracking shot for free. Craft rule, learned by rendering: track a subject's
-*travel*, not its jumps — leave vertical action out of `pos` so it moves in
-the frame instead of being cancelled by the camera.
+`t` returning the subject's center, `h` its height, and optionally `w` its
+width. A moving subject is a tracking shot for free. Craft rule, learned by
+rendering: track a subject's *travel*, not its jumps — leave vertical action
+out of `pos` so it moves in the frame instead of being cancelled by the camera.
+
+**Declare `w` for anything wider than it is tall.** The size ladder below is
+calibrated to subject HEIGHT — `f` is a fraction of the frame's height — and
+the solver originally consulted nothing else. That is correct for an upright
+subject and silently wrong for a wide one: on a bench 12.8 wide and 2.6 tall,
+every rung tighter than WS framed less width than the subject occupied, so it
+cropped. Measured at `h:4.3` on a 40° lens, the frame widths are EWS 44.4,
+WS 17.8, FS 9.4, MS 5.6, MCU 3.7 — only the two widest rungs fit a 13-wide
+subject at all, which collapses the variety the ladder exists to provide.
+With `w` declared, framing binds on whichever axis is tighter, so the rungs
+keep their cinematographic meaning on a timeline, an org chart, a waveform or
+a supply chain. An upright subject (`w <= h * FRAME.aspect`) is unchanged.
+
+Inflating `h` is NOT the fix — it pulls the camera back but leaves the subject
+small in a tall empty frame. The other honest move is the one a
+cinematographer would make anyway: push in on a **narrower named sub-subject**
+for the detail beat, rather than trying to frame the whole wide thing tight.
 
 **SIZES** — the ladder, calibrated to what a cinematographer means:
 

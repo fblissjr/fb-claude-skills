@@ -350,6 +350,51 @@ function poster(scene, t = 0, width = 960) {
 // Both instances of that bug in a real scene were found by looking at a later
 // frame, so `sheet <scene> 480 0.95` is the pass that surfaces them: every beat
 // at its own end, where a station that should be dark is still lit.
+// `aspect` — render one moment at several window shapes and tile them.
+//
+// smoke.js's framing-invariance check can REJECT a scene whose design frame
+// changes with the window. It cannot APPROVE one: passing only means nothing
+// moved, not that the composition reads at a phone-shaped window. This is the
+// looking half, and it is the same division of labour the rest of the method
+// uses -- the lint is the floor, the eye is the judgment.
+//
+// Shapes are expressed RELATIVE to the scene's own FRAME.aspect, so this stays
+// meaningful for a 9:16 vertical or 1:1 square scene, not just 16:9.
+function aspectSheet(scene, t = 0, width = 520) {
+  ensureVendor(scene);
+  const out = scene.replace(/(\.bundled)?\.html$/, '') + '.aspect.jpg';
+  const dir = '.aspectframes';
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  try {
+    const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir }, stdio: ['ignore', 'pipe', 'inherit'] });
+    const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
+    const n = shapes.length;
+    // Each shape has DIFFERENT pixel dimensions. That rules out both the tile
+    // filter (needs uniform inputs) AND the image2 sequence demuxer, which stops
+    // reading at the first dimension change -- either way you silently get a
+    // sheet containing only the first cell. Feed them as separate inputs, fit
+    // each into a common box, and hstack, so every cell shows its window shape
+    // at true proportions against the same reference area.
+    const inputs = [];
+    for (let i = 0; i < n; i++) inputs.push('-i', path.join(dir, `f${String(i).padStart(5, '0')}.png`));
+    const box = `scale=${width}:${width}:force_original_aspect_ratio=decrease,` +
+                `pad=${width}:${width}:(ow-iw)/2:(oh-ih)/2:color=0x101010`;
+    const chains = shapes.map((_, i) => `[${i}:v]${box}[a${i}]`).join(';');
+    const stack = shapes.map((_, i) => `[a${i}]`).join('') + `hstack=inputs=${n}`;
+    run('ffmpeg', ['-y', ...inputs, '-filter_complex', `${chains};${stack}`, out]);
+    console.log(`aspect -> ${out}`);
+    console.log('\nlegend (each cell is the SAME t at a different window shape):');
+    shapes.forEach((sh, i) => console.log(`  cell ${i + 1}  ${sh.tag.padEnd(10)} ${sh.w}x${sh.h}  aspect ${(sh.w / sh.h).toFixed(2)}`));
+    console.log('\nRead the image. Every cell must show the SAME composition — a subject that\n' +
+                'drifts, crops, or reflows between cells is a framing bug the render will hide,\n' +
+                'because shoot.js only ever records the design shape.');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function sheet(scene, width = 480, frac = 0.6) {
   ensureVendor(scene);
   const base = scene.replace(/(\.bundled)?\.html$/, '');
@@ -591,7 +636,7 @@ function motion(scene, fps = 12) {
   }
 }
 
-const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
+const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|aspect|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
 const [, , step, target, fpsArg, widthArg, extraArg] = process.argv;
 if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'strip', 'motion'].includes(step) && !target) {
   console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
@@ -605,6 +650,7 @@ else if (step === 'bundle') bundle(target);
 else if (step === 'frames') frames(target, fps);
 else if (step === 'video') video(target, fps);
 else if (step === 'all') { const b = bundle(target); frames(b, fps); video(target, fps); }
+else if (step === 'aspect') aspectSheet(target, Number(fpsArg || 0), Number(widthArg || 520));
 else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg));
 else if (step === 'strip') strip(target, Number(fpsArg), Number(widthArg), Number(extraArg || 30));
 else if (step === 'motion') motion(target, Number(fpsArg || 12));
