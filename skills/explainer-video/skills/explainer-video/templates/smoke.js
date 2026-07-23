@@ -8,6 +8,14 @@
 //
 //   bun run smoke.js                 -> checks every *.html in cwd (skips .bundled)
 //   bun run smoke.js <scene.html>... -> checks the named scenes
+//   bun run smoke.js --parity-only [scene.html...]
+//                                    -> marker parity + template integrity ONLY.
+//                                       No browser, ~0.2s. For a pre-commit, CI's
+//                                       cheap stage, or a quick check after
+//                                       editing a KERNEL/SOLVER block in one
+//                                       scene. Callers should invoke THIS rather
+//                                       than reimplement the check; see
+//                                       references/instruments.md.
 //
 // Checks per scene, unbundled AND bundled:
 //   1. the page loads with zero console/page errors (incl. deprecation warnings)

@@ -1,5 +1,17 @@
 # changelog
 
+## 0.68.6
+
+### removed
+- The `Stop` parity hook and its `.claude/settings.json` entry. **Its own justification stopped being true in 0.68.5.**
+
+  The hook existed because "`smoke.js` catches drift but costs a multi-minute Chromium launch." Adding `--parity-only` made that check 0.2s on demand, which removed the reason for a session-level mechanism. What remained was a hook firing on every turn end in this repo — including sessions touching `readwise-reader` or docs and never opening a scene — to guard a rare, deliberate operation (editing a marked shared block) whose failure is a recoverable source inconsistency the release gate already hard-fails on. The one thing that made it selective, a dirty-tree precondition, was itself broken and had to be removed.
+
+  The refactor earned its place; the hook did not. Recorded because the sequence is the useful part: a check was duplicated into its caller, the duplicate diverged immediately, fixing that properly produced a fast shared implementation, and the fast implementation made the caller redundant. **The right fix for "this check is too slow to run often" was to make the check fast, not to build a second place that runs it.**
+
+### changed
+- `smoke.js`'s usage block documents `--parity-only`, and points callers at it rather than at reimplementing the check.
+
 ## 0.68.5
 
 ### fixed
