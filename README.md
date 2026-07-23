@@ -112,6 +112,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
 /plugin install explainer-video@fb-claude-skills
+/plugin install screenwright@fb-claude-skills
 /plugin install skill-dashboard@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills
@@ -207,6 +208,7 @@ Once installed, invoke as namespaced slash commands:
 
 /json-query                      # JSON query tool selection + jg syntax
 /explainer-video                 # Build an animated explainer film (2D or 3D; HTML / MP4 / WebP / AVIF)
+/screenwright                    # Deterministic film of any register on the node stack (explainer / cutscene / meme)
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:govuk-style             # Write or rewrite prose in GOV.UK / GDS house style
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models

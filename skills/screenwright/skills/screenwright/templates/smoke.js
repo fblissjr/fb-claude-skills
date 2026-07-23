@@ -179,8 +179,8 @@ const EXPOSURE_CRUSHED_THRESHOLD = 0.35; // warn if worst-case crushed fraction 
 // known-good pale 3D template — NEITHER was an observation; both were one
 // sampling race (the canvas read mid-resize or mid-clear), fixed structurally
 // below. With sampling settled, the measurement was redone honestly: the
-// Canvas2D placeholder measures ABOVE this floor, and the committed 2D film
-// (examples/one-scene-every-format.html) measures 0.0 at its flattest sample
+// Canvas2D placeholder measures ABOVE this floor, and the predecessor skill's committed
+// 2D film measures 0.0 at its flattest sample
 // while every frame is legible on review — a KNOWN-GOOD scene genuinely below
 // the floor. So the metric is style-conditional the way the wash rule was
 // palette-conditional: it can flag a nearly-blank 3D render; it cannot judge
@@ -379,6 +379,19 @@ async function checkScene(browser, file) {
     const flashes = await flashTimes(page);
     // ALL-quantified over a plan, not a spot check at one arbitrary second.
     const PLAN = samplePlan(dur, flashes, 4);
+    // Sample INSIDE shot transitions too: scenes exporting window.SHOTS get up
+    // to two blend-window midpoints appended, because fixed fractions of
+    // DURATION were measured missing every blend window on a shipped film —
+    // a transition-confined determinism bug would have passed every check.
+    try {
+      const shots = await page.evaluate('window.SHOTS');
+      if (Array.isArray(shots)) {
+        for (const sh of shots.filter(x => x && x.cutEnd > x.t).slice(0, 2)) {
+          const m = Number(((sh.t + sh.cutEnd) / 2).toFixed(4));
+          if (m > 0.05 && m < dur - 0.05 && !PLAN.includes(m)) PLAN.push(m);
+        }
+      }
+    } catch (e) {}
     const t = PLAN[0];
     const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
@@ -760,6 +773,16 @@ async function checkScene(browser, file) {
       const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
       const base = ['--hide-scrollbars', '--no-sandbox'];
       let webgpu = (process.env.WEBGPU || 'off').toLowerCase();
+      // Same allow-list and conflict rejection as shoot.js — without them a
+      // typo (WEBGPU=meta) silently fell through to the swiftshader branch,
+      // making the gate check the one backend the shipped-frame check exists
+      // to catch, instead of the backend the recorder would actually use.
+      if (!['off', 'auto', 'metal', 'vulkan', 'swiftshader'].includes(webgpu)) {
+        throw new Error(`WEBGPU="${process.env.WEBGPU}" is not one of: off, auto, metal, vulkan, swiftshader`);
+      }
+      if (webgpu !== 'off' && want !== 'default' && !(want === 'metal' && webgpu === 'metal')) {
+        throw new Error(`WEBGPU=${webgpu} conflicts with ANGLE_BACKEND=${want} — same rule as shoot.js`);
+      }
       if (webgpu !== 'off') {
         if (webgpu === 'auto') webgpu = process.platform === 'darwin' ? 'metal' : 'vulkan';
         if (webgpu === 'metal') return ['--enable-unsafe-webgpu', '--use-angle=metal', ...base];

@@ -1,6 +1,6 @@
 # explainer-video
 
-*Last updated: 2026-07-22*
+*Last updated: 2026-07-23*
 
 Build short animated explainer sequences — 3D or diagrammatic — from a topic, a
 process, or an existing document. Output is a self-contained looping HTML page,

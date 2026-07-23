@@ -193,5 +193,5 @@ Two constraints that dictate the setup — do not "simplify" them away:
   explainer-video: same scene body on both stacks, judged side-by-side
 - `examples/materials.html` — the pack showcase: cel, SSS, glass in one
   film, including the overlapping-transparency ordering case
-  (rendered previews for both live in the repo's `docs/media/`, outside the
-  plugin — deliberately: installed plugins carry only what the skill needs)
+  (rendered previews live in the repository outside the plugin subtree —
+  deliberately: installed plugins carry only what the skill needs)

@@ -364,6 +364,15 @@ async function openScenePage(browser, sceneFile) {
       const extras = await Promise.all(
         Array.from({ length: W - 1 }, () => openScenePage(browser, sceneFile).then(r => r.page)));
       const pages = [page, ...extras];
+      // All workers must resolve the SAME backend: WebGPU adapter acquisition
+      // is warmth/contention-dependent, and one worker silently falling back
+      // to WebGL2 would splice visibly different frames (PSNR 57-58 dB across
+      // backends) into one film with exit 0. Note the measured 1-vs-4-worker
+      // byte-identity was established on the WebGL2-everywhere path only.
+      const backends = await Promise.all(pages.map(pg => pg.evaluate('window.BACKEND || null')));
+      if (new Set(backends.filter(Boolean)).size > 1) {
+        throw new Error('workers resolved different backends (' + backends.join(', ') + ') — frames would splice across backends. Re-run with fewer workers or WEBGPU=off.');
+      }
       await Promise.all(pages.map((pg, k) =>
         shootChunk(pg, Math.floor(k * n / W), Math.floor((k + 1) * n / W))));
       // browser.close() below reaps the extra pages; nothing to do per-page.

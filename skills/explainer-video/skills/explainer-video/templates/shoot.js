@@ -104,8 +104,14 @@ function chromiumPath() {
     if (!cache || !fs.existsSync(cache)) continue;
     const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
     for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
+      // Both Intel and Apple-Silicon layouts (backported from screenwright):
+      // without the -arm64 entries this scan matched NOTHING on Apple Silicon
+      // and silently fell through to system Chrome — an auto-updating build,
+      // not the one playwright pins.
       for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
+                         'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
                          'chrome-headless-shell-linux64/chrome-headless-shell',
+                         'chrome-headless-shell-mac-arm64/chrome-headless-shell',
                          'chrome-mac/headless_shell']) {
         const p = path.join(cache, d, rel);
         if (fs.existsSync(p)) return p;

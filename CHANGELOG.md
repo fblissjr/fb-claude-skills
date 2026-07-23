@@ -1,5 +1,10 @@
 # changelog
 
+## 0.73.1
+
+### fixed
+- **`screenwright` 0.5.1 + `explainer-video` 0.25.8 — eleven findings from a five-agent code review of the day's diff, all fixed and re-verified.** The three that mattered most: `build.js aspect` threw a `ReferenceError` on an undefined `stripText` in BOTH skills (confirmed by running it — the command had never been exercised on either fork since the nocap feature landed; fixed in both, and explainer-video's fix is bugfix-scoped under its freeze along with the arm64 Chromium-resolution backport its shoot/smoke needed); smoke.js's inline WEBGPU flag builder lacked shoot.js's allow-list and conflict rejection, so a typo like `WEBGPU=meta` silently fell through to the SwiftShader branch — the gate would have checked the exact backend the shipped-frame check exists to catch (now throws); and the `nodeFrame` determinism guard's "smoke fails loudly" comment was false for the `_nodes`-removed path — the `if` silently no-opped; it now emits a console warning, which smoke's zero-warnings rule converts to a hard failure. Plus: smoke now samples inside shot-transition windows (scenes export `window.SHOTS` cut windows; review verified no fixed-fraction sample ever landed in any blend window on a shipped film), worker-parallel shoots verify all pages resolved the SAME backend before splicing frames (and the byte-identity comment now says it was measured on the WebGL2-everywhere path only), the SIZES comment gained its missing `FSA`, a stale carried-over example path in a smoke comment was reworded, SKILL.md no longer cites a path outside the plugin subtree (the rule this very diff established), the root README's install and invocation lists gained screenwright, and explainer-video's README got its last-updated bump. Examples regenerated on the fixed template; smoke green everywhere; three review findings scored out as non-manifesting (playwright's exit reaper covers the browser-cleanup pair; the classic stack honors preserveDrawingBuffer, mooting the framing-check backport).
+
 ## 0.73.0
 
 ### added

@@ -12,6 +12,7 @@
 //   bun run build.js avif   <scene.html> [fps] [w] -> <name>.avif, inline, much smaller file (decode-heavy at playback)
 //   bun run build.js poster <scene.html> [t] [w]   -> <name>.jpg still + markdown snippet
 //   bun run build.js sheet  <scene.html> [w] [frac] -> <name>.sheet.jpg contact sheet + .squint.jpg
+//   bun run build.js aspect <scene.html> [t]      -> <name>.aspect.jpg, one moment at four window shapes
 //   bun run build.js strip  <scene.html> <t0> <t1> [fps] -> <name>.strip.jpg, consecutive frames
 //   bun run build.js motion <scene.html> [fps]     -> per-beat motion profile + dead air, no files kept
 //
@@ -462,7 +463,7 @@ function aspectSheet(scene, t = 0, width = 520) {
   try {
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
       { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT,
-        ...(stripText ? { SCENE_QUERY: 'strip=text' } : {}) }, stdio: ['ignore', 'pipe', 'inherit'] });
+        }, stdio: ['ignore', 'pipe', 'inherit'] });
     const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
     const n = shapes.length;
     // Each shape has DIFFERENT pixel dimensions. That rules out both the tile

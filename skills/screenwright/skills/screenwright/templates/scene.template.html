@@ -378,7 +378,7 @@ buildWorlds();
    the film, the way BEATS is the editor's. Each shot starts at
    a beat anchor and runs until the next shot starts:
      subject  what the shot frames (a SUBJECTS key)
-     size     EWS WS FS MS MCU CU ECU — fraction of frame height
+     size     EWS WS FSA FS MS MCU CU ECU — fraction of frame height
               the subject occupies (see SIZES)
      angle    degrees around the subject, 0 = from +Z
      elev     degrees above level (default 6)
@@ -595,6 +595,11 @@ window.FRAME=FRAME;
 // is tempted to parse scene internals, the contract is missing an export.
 window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
   w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
+// Cut-entry windows, resolved to absolute seconds — so smoke can sample INSIDE
+// shot transitions. Found by review: every fixed-fraction sample point missed
+// every blend window on a shipped film, making transition-confined bugs
+// structurally invisible to the whole suite.
+window.SHOTS=SHOTS.map(s=>({t:s.t,cutEnd:s.t+(CUT_DUR[s.cut||'hard']||0)}));
 /* The nodeFrame tick before render is LOAD-BEARING for shadow determinism.
    The node renderer updates each shadow map at most once per nodeFrame.frameId
    (ShadowNode.updateBefore — the guard overrides even shadow.needsUpdate), and
@@ -604,7 +609,7 @@ window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
    whose pixel diff was confined to shadowed regions. Ticking the frame here
    makes seekTo self-contained for any caller pattern. Private API, pinned at
    three 0.185.1; smoke fails loudly if an upgrade renames it. */
-window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);uFocus.value=shotFocus;if(renderer._nodes)renderer._nodes.nodeFrame.update();pipeline.render();};
+window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);uFocus.value=shotFocus;if(renderer._nodes)renderer._nodes.nodeFrame.update();else console.warn('nodeFrame API missing: shadow determinism guard inactive');pipeline.render();};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};
