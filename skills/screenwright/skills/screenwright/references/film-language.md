@@ -5,7 +5,7 @@ sizes, angles, lenses, cuts — compiled onto the camera per frame by the solver
 in `scene.template.html`. Raw camera keyframes are gone from the template on
 purpose: coordinates were never the author's intent; framing was.
 
-Implemented in the **3D template** and proven on `examples/toybot-walk.html`,
+Implemented in the **3D template** and proven on `examples/gearbox.html`,
 which is authored with zero hand-written keyframes. The 2D backend keeps its
 simpler `{x,y,zoom}` rail; a 2D solver analog is deliberately unbuilt until a
 2D film wants shot vocabulary.
@@ -57,7 +57,7 @@ for the detail beat, rather than trying to frame the whole wide thing tight.
 The first cut of this table shipped MS at full-shot framing and the rack's
 second subject fell out of frame — sizes are conventions with meanings, not
 free parameters. Per-shot `anchor:` overrides the aim height when a
-composition needs it (the toybot rack aims low to hold the sign in frame).
+composition needs it (e.g. aiming low to hold a prop or sign in frame).
 
 **A rung is relative to the DECLARED subject, not to the figure.** `MS` means
 "the subject spans 1.6 frame-heights" — waist-up when the subject is a whole

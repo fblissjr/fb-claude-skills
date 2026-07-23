@@ -73,13 +73,15 @@ const BEATS = [
 ];
 
 /* ---------- STYLE: everything that is the LOOK. ----------
-   Split from CONFIG so a style pack (references/styles/) swaps this block and
-   nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
-   Materials are still created inline in buildWorlds(); lift shared palette
-   constants up here as the scene grows. */
+   Split from CONFIG so a style pack (a bible — references/bibles.md) swaps
+   this block and nothing else. Timing lives in BEATS; the look — INCLUDING
+   camera energy, lens and cut pace (energy/lens/cutDur, read by the solver) —
+   lives here. Materials are still created inline in buildWorlds(); lift
+   shared palette constants up here as the scene grows. */
 const STYLE = {
   bg: 0x1a1426,
   exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
 };
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
@@ -93,7 +95,6 @@ const CONFIG = {
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
   capFade: 0.35,                      // caption fade inset from each beat edge, seconds
-  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
 };
 
 /* ---------- FRAME: the one declared reference frame ----------
@@ -255,6 +256,14 @@ function applyFrameVars(){
 }
 /* ==== KERNEL-END ==== */
 
+/* ==== RIG-START =======================================================
+   Renderer, post pipeline, and mesh helpers. Byte-identical in every 3D
+   scene — smoke.js FAILS the run if two checked scenes differ here; edit it
+   in ALL 3D scenes or in none. Fenced because it carries two of the
+   LOAD-BEARING determinism guards (sortObjects=false, frustumCulled=false)
+   — exactly the code whose silent drift costs the most. The light rig below
+   the fence is deliberately OUTSIDE it: lights are tuned per scene.
+   ====================================================================== */
 /* ---------- renderer: WebGPURenderer, both backends ----------
    One renderer class, two backends. With a WebGPU adapter (WEBGPU=metal in the
    recorder, or a real browser) it runs native WGSL; with none (default
@@ -331,6 +340,7 @@ const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
    are a few dozen meshes; culling buys nothing and costs the contract. */
 function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;if(parent)parent.add(o);return o;}
 function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
+/* ==== RIG-END ==== */
 
 /* ---------- lights (a sane default rig; tune per scene) ---------- */
 scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
@@ -500,25 +510,27 @@ function solveShot(sh,t){
   let py=aimY+Math.sin(elev)*dist;
   if(CONFIG.cameraFloor!==undefined&&CONFIG.cameraFloor!==null)py=Math.max(CONFIG.cameraFloor,py);
   return{p:[E.cx+Math.sin(ang)*Math.cos(elev)*dist,py,E.cz+Math.cos(ang)*Math.cos(elev)*dist],
-         l:[aimX,aimY,aimZ],fovd};
+         l:[aimX,aimY,aimZ],fovd,E};
 }
-function focusDist(sh,t,p){const E=subjectExtent(sh.focus||sh.subject,t);
-  return Math.hypot(p[0]-E.cx,p[1]-E.cy,p[2]-E.cz);}
-const DESIGN_AR=FRAME.aspect;
-const fitFov=f=>camera.aspect>=DESIGN_AR?f:
-  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
+/* E rides along from solveShot: the default focus (the shot's own subject) is
+   the extent solveShot already computed for the same subject at the same t —
+   recomputing it doubled the extent work, twice over inside a blend window. */
+function focusDist(sh,t,p,E){const X=sh.focus?subjectExtent(sh.focus,t):E;
+  return Math.hypot(p[0]-X.cx,p[1]-X.cy,p[2]-X.cz);}
+const fitFov=f=>camera.aspect>=FRAME.aspect?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*FRAME.aspect/camera.aspect)*180/Math.PI;
 function setCamera(t){
   let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
   const cur=SHOTS[i],c=solveShot(cur,t);
-  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p);
+  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p,c.E);
   const cd=CUT_DUR[cur.cut||'hard'];
   if(i>0&&cd>0&&t<cur.t+cd){                            // entering: whip or dolly-morph
     const u=ss(t,cur.t,cur.t+cd),q=solveShot(SHOTS[i-1],t);
     const mix=(a,b)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u),lerp(a[2],b[2],u)];
     p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
-    fd=lerp(focusDist(SHOTS[i-1],t,q.p),fd,u);          // focus blends too — the rack
+    fd=lerp(focusDist(SHOTS[i-1],t,q.p,q.E),fd,u);      // focus blends too — the rack
   }
-  const en=STYLE.energy||CONFIG.energy||'steadicam';
+  const en=STYLE.energy||'steadicam';                    // energy is a STYLE (bible) field
   const E2={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
   const F=en==='handheld'?1.9:.55;
   camera.position.set(p[0]+noise1(t,F,11)*E2*2,p[1]+noise1(t,F,12)*E2*1.2,p[2]);
@@ -539,6 +551,14 @@ function animate(t){
   demoKnot.scale.setScalar(1+.3*pulse(t,'three'));   // payoff pulse, named not numbered
 }
 
+/* ==== DRIVER-START ====================================================
+   Overlay + the recorder contract + async boot. Byte-identical in every 3D
+   scene — smoke.js FAILS the run if two checked scenes differ here; edit it
+   in ALL 3D scenes or in none. Fenced because it carries the third
+   LOAD-BEARING determinism guard (the nodeFrame tick in seekTo) and the
+   sceneReady ordering. Everything scene-specific it touches arrives via
+   BEATS/CONFIG/STYLE — customize those, not this block.
+   ====================================================================== */
 /* ---------- overlay (captions, title, flashes) ---------- */
 const capEl=document.getElementById('cap');
 const titleEl=document.getElementById('title');
@@ -549,6 +569,15 @@ const flashEl=document.getElementById('flash');
    is the semantics instrument: "cover everything except the geometry" is the
    test, and it used to require hand-editing a copy of the scene. */
 const NOCAP=location.search.includes('nocap')||location.search.includes('strip=text');
+/* Flashes anchor to beats ({beat,at}), resolved ONCE to absolute seconds with
+   their half-widths: per-flash `w`, else CONFIG.flashWidth, else the
+   historical 0.25 (it was hardcoded once, which made the shortest expressible
+   flash 0.5s — longer than an entire beat in one film). Both the renderer in
+   setOverlay and the window.FLASHES contract export consume THIS list, so the
+   render and the tooling cannot disagree about flash windows — the resolution
+   used to be written twice and could drift. */
+const FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
+  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
 function setOverlay(t){
   // Title card spans the first beat, whatever it is called or how long it runs.
   const T=BEAT[BEATS[0].name];
@@ -568,14 +597,8 @@ function setOverlay(t){
   if(txt)capEl.textContent=txt;
   capEl.style.opacity=(NOCAP?0:op).toFixed(3);
 
-  // Flashes anchor to beats too: {beat,at} instead of a bare timestamp.
-  // Flash half-width is per-flash (`w`, seconds), falling back to CONFIG.flashWidth
-  // and then to the historical 0.25. It was hardcoded, which made the shortest
-  // expressible flash 0.5s -- longer than an entire beat in one film, whose
-  // author had to reimplement the flash in scene code to get a 0.20s snap.
-  const FW=CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth;
-  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0),w=m.w===undefined?FW:m.w;
-    f=Math.max(f,bump(t,c-w,c+w));}
+  // Flashes: from the ONE resolved list above.
+  let f=0;for(const m of FLASHES)f=Math.max(f,bump(t,m.t-m.w,m.t+m.w));
   flashEl.style.opacity=(f*.98).toFixed(3);
 }
 
@@ -593,8 +616,10 @@ window.FRAME=FRAME;
 // it never becomes a window property, and smoke.js's flash-avoidance was
 // silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
 // is tempted to parse scene internals, the contract is missing an export.
-window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
-  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
+window.FLASHES=FLASHES;
+// Caption fade, resolved, same rule — smoke's reading-speed lint needs it and
+// used to probe CONFIG (scene internals) against a mirrored default.
+window.CAPFADE=CONFIG.capFade;
 // Cut-entry windows, resolved to absolute seconds — so smoke can sample INSIDE
 // shot transitions. Found by review: every fixed-fraction sample point missed
 // every blend window on a shipped film, making transition-confined bugs
@@ -633,6 +658,7 @@ window.stopPlayback=function(){playing=false;};
   window.sceneReady=true;
   if(!location.search.includes('record'))requestAnimationFrame(loop);
 })();
+/* ==== DRIVER-END ==== */
 </script>
 </body>
 </html>

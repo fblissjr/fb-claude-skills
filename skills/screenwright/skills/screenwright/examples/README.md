@@ -3,9 +3,12 @@
 last updated: 2026-07-23
 
 Each example is a complete, self-contained film: open the `.html` straight
-from disk and it plays. These are the skill's teaching baselines — SKILL.md
-and the references point at them — and every one passed the full instrument
-suite (smoke on both backends, sheets, motion, independent review).
+from disk and it plays. **WebGPU is not required** — the embedded
+`WebGPURenderer` falls back to WebGL2 transparently, so any WebGL2-capable
+browser plays these; with a WebGPU adapter present it is used automatically.
+These are the skill's teaching baselines — SKILL.md and the references point
+at them — and every one passed the full instrument suite (smoke on both
+backends, sheets, motion, independent review).
 
 Rendered previews live in [`docs/media/`](../../../../docs/media/) at the
 repo root, NOT here: the plugin subtree ships to every installed user (and

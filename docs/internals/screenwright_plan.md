@@ -361,6 +361,22 @@ carry-forwards into later phases: full bloom bracket (first film that leans
 on bloom), template-palette crushed-exposure advisory, `WEBGPU=vulkan`
 unverified, upstream repro for the sortObjects defect unfiled.
 
+*Post-gate quality pass (2026-07-23, screenwright 0.6.0):* the deliberately
+deferred simplify review ran four angles (reuse, simplification, efficiency,
+altitude) over the whole founding range and applied ~30 deduped findings —
+shared `templates/backend.js` (browser/flag policy/settle, one copy for
+recorder and gate), `RIG`/`DRIVER` parity fences covering all three
+load-bearing determinism guards, contract exports over internals probing
+(`window.CAPFADE`; flashes resolved once), `energy` single-homed in STYLE,
+per-run vendor cache, and the `motion` second-browser launch removed.
+Verified look-neutral: pre/post example frames byte-identical. Full ledger:
+CHANGELOG 0.74.0. **Standing maintenance rule from this pass:** the fenced
+blocks span `templates/` AND `examples/`, but a smoke run only checks the
+files it is pointed at — after editing any fenced block, run
+`bun run smoke.js --parity-only templates/*.html examples/*.html` (cross-
+directory) before committing; a per-directory green does not cover the
+template↔example boundary.
+
 **Phase 2 — Character scaffold.** Skeleton family + proportion vectors +
 shells; IK ported and extended; gait on the new rig; fur-shell and fabric
 packs land here, tested on the characters they exist for. *Gate:*

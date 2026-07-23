@@ -35,7 +35,11 @@
      bundle` correctly reports "no vendor tag" and the source file IS the
      single-file artifact. Every other tool (shoot, sheet, strip, motion,
      smoke, loop, avif, video) works unchanged — they talk to the window
-     contract, never to the renderer. -->
+     contract, never to the renderer.
+     Provenance: forked from the frozen explainer-video plugin's 2D template
+     (identical at fork time). That plugin is bugfix-only; a bugfix landing
+     in either copy must be mirrored to the other by hand — nothing checks
+     across the two plugins. -->
 <script>
 "use strict";
 /* ============================================================
@@ -61,8 +65,9 @@ const BEATS = [
 
 /* ---------- STYLE: everything that is the LOOK. ----------
    Split from CONFIG so a style pack swaps this block and nothing else.
-   Timing lives in BEATS; camera energy and cuts live in CONFIG; the
-   palette, linework and type live here. */
+   Timing lives in BEATS; the palette, linework and type live here.
+   (This 2D template has no camera-energy knob; its camera is the KEYS[]
+   rail below, plus CONFIG.sway.) */
 const STYLE = {
   bg:      '#f4efe7',                        // paper
   ink:     '#26221c',                        // linework and canvas labels
@@ -287,14 +292,21 @@ function applyCamera(t){
 function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function dot(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.closePath();}
+// One measurement for the polyline pair below — drawOn and alongPath are
+// documented as a pair riding the same u, and each used to re-derive these
+// segment lengths independently.
+function segLens(pts){
+  let total=0;const seg=[];
+  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);total+=d;}
+  return{seg,total};
+}
 // Partial polyline: draws the first `u` (0..1) of the path's total length.
 // This is the 2D draw-on idiom — u comes from ramp(), so the line grows with
 // the beat and anything derived from the SAME u (a travelling dot) is
 // phase-locked to it by construction, which is what makes causality read.
 function drawOn(pts,u){
   u=clamp(u,0,1);if(u===0)return;
-  let total=0;const seg=[];
-  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);total+=d;}
+  const{seg,total}=segLens(pts);
   let left=u*total;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
   for(let i=1;i<pts.length;i++){
     if(left<=0)break;
@@ -306,8 +318,8 @@ function drawOn(pts,u){
 }
 // Point at fraction u along the same polyline — pair with drawOn's u.
 function alongPath(pts,u){
-  u=clamp(u,0,1);let total=0;const seg=[];
-  for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(d);total+=d;}
+  u=clamp(u,0,1);
+  const{seg,total}=segLens(pts);
   let left=u*total;
   for(let i=1;i<pts.length;i++){
     const d=seg[i-1];
@@ -345,8 +357,6 @@ function txtWidth(s,size,o={}){
   ctx.save();ctx.font=`${o.weight||600} ${size}px ${o.family||STYLE.fontFamily}`;
   const w=ctx.measureText(s).width;ctx.restore();return w;
 }
-// Kept: existing scenes call it, and it is the right shortcut for a centred label.
-function label(s,x,y,size){txt(s,x,y,size);}
 // Ink-or-paper for text sitting ON an accent fill — the STYLE layer's
 // decision, not each call site's. White-on-yellow shipped in this template's
 // first render; then the first fix ("dark ink if the fill is light") shipped
@@ -359,6 +369,10 @@ function contrastOn(hex){
   const f=lum(hex),i=lum(STYLE.ink),b=lum(STYLE.bg);
   if(f===null||i===null||b===null)return STYLE.ink;
   return Math.abs(i-f)>=Math.abs(b-f)?STYLE.ink:STYLE.bg;}
+// The palette is load-time constant, so resolve each accent's ink once —
+// contrastOn is three regex parses per call and draw() ran it per station
+// per frame for an answer that never changes.
+const ACCENT_INK=STYLE.accents.map(contrastOn);
 
 /* ============================================================
    SCENE — replace this placeholder. It exists to demonstrate the
@@ -395,8 +409,8 @@ function draw(t){
     ctx.globalAlpha=active;ctx.fillStyle=STYLE.accents[i];rrect(s.x-w/2,-h/2,w,h,r);ctx.fill();
     ctx.globalAlpha=1;
     ctx.strokeStyle=STYLE.ink;ctx.lineWidth=STYLE.stroke;rrect(s.x-w/2,-h/2,w,h,r);ctx.stroke();
-    ctx.fillStyle=active>.5?contrastOn(STYLE.accents[i]):STYLE.ink;
-    label(s.label,s.x,0,4.2*Math.min(pop,1));          // text grows with its box
+    ctx.fillStyle=active>.5?ACCENT_INK[i]:STYLE.ink;
+    txt(s.label,s.x,0,4.2*Math.min(pop,1));            // text grows with its box
   });
 
   // Connector A→B draws on across beat one; the payload dot rides the SAME
@@ -452,6 +466,15 @@ titleEl.style.color=STYLE.titleInk;          // once, at load — STYLE owns the
 document.body.style.background=STYLE.bg;     // page bg matches before first draw
 const flashEl=document.getElementById('flash');
 const NOCAP=location.search.includes('nocap')||STRIP_TEXT;
+/* Flashes anchor to beats ({beat,at}), resolved ONCE to absolute seconds with
+   their half-widths: per-flash `w`, else CONFIG.flashWidth, else the
+   historical 0.25 (it was hardcoded once, which made the shortest expressible
+   flash 0.5s — longer than an entire beat in one film). Both the renderer in
+   setOverlay and the window.FLASHES contract export consume THIS list, so the
+   render and the tooling cannot disagree about flash windows — the resolution
+   used to be written twice and could drift. */
+const FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
+  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
 function setOverlay(t){
   const T=BEAT[BEATS[0].name];
   titleEl.style.opacity=(NOCAP?0:ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
@@ -464,13 +487,8 @@ function setOverlay(t){
   }
   if(txt)capEl.textContent=txt;
   capEl.style.opacity=(NOCAP?0:op).toFixed(3);
-  // Flash half-width is per-flash (`w`, seconds), falling back to CONFIG.flashWidth
-  // and then to the historical 0.25. It was hardcoded, which made the shortest
-  // expressible flash 0.5s -- longer than an entire beat in one film, whose
-  // author had to reimplement the flash in scene code to get a 0.20s snap.
-  const FW=CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth;
-  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0),w=m.w===undefined?FW:m.w;
-    f=Math.max(f,bump(t,c-w,c+w));}
+  // Flashes: from the ONE resolved list above.
+  let f=0;for(const m of FLASHES)f=Math.max(f,bump(t,m.t-m.w,m.t+m.w));
   flashEl.style.opacity=(f*.98).toFixed(3);
 }
 
@@ -486,8 +504,10 @@ window.FRAME=FRAME;
 // it never becomes a window property, and smoke.js's flash-avoidance was
 // silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
 // is tempted to parse scene internals, the contract is missing an export.
-window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
-  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
+window.FLASHES=FLASHES;
+// Caption fade, resolved, same rule — smoke's reading-speed lint needs it and
+// used to probe CONFIG (scene internals) against a mirrored default.
+window.CAPFADE=CONFIG.capFade;
 window.seekTo=function(t){t=clamp(t,0,TOTAL);draw(t);setOverlay(t);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

@@ -40,43 +40,16 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-
-function chromiumPath() {
-  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  try { const p = chromium.executablePath(); if (p && fs.existsSync(p)) return p; } catch (e) {}
-  for (const cache of [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers',
-                       path.join(os.homedir(), 'Library/Caches/ms-playwright'),
-                       path.join(os.homedir(), '.cache/ms-playwright')]) {
-    if (!cache || !fs.existsSync(cache)) continue;
-          // Numeric by build, matching shoot.js. Lexicographic sorts chromium-1099
-      // above chromium-1223, so the gate and the recorder could resolve
-      // different browsers on the same machine.
-      const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
-      for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
-      // Both Intel and Apple-Silicon layouts. Without the -arm64 entries this
-      // scan matched NOTHING on Apple Silicon and fell through to system
-      // Chrome — a different (auto-updating) build than the one playwright
-      // pins, discovered when the two binaries disagreed about WebGPU.
-      for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
-                         'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-                         'chrome-headless-shell-linux64/chrome-headless-shell',
-                         'chrome-headless-shell-mac-arm64/chrome-headless-shell',
-                         'chrome-mac/headless_shell']) {
-        const p = path.join(cache, d, rel);
-        if (fs.existsSync(p)) return p;
-      }
-    }
-  }
-  for (const c of [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome',
-  ]) if (fs.existsSync(c)) return c;
-  throw new Error('No Chromium found. Set CHROMIUM_PATH or run: bunx playwright install chromium');
-}
+// Browser resolution, backend flag policy, the settle idiom, and the aspect
+// shapes are shared with shoot.js via backend.js — the gate must check the
+// exact configuration the recorder ships, and the inline copies this file
+// used to carry had already drifted (the launch-args copy lost the
+// ANGLE_BACKEND allow-list).
+const { chromiumPath, angleArgs, settle, aspectShapes } = require(path.join(__dirname, 'backend.js'));
 
 const CONTRACT = ['seekTo', 'DURATION', 'stopPlayback', 'sceneReady'];
 const VIEWPORT = { width: 640, height: 360 };
+const sha256 = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
 /* ---------- THE one way to read scene pixels in-page ------------------------
    Renders at `ts` and hands the canvas to `reader` inside a SINGLE evaluate —
@@ -137,8 +110,9 @@ function exposureReader(canvas, w, CLIP, CRUSH) {
            p05: pct(0.05), p95: pct(0.95) };
 }
 
-// capFade fallback when a scene's CONFIG global isn't reachable (or omits it).
-// Matches CONFIG.capFade in scene.template.html.
+// capFade fallback for scenes predating the window.CAPFADE contract export.
+// (Current templates export the resolved value; probing CONFIG from here was
+// scene-internals parsing, the exact pattern the FLASHES export exists to end.)
 const CAP_FADE_DEFAULT = 0.35;
 // Caption reading speed: chars/sec above which a viewer can't actually read the
 // line in the time it's fully legible. Observed, not derived — 27 cps was
@@ -312,8 +286,6 @@ async function checkScene(browser, file) {
     //     (film ships a flat wash; see the bracket at the constant).
     // Scenes without strip support keep their captions and lose power on the
     // first condition rather than gaining false positives.
-    const hh = buf => crypto.createHash('sha256').update(buf).digest('hex');
-    let PLAN2 = null;
     try {
       const p2 = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
       try {
@@ -322,26 +294,29 @@ async function checkScene(browser, file) {
         await p2.evaluate('window.stopPlayback()');
         const dur2 = await p2.evaluate('window.DURATION');
         const fl2 = await p2.evaluate('window.FLASHES').catch(() => []) || [];
-        PLAN2 = samplePlan(dur2, fl2, 4);
+        const PLAN2 = samplePlan(dur2, fl2, 4);
         const sigs = []; let maxSpread = 0;
         for (const ts of PLAN2) {
           await p2.evaluate(`window.seekTo(${ts})`);
-          await p2.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+          await settle(p2);
           const png = await p2.screenshot();
-          sigs.push(hh(png));
+          sigs.push(sha256(png));
           // Spread of the SHIPPED image: decode the screenshot back inside the
           // page (createImageBitmap) — no image dependency in this file, and
-          // it measures the exact bytes the recorder would write to disk.
-          const spread = await p2.evaluate(`(async (b64) => {
+          // it measures the exact bytes the recorder would write to disk. The
+          // PNG travels as an evaluate ARGUMENT, not spliced into the source
+          // string — same bytes measured, without making the browser parse a
+          // megabyte-scale JS literal per sample.
+          const spread = await p2.evaluate(async ({ b64, w }) => {
             const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + b64)).blob());
             const o = document.createElement('canvas');
-            o.width = ${EXPOSURE_SAMPLE_WIDTH}; o.height = Math.round(${EXPOSURE_SAMPLE_WIDTH} * bmp.height / bmp.width);
+            o.width = w; o.height = Math.round(w * bmp.height / bmp.width);
             const g = o.getContext('2d'); g.drawImage(bmp, 0, 0, o.width, o.height);
             const d = g.getImageData(0, 0, o.width, o.height).data, L = [];
             for (let i = 0; i < d.length; i += 4) L.push(0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]);
             L.sort((a, b) => a - b);
             return L[Math.floor(.95 * (L.length - 1))] - L[Math.floor(.05 * (L.length - 1))];
-          })("${png.toString('base64')}")`);
+          }, { b64: png.toString('base64'), w: EXPOSURE_SAMPLE_WIDTH });
           maxSpread = Math.max(maxSpread, spread);
         }
         if (new Set(sigs).size === 1) {
@@ -393,32 +368,27 @@ async function checkScene(browser, file) {
       }
     } catch (e) {}
     const t = PLAN[0];
-    const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
     // Determinism: same t twice must be byte-identical, at EVERY sampled point.
     // Catches accumulated state, Math.random(), and wall-clock leaking into the
     // scene — each of which silently desyncs the MP4 from the HTML loop.
     // Quantified ALL: one clean timestamp proves nothing, and a scene whose
     // title card is static is clean at exactly the moment the old check looked.
-    /* Settle one presented frame between seekTo and screenshot — same reason
-       as shoot.js: on the node stack render() queues GPU work and the
-       compositor can present a frame late, so an unsettled screenshot
-       occasionally captures the PREVIOUS composite. Measured here as a flaky
-       determinism FAIL whose in-page canvas pixels were byte-identical — a
-       capture race reported as a scene bug, which is the one thing this check
-       must never do. */
-    const settle = () => page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+    // settle (backend.js) between seekTo and screenshot is LOAD-BEARING here:
+    // the capture race it closes was measured as a flaky determinism FAIL whose
+    // in-page canvas pixels were byte-identical — a capture race reported as a
+    // scene bug, which is the one thing this check must never do.
     let shots = [];
     for (const ts of PLAN) {
       await page.evaluate(`window.seekTo(${ts})`);
-      await settle();
+      await settle(page);
       const x = await page.screenshot();
       await page.evaluate(`window.seekTo(${dur})`);        // move away...
       await page.evaluate(`window.seekTo(${ts})`);         // ...and back
-      await settle();
+      await settle(page);
       const y = await page.screenshot();
       shots.push(x);
-      if (h(x) !== h(y)) {
+      if (sha256(x) !== sha256(y)) {
         fails.push(`seekTo(${ts}) not deterministic — scene carries state across frames `
                  + `(checked ${PLAN.join(', ')})`);
         break;
@@ -457,9 +427,11 @@ async function checkScene(browser, file) {
       if (!beats) {
         warnings.push('caption reading speed: skipped, window.BEATS not present');
       } else {
-        const capFade = await page.evaluate(
-          'typeof CONFIG !== "undefined" && CONFIG.capFade !== undefined ? CONFIG.capFade : null');
-        const fade = capFade === null ? CAP_FADE_DEFAULT : capFade;
+        // From the contract (window.CAPFADE), not from probing scene internals —
+        // same rule as FLASHES: when a tool is tempted to parse scene state, the
+        // contract is missing an export. The constant covers legacy scenes.
+        const capFade = await page.evaluate('window.CAPFADE');
+        const fade = typeof capFade === 'number' ? capFade : CAP_FADE_DEFAULT;
         for (const b of beats) {
           if (!b.cap) continue;
           const effectiveWindow = Math.max(b.dur - 2 * fade, 0.01);
@@ -540,34 +512,35 @@ async function checkScene(browser, file) {
       const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
       // Through sampleAt — render and grid-read in one task (see the helper).
       const grid = (ts) => sampleAt(page, ts, framingReader, ar);
-      const shapes = [
-        { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
-        { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
-        { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
-      ];
+      // Three of the four shared shapes; each shape costs a resize+settle.
+      const shapes = aspectShapes(ar).filter(sh => sh.tag !== 'square');
       // Sample several points across the film and take the WORST. The first cut
       // of this check sampled one t, landed on a near-blank title card, scored
       // ~0 on a template known to crop, and reported all-clear -- a green
       // control that never ran. A blank frame is invariant under every window
       // shape precisely because it contains nothing.
       const mad = (a, b) => a.reduce((s2, v, i) => s2 + Math.abs(v - b[i]), 0) / a.length;
+      // Outer loop over SHAPES, inner over sample times: one resize+settle per
+      // shape (3 total) instead of one per shape per time (9). seekTo is pure,
+      // so grids taken at the same ts under different shapes are comparable
+      // regardless of visit order.
+      const grids = {};                       // grids[tag][frac-index]
+      for (const sh of shapes) {
+        await page.setViewportSize({ width: sh.w, height: sh.h });
+        // Wait for the scene's own resize handler to land before sampling.
+        // Without this the grid is read off a STALE canvas and the numbers are
+        // nonsense in both directions -- the first run of this check scored a
+        // correctly-fixed template WORSE than a known-broken one. Same class as
+        // the smoke.js sampling race already recorded in the plan's postmortem;
+        // any check that changes viewport must re-settle before it measures.
+        await settle(page);
+        grids[sh.tag] = [];
+        for (const frac of SAMPLE_FRACTIONS) grids[sh.tag].push(await grid(dur * frac));
+      }
       const worst = { narrow: 0, wide: 0 };
-      for (const frac of SAMPLE_FRACTIONS) {
-        const ts = dur * frac;
-        const grids = {};
-        for (const sh of shapes) {
-          await page.setViewportSize({ width: sh.w, height: sh.h });
-          // Wait for the scene's own resize handler to land before sampling.
-          // Without this the grid is read off a STALE canvas and the numbers are
-          // nonsense in both directions -- the first run of this check scored a
-          // correctly-fixed template WORSE than a known-broken one. Same class as
-          // the smoke.js sampling race already recorded in the plan's postmortem;
-          // any check that changes viewport must re-settle before it measures.
-          await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
-          grids[sh.tag] = await grid(ts);
-        }
-        for (const tag of ['narrow', 'wide']) {
-          worst[tag] = Math.max(worst[tag], mad(grids.design, grids[tag]));
+      for (const tag of ['narrow', 'wide']) {
+        for (let i = 0; i < SAMPLE_FRACTIONS.length; i++) {
+          worst[tag] = Math.max(worst[tag], mad(grids.design[i], grids[tag][i]));
         }
       }
       for (const tag of ['narrow', 'wide']) {
@@ -667,11 +640,12 @@ async function checkScene(browser, file) {
   }
   if (!scenes.length) { console.error('no scenes to check'); process.exit(1); }
 
-  // NOTE: no pre-flight `build.js vendor` here. It used to run one, but
-  // `vendor()` with no target deletes the bundle it just built, so every run
-  // paid a full minified three build whose product was discarded and whose
-  // existsSync guard could never short-circuit. The real embed happens
-  // per-scene inside ensureVendor during the bundle step below.
+  // VENDOR_CACHE: the three bundle is built at most ONCE per run. The embed
+  // happens per-scene inside ensureVendor during the bundle step below, and
+  // without the cache each template scene paid its own full `bun build
+  // --minify` of three (~1-2s) for a byte-identical product. Per-run and
+  // deleted at the end of the run, so staleness cannot outlive it.
+  const vendorCache = path.join(os.tmpdir(), `.smoke-vendor-${process.pid}.js`);
 
   // Kernel parity: templates carry a marked shared-kit block that must stay
   // byte-identical across files — the two-copies-drift rule, enforced the way
@@ -683,57 +657,44 @@ async function checkScene(browser, file) {
   // rendering the same ramp the same way.
   let kernelFail = false;
   {
-    const KERNEL_RE = /\/\* ==== KERNEL-START ====[\s\S]*?\/\* ==== KERNEL-END ==== \*\//;
-    const kernels = scenes.map(f => {
-      try { const m = fs.readFileSync(f, 'utf8').match(KERNEL_RE); return m && { f, k: m[0] }; }
-      catch (e) { return null; }
-    }).filter(Boolean);
-    for (const f of scenes) {                       // half-fenced is not exempt
-      try {
-        const txt = fs.readFileSync(f, 'utf8');
-        // Ask the SAME regex that builds the parity set. An earlier version
-        // asked `!txt.includes('KERNEL-END')`, which a mangled `KERNEL-ENDX`
-        // satisfies as a substring: the block stopped extracting, the file
-        // dropped out of the parity set, and this guard stayed silent -- the
-        // exact self-exemption it exists to prevent. Deriving both from one
-        // pattern means any broken fence, however broken, fails loudly.
-        if (txt.includes('KERNEL-START') && !KERNEL_RE.test(txt)) {
+    // One check, four fences. KERNEL is the shared kit (all templates); SOLVER
+    // is the cinematography solver, which reached SIX copies before its fence
+    // existed -- the postmortem's own "at a third consumer, extract or
+    // marker-fence it" trigger, fired and unacted; RIG (renderer setup and
+    // mesh helpers) and DRIVER (overlay + recorder contract + async boot) fence
+    // the 3D scenes' other byte-identical blocks — between them they carry
+    // every LOAD-BEARING determinism guard (sortObjects, frustumCulled, the
+    // nodeFrame tick), which is exactly the code whose silent drift would cost
+    // the most. Scenes that legitimately diverge remove their markers and
+    // leave the parity set.
+    const texts = new Map();                        // each file read ONCE
+    for (const f of scenes) { try { texts.set(f, fs.readFileSync(f, 'utf8')); } catch (e) {} }
+    for (const name of ['KERNEL', 'SOLVER', 'RIG', 'DRIVER']) {
+      const RE = new RegExp(`\\/\\* ==== ${name}-START ====[\\s\\S]*?\\/\\* ==== ${name}-END ==== \\*\\/`);
+      const found = [];
+      for (const [f, txt] of texts) {
+        // Half-fenced is not exempt — and ask the SAME regex that builds the
+        // parity set. An earlier version asked `!txt.includes('KERNEL-END')`,
+        // which a mangled `KERNEL-ENDX` satisfies as a substring: the block
+        // stopped extracting, the file dropped out of the parity set, and the
+        // guard stayed silent -- the exact self-exemption it exists to
+        // prevent. Deriving both from one pattern means any broken fence,
+        // however broken, fails loudly.
+        if (txt.includes(`${name}-START`) && !RE.test(txt)) {
           kernelFail = true;
-          console.log(`FAIL ${f} — has KERNEL-START but no well-formed KERNEL block; `
+          console.log(`FAIL ${f} — has ${name}-START but no well-formed ${name} block; `
                     + `check BOTH markers — a mangled START reads the same way here, `
                     + `and either way the file is excluded from the parity check`);
+          continue;
         }
-      } catch (e) {}
-    }
-    if (kernels.length >= 2 && new Set(kernels.map(x => x.k)).size > 1) {
-      kernelFail = true;
-      console.log('FAIL kernel drift — the marked shared-kit block differs between: '
-        + kernels.map(x => x.f).join(', '));
-    }
-
-    // Same discipline for the cinematography solver. It reached SIX copies
-    // before this check existed -- the postmortem's own "at a third consumer,
-    // extract or marker-fence it" trigger, fired and unacted. Fencing it is the
-    // structural alternative to editing six files and hoping.
-    const SOLVER_RE = /\/\* ==== SOLVER-START ====[\s\S]*?\/\* ==== SOLVER-END ==== \*\//;
-    const solvers = scenes.map(f => {
-      try { const m = SOLVER_RE.exec(fs.readFileSync(f, 'utf8')); return m ? { f, k: m[0] } : null; }
-      catch (e) { return null; }
-    }).filter(Boolean);
-    for (const f of scenes) {                       // half-fenced is not exempt
-      try {
-        const txt = fs.readFileSync(f, 'utf8');
-        if (txt.includes('SOLVER-START') && !SOLVER_RE.test(txt)) {   // see KERNEL note above
-          kernelFail = true;
-          console.log(`FAIL ${f} — has SOLVER-START but no well-formed SOLVER block; `
-                    + `check BOTH markers — the file is excluded from the parity check`);
-        }
-      } catch (e) {}
-    }
-    if (solvers.length >= 2 && new Set(solvers.map(x => x.k)).size > 1) {
-      kernelFail = true;
-      console.log('FAIL solver drift — these scenes carry different SOLVER blocks:');
-      for (const x of solvers) console.log('       ' + x.f);
+        const m = txt.match(RE);
+        if (m) found.push({ f, k: m[0] });
+      }
+      if (found.length >= 2 && new Set(found.map(x => x.k)).size > 1) {
+        kernelFail = true;
+        console.log(`FAIL ${name} drift — these scenes carry different ${name} blocks:`);
+        for (const x of found) console.log('       ' + x.f);
+      }
     }
 
     // Template integrity, checked here because it is the same kind of property:
@@ -763,36 +724,12 @@ async function checkScene(browser, file) {
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    // Same backend policy as shoot.js (ANGLE_BACKEND for GL, WEBGPU opt-in for
-    // hardware WebGPU) so the gate checks the configuration the recorder will
-    // actually shoot. WEBGPU defaults off: no flags means WebGPURenderer falls
-    // back to WebGL2, which is the universal path. WEBGPU=swiftshader renders
-    // pure black on macOS r185 — this file's near-black FAIL is the check that
-    // catches that configuration, demonstrated, not assumed.
-    args: (() => {
-      const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
-      const base = ['--hide-scrollbars', '--no-sandbox'];
-      let webgpu = (process.env.WEBGPU || 'off').toLowerCase();
-      // Same allow-list and conflict rejection as shoot.js — without them a
-      // typo (WEBGPU=meta) silently fell through to the swiftshader branch,
-      // making the gate check the one backend the shipped-frame check exists
-      // to catch, instead of the backend the recorder would actually use.
-      if (!['off', 'auto', 'metal', 'vulkan', 'swiftshader'].includes(webgpu)) {
-        throw new Error(`WEBGPU="${process.env.WEBGPU}" is not one of: off, auto, metal, vulkan, swiftshader`);
-      }
-      if (webgpu !== 'off' && want !== 'default' && !(want === 'metal' && webgpu === 'metal')) {
-        throw new Error(`WEBGPU=${webgpu} conflicts with ANGLE_BACKEND=${want} — same rule as shoot.js`);
-      }
-      if (webgpu !== 'off') {
-        if (webgpu === 'auto') webgpu = process.platform === 'darwin' ? 'metal' : 'vulkan';
-        if (webgpu === 'metal') return ['--enable-unsafe-webgpu', '--use-angle=metal', ...base];
-        if (webgpu === 'vulkan') return ['--enable-unsafe-webgpu', '--enable-features=Vulkan', ...base];
-        return ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-unsafe-swiftshader', ...base];
-      }
-      if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
-      if (want === 'default') return base;
-      return [`--use-angle=${want}`, ...base];
-    })(),
+    // THE SAME angleArgs as shoot.js (backend.js), so the gate checks the
+    // configuration the recorder will actually shoot. The one difference is
+    // deliberate: smoke may probe WEBGPU=swiftshader without WEBGPU_UNSAFE_SHIP
+    // — its shipped-frame check exists exactly to demonstrate that
+    // configuration failing — while shoot.js refuses to ship on it.
+    args: angleArgs(),
   });
 
   let failed = kernelFail ? 1 : 0;
@@ -822,7 +759,7 @@ async function checkScene(browser, file) {
     try {
       try {
         execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', target],
-                     { encoding: 'utf8' });
+                     { encoding: 'utf8', env: { ...process.env, VENDOR_CACHE: vendorCache } });
       } catch (e) {
         console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
         failed++;
@@ -851,6 +788,7 @@ async function checkScene(browser, file) {
     }
   }
   await browser.close();
+  try { fs.unlinkSync(vendorCache); } catch (e) {}
   console.log(failed ? `\n${failed} check(s) failed` : '\nall scenes pass');
   console.log(`${warned} advisory warning(s)`);
   process.exit(failed ? 1 : 0);

@@ -31,11 +31,14 @@
 //
 // Chromium resolution order: $CHROMIUM_PATH, playwright's managed browser,
 // then common system locations. `bunx playwright install chromium` if none.
+// Browser resolution, backend flag policy, and the settle idiom live in
+// backend.js, shared with smoke.js — the gate must check the exact
+// configuration this recorder ships.
 const { chromium } = require('playwright-core');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const url = require('url');
+const { chromiumPath, angleArgs, settle, aspectShapes } = require(path.join(__dirname, 'backend.js'));
 
 // Number() on a typo yields NaN, and `for (i=0; i<NaN; i++)` runs zero times --
 // so `full 3O` printed "done: NaN frames", exited 0, and wrote nothing. A mode
@@ -60,117 +63,6 @@ function num(v, dflt, label, { allowZero = false, max = Infinity } = {}) {
   return n;
 }
 
-
-/* ---------- GL backend ------------------------------------------------------
-   Hardware by default; ANGLE_BACKEND=swiftshader forces software.
-
-   This used to be hardcoded to swiftshader, which cost two things. Speed: on a
-   post-chain scene the GL draw alone is 182 ms/frame under SwiftShader against
-   3.3 ms on hardware -- 55x -- and 2.6x end to end. Correctness: a Sky-sourced
-   PMREM environment map poisons every MeshStandardMaterial fragment under
-   SwiftShader, and the shipped pipeline duly produced 342 black frames and a
-   black MP4 with no error and exit 0.
-
-   Determinism is unaffected: seekTo purity is a property WITHIN a renderer, and
-   smoke.js checks it there. Frames are NOT byte-identical across backends
-   (measured PSNR 57-58 dB, differences confined to antialiased edges and
-   speculars), so a regression compared byte-wise must fix the backend on both
-   sides -- which is why this is one env var rather than a silent default flip
-   per machine. */
-const ANGLE_OK = ['default', 'swiftshader', 'metal', 'gl', 'vulkan', 'd3d11', 'd3d9'];
-/* WEBGPU is the hardware-WebGPU opt-in, and OFF is the deliberate default: with
-   no flags, headless Chromium exposes no WebGPU adapter and WebGPURenderer
-   falls back to its WebGL2 backend transparently — same scene, same TSL
-   materials, deterministic, works everywhere including GPU-less CI. The
-   opt-in exists because hardware WebGPU measured ~2.3x faster end to end
-   (37 vs 87 ms/frame with a node post chain, screenshots included).
-
-   The values are an allow-list because the failure mode here is silent and
-   total: on macOS, `--enable-unsafe-webgpu` WITHOUT `--use-angle=metal` hands
-   Chromium a SwiftShader-WebGPU adapter that renders every frame pure black
-   with exit 0 (measured on r185, this pipeline). So:
-     WEBGPU=off     (default) no WebGPU flags; WebGL2 fallback path
-     WEBGPU=auto    metal on darwin, vulkan elsewhere
-     WEBGPU=metal   macOS hardware adapter (verified)
-     WEBGPU=vulkan  linux hardware adapter (UNVERIFIED here; smoke's near-black
-                    check is the guard — run it before trusting a shoot)
-     WEBGPU=swiftshader  software WebGPU. Ships flat frames on the playwright
-                    headless-shell build (measured; warmth-dependent on other
-                    builds) — diagnostic-only, refused for shoots below.
-   Frames are NOT byte-identical across backends (GL vs WebGPU, hardware vs
-   software), so a byte-wise regression must fix backend on both sides —
-   which is why these are explicit env vars, not per-machine defaults. */
-const WEBGPU_OK = ['off', 'auto', 'metal', 'vulkan', 'swiftshader'];
-function angleArgs() {
-  const base = ['--hide-scrollbars', '--no-sandbox'];
-  const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
-  // Allow-list, because a typo used to be accepted silently: `swifthsader`
-  // launched on hardware GL while the author believed they were reproducing a
-  // software-GL regression byte-for-byte, which is the one thing this variable
-  // exists to make possible.
-  if (!ANGLE_OK.includes(want)) {
-    throw new Error(`ANGLE_BACKEND="${process.env.ANGLE_BACKEND}" is not one of: ${ANGLE_OK.join(', ')}`);
-  }
-  let webgpu = (process.env.WEBGPU || 'off').toLowerCase();
-  if (!WEBGPU_OK.includes(webgpu)) {
-    throw new Error(`WEBGPU="${process.env.WEBGPU}" is not one of: ${WEBGPU_OK.join(', ')}`);
-  }
-  if (webgpu !== 'off') {
-    if (want !== 'default' && !(want === 'metal' && webgpu === 'metal')) {
-      throw new Error(`WEBGPU=${webgpu} conflicts with ANGLE_BACKEND=${want}: the WebGPU adapter rides the ANGLE choice, and mixing them is how the silent black-frame configuration happens. Set one or the other.`);
-    }
-    if (webgpu === 'auto') webgpu = process.platform === 'darwin' ? 'metal' : 'vulkan';
-    if (webgpu === 'metal') return ['--enable-unsafe-webgpu', '--use-angle=metal', ...base];
-    if (webgpu === 'vulkan') return ['--enable-unsafe-webgpu', '--enable-features=Vulkan', ...base];
-    // SwiftShader-WebGPU is diagnostic-only for SHOOTING. Measured on r185: it
-    // half-works depending on GPU-process warmth — real frames in the drawing
-    // buffer, a flat clear-color wash at the compositor — so a shoot can write
-    // 600 flat frames with exit 0 even after a smoke pass. smoke.js may probe
-    // this configuration (its shipped-frame check exists exactly for it); a
-    // full shoot on it requires acknowledging the risk explicitly.
-    if (process.env.WEBGPU_UNSAFE_SHIP !== '1') {
-      throw new Error('WEBGPU=swiftshader ships flat frames non-deterministically (compositor half-dead on r185). '
-        + 'It exists for smoke.js diagnostics. Set WEBGPU_UNSAFE_SHIP=1 if you really mean to shoot with it.');
-    }
-    return ['--enable-unsafe-webgpu', '--use-webgpu-adapter=swiftshader', '--enable-unsafe-swiftshader', ...base];
-  }
-  if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
-  if (want === 'default') return base;                 // let Chromium pick the GPU
-  return [`--use-angle=${want}`, ...base];
-}
-
-function chromiumPath() {
-  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
-  try { const p = chromium.executablePath(); if (p && fs.existsSync(p)) return p; } catch (e) {}
-  // Playwright's cache is versioned (chromium-<build>); scan rather than pin a
-  // build number, which goes stale on every playwright bump.
-  for (const cache of [process.env.PLAYWRIGHT_BROWSERS_PATH, '/opt/pw-browsers',
-                       path.join(os.homedir(), 'Library/Caches/ms-playwright'),
-                       path.join(os.homedir(), '.cache/ms-playwright')]) {
-    if (!cache || !fs.existsSync(cache)) continue;
-    const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
-    for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
-      // Both Intel and Apple-Silicon layouts. Without the -arm64 entries this
-      // scan matched NOTHING on Apple Silicon and fell through to system
-      // Chrome — a different (auto-updating) build than the one playwright
-      // pins, discovered when the two binaries disagreed about WebGPU.
-      for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
-                         'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-                         'chrome-headless-shell-linux64/chrome-headless-shell',
-                         'chrome-headless-shell-mac-arm64/chrome-headless-shell',
-                         'chrome-mac/headless_shell']) {
-        const p = path.join(cache, d, rel);
-        if (fs.existsSync(p)) return p;
-      }
-    }
-  }
-  for (const c of [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome',
-  ]) if (fs.existsSync(c)) return c;
-  throw new Error('No Chromium found. Set CHROMIUM_PATH or run: bunx playwright install chromium');
-}
 
 // Clear only the frames WE own (f#####.png), never rmSync the directory itself:
 // FRAMES_DIR=. would otherwise erase the scene and everything beside it. Shared
@@ -293,15 +185,8 @@ async function openScenePage(browser, sceneFile) {
      stay PNG: JPEG artifacts would add noise to a frame-difference metric. */
   const FMT = (process.env.SHOOT_FORMAT || 'png').toLowerCase();
   const shotOpts = FMT === 'jpeg' ? { type: 'jpeg', quality: 92 } : {};
-  /* Settle one presented frame between seekTo and screenshot. On the node
-     stack, renderer.render() QUEUES GPU work; the compositor can present it a
-     frame late, so an immediate page.screenshot() sometimes captures the
-     previous composite. Measured: in-page canvas readback byte-identical
-     across seeks while the screenshot flaked — the scene was pure, the
-     capture was racing presentation. The double-rAF forces at least one
-     composite containing the new frame before the screenshot's own
-     BeginFrame. Scene contract unchanged: seekTo stays synchronous. */
-  const settle = pg => pg.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  // settle (from backend.js) between seekTo and screenshot is LOAD-BEARING —
+  // see its comment there for the measured capture race it closes.
   // The extension follows the format. Writing JPEG bytes into a .png name made
   // every downstream check (clearFrames, motion's frame count, ffmpeg's content
   // sniffing) match on a lie, and made it possible to splice lossy frames into a
@@ -378,6 +263,15 @@ async function openScenePage(browser, sceneFile) {
       // browser.close() below reaps the extra pages; nothing to do per-page.
     }
     console.log(`done: ${done} frames in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    // MANIFEST_OUT: write the beats manifest as a side product of the shoot.
+    // build.js motion needs beat start/dur to bucket its per-frame deltas and
+    // used to spawn a SECOND bun process + browser + full scene boot just to
+    // read window.BEATS — ~3-6s per run on a 3D scene, for data this page
+    // already has in hand. The page is still open here; ask it directly.
+    if (process.env.MANIFEST_OUT) {
+      fs.writeFileSync(process.env.MANIFEST_OUT,
+        beatsManifest(computeBeats(await page.evaluate('window.BEATS'), dur, 0.6)));
+    }
   } else if (mode === 'range') {
     const a = num(rest[0], null, 'start frame', { allowZero: true }), b = num(rest[1], null, 'end frame'),
           fps = num(rest[2], 30, 'fps');
@@ -392,12 +286,7 @@ async function openScenePage(browser, sceneFile) {
     // canvas (the bug that first made this check report nonsense).
     const at = num(rest[0], 0, 'time', { allowZero: true });
     const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
-    const shapes = [
-      { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
-      { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
-      { tag: 'square', w: 1000, h: Math.round(1000 / (ar * 0.56)) },
-      { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
-    ];
+    const shapes = aspectShapes(ar);       // shared with smoke's framing check
     const aDir = process.env.FRAMES_DIR || '.aspectframes';
     clearFrames(aDir);
     for (let i = 0; i < shapes.length; i++) {

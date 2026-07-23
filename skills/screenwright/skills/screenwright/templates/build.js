@@ -3,8 +3,8 @@
 // The scene file is the single source of truth; everything here is derived,
 // so deriving it is one command instead of shell archaeology.
 //
-//   bun run build.js vendor                   -> three.global.js beside the scene
-//   bun run build.js bundle <scene.html>      -> <scene>.bundled.html (three inlined)
+//   bun run build.js vendor <scene.html>      -> embed three into the scene
+//   bun run build.js bundle <scene.html>      -> assert the scene is self-contained (embeds first if needed)
 //   bun run build.js frames <scene.html> [fps]-> frames/ via shoot.js
 //   bun run build.js video  <name> [fps]      -> <name>.mp4 from frames/
 //   bun run build.js all    <scene.html> [fps]-> vendor + bundle + frames + video
@@ -40,14 +40,27 @@ const path = require('path');
 // (frames/all) override this back to png -- a frame-difference metric must not
 // eat JPEG artifacts, and a master must stay lossless.
 const REVIEW_FMT = 'jpeg';
-const REVIEW_EXT = REVIEW_FMT === 'jpeg' ? 'jpg' : 'png';
+const REVIEW_EXT = 'jpg';               // the extension follows REVIEW_FMT
 // One place for the output-basename rule, including the .bundled legacy suffix
 // now that nothing produces .bundled.html.
 const outBase = s => s.replace(/(\.bundled)?\.html$/, '');
 const VENDOR = 'three.global.js';
 const VENDOR_TAG = /<script src="\.\/three\.global\.js"><\/script>/;
 
-function vendor(dir = process.cwd(), target = null) {
+function vendor(dir, target) {
+  // VENDOR_CACHE: reuse the built library text across calls within one run.
+  // The bundle is a pure function of the pinned three version, but smoke.js
+  // bundles every template scene through a per-scene `build.js bundle` call,
+  // which used to re-run the full `bun build --minify` of three (~1-2s) once
+  // per scene per gate run — identical input, identical output, product
+  // discarded each time. The cache is set (and deleted) by the caller, so a
+  // normal single-scene invocation is unaffected.
+  const cache = process.env.VENDOR_CACHE;
+  if (cache && fs.existsSync(cache)) {
+    const embedded = target ? embedInto(target, fs.readFileSync(cache, 'utf8')) : [];
+    if (embedded.length) console.log('embedded three (cached) into: ' + embedded.join(', '));
+    return embedded;
+  }
   const out = path.join(dir, VENDOR);
   const entry = path.join(dir, '.three-entry.js');
   // The NODE stack: three/webgpu (WebGPURenderer with transparent WebGL2
@@ -92,10 +105,12 @@ function vendor(dir = process.cwd(), target = null) {
   // the only form that makes "opens straight from disk" true by construction,
   // so the tooling does it automatically rather than asking authors to remember
   // a bundle step. Cost is ~0.73 MB per scene, paid once, and accepted.
-  const embedded = target ? embedInto(target, fs.readFileSync(out, 'utf8')) : [];
+  const lib = fs.readFileSync(out, 'utf8');
   fs.unlinkSync(out);
+  if (cache) fs.writeFileSync(cache, lib);
+  const embedded = target ? embedInto(target, lib) : [];
   if (embedded.length) console.log('embedded three into: ' + embedded.join(', '));
-  else console.log('vendored three (no scene in ' + dir + ' had a vendor tag to embed into)');
+  else console.log('three already embedded (no vendor tag in ' + target + ')');
   return embedded;
 }
 
@@ -212,10 +227,10 @@ function workspace(scene, tag) {
 }
 
 
-function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
+function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames', extraEnv = {}) {
   ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
-      { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: 'png' } });
+      { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: 'png', ...extraEnv } });
 }
 
 function video(name, fps = 30) {
@@ -290,9 +305,15 @@ const ATTACH_LIMIT = 10 * 1024 * 1024;
 // every animated inline export; only the final encoder call differs, so both
 // avif() and loop() share this and diverge only at the encode step.
 function shootAndScale(scene, fps, width, srcDir, tmpDir) {
-  frames(scene, fps, srcDir);
+  // JPEG q92 intermediates, not PNG masters: these frames exist only to be
+  // downscaled and re-encoded lossy at q60, and PNG capture measured 164-190
+  // ms/frame against 29 ms for JPEG over the identical readback path (~95% of
+  // capture time on hardware GL). q92 sits far above the q60 final, so the
+  // generational loss is below the deliverable's own floor. Measurements
+  // (motion) and lossless masters (frames/all) stay PNG — see frames().
+  frames(scene, fps, srcDir, { SHOOT_FORMAT: 'jpeg' });
   fs.mkdirSync(tmpDir, { recursive: true });
-  run('ffmpeg', ['-y', '-i', path.join(srcDir, 'f%05d.png'), '-vf', `scale=${width}:-2`,
+  run('ffmpeg', ['-y', '-i', path.join(srcDir, 'f%05d.jpg'), '-vf', `scale=${width}:-2`,
     path.join(tmpDir, 'f%05d.png')], { stdio: ['ignore', 'ignore', 'inherit'] });
   const pngs = fs.readdirSync(tmpDir).filter(f => f.endsWith('.png')).sort()
                  .map(f => path.join(tmpDir, f));
@@ -323,39 +344,53 @@ function shootAndScale(scene, fps, width, srcDir, tmpDir) {
 // still" and would send you rewriting a working encoder. Cross-check by size if
 // unsure: one 960px still of this scene is 7.3KB against 290KB for the 288-frame
 // sequence, so a sequence that collapsed to a still is off by a factor of 40.
-function avif(scene, width = 720, fps = 12) {
-  const base = outBase(scene);
-  const out = base + '.avif';
-  const src = workspace(scene, 'avifsrc'), tmp = workspace(scene, 'avif');
-  // workspace() already created these fresh; only the finally-clean is needed.
-  const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
+// Shared scaffolding for the two animated inline exports — avif() and loop()
+// differ only in encoder and warning text, and their setup had already drifted
+// apart once before this extraction. Shape, and why each piece:
+//   - own workspace pair, never frames/: `loop` once reused frames/ and
+//     silently destroyed the full-resolution masters a previous `build.js all`
+//     had shot;
+//   - encoder probed BEFORE the shoot: the missing-binary failure used to
+//     surface only after the full multi-second shoot had already run;
+//   - explicit file list rather than a shell glob: not for ARG_MAX (execFileSync
+//     argv hits the same execve limit) but for deterministic ordering and a
+//     loud failure when scaling produced nothing;
+//   - clean in finally: a failed run used to leave scratch dirs full of frames
+//     in the scene directory, where `git add -A` sweeps them in.
+function inlineExport(scene, width, fps, o) {
+  const out = outBase(scene) + o.ext;
+  const src = workspace(scene, o.tag + 'src'), tmp = workspace(scene, o.tag);
   try {
+    try { execFileSync(o.encoder, o.probeArgs, { stdio: 'ignore' }); }
+    catch (e) { throw new Error(`${o.encoder} not found — install it (macOS: brew install ${o.brew})`); }
     const pngs = shootAndScale(scene, fps, width, src, tmp);
-    // Same dependency shape as img2webp for the webp path: a separate encoder
-    // binary, because the ffmpeg most people have does not reliably mux an
-    // animated AVIF even when it can encode AV1.
-    try { execFileSync('avifenc', ['--version'], { stdio: 'ignore' }); }
-    catch (e) { throw new Error('avifenc not found — install it (macOS: brew install libavif)'); }
-
-    run('avifenc', ['--fps', String(fps), '-q', '60', '-s', '6',
-      '--repetition-count', 'infinite', ...pngs, out]);
+    o.encode(pngs, out);
   } finally {
-    clean();
+    for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true });
   }
-
   const bytes = fs.statSync(out).size;
-  const mb = (bytes / 1048576).toFixed(3);
-  console.log(`avif -> ${out} (${mb} MB, ${width}px @ ${fps}fps)`);
+  const mb = (bytes / 1048576).toFixed(o.digits);
+  console.log(`${o.tag} -> ${out} (${mb} MB, ${width}px @ ${fps}fps)`);
   if (bytes > LOOP_LIMIT) {
-    console.error(`WARNING: ${mb} MB exceeds GitHub's 10MB inline limit. ` +
-                  `Shorten it or drop to ${Math.round(width * 0.75)}px.`);
+    console.error(`WARNING: ${mb} MB exceeds GitHub's 10MB inline limit. ${o.shrink(width)}`);
   }
   return out;
 }
 
+function avif(scene, width = 720, fps = 12) {
+  // avifenc, not ffmpeg: same dependency shape as img2webp for the webp path —
+  // the ffmpeg most people have does not reliably mux an animated AVIF even
+  // when it can encode AV1.
+  return inlineExport(scene, width, fps, {
+    ext: '.avif', tag: 'avif', encoder: 'avifenc', probeArgs: ['--version'], brew: 'libavif',
+    digits: 3,
+    encode: (pngs, out) => run('avifenc', ['--fps', String(fps), '-q', '60', '-s', '6',
+      '--repetition-count', 'infinite', ...pngs, out]),
+    shrink: w => `Shorten it or drop to ${Math.round(w * 0.75)}px.`,
+  });
+}
+
 function loop(scene, width = 720, fps = 12) {
-  const base = outBase(scene);
-  const out = base + '.webp';
   // Warn about sway BEFORE shooting a single frame. Without this, the 10x-90x
   // size penalty documented above LOOP_LIMIT is only discovered after the full
   // shoot-and-encode has already run -- expensive to find out, and expensive to
@@ -369,41 +404,15 @@ function loop(scene, width = 720, fps = 12) {
         '10x-90x on file size (see the note above LOOP_LIMIT). Set CONFIG.sway = 0 for an inline loop.');
     }
   } catch (e) { /* unreadable scene source is not this check's problem -- the shoot below will fail loudly instead */ }
-  // Shoot into our OWN directory. `loop` used to reuse frames/, which silently
-  // overwrote the full-resolution frames a previous `build.js all` had shot --
-  // so making a README loop destroyed the source of your mp4 with no warning.
-  const src = workspace(scene, 'loopsrc'), tmp = workspace(scene, 'loop');
-  // workspace() already created these fresh; only the finally-clean is needed.
-  const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
-  try {
-  // Explicit file list (from shootAndScale) rather than a shell glob. This does
-  // NOT dodge ARG_MAX -- execFileSync argv goes through the same execve limit --
-  // it buys deterministic ordering and a loud failure when scaling produced
-  // nothing, rather than img2webp receiving an unexpanded literal.
-  const pngs = shootAndScale(scene, fps, width, src, tmp);
-
-  // Homebrew's ffmpeg ships without libwebp, so `-c:v libwebp` fails with
-  // "Encoder not found". img2webp (from the `webp` package) is the reliable
-  // encoder and is what we require.
-  try { execFileSync('img2webp', ['-version'], { stdio: 'ignore' }); }
-  catch (e) { throw new Error('img2webp not found — install it (macOS: brew install webp)'); }
-
-  run('img2webp', ['-loop', '0', '-d', String(Math.round(1000 / fps)), '-q', '60',
-    ...pngs, '-o', out]);
-  } finally {
-    // finally, not only on success: a failed run left .loopsrc and .loopframes
-    // full of PNGs in the scene directory, where `git add -A` sweeps them in.
-    clean();
-  }
-
-  const bytes = fs.statSync(out).size;
-  const mb = (bytes / 1048576).toFixed(2);
-  console.log(`loop -> ${out} (${mb} MB, ${width}px @ ${fps}fps)`);
-  if (bytes > LOOP_LIMIT) {
-    console.error(`WARNING: ${mb} MB exceeds GitHub's 10MB inline limit. ` +
-                  `Shorten it, drop to ${Math.round(width * 0.75)}px, or hold the camera (CONFIG.sway = 0).`);
-  }
-  return out;
+  // img2webp, not ffmpeg: Homebrew's ffmpeg ships without libwebp, so
+  // `-c:v libwebp` fails with "Encoder not found".
+  return inlineExport(scene, width, fps, {
+    ext: '.webp', tag: 'loop', encoder: 'img2webp', probeArgs: ['-version'], brew: 'webp',
+    digits: 2,
+    encode: (pngs, out) => run('img2webp', ['-loop', '0', '-d', String(Math.round(1000 / fps)),
+      '-q', '60', ...pngs, '-o', out]),
+    shrink: w => `Shorten it, drop to ${Math.round(w * 0.75)}px, or hold the camera (CONFIG.sway = 0).`,
+  });
 }
 
 // The inline artifact for a MOVING-camera scene. A swooping walkthrough makes a
@@ -462,8 +471,8 @@ function aspectSheet(scene, t = 0, width = 520) {
   const dir = workspace(scene, 'aspect');
   try {
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT,
-        }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT },
+        stdio: ['ignore', 'pipe', 'inherit'] });
     const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
     const n = shapes.length;
     // Each shape has DIFFERENT pixel dimensions. That rules out both the tile
@@ -609,8 +618,12 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
 
 function motion(scene, fps = 12) {
   const dir = workspace(scene, 'motion');
+  // The beats manifest rides along as a side product of the shoot itself
+  // (shoot.js MANIFEST_OUT) — this command used to launch a SECOND browser
+  // and boot the scene again just to read window.BEATS.
+  const manifestPath = path.join(dir, 'beats.json');
   try {
-    frames(scene, fps, dir);
+    frames(scene, fps, dir, { MANIFEST_OUT: manifestPath });
     // Provenance: what we read must be what we wrote. Without this, a clobbered
     // scratch dir produced a completely plausible per-beat profile covering a
     // THIRD of the film -- 65 frames reported for a 254-frame render, exit 0,
@@ -662,18 +675,11 @@ function motion(scene, fps = 12) {
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
 
-    // Get the beats JSON via shoot.js `manifest` mode, which reads window.BEATS
-    // and prints it WITHOUT shooting anything -- we use only start/dur for
-    // bucketing, never the frames, so the old `beats` call rendered (and then
-    // deleted) one screenshot per beat for nothing. No temp dir to own.
-    let beats = null, synthetic = true;
-    {
-      const beatsOut = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'manifest'],
-        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
-      const parsed = JSON.parse(beatsOut.trim().split('\n').pop());
-      beats = parsed.beats;
-      synthetic = parsed.synthetic;
-    }
+    // Beats come from the manifest the shoot wrote alongside the frames — we
+    // use only start/dur for bucketing, never the beat frames themselves.
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const beats = parsed.beats;
+    const synthetic = parsed.synthetic;
     // Only annotate findings with a beat name when window.BEATS was actually
     // present -- the synthetic 8-way fallback isn't a real beat, and labeling
     // a pop "(3 @ 40%)" against a segment nobody authored would just mislead.
@@ -757,22 +763,27 @@ function motion(scene, fps = 12) {
 }
 
 const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|aspect|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
-const [, , step, target, fpsArg, widthArg, extraArg] = process.argv;
-if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'aspect', 'strip', 'motion'].includes(step) && !target) {
+// arg1/arg2/arg3 are deliberately neutral: their meaning is per-command (fps
+// for frames, t for poster, width for sheet, ...) and the old names (fpsArg,
+// widthArg) lied for most commands — each dispatch line below names what it
+// actually reads.
+const [, , step, target, arg1, arg2, arg3] = process.argv;
+// Every command needs the scene — vendor() with no target used to build the
+// full minified bundle, embed it into nothing, and delete it: a do-nothing
+// path that cost a full three build and needed a SKILL.md caveat to explain.
+if (step && !target) {
   console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
 }
-const fps = Number(fpsArg || 30);
-if (step === 'vendor') { const tp = target ? path.resolve(target) : null;
-  vendor(tp ? path.dirname(tp) : process.cwd(), tp); }
-else if (step === 'avif') avif(target, Number(widthArg || 720), Number(fpsArg || 12));
-else if (step === 'loop') loop(target, Number(widthArg || 720), Number(fpsArg || 12));
-else if (step === 'poster') poster(target, Number(fpsArg || 0), Number(widthArg || 960));
+if (step === 'vendor') { const tp = path.resolve(target); vendor(path.dirname(tp), tp); }
+else if (step === 'avif') avif(target, Number(arg2 || 720), Number(arg1 || 12));
+else if (step === 'loop') loop(target, Number(arg2 || 720), Number(arg1 || 12));
+else if (step === 'poster') poster(target, Number(arg1 || 0), Number(arg2 || 960));
 else if (step === 'bundle') bundle(target);
-else if (step === 'frames') frames(target, fps);
-else if (step === 'video') video(target, fps);
-else if (step === 'all') { bundle(target); frames(target, fps); video(target, fps); }
-else if (step === 'aspect') aspectSheet(target, Number(fpsArg || 0), Number(widthArg || 520));
-else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg), extraArg === 'nocap');
-else if (step === 'strip') strip(target, Number(fpsArg), Number(widthArg), Number(extraArg || 30));
-else if (step === 'motion') motion(target, Number(fpsArg || 12));
+else if (step === 'frames') frames(target, Number(arg1 || 30));
+else if (step === 'video') video(target, Number(arg1 || 30));
+else if (step === 'all') { bundle(target); frames(target, Number(arg1 || 30)); video(target, Number(arg1 || 30)); }
+else if (step === 'aspect') aspectSheet(target, Number(arg1 || 0), Number(arg2 || 520));
+else if (step === 'sheet') sheet(target, Number(arg1 || 480), arg2 === undefined ? 0.6 : Number(arg2), arg3 === 'nocap');
+else if (step === 'strip') strip(target, Number(arg1), Number(arg2), Number(arg3 || 30));
+else if (step === 'motion') motion(target, Number(arg1 || 12));
 else { console.error(USAGE); process.exit(1); }

@@ -25,6 +25,18 @@ in this repo.
 |---|---|
 | `screenwright` | The full pipeline: spec -> scaffold -> three-axis review -> smoke gate -> delivery, on two backends (three.js node stack 3D, Canvas2D 2D) under one window contract |
 
+## Requirements
+
+**WebGPU is NOT required.** Scenes use three.js `WebGPURenderer`, which falls
+back to its WebGL2 backend transparently when no WebGPU adapter exists — any
+WebGL2-capable browser plays a scene, and the recorder's default headless path
+is the WebGL2 fallback (CI-safe, no GPU needed). Hardware WebGPU is an opt-in
+speedup for the recorder only (`WEBGPU=metal` on macOS, measured ~2.3x
+faster); see `references/webgpu-stack.md` for the flag policy.
+
+Tooling: `bun`, `three@0.185.1` + `playwright-core@1.61.1` (pinned), ffmpeg
+on PATH; `avifenc` (libavif) for AVIF loops, `img2webp` (webp) for WebP loops.
+
 ## Invocation examples
 
 - "Make a 30-second video of how our approval process flows"
@@ -34,8 +46,10 @@ in this repo.
 
 ## Status
 
-Phase 0 (foundation) of the plan is complete: templates, recorder, and
-instruments ported to the node stack and gated green on both backends —
-including a demonstrated catch of the flat-frame WebGPU failure mode. Later
-phases (TSL material packs, the character scaffold, physics bake, registers,
+Phases 0 (foundation) and 1 (regression, post, shading) of the plan are
+complete: templates, recorder, and instruments on the node stack, gated green
+on both backends; the `gearbox` regression film judged no worse than its
+frozen-skill twin; the cel/SSS/glass material packs verified under
+byte-determinism; style bibles v2 with the committed `workshop`/`neon`
+control pair. Later phases (the character scaffold, physics bake, registers,
 the interactive spike) land here as they pass their gates.

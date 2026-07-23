@@ -150,10 +150,11 @@ mat.colorNode = THREE.mix(THREE.color(0x2a9d8f), THREE.color(0x8ad5c9), veins.sm
 Zero assets: MaterialX noise (`mx_noise_float` — the Perlin-style one; there
 is NO `mx_perlin_noise_float` export and a typo'd node name propagates as
 `undefined` silently — plus `mx_worley_noise_float`, `mx_fractal_noise_float`,
-`mx_aastep`) computes on the GPU. Available and not
-yet exercised here: `MeshPhysicalNodeMaterial` (transmission, `dispersion`,
-sheen, iridescence — dispersion verified rendering in the founding spike),
-`MeshSSSNodeMaterial`, `MeshToonNodeMaterial`. Post chains compose through
+`mx_aastep`) computes on the GPU. `MeshPhysicalNodeMaterial` (transmission,
+`dispersion`, sheen, iridescence), `MeshSSSNodeMaterial` and
+`MeshToonNodeMaterial` are exercised by the material packs — recipes and
+measured traps in `materials.md`, demonstrated in `examples/materials.html`.
+Post chains compose through
 `THREE.RenderPipeline` (`PostProcessing` is its deprecated alias). The
 template runs one ALWAYS, pass-through by default, with `STYLE.bloom` and
 `STYLE.dof` flags — both verified byte-deterministic through smoke on both

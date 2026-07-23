@@ -58,13 +58,12 @@ Two templates, one window contract, every tool works on both:
   `bun add three` and `vendor` entirely.
 
 ```bash
-cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
+cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js,backend.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor <name>.html   # EMBEDS three into the scene; leaves no .js
-# (the scene name is required — argument-less `vendor` builds and discards.
-#  Skipping this is recoverable: every command that opens a scene embeds
-#  automatically via ensureVendor.)
+# (skipping this is recoverable: every command that opens a scene embeds
+#  automatically via ensureVendor)
 ```
 
 Both scenes run as-is (placeholder, 12s) and carry the shared contract:
@@ -72,7 +71,8 @@ Both scenes run as-is (placeholder, 12s) and carry the shared contract:
 `ss`, `bump`, easing personalities, `ramp`/`pulse`/`rampS`/`latch`/`warp` —
 see method.md), DOM caption/title overlays, and the driver: `window.seekTo(t)`,
 `window.DURATION`, `window.stopPlayback()`, `window.sceneReady`,
-`window.BEATS`, `window.FRAME`, `window.FLASHES`. Do not rename any of these.
+`window.BEATS`, `window.FRAME`, `window.FLASHES`, `window.CAPFADE`. Do not
+rename any of these.
 The 3D template additionally carries `SHOTS[]` with the match-cut constraint
 (the 2D template keeps its simpler `KEYS[]` camera rail) and exports
 `window.BACKEND` (`'webgpu' | 'webgl2'` — which backend actually rendered;
@@ -98,6 +98,9 @@ Replace the two marked sections: `buildWorlds()` (geometry) and `animate(t)`
   `focus` property, so two adjacent shots differing only in focus, joined by
   `cut:'blend'`, are a rack focus).
 - No temporal post passes, no `ComputeNode`, no storage buffers.
+- Shared scene blocks are marker-fenced (`KERNEL`/`SOLVER`, plus `RIG`/
+  `DRIVER` in 3D scenes) and smoke byte-parity-checks every fence across the
+  scenes it is pointed at: edit a fenced block in ALL scenes or in none.
 
 ### 3. Review on three axes (looking is the method)
 
@@ -175,6 +178,9 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `templates/shoot.js` / `templates/build.js` — recorder + pipeline (sheet,
   strip, aspect, motion, loop, avif, poster)
 - `templates/smoke.js` — contract, determinism, shipped-frame checks + lints
+- `templates/backend.js` — shared by shoot.js and smoke.js: Chromium
+  resolution, the WEBGPU/ANGLE flag policy, the settle idiom (one copy, so
+  the gate and the recorder cannot drift apart)
 - `references/method.md` — the universal method: failure axes, beats and
   controls discipline, continuity/semantics review, determinism rules
 - `references/film-language.md` — shot vocabulary: sizes, cuts, match
