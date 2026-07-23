@@ -317,7 +317,16 @@ variable.
    regenerated on the post-path template and re-shipped.
 4. *Material packs, trimmed:* toon, SSS skin, glass/dispersion — each
    verified on a small showcase subject. Fur and fabric move to Phase 2,
-   where characters exist to test them on. **The glass pack pays the
+   where characters exist to test them on.
+   **DONE 2026-07-23** (screenwright 0.4.0, `examples/materials.html` +
+   `references/materials.md`): all three verified on both backends under
+   byte-determinism. Two measured r185 traps now in the doc: the plain
+   `transmission` PROPERTY never engages (the node slot works — recipe
+   rule: node slots are the reliable interface), and Chang-SSS has no
+   thickness input (thin/thick modeled as two materials). Cel is
+   TSL-native banding — structurally immune to the ambient-wash failure.
+   The glass beat carries the overlapping-transparency ordering case:
+   farther-first creation composites correctly under sortObjects=false. **The glass pack pays the
    sortObjects bill:** unsorted drawing (determinism rule #5) composites
    transparency in creation order, and glass is nothing but overlapping
    transparency. The pack must ship an explicit ordering discipline
@@ -329,6 +338,12 @@ variable.
    which reads pre-tone-mapped values; the TSL bloom node is a different
    implementation and the numbers are presumptively stale. Same pass settles
    the template palette's standing crushed-exposure advisory.
+   **PARTIAL 2026-07-23:** first TSL-bloom observations measured and
+   recorded in materials.md (monotone, no cliff at 1.0 — appears
+   pre-tone-map; emissives behind transmission barely feed it; palette-
+   conditional as before). A full bracket waits for the first film that
+   leans on bloom; the crushed-exposure advisory on the template palette
+   remains open.
 6. Style bibles v2 on the new stack.
 
 *Gate:* `gearbox` passes the comparison in (2); a committed control pair (two

@@ -18,3 +18,12 @@ both stacks, judged side-by-side. Five beats, 16.5s, seamless loop by
 construction.
 
 ![gearbox](../../../../docs/media/gearbox.avif)
+
+## materials
+
+The pack showcase: one film, three beats, three surfaces — TSL-native cel
+banding, subsurface scattering through thin ears, transmissive glass with
+dispersion over an emissive core (the overlapping-transparency ordering
+case). Recipes and measured gotchas: `../references/materials.md`.
+
+![materials](../../../../docs/media/materials.avif)

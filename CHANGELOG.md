@@ -1,5 +1,15 @@
 # changelog
 
+## 0.72.0
+
+### added
+- **`screenwright` 0.4.0 — Phase 1 step 4: the material packs (cel, subsurface, glass), with step 5's first bloom measurements.** New `references/materials.md` carries three recipes, all verified byte-deterministic on both backends in the shipped showcase (`examples/materials.html`, preview in `docs/media/`), and two r185 traps found the hard way:
+
+  1. **The plain `transmission` material property never engages** — the value stores correctly but renders fully diffuse on both backends; the `transmissionNode` slot works. Recipe rule: node slots are the reliable interface, and any physically-featured property is suspect until seen rendering. (Found because the glass beat rendered as opaque balloons; isolated by an in-page property-vs-node A/B against a bright wall.)
+  2. **Chang-style SSS has no thickness input** — a constant `thicknessColorNode` glows the whole mesh uniformly (measured: a lightbomb at backlight 26, clipping at 4.5, right at 2.2). The recipe models thin-vs-thick as two materials: strong scattering on ears, subtle on the body.
+
+  Cel is TSL-native — three tones by quantized key-light lambert in `colorNode` on an unlit material, so ambient light *cannot* wash the bands (the old stack's hemisphere-washes-toon failure, solved structurally rather than by light budgeting). The glass beat pays the sortObjects bill on purpose: emissive core, glow disc, far orb, near orb created farther-first composite correctly under unsorted drawing, per the plan's ordering-discipline requirement. Bloom: first honest observations recorded (monotone threshold, no cliff at 1.0 — appears pre-tone-map; emissives behind transmission barely feed it; palette-conditional as ever) — a rule waits for a film that leans on bloom.
+
 ## 0.71.0
 
 ### added

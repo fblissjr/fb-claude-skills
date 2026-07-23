@@ -181,7 +181,13 @@ Two constraints that dictate the setup — do not "simplify" them away:
   constraint, focus, camera energy
 - `references/webgpu-stack.md` — the node stack: backend policy, async boot,
   the six determinism rules, recorder mechanics, measured brackets
+- `references/materials.md` — the material packs: cel (TSL-native banding),
+  subsurface (thin/thick split), glass (transmissionNode, ordering
+  discipline), bloom observations — read before authoring any surface
+  beyond flat color
 - `examples/gearbox.html` — the regression film against frozen
   explainer-video: same scene body on both stacks, judged side-by-side
-  (rendered preview in the repo's `docs/media/`, outside the plugin —
-  deliberately: installed plugins carry only what the skill needs)
+- `examples/materials.html` — the pack showcase: cel, SSS, glass in one
+  film, including the overlapping-transparency ordering case
+  (rendered previews for both live in the repo's `docs/media/`, outside the
+  plugin — deliberately: installed plugins carry only what the skill needs)
