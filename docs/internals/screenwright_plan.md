@@ -358,6 +358,30 @@ This phase decides whether interactivity becomes a sibling skill or a
 screenwright register; that decision is explicitly out of scope until the
 spike exists.
 
+## Examples policy (decided 2026-07-23, measured on a live install)
+
+Examples stay in the plugin dirs. The mechanics, verified on this machine:
+`/plugin marketplace add` shallow-clones the ENTIRE repo (~18 MB, of which
+examples are ~9.8 MB) regardless of which plugin the user wants;
+`/plugin install` then copies just that plugin's subtree — examples included —
+into a per-version cache. So yes, examples ship; and no, it does not matter
+for the concern that would actually bite: the Agent Skills spec loads ONLY
+SKILL.md into context — `examples/` never auto-loads, so films are pure disk
+weight, zero ambient-context cost. Moving them out would break what they pay
+for: SKILL.md teaches by pointing at in-tree baselines, READMEs embed the
+AVIFs by relative path, and delivery.md's own doctrine forbids the LFS
+workaround (raw serves pointer files, breaking embeds).
+
+Disciplines that keep this durable as the portfolio grows (~9 more films):
+ship only examples a SKILL.md reference or README embed actually cites; cap
+AVIF encodes near the ~0.3–1 MB band (the frozen skill's 2.3 MB pelican
+outlier is the cautionary case — a re-encode candidate under its bugfix-only
+policy); and the revisit trigger is ~50 MB of examples, at which point
+README-only eye-candy moves to release-asset URLs while SKILL-referenced
+baselines stay in-plugin. Related measured note: always-loaded SKILL.md size
+is the real ambient cost (the frozen skill's is ~6.8K tokens, over the
+spec's <5K guidance) — screenwright's SKILL.md stays lean by policy.
+
 ## Anti-template principle
 
 The recurring user fear to design against: tools so constrained they become
