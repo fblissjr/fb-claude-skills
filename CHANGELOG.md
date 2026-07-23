@@ -1,5 +1,16 @@
 # changelog
 
+## 0.67.0
+
+### added
+- **explainer-video 0.23.0 -> 0.24.0**: two rules learned by building a two-character scene, plus docs for the pass-three primitives.
+
+  **Every character owns its own physics and state** (`references/method.md`). The moment a second figure enters a scene, "cyclic motion derives from progress" acquires a second half: from *that* character's progress, on *that* character's grid. This shipped and looked exactly like a broken rig — a fight scene handed the second character foot targets computed on the *first* character's plant grid, anchored at the first one's start and stepping at the first one's stride. The IK solved faithfully for targets that meant nothing, so the legs splayed and it read as broken geometry rather than a maths error. Nothing detected it; a human looked at a frame and said "the robot walks weird". The section tabulates what each character must own (start, direction, stride, limb lengths, travel expression) and what borrowing each one costs, with the structural fix: parameterise the gait instead of copying it, and hand the solver an offset from that character's own hip. Shared constants are for the *world* — gravity, wind, the beat grid — never for anatomy.
+
+  **Union subjects take wide rungs only** (`references/film-language.md`). `MS`/`MCU`/`CU` carry human-figure meanings and a union box of two fighters has no waist; asking for `MS` on a 9-unit-wide pair jams the camera into the gap between them.
+
+  `SKILL.md` and `method.md` now document the pass-three kit — `rampE`, `latch`, `warp`, `txt()` — and the `nocap` semantics sheet, which had shipped in 0.23.0 with only inline comments.
+
 ## 0.66.0
 
 ### added

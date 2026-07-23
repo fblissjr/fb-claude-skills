@@ -46,6 +46,9 @@ const BEATS = [
 ];
 ramp(t,'load',0,.56)      // fraction of the beat — stretches when you retime
 rampS(t,'load',1.8,2.3)   // seconds from beat start — does NOT stretch
+rampE(t,'load',0,.4,backOut)   // -> {u,e}: gate on u, animate on e
+latch(t, secAt('roll',.3))     // seconds since a trigger, monotone
+warp(t,[{at:8.2,dur:.5,rate:.2}])   // time itself runs slow here
 ```
 
 **Fractions by default; seconds when the duration is physical.** A rise "across
@@ -525,6 +528,45 @@ Gait phase comes from distance travelled, so when `s` stops advancing the stride
 stops dead in whatever position it was in. Scaling the amplitude by the speed `v`
 settles the pose rather than freezing mid-stride.
 
+### Every character owns its own physics and state
+
+The moment a second figure enters a scene, the rule above acquires a second
+half: **cyclic motion derives from progress, and from THAT character's own
+progress, on THAT character's own grid.**
+
+This shipped and looked exactly like a broken rig. A fight scene handed the
+second character foot targets computed on the *first* character's plant grid —
+anchored at the first one's start position, stepping at the first one's stride —
+and then offset them by a mix of one character's origin and the other's travel.
+The IK solved faithfully for targets that meant nothing, so the legs splayed and
+the walk read as broken geometry rather than as a maths error. Nothing detected
+it; a human looked at a frame and said "the robot walks weird".
+
+What each character needs of its own, and what goes wrong when it borrows:
+
+| owns | borrowing it costs |
+|---|---|
+| start position | plant points land where the *other* character started |
+| direction of travel | feet step backwards relative to the body |
+| stride length | phase drifts against actual distance covered, so feet slide |
+| limb lengths / hip height | IK reaches for targets outside its own range and locks |
+| travel expression | the camera tracks one body while the other's feet answer to it |
+
+The structural fix is to parameterise the gait rather than copy it — one
+function taking `(startX, direction, stride, distance, phase, lift)`, called once
+per character — and to hand the solver an offset from **that character's own
+hip**, never from a shared constant:
+
+```js
+const f = gaitFoot(BSTART, -1, BSTRIDE, distanceTravelled, phase, lift);
+solveLeg(legL, f[0] - bot.position.x, f[1] - BHIP);   // its own x, its own hip
+```
+
+The same applies to anything else a character carries: squash factors, impact
+recoil, wobble decay, a held prop's swing. If two characters share a constant
+that describes a *body*, one of them is wrong. Shared constants are for the
+*world* — gravity, wind, the beat grid — not for anatomy.
+
 Generalizes past walking to anything whose cycle should be locked to travel:
 wheels and rotors, footfalls, conveyor treads, a pulse stepping along a path, a
 rotating drill advancing into a surface.
@@ -582,7 +624,10 @@ three directions, all found by building films it did not fit:
   position. That ratio is the real result: geometry carried the mechanism beats,
   and *labelled* geometry carried the rest.
 
-So: cover the DOM caption AND the drawn words. `?nocap` removes the first. If you cannot tell, the
+So: cover the DOM caption AND the drawn words. `build.js sheet <scene> 480 0.6
+nocap` does both — every draw routed through `txt()` becomes a no-op and the DOM
+overlay hides — which is why routing scene text through the helper is worth it.
+`?nocap` removes only the caption; `?strip=text` removes everything. If you cannot tell, the
 geometry is not carrying the explanation and you have built a slideshow with a
 3D background.
 

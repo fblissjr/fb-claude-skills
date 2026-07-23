@@ -59,6 +59,12 @@ second subject fell out of frame — sizes are conventions with meanings, not
 free parameters. Per-shot `anchor:` overrides the aim height when a
 composition needs it (the toybot rack aims low to hold the sign in frame).
 
+**Union subjects take WIDE rungs only.** `MS`/`MCU`/`CU` carry human-figure
+meanings — waist-up, chest-up, head — and a union box of two fighters has no
+waist. Asking for `MS` on a 9-unit-wide pair jams the camera into the gap
+between them. Use `WS`/`FSA`/`FS` for a union and save the tight rungs for a
+single named subject.
+
 **Subjects may name several things.** `subject: ['plank','hammer']` frames the
 union box. Every causal beat is two objects and the space between them, and
 hand-authoring a composite subject with an invented centre is the thing this

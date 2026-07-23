@@ -148,8 +148,18 @@ the full contract:
 - `CONFIG` — title, style tokens, seed: everything that is *not* timing
 - deterministic kit — seeded PRNG (`R[]` pool), `ss()` smoothstep, `bump()`,
   `lerp()`, plus the easing personalities (`backOut`, `elasticOut`, stop-motion
-  `quant`, seeded `noise1`) — identical in every template, part of the future
-  shared kernel; **never** call `Math.random()`/`Date.now()` in scene code
+  `quant`, seeded `noise1`) — identical in every template, enforced byte-identical
+  by `smoke.js`; **never** call `Math.random()`/`Date.now()` in scene code
+- time-shaping — the other half of the kit. Beat addressing says *where you are
+  in a beat*; these say *how time runs*:
+  `rampE(t,'beat',a,b,ease)` returns `{u,e}` so you gate on the raw ramp and
+  animate on the eased value (the kit's own warning about eased gates failed
+  three authors who had read it); `latch(t, at)` gives seconds-since a trigger,
+  monotone by construction — use it for chains, because deriving B from A's
+  expression propagates *onset* but not *persistence* and an impulsive coupling
+  run that way plays backwards; `warp(t, segments)` reparameterises time so a
+  window runs slow or fast while beats keep real-time pacing (drive physics
+  through it, leave beats on raw `t`)
 - beat addressing — `ramp(t,'beat',a,b)` and `pulse(t,'beat',a,b)` take
   **fractions of the beat**, so an effect keeps its place when you retime.
   `rampS`/`pulseS`/`secAt` take **seconds from the beat start**, for durations
@@ -176,6 +186,7 @@ and `animate(t)` (per-beat motion, every property a function of `t`).
 ```bash
 bun run build.js sheet <name>.html            # one frame per beat -> .sheet.jpg + .squint.jpg
 bun run build.js sheet <name>.html 480 0.95   # every beat at its END — catches effects that park
+bun run build.js sheet <name>.html 480 0.6 nocap  # same beats, every WORD removed — the semantics pass
 bun run build.js aspect <name>.html 8.5       # one moment at four window shapes -> .aspect.jpg
 bun run shoot.js <name>.html sample 0,3,7,11  # arbitrary timestamps, one PNG each
 ```
@@ -185,6 +196,12 @@ Run the **0.95 end-of-beat sheet as a standing pass, not an option.** The defaul
 arrives late — two shipped defects were caught only there: a payload dot that
 travelled to a box which did not draw until the following beat, and a connector
 routed through the interior of the box it was entering.
+
+The `nocap` sheet is the **semantics** pass: it renders with every word gone —
+DOM caption, title, and any scene text drawn through `txt()` — so
+"cover everything except the geometry" stops being a hand-edited copy of the
+scene. It works because the text helper is worth using; hand-rolled `fillText`
+opts out of it. `?strip=text` on the URL does the same thing interactively.
 
 `build.js aspect` is the framing counterpart. `smoke.js` can *reject* a scene
 whose design frame changes with the window; it cannot *approve* one, and the
