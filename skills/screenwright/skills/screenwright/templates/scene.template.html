@@ -294,6 +294,30 @@ const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
 addEventListener('resize',resize);resize();
 
+/* ---------- post pipeline: ALWAYS on, pass-through by default ----------
+   Every scene renders through RenderPipeline even with no effects, so the
+   post path is exercised by smoke's determinism and shipped-frame checks on
+   every scene — the untested path is the broken path (that lesson is why
+   Phase 0 exists). Effects are STYLE flags, per-frame pure only:
+     STYLE.bloom: true | {strength,radius,threshold}  — threshold brackets
+       are UNMEASURED on the TSL implementation; do not import the old
+       UnrealBloomPass numbers (see webgpu-stack.md).
+     STYLE.dof:   true | {maxBlur} — focus distance follows the SHOTS[]
+       `focus` property via the solver's shotFocus, so two adjacent shots
+       differing only in focus, joined by cut:'blend', ARE a rack focus.
+   No temporal passes, ever — they break seekTo byte-identity. */
+const uFocus=THREE.uniform(12);
+const pipeline=new THREE.RenderPipeline(renderer);
+{
+  const scenePass=THREE.pass(scene,camera);
+  let out=scenePass.getTextureNode('output');
+  if(STYLE.dof){const o=STYLE.dof===true?{}:STYLE.dof;
+    out=THREE.dof(out,scenePass.getTextureNode('depth'),uFocus,o.maxBlur===undefined?.02:o.maxBlur);}
+  if(STYLE.bloom){const o=STYLE.bloom===true?{}:STYLE.bloom;
+    out=out.add(THREE.bloom(out,o.strength===undefined?.5:o.strength,o.radius===undefined?.3:o.radius,o.threshold===undefined?.9:o.threshold));}
+  pipeline.outputNode=out;
+}
+
 /* ---------- shared helpers ---------- */
 const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
 const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
@@ -580,7 +604,7 @@ window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
    whose pixel diff was confined to shadowed regions. Ticking the frame here
    makes seekTo self-contained for any caller pattern. Private API, pinned at
    three 0.185.1; smoke fails loudly if an upgrade renames it. */
-window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);if(renderer._nodes)renderer._nodes.nodeFrame.update();renderer.render(scene,camera);};
+window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);uFocus.value=shotFocus;if(renderer._nodes)renderer._nodes.nodeFrame.update();pipeline.render();};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};

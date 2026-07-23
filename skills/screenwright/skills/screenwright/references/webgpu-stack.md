@@ -154,9 +154,13 @@ is NO `mx_perlin_noise_float` export and a typo'd node name propagates as
 yet exercised here: `MeshPhysicalNodeMaterial` (transmission, `dispersion`,
 sheen, iridescence — dispersion verified rendering in the founding spike),
 `MeshSSSNodeMaterial`, `MeshToonNodeMaterial`. Post chains compose through
-`THREE.RenderPipeline` (`PostProcessing` is its deprecated alias) — a
-scene-plus-bloom chain passed byte-determinism on both backends in the spike;
-wiring it into the template is Phase 1 work.
+`THREE.RenderPipeline` (`PostProcessing` is its deprecated alias). The
+template runs one ALWAYS, pass-through by default, with `STYLE.bloom` and
+`STYLE.dof` flags — both verified byte-deterministic through smoke on both
+backends, and DoF's focus distance rides the cinematography solver's
+`shotFocus` through a uniform, making the `SHOTS[]` `focus` property
+functional. TSL bloom thresholds are NOT the old `UnrealBloomPass` brackets —
+re-measure before trusting any number.
 
 Bundle cost: 1.09 MB embedded per scene (vs 0.77 MB for the old WebGL stack).
 

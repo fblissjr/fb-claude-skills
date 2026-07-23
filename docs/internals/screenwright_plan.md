@@ -309,6 +309,12 @@ variable.
    `RenderPipeline` (neutral look; bloom behind a `STYLE` flag) so smoke's
    determinism and shipped-frame checks ride the post path on every scene —
    Phase 0's lesson is that the untested path is the broken path.
+   **DONE 2026-07-23** (screenwright 0.3.0): pass-through preserves the
+   direct-render look (identical exposure statistics), smoke green on both
+   backends through the pipeline, `STYLE.bloom` and `STYLE.dof` verified
+   deterministic and visually working, DoF wired to the solver's
+   `shotFocus` — the `focus` shot property is no longer inert. gearbox
+   regenerated on the post-path template and re-shipped.
 4. *Material packs, trimmed:* toon, SSS skin, glass/dispersion — each
    verified on a small showcase subject. Fur and fabric move to Phase 2,
    where characters exist to test them on. **The glass pack pays the

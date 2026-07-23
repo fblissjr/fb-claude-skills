@@ -90,6 +90,13 @@ Replace the two marked sections: `buildWorlds()` (geometry) and `animate(t)`
   `mesh()` are each load-bearing for determinism — measured, not stylistic;
   do not simplify them away. Consequence of unsorted drawing: create
   overlapping transparent objects farther-first.
+- Every scene renders through an always-on `RenderPipeline` (pass-through
+  by default — zero look change, but the post path is smoke-checked on every
+  scene). Effects are `STYLE` flags: `STYLE.bloom` (`{strength,radius,
+  threshold}` — thresholds for the TSL bloom are unmeasured; bracket before
+  trusting) and `STYLE.dof` (`{maxBlur}` — focus follows the `SHOTS[]`
+  `focus` property, so two adjacent shots differing only in focus, joined by
+  `cut:'blend'`, are a rack focus).
 - No temporal post passes, no `ComputeNode`, no storage buffers.
 
 ### 3. Review on three axes (looking is the method)

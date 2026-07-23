@@ -1,5 +1,10 @@
 # changelog
 
+## 0.71.0
+
+### added
+- **`screenwright` 0.3.0 — Phase 1 step 3: the post pipeline is always on.** Every 3D scene now renders through `RenderPipeline`, pass-through by default — the look is unchanged (identical exposure statistics to direct rendering), but smoke's determinism and shipped-frame checks exercise the post path on every scene, closing the last "present in the bundle, exercised nowhere" gap. Effects are `STYLE` flags, both verified byte-deterministic on both backends and visually confirmed: `STYLE.bloom` (TSL bloom — thresholds deliberately unmeasured until the pack work brackets them; the old `UnrealBloomPass` numbers do not transfer) and `STYLE.dof`, whose focus distance rides the cinematography solver's `shotFocus` through a uniform — the `SHOTS[]` `focus` property is functional for the first time on this stack (the doc audit had flagged it inert), so two adjacent shots differing only in focus, joined by `cut:'blend'`, are a rack focus. gearbox regenerated on the post-path template and re-shipped (example + docs/media recording).
+
 ## 0.70.3
 
 ### changed
