@@ -1,5 +1,25 @@
 # changelog
 
+## 0.65.0
+
+### fixed
+- **explainer-video 0.21.1 -> 0.22.0**: nine defects found by an adversarial code review of the hardening work, every one reproduced before being fixed. Three were introduced by this run.
+
+  **`vendor` destructively rewrote every `.html` in the scene's directory.** `embedInto` walked `readdirSync` and embedded three.js into any file carrying the vendor tag, and `ensureVendor` runs before *every* command that opens a scene. Reproduced: `build.js bundle a.html` in a directory holding a work-in-progress scene and a copy of `scene.template.html` rewrote all three from 26,934 to 797,327 bytes — the shipped template silently lost its placeholder and grew 30x, and the result looks idempotent so nothing would ever flag it. This is the most damaging thing the branch introduced. It now embeds into the target only, verified with a bystander file.
+
+  **The gate hard-required a canvas with `id="c"`, which the contract does not.** A scene satisfying the full contract, deterministic, correctly contained, but naming its canvas `stage`, **failed** with an unactionable `Cannot read properties of null`. Worse, the `>=99%` near-black hard-fail never ran for it — putting any such scene back in exactly the state that let a 342-frame all-black film report `all scenes pass`. Now queries `document.querySelector('canvas')` and tolerates canvas-less backends, which the file's own comment always promised.
+
+  **`motion`'s provenance assertion sat 75 lines *below* a silent no-op.** An early return printed "no frames captured, nothing to report" and exited 0 — the outcome strictly worse than the partial profile the assertion was written to prevent. The assertion now runs first, and its `0.9` heuristic is replaced by an exact count: `tblend` emits one delta per adjacent pair, so N frames must yield N−1. The old constant was wrong in both directions — `N−1 < 0.9N` holds for every `N < 10`, so short films threw spuriously, while 25 frames could vanish from a 254-frame render undetected. Relatedly, `slice(1)` was discarding a real sample on a false premise: `tblend` has *already* dropped the unpaired first input, so the film's first inter-frame delta was invisible by construction and every dead-air timestamp was reported one frame early.
+
+  **`anchorX` offset along world X, not camera-right** — so at `angle: 90` it moved the target straight toward the camera and produced no horizontal movement at all, which is precisely the framing problem it was added to solve.
+
+  **`SHOOT_FORMAT` wrote JPEG bytes into `.png` filenames**, and `range` (documented for hand use) honoured it from ambient env — so exporting it to speed up reviews and then re-shooting a range would splice lossy frames into a lossless master, with every downstream check matching on the extension and seeing nothing wrong. The extension now follows the format.
+
+  Also: the kernel/solver parity check silently exempted a file carrying `START` without `END` (delete one line and a scene becomes invisible to the drift check that justifies the duplicated-block pattern); `samplePlan`'s flash avoidance could move a sample *into* an adjacent flash — reproduced at 95% white on an ordinary 0.4s cut-in/cut-out pair — and depended on the order flashes were authored in, now fixed with merged intervals; and an invalid `ANGLE_BACKEND` was silently accepted, handing you hardware GL while you believed you were reproducing a software-GL regression.
+
+### changed
+- **explainer-video: the camera floor is now opt-in (`CONFIG.cameraFloor`), off by default.** The review argued it was the one change on the branch that narrowed expressiveness against the branch's own rule, and it was right: it clamped `p[1]` only, so the camera left the sphere the solver placed it on and the declared rung stopped producing the framing it promised — an author asking for a hero low angle silently got a higher one. A bare `0.35` world-unit default also baked a world scale into a skill whose claim is any subject at any scale: at `h ~ 0.2` (a circuit board, a molecule) *every* shot would clamp. Default behaviour is now identical to before the floor existed.
+
 ## 0.64.1
 
 ### fixed

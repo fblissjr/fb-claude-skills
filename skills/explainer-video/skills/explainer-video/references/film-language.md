@@ -45,9 +45,10 @@ for the detail beat, rather than trying to frame the whole wide thing tight.
 | size | subject height ÷ frame | aim anchor | reads as |
 |---|---|---|---|
 | EWS | 0.20 | .5 | speck in the world |
-| WS | 0.50 | .5 | full body with air |
+| WS | 0.50 | .5 | full body, generous air |
+| FSA | 0.70 | .5 | full body with a little air — the workhorse |
 | FS | 0.95 | .5 | full body tight |
-| FSA | 0.70 | .5 | full body with air — the workhorse |
+
 | MS | 1.6 | .68 | waist up |
 | MCU | 2.4 | .78 | chest up |
 | CU | 3.6 | .84 | head |
@@ -75,9 +76,10 @@ both backends. That is why framing a named subject put its most important featur
 at the frame edge, and why an author porting the ladder to 2D used one of its
 seven rungs and framed regions instead.
 
-**The solver** — `dist = h / f / (2·tan(fov/2))`: size and lens give
-distance; `angle`/`elev` place the camera on that sphere; the aim rides the
-subject. `size2`/`angle2` ease across the shot's duration — push-in,
+**The solver** — `dist = max(h/f, wProj/(f·aspect)) / (2·tan(fov/2))`: size and
+lens give distance, binding on whichever axis is tighter; `angle`/`elev` place the camera on that sphere; the aim rides the
+subject. The projected fit rotates the box by **azimuth only** — a near-top-down shot of
+a deep subject can still clip on depth. `size2`/`angle2` ease across the shot's duration — push-in,
 pull-out, orbit — and a moving subject makes any shot a tracking shot.
 
 **Cuts** — how a shot ENTERS: `hard` (default), `whip` (0.16s snap), `blend`

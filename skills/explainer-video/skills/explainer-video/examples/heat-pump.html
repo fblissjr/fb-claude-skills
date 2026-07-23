@@ -5147,16 +5147,28 @@ function solveShot(sh,t){
   /* Horizontal aim. The ladder had a vertical anchor and no horizontal one, in
      both backends — which is why framing a named subject put its most important
      feature at the frame edge and authors fell back to framing regions. */
+  /* Offset along CAMERA-RIGHT, not world X. Offsetting on world X made anchorX a
+     no-op at angle 0/180 flipped and, at angle 90, moved the target straight
+     toward the camera — changing focus distance and size instead of panning. */
   const ax=sh.anchorX!==undefined?sh.anchorX:0;
-  const aimX=E.cx+ax*E.w,aimY=E.cy+(anchor-.5)*E.h;
+  const rx=Math.cos(ang),rz=-Math.sin(ang);          // camera-right, horizontal
+  const aimY=E.cy+(anchor-.5)*E.h;
+  const aimX=E.cx+ax*E.w*rx, aimZ=E.cz+ax*E.w*rz;
   /* Floor guard: the solver had no clamps at all and would place the camera
      below the ground plane at low elevation and long distance. Not a fix for
      "camera inside the subject" — that is a LIE about extent, and the extent
      check in smoke.js is what catches it. */
-  const FLOOR=CONFIG.cameraFloor===undefined?0.35:CONFIG.cameraFloor;
-  const py=Math.max(FLOOR,aimY+Math.sin(elev)*dist);
+  /* Camera floor is OPT-IN (CONFIG.cameraFloor, world units). It is off by
+     default on purpose: clamping y moves the camera off the sphere the solver
+     placed it on, so elevation and true distance both change and the declared
+     rung stops producing the framing it promises — an author asking for a hero
+     low angle would silently get a higher one. A default constant would also
+     bake a world scale into a skill whose whole claim is any subject at any
+     scale: at h~0.2 (a circuit board, a molecule) every shot would clamp. */
+  let py=aimY+Math.sin(elev)*dist;
+  if(CONFIG.cameraFloor!==undefined&&CONFIG.cameraFloor!==null)py=Math.max(CONFIG.cameraFloor,py);
   return{p:[E.cx+Math.sin(ang)*Math.cos(elev)*dist,py,E.cz+Math.cos(ang)*Math.cos(elev)*dist],
-         l:[aimX,aimY,E.cz],fovd};
+         l:[aimX,aimY,aimZ],fovd};
 }
 function focusDist(sh,t,p){const E=subjectExtent(sh.focus||sh.subject,t);
   return Math.hypot(p[0]-E.cx,p[1]-E.cy,p[2]-E.cz);}

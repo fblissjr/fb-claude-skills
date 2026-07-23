@@ -39,13 +39,14 @@ const path = require('path');
 // (frames/all) override this back to png -- a frame-difference metric must not
 // eat JPEG artifacts, and a master must stay lossless.
 const REVIEW_FMT = 'jpeg';
+const REVIEW_EXT = REVIEW_FMT === 'jpeg' ? 'jpg' : 'png';
 // One place for the output-basename rule, including the .bundled legacy suffix
 // now that nothing produces .bundled.html.
 const outBase = s => s.replace(/(\.bundled)?\.html$/, '');
 const VENDOR = 'three.global.js';
 const VENDOR_TAG = /<script src="\.\/three\.global\.js"><\/script>/;
 
-function vendor(dir = process.cwd()) {
+function vendor(dir = process.cwd(), target = null) {
   const out = path.join(dir, VENDOR);
   const entry = path.join(dir, '.three-entry.js');
   // The post-processing addons ride in the same bundle, attached to the THREE
@@ -84,7 +85,7 @@ function vendor(dir = process.cwd()) {
   // the only form that makes "opens straight from disk" true by construction,
   // so the tooling does it automatically rather than asking authors to remember
   // a bundle step. Cost is ~0.73 MB per scene, paid once, and accepted.
-  const embedded = embedInto(dir, fs.readFileSync(out, 'utf8'));
+  const embedded = target ? embedInto(target, fs.readFileSync(out, 'utf8')) : [];
   fs.unlinkSync(out);
   if (embedded.length) console.log('embedded three into: ' + embedded.join(', '));
   else console.log('vendored three (no scene in ' + dir + ' had a vendor tag to embed into)');
@@ -96,18 +97,17 @@ function vendor(dir = process.cwd()) {
 // `$&`, `$'` and `` $` `` are substitution patterns and minified three contains
 // `$&`, which would splice the matched tag into the middle of the library. Also
 // split any literal </script> so the library cannot terminate the host tag.
-function embedInto(dir, lib) {
+function embedInto(target, lib) {
+  // ONE file: the scene we were asked about. An earlier version walked the whole
+  // directory and rewrote every .html carrying the tag, which meant running any
+  // command on a scene sitting beside the template it was copied from silently
+  // rewrote `scene.template.html` itself with 0.77 MB of inlined three.js — and
+  // the result looks idempotent, so nothing ever flags it.
   const inline = '<script>' + lib.replace(/<\/script>/gi, '<\\/script>') + '</script>';
-  const done = [];
-  for (const f of fs.readdirSync(dir)) {
-    if (!/\.html$/i.test(f)) continue;
-    const full = path.join(dir, f);
-    const html = fs.readFileSync(full, 'utf8');
-    if (!VENDOR_TAG.test(html)) continue;
-    fs.writeFileSync(full, html.replace(VENDOR_TAG, () => inline));
-    done.push(f);
-  }
-  return done;
+  const html = fs.readFileSync(target, 'utf8');
+  if (!VENDOR_TAG.test(html)) return [];
+  fs.writeFileSync(target, html.replace(VENDOR_TAG, () => inline));
+  return [path.basename(target)];
 }
 
 // bundle() is now an ASSERTION, not a transform. Vendoring embeds the library
@@ -129,7 +129,7 @@ function ensureVendor(scene) {
   const dir = path.dirname(path.resolve(scene));
   let src = '';
   try { src = fs.readFileSync(scene, 'utf8'); } catch (e) { return; }
-  if (VENDOR_TAG.test(src)) vendor(dir);          // embeds in place, leaves no .js
+  if (VENDOR_TAG.test(src)) vendor(dir, path.resolve(scene));   // embeds THIS scene only
 }
 
 // dir defaults to the SAME expression video() uses, so the shoot half and the
@@ -426,7 +426,7 @@ function aspectSheet(scene, t = 0, width = 520) {
     // each into a common box, and hstack, so every cell shows its window shape
     // at true proportions against the same reference area.
     const inputs = [];
-    for (let i = 0; i < n; i++) inputs.push('-i', path.join(dir, `f${String(i).padStart(5, '0')}.png`));
+    for (let i = 0; i < n; i++) inputs.push('-i', path.join(dir, `f${String(i).padStart(5, '0')}.${REVIEW_EXT}`));
     const box = `scale=${width}:${width}:force_original_aspect_ratio=decrease,` +
                 `pad=${width}:${width}:(ow-iw)/2:(oh-ih)/2:color=0x101010`;
     const chains = shapes.map((_, i) => `[${i}:v]${box}[a${i}]`).join(';');
@@ -466,13 +466,13 @@ function sheet(scene, width = 480, frac = 0.6) {
     const cols = Math.min(4, Math.ceil(Math.sqrt(n)));
     const rows = Math.ceil(n / cols);
 
-    run('ffmpeg', ['-y', '-i', path.join(dir, 'f%05d.png'), '-vf',
+    run('ffmpeg', ['-y', '-i', path.join(dir, `f%05d.${REVIEW_EXT}`), '-vf',
       `scale=${width}:-2,tile=${cols}x${rows}:padding=6:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', sheetOut]);
 
     // 90px wide, one row: small enough that detail disappears and only the
     // silhouette is left, which is the point.
-    run('ffmpeg', ['-y', '-i', path.join(dir, 'f%05d.png'), '-vf',
+    run('ffmpeg', ['-y', '-i', path.join(dir, `f%05d.${REVIEW_EXT}`), '-vf',
       `scale=90:-2,tile=${n}x1:padding=3:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', squintOut]);
 
@@ -539,7 +539,7 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
     // -start_number because `range` names frames by their GLOBAL index (f00259),
     // not from zero -- that is what makes a re-shot range drop back into a full
     // render, and it means ffmpeg has to be told where the sequence begins.
-    run('ffmpeg', ['-y', '-start_number', String(a), '-i', path.join(dir, 'f%05d.png'),
+    run('ffmpeg', ['-y', '-start_number', String(a), '-i', path.join(dir, `f%05d.${REVIEW_EXT}`),
       '-vf', `scale=${width}:-2,tile=${cols}x${rows}:padding=6:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', out]);
     console.log(`strip -> ${out}  (${n} consecutive frames at ${fps}fps)`);
@@ -565,7 +565,7 @@ function motion(scene, fps = 12) {
     // THIRD of the film -- 65 frames reported for a 254-frame render, exit 0,
     // the only symptom one ffmpeg stderr line nobody reads. A wrong number that
     // looks right is worse than no number.
-    const wroteN = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;
+    const wroteN = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;  // motion is PNG by contract
     if (wroteN < 2) throw new Error(`motion: only ${wroteN} frame(s) in ${dir} — the shoot did not produce a film`);
 
     const out = execFileSync('ffmpeg', ['-y', '-framerate', String(fps), '-i', path.join(dir, 'f%05d.png'),
@@ -588,8 +588,26 @@ function motion(scene, fps = 12) {
     // Frame 0 has no predecessor, so tblend diffs it against itself (or
     // whatever ffmpeg does at the boundary depending on version) -- not a real
     // motion sample, and left in it would skew the median toward zero.
-    const values = series.slice(1);
-    if (!values.length) { console.log('motion: no frames captured, nothing to report'); return; }
+    // Provenance BEFORE any early return. The one outcome worse than a profile
+    // for part of a film is a reassuring line and exit 0 for none of it, and
+    // that path used to sit 75 lines above the assertion meant to prevent it.
+    // tblend emits exactly one delta per adjacent pair, so N frames -> N-1
+    // deltas; anything else means the scratch dir moved under us or ffmpeg
+    // stopped early. (The old `series.length < wroteN * 0.9` was wrong both
+    // ways: N-1 < 0.9N holds for every N < 10, so short films threw spuriously,
+    // while 25 frames could vanish from a 254-frame render undetected.)
+    const present = series.filter(v => v !== undefined).length;
+    if (present !== wroteN - 1) {
+      throw new Error(`motion: ${wroteN} frames written to ${dir} but ${present} deltas parsed `
+        + `(expected ${wroteN - 1}). The scratch dir was modified mid-run, or ffmpeg stopped `
+        + `early — refusing to report a profile for part of the film.`);
+    }
+    // FINDING: tblend has ALREADY dropped the unpaired first input, so its
+    // frame:0 IS the genuine 0->1 delta at pts 1/fps. Dropping it again hid the
+    // film's first inter-frame delta entirely and shifted every reported
+    // timestamp one frame early. Verified against ffmpeg output.
+    const values = series.filter(v => v !== undefined);
+    if (!values.length) { throw new Error('motion: no deltas parsed — nothing to report'); }
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
 
@@ -663,12 +681,6 @@ function motion(scene, fps = 12) {
       else { if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, i - 1]); runLen = 0; }
     });
     if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, values.length - 1]);
-
-        if (series.length < wroteN * 0.9) {
-      throw new Error(`motion: parsed ${series.length} frame deltas but ${wroteN} frames were written `
-        + `to ${dir}. The scratch dir was modified mid-run, or ffmpeg stopped early — refusing to `
-        + `report a profile for part of the film.`);
-    }
     console.log(`motion: ${values.length} frames at ${fps}fps, median frame-diff ${median.toFixed(2)}`);
     if (perBeat.length) {
       const peak = Math.max(...perBeat.map(b => b.mean)) || 1;
@@ -699,7 +711,8 @@ if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'asp
   console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
 }
 const fps = Number(fpsArg || 30);
-if (step === 'vendor') vendor(target ? path.resolve(target) : process.cwd());
+if (step === 'vendor') { const tp = target ? path.resolve(target) : null;
+  vendor(tp ? path.dirname(tp) : process.cwd(), tp); }
 else if (step === 'avif') avif(target, Number(widthArg || 720), Number(fpsArg || 12));
 else if (step === 'loop') loop(target, Number(widthArg || 720), Number(fpsArg || 12));
 else if (step === 'poster') poster(target, Number(fpsArg || 0), Number(widthArg || 960));

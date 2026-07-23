@@ -77,9 +77,17 @@ function num(v, dflt, label, { allowZero = false, max = Infinity } = {}) {
    speculars), so a regression compared byte-wise must fix the backend on both
    sides -- which is why this is one env var rather than a silent default flip
    per machine. */
+const ANGLE_OK = ['default', 'swiftshader', 'metal', 'gl', 'vulkan', 'd3d11', 'd3d9'];
 function angleArgs() {
   const base = ['--hide-scrollbars', '--no-sandbox'];
   const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
+  // Allow-list, because a typo used to be accepted silently: `swifthsader`
+  // launched on hardware GL while the author believed they were reproducing a
+  // software-GL regression byte-for-byte, which is the one thing this variable
+  // exists to make possible.
+  if (!ANGLE_OK.includes(want)) {
+    throw new Error(`ANGLE_BACKEND="${process.env.ANGLE_BACKEND}" is not one of: ${ANGLE_OK.join(', ')}`);
+  }
   if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
   if (want === 'default') return base;                 // let Chromium pick the GPU
   return [`--use-angle=${want}`, ...base];
@@ -118,7 +126,7 @@ function chromiumPath() {
 function clearFrames(dir) {
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fs.readdirSync(dir)) {
-    if (/^f\d{5}\.png$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
+    if (/^f\d{5}\.(png|jpg)$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
   }
 }
 
@@ -229,6 +237,12 @@ async function openScenePage(browser, sceneFile) {
      stay PNG: JPEG artifacts would add noise to a frame-difference metric. */
   const FMT = (process.env.SHOOT_FORMAT || 'png').toLowerCase();
   const shotOpts = FMT === 'jpeg' ? { type: 'jpeg', quality: 92 } : {};
+  // The extension follows the format. Writing JPEG bytes into a .png name made
+  // every downstream check (clearFrames, motion's frame count, ffmpeg's content
+  // sniffing) match on a lie, and made it possible to splice lossy frames into a
+  // lossless master by re-shooting a range with SHOOT_FORMAT exported.
+  const EXT = FMT === 'jpeg' ? 'jpg' : 'png';
+  const fname = i => `f${String(i).padStart(5, '0')}.${EXT}`;
   const shot = async (t, file) => {
     await page.evaluate(`window.seekTo(${t.toFixed(4)})`);
     await page.screenshot({ path: file, ...shotOpts });
@@ -272,7 +286,7 @@ async function openScenePage(browser, sceneFile) {
     const shootChunk = async (pg, a, b) => {
       for (let i = a; i < b; i++) {
         await pg.evaluate(`window.seekTo(${(i / fps).toFixed(4)})`);
-        await pg.screenshot({ path: path.join(outDir, `f${String(i).padStart(5, '0')}.png`) });
+        await pg.screenshot({ path: path.join(outDir, fname(i)), ...shotOpts });
         if (++done % 60 === 0) console.log(`frame ${done}/${n}`);
       }
     };
@@ -292,7 +306,7 @@ async function openScenePage(browser, sceneFile) {
     const a = num(rest[0], null, 'start frame', { allowZero: true }), b = num(rest[1], null, 'end frame'),
           fps = num(rest[2], 30, 'fps');
     fs.mkdirSync(outDir, { recursive: true });
-    for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
+    for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, fname(i)));
     console.log('range done');
   } else if (mode === 'aspects') {
     // One moment, several window shapes, relative to the scene's OWN design
@@ -314,7 +328,7 @@ async function openScenePage(browser, sceneFile) {
       await page.setViewportSize({ width: shapes[i].w, height: shapes[i].h });
       await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
       await page.evaluate(`window.seekTo(${at.toFixed(4)})`);
-      await page.screenshot({ path: path.join(aDir, `f${String(i).padStart(5, '0')}.png`), ...shotOpts });
+      await page.screenshot({ path: path.join(aDir, fname(i)), ...shotOpts });
     }
     console.log(JSON.stringify({ shapes }));
   } else if (mode === 'beats' || mode === 'manifest') {
@@ -330,7 +344,7 @@ async function openScenePage(browser, sceneFile) {
       const beatsDir = process.env.FRAMES_DIR || '.sheetframes';
       clearFrames(beatsDir);
       for (const b of beats) {
-        await shot(b.t, path.join(beatsDir, `f${String(b.i).padStart(5, '0')}.png`));
+        await shot(b.t, path.join(beatsDir, fname(b.i)));
       }
     }
     console.log(beatsManifest({ synthetic, beats }));

@@ -140,20 +140,35 @@ const SAMPLE_FRACTIONS = [0.25, 0.5, 0.8]; // fractions of DURATION to sample an
    bracket a world cut — the highest-risk moments in a two-world film. */
 function samplePlan(dur, flashes, n = 3) {
   // Interior points only: t=0 and t=DURATION are edges, and t=0 is a title card
-  // in essentially every scene this skill produces -- which is exactly how the
-  // old single-sample check came to look at the one moment a broken scene was
-  // clean. Flash avoidance matters because CONFIG.flashes peaks at beat edges,
-  // so a fixed fraction lands inside the white-out on the beats bracketing a
-  // world cut: the highest-risk moments in a two-world film.
+  // in essentially every scene this skill produces -- which is how the old
+  // single-sample check came to look at the one moment a broken scene was clean.
+  //
+  // Flash avoidance is done against MERGED intervals, not one flash at a time.
+  // The first version walked the flash list mutating t in place, so a sample
+  // nudged clear of one flash could land inside the next: measured, two flashes
+  // 0.4s apart (an ordinary cut-in/cut-out pair) put a sample at 95% white --
+  // reintroducing the exact failure the sampler exists to prevent. It also made
+  // the plan depend on the order the author happened to list CONFIG.flashes.
   const HALF = 0.3;                      // template flash is bump(t, c-.25, c+.25)
-  const ts = [];
-  for (let i = 1; i <= n; i++) ts.push(dur * (i / (n + 1)));
-  return ts.map(t => {
-    for (const c of (flashes || [])) {
-      if (Math.abs(t - c) < HALF) t = t < c ? c - HALF - 0.05 : c + HALF + 0.05;
+  const lo = 0.05, hi = Math.max(lo, dur - 0.05);
+  const iv = (flashes || []).map(c => [c - HALF, c + HALF]).sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [a, b] of iv) {
+    const last = merged[merged.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b); else merged.push([a, b]);
+  }
+  const clear = t => {                   // nearest point outside EVERY interval
+    for (let pass = 0; pass < merged.length + 1; pass++) {
+      const hit = merged.find(([a, b]) => t > a && t < b);
+      if (!hit) break;
+      const left = hit[0] - 0.05, right = hit[1] + 0.05;
+      t = (t - hit[0] <= hit[1] - t && left >= lo) ? left : right;
     }
-    return Number(Math.min(Math.max(t, 0.05), dur - 0.05).toFixed(4));
-  });
+    return Math.min(Math.max(t, lo), hi);
+  };
+  const out = [];
+  for (let i = 1; i <= n; i++) out.push(Number(clear(dur * (i / (n + 1))).toFixed(4)));
+  return out;
 }
 
 // Flash midpoints come from the contract (window.FLASHES), not from parsing
@@ -412,7 +427,7 @@ async function checkScene(browser, file) {
       // scene: the ink fraction of a flat frame sits near the p05 percentile
       // and moves with raster size. Wait for the buffer to match the viewport;
       // scenes without a resize handler just eat the short timeout.
-      await page.waitForFunction('document.getElementById("c").width === window.innerWidth',
+      await page.waitForFunction(`(() => { const c = document.querySelector('canvas'); return !c || c.width === window.innerWidth; })()`,
         { timeout: 2000 }).catch(() => {});
       const times = SAMPLE_FRACTIONS.map(f => f * dur);
       let worstClipped = 0, worstCrushed = 0, worstSpread = Infinity;
@@ -427,7 +442,7 @@ async function checkScene(browser, file) {
         // the interleaving is removed structurally rather than retried.
         const stats = await page.evaluate(`(() => {
           window.seekTo(${et});
-          const src = document.getElementById('c');
+          const src = document.querySelector('canvas');
           const w = ${EXPOSURE_SAMPLE_WIDTH};
           const h = Math.max(1, Math.round(src.height / src.width * w) || Math.round(innerHeight / innerWidth * w));
           const off = document.createElement('canvas');
@@ -517,6 +532,16 @@ async function checkScene(browser, file) {
       try { const m = fs.readFileSync(f, 'utf8').match(KERNEL_RE); return m && { f, k: m[0] }; }
       catch (e) { return null; }
     }).filter(Boolean);
+    for (const f of scenes) {                       // half-fenced is not exempt
+      try {
+        const txt = fs.readFileSync(f, 'utf8');
+        if (txt.includes('KERNEL-START') && !txt.includes('KERNEL-END')) {
+          kernelFail = true;
+          console.log(`FAIL ${f} — has KERNEL-START with no matching KERNEL-END; `
+                    + `an unterminated fence is excluded from the parity check`);
+        }
+      } catch (e) {}
+    }
     if (kernels.length >= 2 && new Set(kernels.map(x => x.k)).size > 1) {
       kernelFail = true;
       console.log('FAIL kernel drift — the marked shared-kit block differs between: '
@@ -532,6 +557,16 @@ async function checkScene(browser, file) {
       try { const m = SOLVER_RE.exec(fs.readFileSync(f, 'utf8')); return m ? { f, k: m[0] } : null; }
       catch (e) { return null; }
     }).filter(Boolean);
+    for (const f of scenes) {                       // half-fenced is not exempt
+      try {
+        const txt = fs.readFileSync(f, 'utf8');
+        if (txt.includes('SOLVER-START') && !txt.includes('SOLVER-END')) {
+          kernelFail = true;
+          console.log(`FAIL ${f} — has SOLVER-START with no matching SOLVER-END; `
+                    + `an unterminated fence is excluded from the parity check`);
+        }
+      } catch (e) {}
+    }
     if (solvers.length >= 2 && new Set(solvers.map(x => x.k)).size > 1) {
       kernelFail = true;
       console.log('FAIL solver drift — these scenes carry different SOLVER blocks:');
