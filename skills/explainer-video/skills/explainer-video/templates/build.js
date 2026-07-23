@@ -129,7 +129,20 @@ function ensureVendor(scene) {
   const dir = path.dirname(path.resolve(scene));
   let src = '';
   try { src = fs.readFileSync(scene, 'utf8'); } catch (e) { return; }
-  if (VENDOR_TAG.test(src)) vendor(dir, path.resolve(scene));   // embeds THIS scene only
+  if (!VENDOR_TAG.test(src)) return;
+  // NEVER embed into a shipped template. Embedding is right for an authored
+  // film -- that is what makes it self-contained -- but a *.template.html is a
+  // 32 KB starting point that must KEEP its vendor tag to stay readable and
+  // copyable. Running any command on one used to silently inflate it with
+  // 0.77 MB of inlined three.js, and because the result is idempotent nothing
+  // ever flagged it; it reached `git add` once. Copy the template first, then
+  // work on the copy -- which is what the workflow says to do anyway.
+  if (/\.template\.html$/.test(path.basename(scene))) {
+    throw new Error(
+      `refusing to embed three into ${path.basename(scene)} — it is a shipped `
+      + `template and must keep its vendor tag. Copy it to a working scene first.`);
+  }
+  vendor(dir, path.resolve(scene));                             // embeds THIS scene only
 }
 
 // dir defaults to the SAME expression video() uses, so the shoot half and the

@@ -1,5 +1,16 @@
 # changelog
 
+## 0.68.2
+
+### fixed
+- **explainer-video 0.25.1 -> 0.25.2**: running the verification gate destroyed the thing it was verifying.
+
+  `smoke.js` asserts each scene is self-contained by running `build.js bundle` on it, and `bundle()` embeds three.js **in place**. That is correct for an authored film — embedding is what makes it self-contained — but `templates/` holds the shipped 32 KB starting points, so every gate run silently rewrote `scene.template.html` with 0.77 MB of inlined three.js. The result is idempotent, which is why nothing ever flagged it; it reached `git add` before a post-commit `git status` caught it.
+
+  Two changes, because the hazard has two halves. `ensureVendor()` now **refuses** to embed into any `*.template.html` with an explanatory error, which protects every `build.js` command rather than just this one path — `sheet`, `motion` and `strip` had the same effect on a template and nobody had noticed. And `smoke.js` verifies a template through a throwaway copy beside it, since a template must keep its vendor tag yet can only be rendered with three embedded. The copy is deliberately not named `*.template.html`, or the new refusal fires on it and the template becomes uncheckable — which is what the first attempt did.
+
+  Controls both ways: a template now errors and is byte-identical afterwards; an authored scene still embeds normally (31,899 -> 802,292 bytes, tag consumed).
+
 ## 0.68.1
 
 ### fixed

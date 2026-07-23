@@ -610,9 +610,25 @@ async function checkScene(browser, file) {
     // What survives is the property that mattered: assert the scene really is
     // self-contained, because a scene that still points at an external library
     // renders nothing the moment it is copied or committed on its own.
-    const variants = [scene];
+    // A template must keep its vendor tag, but it can only be RENDERED with
+    // three embedded. Both are satisfied by checking a throwaway copy beside
+    // it (same directory, so relative references still resolve). Checking the
+    // template in place used to leave 0.77 MB of inlined three.js in a tracked
+    // source file every time the gate ran -- a gate that damages its own input.
+    let target = scene, tmp = null;
+    if (/\.template\.html$/.test(path.basename(scene))) {
+      // The copy must NOT itself end in `.template.html`, or ensureVendor's
+      // refusal fires on it and the template can never be rendered at all.
+      tmp = path.join(path.dirname(path.resolve(scene)),
+                      `.smoke-${process.pid}-`
+                      + path.basename(scene).replace(/\.template\.html$/, '.check.html'));
+      fs.copyFileSync(scene, tmp);
+      target = tmp;
+    }
     try {
-      execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
+    const variants = [target];
+    try {
+      execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', target],
                    { encoding: 'utf8' });
     } catch (e) {
       console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
@@ -623,19 +639,24 @@ async function checkScene(browser, file) {
       const label = 'source';
       if (fails.length) {
         failed++;
-        console.log(`FAIL ${v} [${label}]`);
+        console.log(`FAIL ${scene} [${label}]`);
         for (const f of fails) console.log('       ' + f);
       } else {
-        console.log(`ok   ${v} [${label}]`);
+        console.log(`ok   ${scene} [${label}]`);
       }
       // Advisory: printed after the ok/FAIL line, never counted toward `failed`
       // or the exit code — a scene with only warnings still prints `ok` and
       // still exits 0.
       if (warnings.length) {
         warned += warnings.length;
-        console.log(`warn ${v} [${label}]`);
+        console.log(`warn ${scene} [${label}]`);
         for (const w of warnings) console.log('       ' + w);
       }
+    }
+    } finally {
+      // finally, not end-of-loop: a throwing check must not leave a 0.77 MB
+      // .smoke-*.html sitting in templates/ for someone to commit by accident.
+      if (tmp) { try { fs.unlinkSync(tmp); } catch (e) {} }
     }
   }
   await browser.close();
