@@ -1,5 +1,18 @@
 # changelog
 
+## 0.63.0
+
+### changed
+- **explainer-video 0.19.0 -> 0.20.0**: hardening pass two — the framing vocabulary now measures what it promises, and the solver is fenced.
+
+  **The solver had reached SIX copies.** The generalization plan's postmortem set the trigger at "a third consumer, extract or marker-fence it"; it fired long ago and nothing acted. It is now inside `SOLVER-START`/`SOLVER-END` markers with a `smoke.js` parity check that hard-fails on drift, exactly like the deterministic kernel. Editing the solver is one edit again.
+
+  With the fence in place, the solver gained what the run showed it was missing: **union subjects** (`subject: ['plank','hammer']` solves the bounding box of both — every causal beat is two objects and the space between them, and hand-authoring a composite subject with an invented centre is the "coordinates were never the author's intent" the vocabulary exists to abolish); **projected fitting** when a subject declares depth (`d`), because an axis-aligned width is non-monotonic in camera angle — measured, a box that fitted at 0 and -45 degrees clipped at -26; a **horizontal anchor** (`anchorX`), the absence of which is why framing a named subject put its most important feature at the frame edge and authors fell back to framing regions; an **`FSA` rung** at f=.70 between `WS` (.50) and `FS` (.95), the workhorse "full body with a little air" framing that did not exist; and a **floor guard** so a low elevation at long distance can no longer put the camera underground. All optional and defaulting to prior behaviour: a subject declaring only `h` frames exactly as before.
+
+  **`window.FLASHES` joins the contract.** The new sampling layer's flash-avoidance was silently avoiding nothing, because `CONFIG` is a `const` in a classic script and never becomes a window property — so a legitimate film failed the blank check *inside its own world-cut flash*. Same shape as why `window.BEATS` exists: when a tool is tempted to parse scene internals, the contract is missing an export.
+
+  Regression: all six examples and both templates pass, with solver and kernel parity enforced across all of them.
+
 ## 0.62.0
 
 ### fixed

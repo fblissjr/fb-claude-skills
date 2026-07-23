@@ -484,6 +484,12 @@ window.BEATS=BEATS;
 // FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
 // does not export it renders at the historical 1920x1080 default.
 window.FRAME=FRAME;
+// Flash midpoints, resolved to absolute seconds. Part of the contract because a
+// tool cannot read them otherwise: CONFIG is a `const` in a classic script, so
+// it never becomes a window property, and smoke.js's flash-avoidance was
+// silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
+// is tempted to parse scene internals, the contract is missing an export.
+window.FLASHES=(CONFIG.flashes||[]).map(m=>beatAt(m.beat,m.at||0));
 window.seekTo=function(t){t=clamp(t,0,TOTAL);draw(t);setOverlay(t);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

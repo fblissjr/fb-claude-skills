@@ -287,7 +287,6 @@ const SUBJECTS={
 // vertical anchor on the subject the camera aims at. FS is full-body tight;
 // MS is waist-up — the first cut of this table shipped MS at full-shot
 // framing and the rack's second subject fell out of frame.
-const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
 const SHOTS=[
   {at:['title',0], subject:'knot', size:'WS', angle:35},
   {at:['one',.1],  subject:'knot', size:'FS', angle:60,  cut:'blend'},
@@ -295,9 +294,17 @@ const SHOTS=[
   {at:['three',0], subject:'knot', size:'WS', angle:35, size2:'FS', cut:'blend'},  // push in on the payoff
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
-const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
-                                // match check below compares framing with it
-SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not hoped
+/* ==== SOLVER-START ====================================================
+   The cinematography solver. This block is byte-identical in every 3D scene —
+   smoke.js FAILS the run if two checked scenes carry different solvers. It had
+   reached SIX copies before this fence existed, which is precisely the drift
+   the generalization plan's postmortem said to pre-empt "at a third consumer".
+   Edit it in ALL 3D scenes or in none.
+   ====================================================================== */
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FSA:{f:.70,a:.5},FS:{f:.95,a:.5},
+             MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+const LENS=STYLE.lens||42;
+SHOTS.forEach((sh,i)=>{                 // the match-cut constraint — verified, not hoped
   if(!sh.match)return;
   const q=SHOTS[i-1]||{};
   const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
@@ -306,13 +313,33 @@ SHOTS.forEach((sh,i)=>{         // the match-cut constraint — verified, not ho
     &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
   if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
 });
-// Cut durations and the default lens come from STYLE when a bible sets them —
-// pace and glass are register, and register belongs to the bible layer.
 const CUT_DUR=Object.assign({hard:0,whip:.16,blend:.8},STYLE.cutDur||{});
-let shotFocus=12;               // DoF plane distance, refreshed by setCamera each frame
+let shotFocus=12;
+
+/* A shot may name ONE subject or SEVERAL. Several resolves to the union box,
+   because every causal beat is two objects and the space between them — and
+   hand-authoring a composite subject with an invented centre is exactly the
+   "coordinates were never the author's intent" this vocabulary exists to
+   abolish. `d` (depth) is optional and defaults to 0, which keeps a subject
+   that declares only h/w framed exactly as before. */
+function subjectExtent(name,t){
+  const names=Array.isArray(name)?name:[name];
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity,z0=Infinity,z1=-Infinity,anyW=false;
+  for(const n of names){
+    const S=SUBJECTS[n];if(!S)throw new Error('unknown subject: '+n);
+    const[cx,cy,cz]=S.pos(t);
+    const w=S.w||S.h,h=S.h,d=S.d||0;
+    if(S.w)anyW=true;
+    x0=Math.min(x0,cx-w/2);x1=Math.max(x1,cx+w/2);
+    y0=Math.min(y0,cy-h/2);y1=Math.max(y1,cy+h/2);
+    z0=Math.min(z0,cz-d/2);z1=Math.max(z1,cz+d/2);
+  }
+  return{cx:(x0+x1)/2,cy:(y0+y1)/2,cz:(z0+z1)/2,w:x1-x0,h:y1-y0,d:z1-z0,
+         fitW:anyW||names.length>1};
+}
+
 function solveShot(sh,t){
-  const S=SUBJECTS[sh.subject];if(!S)throw new Error('unknown subject: '+sh.subject);
-  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;               // shot progress drives push/orbit
+  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;
   const A=SIZES[sh.size],B=sh.size2?SIZES[sh.size2]:A;
   if(!A||!B)throw new Error('unknown size: '+(A?sh.size2:sh.size));
   const f=lerp(A.f,B.f,u),anchor=sh.anchor!==undefined?sh.anchor:lerp(A.a,B.a,u);
@@ -320,33 +347,33 @@ function solveShot(sh,t){
   const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
   const fovd=sh.fov===undefined?LENS:sh.fov;
-  const[cx,cy,cz]=S.pos(t);
-  // The framing solver. `f` is the subject fraction of the frame; a subject may
-  // declare `w` as well as `h`, and framing binds on whichever axis is tighter.
-  // Height-only was the old behaviour and is still what an upright subject gets
-  // (w <= h*aspect), but a WIDE subject -- a timeline, a waveform, an org chart --
-  // was silently cropped by every rung tighter than WS because the ladder only
-  // ever constrained height.
-  const dist=Math.max(S.h/f,(S.w||0)/(f*FRAME.aspect))/(2*Math.tan(fovd*Math.PI/360));
-  const aimY=cy+(anchor-.5)*S.h;
-  return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
-         l:[cx,aimY,cz],fovd};
+  const E=subjectExtent(sh.subject,t);
+  /* Fit the PROJECTED box when depth is known. A subject's on-screen width
+     depends on the camera angle: measured on a real scene, a box that fitted at
+     0 and -45 degrees CLIPPED at -26, because an axis-aligned w is non-monotonic
+     in angle. With d undeclared the subject is treated as billboarded, which is
+     what every pre-existing scene assumed. */
+  const wProj=E.d>0?Math.abs(E.w*Math.cos(ang))+Math.abs(E.d*Math.sin(ang)):E.w;
+  const dist=Math.max(E.h/f,E.fitW?wProj/(f*FRAME.aspect):0)/(2*Math.tan(fovd*Math.PI/360));
+  /* Horizontal aim. The ladder had a vertical anchor and no horizontal one, in
+     both backends — which is why framing a named subject put its most important
+     feature at the frame edge and authors fell back to framing regions. */
+  const ax=sh.anchorX!==undefined?sh.anchorX:0;
+  const aimX=E.cx+ax*E.w,aimY=E.cy+(anchor-.5)*E.h;
+  /* Floor guard: the solver had no clamps at all and would place the camera
+     below the ground plane at low elevation and long distance. Not a fix for
+     "camera inside the subject" — that is a LIE about extent, and the extent
+     check in smoke.js is what catches it. */
+  const FLOOR=CONFIG.cameraFloor===undefined?0.35:CONFIG.cameraFloor;
+  const py=Math.max(FLOOR,aimY+Math.sin(elev)*dist);
+  return{p:[E.cx+Math.sin(ang)*Math.cos(elev)*dist,py,E.cz+Math.cos(ang)*Math.cos(elev)*dist],
+         l:[aimX,aimY,E.cz],fovd};
 }
-function focusDist(sh,t,p){const S=SUBJECTS[sh.focus||sh.subject];if(!S)throw new Error('unknown focus subject');
-  const[x,y,z]=S.pos(t);return Math.hypot(p[0]-x,p[1]-y,p[2]-z);}
-/* ---------- design frame ----------
-   The render is always 1920x1080, but the HTML artifact is whatever shape the
-   reader's window is. The solver pins the VERTICAL extent (dist = h/f/2tan(fov/2)),
-   so horizontal extent = vertical * aspect: a window narrower than 16:9 silently
-   CROPS THE SIDES. Measured on a fixed world point, ndc.x went 0.913 -> 1.161
-   (off-frame) from 1.78 -> 1.40 while ndc.y held constant to 4dp.
-   fitFov widens the vertical fov below the design ratio so the horizontal extent
-   is held instead: narrow windows reveal world above and below, never less to the
-   sides. The SOLVER keeps the authored fov for framing distance; only the
-   projection widens -- that split is what makes this contain rather than zoom out.
-   Identity at 16:9, so every recorded frame is byte-identical (verified). */
-const fitFov=f=>camera.aspect>=FRAME.aspect?f:
-  2*Math.atan(Math.tan(f*Math.PI/360)*FRAME.aspect/camera.aspect)*180/Math.PI;
+function focusDist(sh,t,p){const E=subjectExtent(sh.focus||sh.subject,t);
+  return Math.hypot(p[0]-E.cx,p[1]-E.cy,p[2]-E.cz);}
+const DESIGN_AR=FRAME.aspect;
+const fitFov=f=>camera.aspect>=DESIGN_AR?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
 function setCamera(t){
   let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
   const cur=SHOTS[i],c=solveShot(cur,t);
@@ -358,17 +385,15 @@ function setCamera(t){
     p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
     fd=lerp(focusDist(SHOTS[i-1],t,q.p),fd,u);          // focus blends too — the rack
   }
-  /* camera energy — noise from the frozen pool, amplitude riding CONFIG.sway
-     so `build.js loop`'s held-camera warning stays honest:
-     locked = tripod, steadicam = the old gentle drift, handheld = nerves. */
   const en=STYLE.energy||CONFIG.energy||'steadicam';
-  const E={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
+  const E2={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
   const F=en==='handheld'?1.9:.55;
-  camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
+  camera.position.set(p[0]+noise1(t,F,11)*E2*2,p[1]+noise1(t,F,12)*E2*1.2,p[2]);
   camera.fov=fitFov(fovd);camera.updateProjectionMatrix();
-  camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);
+  camera.lookAt(l[0]+noise1(t,F,13)*E2*.8,l[1]+noise1(t,F,14)*E2*.5,l[2]);
   shotFocus=fd;
 }
+/* ==== SOLVER-END ==== */
 
 /* ============================================================
    ANIMATE — every property a pure function of t.
@@ -420,6 +445,12 @@ window.BEATS=BEATS;
 // FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
 // does not export it renders at the historical 1920x1080 default.
 window.FRAME=FRAME;
+// Flash midpoints, resolved to absolute seconds. Part of the contract because a
+// tool cannot read them otherwise: CONFIG is a `const` in a classic script, so
+// it never becomes a window property, and smoke.js's flash-avoidance was
+// silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
+// is tempted to parse scene internals, the contract is missing an export.
+window.FLASHES=(CONFIG.flashes||[]).map(m=>beatAt(m.beat,m.at||0));
 window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}

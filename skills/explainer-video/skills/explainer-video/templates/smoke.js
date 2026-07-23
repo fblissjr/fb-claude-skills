@@ -160,18 +160,13 @@ function samplePlan(dur, beats, flashes, opts = {}) {
   return ts.map(t => Number(Math.min(Math.max(t, 0), dur).toFixed(4)));
 }
 
-// Resolve CONFIG.flashes ({beat,at}) to absolute seconds using window.BEATS.
+// Flash midpoints come from the contract (window.FLASHES), not from parsing
+// scene internals. CONFIG is a const in a classic script and never reaches
+// window, so the first version of this read undefined and avoided nothing —
+// which is how a legitimate film failed the blank check inside its own world-cut
+// flash.
 async function flashTimes(page) {
-  try {
-    return await page.evaluate(`(() => {
-      const F = (window.CONFIG && window.CONFIG.flashes) || [];
-      const B = window.BEATS || [];
-      if (!F.length || !B.length) return [];
-      const at = {}; let acc = 0;
-      for (const b of B) { at[b.name] = acc; acc += b.dur; }
-      return F.map(f => (at[f.beat] || 0) + (f.at || 0) * ((B.find(b => b.name === f.beat) || {}).dur || 0));
-    })()`);
-  } catch (e) { return []; }
+  try { return (await page.evaluate('window.FLASHES')) || []; } catch (e) { return []; }
 }
 
 async function checkScene(browser, file) {
@@ -532,6 +527,21 @@ async function checkScene(browser, file) {
       kernelFail = true;
       console.log('FAIL kernel drift — the marked shared-kit block differs between: '
         + kernels.map(x => x.f).join(', '));
+    }
+
+    // Same discipline for the cinematography solver. It reached SIX copies
+    // before this check existed -- the postmortem's own "at a third consumer,
+    // extract or marker-fence it" trigger, fired and unacted. Fencing it is the
+    // structural alternative to editing six files and hoping.
+    const SOLVER_RE = /\/\* ==== SOLVER-START ====[\s\S]*?\/\* ==== SOLVER-END ==== \*\//;
+    const solvers = scenes.map(f => {
+      try { const m = SOLVER_RE.exec(fs.readFileSync(f, 'utf8')); return m ? { f, k: m[0] } : null; }
+      catch (e) { return null; }
+    }).filter(Boolean);
+    if (solvers.length >= 2 && new Set(solvers.map(x => x.k)).size > 1) {
+      kernelFail = true;
+      console.log('FAIL solver drift — these scenes carry different SOLVER blocks:');
+      for (const x of solvers) console.log('       ' + x.f);
     }
   }
 
