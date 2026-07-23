@@ -1,8 +1,8 @@
-last updated: 2026-07-21
+last updated: 2026-07-22
 
 # explainer-video roadmap
 
-Roadmap for the `explainer-video` plugin (currently **0.6.0**). Originally
+Roadmap for the `explainer-video` plugin (currently **0.17.0**). Originally
 written at 0.1.2 after finding the skill's central usability claim false; the
 beats refactor that fixed it, and most of the review tooling designed here, have
 since shipped. The design write-ups below are kept as history even where DONE —
@@ -20,15 +20,22 @@ flip condition the "Not doing: a 2D backend" entry below set for itself.
 | 2 | [Beat-aware contact sheet](#2-beat-aware-contact-sheet) | **DONE** (0.6.0, as `build.js sheet`) | 1 |
 | 3 | [Narration-driven timing](#3-narration-driven-timing-audio) | designed, unbuilt | 1 |
 | 4 | [Caption lint](#4-caption-floor-lint-replaces-the-magic-number-lint) | **DONE** (0.6.0, advisory) | 1 |
-| 5 | [Parallel frame capture](#5-parallel-frame-capture) | **DONE** (0.8.0), with a negative speed result | — |
+| 5 | [Parallel frame capture](#5-parallel-frame-capture) | **CLOSED** — mechanism shipped 0.8.0; speed refuted on its own predicted best case | — |
 | 6 | [Repo-wide version alignment check](#6-repo-wide-version-alignment-check) | open | — (not this plugin) |
 | 7 | [Spike the hostile beat first](#7-spike-the-hostile-beat-first-methodmd-addition) | **DONE** (0.2.0, in method.md) | — |
 | 8 | [The three-axis review model](#8-the-three-axis-review-model-06) | **DONE** (0.6.0) | 1 |
 | 9 | [Inline delivery: AVIF vs WebP](#9-inline-delivery-avif-vs-webp-06) | **DONE** (0.6.0), one test open | — |
 | 10 | [A committed flagship example](#10-a-committed-flagship-example) | **DONE** (0.12.0, as `examples/toybot-walk.html`) | — |
+| 11 | [Declared reference frames (`FRAME`)](#11-declared-reference-frames-frame) | **DONE** (0.16.0 containment + 0.17.0 `FRAME`) | — |
+| 12 | [Width-aware framing (`EXTENT`)](#12-width-aware-framing-extent) | **DONE** (0.17.0) | 11 |
+| 13 | [Register-aware lints](#13-register-aware-lints) | designed, deliberately unbuilt | a film that needs them |
+| 14 | [Extract the cinematography solver](#14-extract-the-cinematography-solver-third-consumer-reached) | **DUE** — third consumer reached, not done | — |
+| 15 | [JPEG capture for review passes](#15-jpeg-capture-for-review-passes) | candidate, measured, unbuilt | — |
+| 16 | [`sheet 480 0.95` as a standing step](#16-sheet-480-095-as-a-standing-step) | open (a method change, not code) | 2 |
 
-The 0.6.0 items (8, 9) and how 2 and 4 actually shipped are summarized next; the
-older design write-ups follow unchanged from item 1 down.
+The 0.6.0 items (8, 9) and how 2 and 4 actually shipped are summarized next,
+then the 0.16.0/0.17.0 pass; the older design write-ups follow unchanged from
+item 1 down, and items 11-16 are appended after item 7.
 
 ---
 
@@ -67,6 +74,40 @@ and the root `CHANGELOG.md` 0.50.0 entry.
   the beat table as JSON without rendering (used by `motion`).
 - **`build.js video`** now warns and prints the re-encode command past the 10MB
   attachment ceiling.
+
+---
+
+## Shipped in 0.16.0-0.17.0 (the test-suite session)
+
+Not a phase of the generalization plan — this is what fell out of *running*
+[the test suite](explainer_video_test_cases.md) against the 0.15.0 plugin. Every
+defect it found was already there when the back-to-back run closed at its gates;
+none of them was findable from inside that run, for a structural reason recorded
+in the plan's post-run section: every proving film was authored and reviewed at
+one viewport.
+
+- **0.16.0 — framing.** The HTML loop and the recorded formats agreed in *time*
+  and not in *framing*. Both backends now contain a 16:9 design frame; see item
+  11.
+- **0.17.0 — the reference-frame pass.** One declared `FRAME` per scene,
+  frame-relative overlays, `EXTENT`, a framing-invariance check in `smoke.js`,
+  and `build.js aspect`. Items 11 and 12.
+- **`build.js all` could silently encode the wrong frames.** `frames()`
+  overrode ambient `FRAMES_DIR` while `video()` honored it, so
+  `FRAMES_DIR=X build.js all` shot into `frames/` and encoded from `X/`.
+  Measured: one stale frame in `X` produced a **0.0 MB one-frame mp4, exit 0,
+  printed as success**. This is the same ship-the-wrong-film failure the comment
+  inside `video()` claims to have closed, reintroduced through the other half of
+  the pair — the argument for fixing a class at the seam rather than at one
+  call site.
+- **SKILL.md's description was 1150 characters against the Agent Skills 1024
+  limit.** Pre-existing; surfaced only because 0.17.0 had to touch the file.
+
+Two instrument findings from the same session that changed no code and are
+recorded as brackets: `build.js motion`'s dead-air detector measures pixel
+**contrast, not activity**, against a **global** median (item 13's evidence),
+and the end-of-beat contact sheet caught two defects the default sample
+structurally cannot show (item 16).
 
 ---
 
@@ -361,6 +402,21 @@ revisit promoting it.
 > or hardware GL, where one page cannot saturate the machine — plausible,
 > unmeasured. Recorded per the build-the-control rule: the mechanism is
 > correct, the benefit is environment-conditional and so far undemonstrated.
+>
+> **CLOSED 2026-07-22 as a measured negative on its own predicted best case.**
+> The remaining open above named the win case exactly: "a many-core box or
+> hardware GL." Measured there (24 cores + hardware GL via ANGLE Metal, 288
+> frames @ 24fps): **~1.1x at both 4 and 8 workers**, and ~1.0-1.05x on the same
+> box under SwiftShader. The premise was wrong at the root — capture was never
+> GL-parallelism-bound. It is **screenshot-bound**, and PNG encode serializes
+> through the browser process, so adding pages adds contention on the one
+> resource that was already the bottleneck (Round 0 of the test suite: on
+> hardware GL ~95% of capture time is the screenshot, not the film). The
+> feature stays — it is correct, byte-identical, and costs nothing — but it is
+> no longer a lever anyone should reach for. The lever that the same measurement
+> *did* find is item 15.
+
+
 
 Falls straight out of determinism: frames are independent, so N headless pages can
 each shoot a contiguous 1/N of the range with zero correctness risk. Contiguous
@@ -495,6 +551,247 @@ at frames but says nothing about testing the delivery target early.
 
 Note this rule also mostly disappears if the scene holds the camera, since the
 whole problem is per-frame change. It matters for the moving-camera case.
+
+---
+
+## 11. Declared reference frames (`FRAME`)
+
+> **Shipped in two releases, and the second is the one that generalizes.**
+> 0.16.0 fixed the symptom: both backends now *contain* a 16:9 design frame
+> instead of pinning one axis. 0.17.0 fixed the class: a scene **declares** its
+> reference frame (`FRAME = {aspect, px}`, exported as `window.FRAME`) and
+> everything that measures or composes reads it.
+>
+> The design below did not exist in advance — this item is written after the
+> fact, because the defect was found by a human resizing a window, not by any
+> instrument. That is the entry's main value.
+
+### The defect (0.16.0)
+
+`SKILL.md`'s headline claim is that the film is a pure function of `t`, so *one
+scene file drives the live HTML loop and the frame-exact render alike*. They
+were identical in **time** and not in **framing**.
+
+- The 2D template scaled by `canvas.height/VIEW_H` alone, so visible world
+  *width* was a function of viewport aspect.
+- The 3D solver pins the *vertical* extent (`dist = h/f/(2·tan(fov/2))`), so
+  horizontal extent is vertical × aspect.
+
+Different mechanisms, same assumption, same consequence: **any window narrower
+than 16:9 silently cropped the sides.** Measured on a fixed world point at
+`(3,3,0)` in the 3D template, aspect 1.78 → 1.40: `ndc.x` went **0.913 →
+1.161** (off-frame) while `ndc.y` held constant to four decimals.
+
+**It was invisible to the entire test surface by construction.** No tool in the
+chain ever opened a non-16:9 viewport — `shoot.js` pinned 1920×1080, `smoke.js`
+used 640×360 and 1920×1080, `build.js` opens no browser at all. Every recorded
+artifact was 16:9 and therefore correct; only the live HTML could exhibit it,
+and only a human resizing a window would see it. One did.
+
+Per-scene crop thresholds, measured (the aspect at which content starts leaving
+the frame):
+
+| scene | crops below |
+|---|---|
+| `examples/toybot-walk.html` | **1.66** — 7% margin at 16:9 |
+| `templates/scene2d.template.html` | 1.45 |
+| `examples/skill-retrieval.html` | 1.30 |
+| `examples/one-scene-every-format.html` | 1.07 |
+
+Worst hit is the shipped flagship: at 1.40 the sign was cut out of toybot's
+rack-focus shot — the exact failure that scene's own code comment ("both
+subjects must be visible") exists to prevent. The comment was right and the
+renderer moved the goalposts underneath it.
+
+The fix is the identity at 16:9, which is what made it cheap: verified
+**byte-identical at 1920×1080 across all five shipped scenes at two
+timestamps**, so no committed artifact needed re-rendering.
+
+### The generalization (0.17.0)
+
+The diagnosis that made this worth a second release: *every* defect found in
+this session came from a measurement or a composition made against an
+**undeclared reference frame**. An audit found ten different implicit frames,
+several mutually inconsistent — the canvas scaled by window height; captions
+sized in fixed CSS px against the window but positioned in percent of the
+window; the shot ladder against frame height; `smoke.js` measuring exposure at
+640×360 but caption overflow at a hardcoded 1920; `motion`'s dead-air threshold
+relative to a global median. What shipped:
+
+- **`FRAME`** — one declared reference frame per scene, exported on `window`.
+  `shoot.js` sizes its viewport from `FRAME.px` instead of hardcoding
+  1920×1080, which makes **9:16 vertical and 1:1 square output first-class**;
+  they were previously impossible by construction, no matter what the author
+  wrote. `SKILL.md`'s `aspect: 16:9 default` spec field was decorative —
+  nothing read it — and is now the single source.
+- **Frame-relative overlays** — captions and titles sized *and* positioned as
+  fractions of the design frame, via CSS vars the scene publishes. This closes a
+  **separate** parity gap that 0.16.0 did not fix: containing the canvas does
+  nothing for a DOM overlay measured against the window. Not byte-identical
+  (PSNR **79.0 dB** 3D / **74.0 dB** 2D, above `method.md`'s 70 dB imperceptible
+  bar, localized to the caption pill's antialiased edge) — the one place this
+  pass changed pixels, and it is recorded rather than smoothed over.
+- **Framing-invariance check in `smoke.js`** — samples the design frame at three
+  window shapes across three timestamps and fails if its contents change.
+  Bracketed both ways: known-bad pre-fix templates score **24-31** mean-abs-luma,
+  correct scenes score **0.07-0.12**, threshold **8** sits in the gap.
+- **`build.js aspect`** — a visual diagnostic tiling one moment at four window
+  shapes. It exists because the lint can *reject* a scene and cannot *approve*
+  one (item 4's rule), so the author still has to look.
+
+Two false starts in building that check, worth recording because both are the
+repo's own documented failure modes recurring:
+
+1. The first version sampled a single `t` that landed on a near-blank title
+   card and reported all-clear on a template **known** to crop. A green control
+   that never ran — the same shape as the dynrange bracket caught during Phase 1.
+2. The second read a **stale canvas**, sampling before the scene's resize
+   handler landed. Same class as the `smoke.js` sampling race already in the
+   plan's postmortem.
+
+An instrument for a spatial property needs a spatial *and* temporal positive
+control. One timestamp is not a control.
+
+## 12. Width-aware framing (`EXTENT`)
+
+> **Shipped in 0.17.0**, from a finding the test suite produced before the
+> framing work started (case D4).
+
+`SIZES.f` is "subject height ÷ frame height", so the framing solver derived
+distance from height alone and never consulted width. Anything wider than
+**~1.8× its declared height cropped at `FS` and tighter** — which means wide
+subjects (timelines, org charts, waveforms, supply chains: a large share of the
+explainer domain) could only ever use EWS/WS, collapsing the shot variety the
+ladder exists to provide. Compounded by item 11: the ladder was
+height-calibrated *and* the viewport was height-calibrated, so a wide subject
+was squeezed twice.
+
+Subjects may now declare `w` alongside `h` in `EXTENT`, and framing binds on
+whichever axis is tighter. Backward compatible: an upright subject where
+`w <= h*aspect` frames exactly as before.
+
+The craft answer recorded alongside it still stands and is the better first
+move — inflating `h` pulls back but leaves the subject small in a tall empty
+frame; pushing in on a **narrower named sub-subject** is both better cinema and
+uncropped. `EXTENT` exists for when the wide thing genuinely is the subject.
+
+This is the third instance of the postmortem's convention-pre-flight pattern
+(shot sizes, ink polarity, gait anchoring were the first three; the size ladder
+assuming an upright subject is of the same shape).
+
+## 13. Register-aware lints
+
+**Designed, deliberately not built.** Two candidate instances exist; neither has
+a film that is blocked on it, which is the earn-in bar.
+
+Every lint in `smoke.js` compares against a universal constant. But the plugin's
+whole Phase 4 thesis is that a **register** is a declared intent — `STYLE` and
+`BIBLES` say what the film is supposed to look like. A lint that ignores that
+declaration is measuring departure-from-average when the useful signal is
+departure-from-*intent*.
+
+The evidence, all measured, all from registers behaving exactly as designed:
+
+- **Crush at 84% on `midnight`** — the neon-dark pack predicted this hazard two
+  phases before the film existed. Correct by intent.
+- **Dynamic range 0.0 on D4** at both tails, on a film correctly exposed by
+  eye: sparse bright subjects on a near-black field put p05 and p95 both in the
+  background.
+- **Dead-air on blueprint's fine linework.** The submit beat drew three evidence
+  rules sequentially and `motion` reported dead air across the identical window
+  before and after the rules changed from an alpha fade to a sequential
+  `drawOn`. The control — same timing, same geometry, **only** stroke weight
+  ×3.7 and colour changed — cleared that flag and manufactured **three new ones
+  in other beats**.
+
+Two conclusions from that last control, and they are the design input:
+
+- The detector measures **pixel contrast, not activity**. Thin low-alpha
+  linework animates without registering, and blueprint is precisely the register
+  that draws thin low-alpha linework.
+- The threshold is relative to a **global median**, so a dead-air report is not
+  a stable per-beat property at all — it is a statement about one beat relative
+  to the rest of *that particular cut*. Making one beat busier pushes quieter
+  beats below the line.
+
+The design: have `STYLE`/`BIBLES` declare an expected exposure and ink envelope,
+and have the lints check departure from *that*. Not built. The rule that keeps
+it unbuilt is the same one that kept quality tiers unbuilt through Phase 2 —
+nothing is hurt enough yet, and every instance so far was correctly resolved by
+looking. Build it when a film's register makes a lint useless rather than noisy.
+
+## 14. Extract the cinematography solver (third consumer reached)
+
+**DUE. Not done.** This is a ledger entry recording an unpaid debt, not a plan.
+
+The plan's postmortem set the trigger itself: the solver existed in two copies
+(3D template + `examples/toybot-walk.html`) with no drift guard — the kernel
+markers cover only the deterministic kit, not the solver — and *"two copies is
+the repo's tolerated maximum; at a third consumer, extract or marker-fence
+it."*
+
+The test suite's 3D films are that third consumer. The threshold is reached and
+the extraction has not happened, which means the trigger fired and was not
+acted on — worth stating plainly, because a rule that quietly slips its own
+condition is worse than no rule.
+
+Shape, per the repo's own precedent (CLAUDE.md invariant 3, and the kernel block
+itself): **marker-fence plus a hard-fail drift test in `smoke.js`**, not a
+build step. Scenes stay single-file. The kernel block already proved the pattern
+works on templates, including its positive control (a one-character mutation
+fails the suite).
+
+## 15. JPEG capture for review passes
+
+**Candidate. Measured, unbuilt.** Surfaced by Round 0 of the test suite, and it
+is the lever item 5 was looking for in the wrong place.
+
+Two independent bottlenecks exist in capture, and fixing either alone leaves the
+other: software rasterization of a post chain, and **PNG encode / CDP
+transfer**. Same readback path, encode swapped, on hardware GL: JPEG q90 is
+**5.7x** faster on the flat template and **6.5x** on toybot. On hardware GL
+roughly **95% of capture time is the screenshot, not the film**.
+
+The proposal: the **review** passes (`sheet`, `strip`, sample frames) already
+emit `.jpg` at the end, so they could shoot JPEG directly for ~6x. Final
+MP4/WebP/AVIF renders keep lossless PNG, unconditionally — the determinism
+byte-check and every shipped artifact stay on the lossless path, the same
+"preview exists to iterate, never to verify" rule Phase 2 pre-decided for
+quality tiers.
+
+Deliberately not implemented during the test run: changing the instrument while
+using it to measure is how a green board gets manufactured. Logged here to be
+built as its own change with its own control.
+
+Related environment fact from the same round, which belongs with this item
+because it decides where any of it matters: **`shoot.js` hardcodes
+`--use-angle=swiftshader`**, so the recorder pinned software GL regardless of
+hardware. "Book a hardware-GL session" was never only about the machine — the
+tool opted out. On an M2 Ultra, hardware GL is worth **55x** on the `seekTo`
+draw for a post-chain scene, **2.6x** end-to-end, and ~nothing for a flat scene.
+
+## 16. `sheet 480 0.95` as a standing step
+
+**Open — a method change, not code.** The instrument already exists (item 2
+shipped `frac` sampling for exactly this); what is proposed is promoting the
+end-of-beat pass from an option to a required step in the review loop.
+
+Evidence, from case A2: the 0.95 sheet caught two defects that the default 0.6
+sample **structurally cannot show**, because both are end-of-beat states —
+
+1. a payload dot arriving at empty space, because its target box drew a beat
+   late;
+2. a connector routed *through* a box interior instead of approaching from
+   outside.
+
+Both are timing/geometry errors that are correct at mid-beat and wrong at the
+edge. A mid-beat sample is not a weaker look at the same thing; it is a look at
+a different moment, and a whole class of defect lives only at the boundary.
+
+Counter-argument to weigh before adopting: it doubles sheet render cost, and
+render cost already taxed every review round in the back-to-back run. Item 15
+would pay for it several times over, which is an argument for sequencing 15
+first.
 
 ## Not doing
 

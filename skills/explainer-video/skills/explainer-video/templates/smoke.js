@@ -40,7 +40,11 @@ function chromiumPath() {
                        path.join(os.homedir(), 'Library/Caches/ms-playwright'),
                        path.join(os.homedir(), '.cache/ms-playwright')]) {
     if (!cache || !fs.existsSync(cache)) continue;
-    for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort().reverse()) {
+          // Numeric by build, matching shoot.js. Lexicographic sorts chromium-1099
+      // above chromium-1223, so the gate and the recorder could resolve
+      // different browsers on the same machine.
+      const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
+      for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
       for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
                          'chrome-headless-shell-linux64/chrome-headless-shell',
                          'chrome-mac/headless_shell']) {
@@ -78,6 +82,10 @@ const CAP_OVERFLOW_FRACTION = 0.92;
 // 1920x1080. The caption is sized in fixed CSS px, so it must be measured here
 // and not at VIEWPORT above, which exists only to keep the render checks cheap.
 const SHIP_VIEWPORT = { width: 1920, height: 1080 };
+// Mean-absolute-luma tolerance for the framing-invariance check. Bracketed:
+// a correctly containing scene scores <3; the pre-fix cropping templates
+// scored 20-60. 8 sits in the gap, nearer the confirmed-good end.
+const FRAMING_INVARIANCE_MAD = 8;
 
 // Exposure thresholds — PROVISIONAL. Bracketed on a handful of scenes only;
 // re-bracket as more scenes are checked. Named here so that re-bracketing is
@@ -107,7 +115,70 @@ const EXPOSURE_CRUSHED_THRESHOLD = 0.35; // warn if worst-case crushed fraction 
 // blankness on any backend stays covered by the PNG-size check.
 const EXPOSURE_DYNRANGE_THRESHOLD = 18;
 const EXPOSURE_SAMPLE_WIDTH = 320;       // downscale width for the offscreen luma sample
-const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
+const SAMPLE_FRACTIONS = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
+
+
+/* ---------- the sampling layer ----------------------------------------------
+   Every check in this file used to hand-roll its own sampling, which is why the
+   SAME defect kept appearing independently: the determinism check, the blank
+   check, the contact sheet and (until it was re-bracketed) the framing lint each
+   picked their own point and then reported about the whole film.
+
+   The proof that this matters, measured on one scene with three controls: a
+   provably non-deterministic scene reported `all scenes pass, 0 warnings`,
+   because `t = Math.min(1, dur/3)` is the CONSTANT 1.0s for any film over 3s —
+   inside the title card the workflow tells you to write first — and t=1.0 was
+   the only timestamp in that film where the scene was clean.
+
+   So sampling becomes shared infrastructure rather than a habit. A check states
+   a plan, gets points that respect what the harness already knows (duration,
+   beats, flash windows), and REPORTS WHICH POINTS IT USED — a green result
+   should be auditable, not authoritative.
+
+   avoid:'flash' matters more than it looks: CONFIG.flashes peaks at beat edges,
+   so any fixed fraction lands inside the white-out on exactly the beats that
+   bracket a world cut — the highest-risk moments in a two-world film. */
+function samplePlan(dur, flashes, n = 3) {
+  // Interior points only: t=0 and t=DURATION are edges, and t=0 is a title card
+  // in essentially every scene this skill produces -- which is how the old
+  // single-sample check came to look at the one moment a broken scene was clean.
+  //
+  // Flash avoidance is done against MERGED intervals, not one flash at a time.
+  // The first version walked the flash list mutating t in place, so a sample
+  // nudged clear of one flash could land inside the next: measured, two flashes
+  // 0.4s apart (an ordinary cut-in/cut-out pair) put a sample at 95% white --
+  // reintroducing the exact failure the sampler exists to prevent. It also made
+  // the plan depend on the order the author happened to list CONFIG.flashes.
+  const HALF = 0.3;                      // template flash is bump(t, c-.25, c+.25)
+  const lo = 0.05, hi = Math.max(lo, dur - 0.05);
+  const iv = (flashes || []).map(c => [c - HALF, c + HALF]).sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [a, b] of iv) {
+    const last = merged[merged.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b); else merged.push([a, b]);
+  }
+  const clear = t => {                   // nearest point outside EVERY interval
+    for (let pass = 0; pass < merged.length + 1; pass++) {
+      const hit = merged.find(([a, b]) => t > a && t < b);
+      if (!hit) break;
+      const left = hit[0] - 0.05, right = hit[1] + 0.05;
+      t = (t - hit[0] <= hit[1] - t && left >= lo) ? left : right;
+    }
+    return Math.min(Math.max(t, lo), hi);
+  };
+  const out = [];
+  for (let i = 1; i <= n; i++) out.push(Number(clear(dur * (i / (n + 1))).toFixed(4)));
+  return out;
+}
+
+// Flash midpoints come from the contract (window.FLASHES), not from parsing
+// scene internals. CONFIG is a const in a classic script and never reaches
+// window, so the first version of this read undefined and avoided nothing —
+// which is how a legitimate film failed the blank check inside its own world-cut
+// flash.
+async function flashTimes(page) {
+  try { return (await page.evaluate('window.FLASHES')) || []; } catch (e) { return []; }
+}
 
 async function checkScene(browser, file) {
   const fails = [];
@@ -140,18 +211,31 @@ async function checkScene(browser, file) {
     // same pipeline, and this check must not lock that out.
 
     const dur = await page.evaluate('window.DURATION');
-    const t = Math.min(1, dur / 3);
-
-    // Determinism: same t twice must be byte-identical. Catches accumulated
-    // state, Math.random(), and wall-clock leaking into the scene — each of
-    // which silently desyncs the MP4 from the HTML loop.
-    await page.evaluate(`window.seekTo(${t})`);
-    const a = await page.screenshot();
-    await page.evaluate(`window.seekTo(${dur})`);          // move away...
-    await page.evaluate(`window.seekTo(${t})`);            // ...and back
-    const b = await page.screenshot();
+    const flashes = await flashTimes(page);
+    // ALL-quantified over a plan, not a spot check at one arbitrary second.
+    const PLAN = samplePlan(dur, flashes, 4);
+    const t = PLAN[0];
     const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
-    if (h(a) !== h(b)) fails.push(`seekTo(${t}) not deterministic — scene carries state across frames`);
+
+    // Determinism: same t twice must be byte-identical, at EVERY sampled point.
+    // Catches accumulated state, Math.random(), and wall-clock leaking into the
+    // scene — each of which silently desyncs the MP4 from the HTML loop.
+    // Quantified ALL: one clean timestamp proves nothing, and a scene whose
+    // title card is static is clean at exactly the moment the old check looked.
+    let shots = [];
+    for (const ts of PLAN) {
+      await page.evaluate(`window.seekTo(${ts})`);
+      const x = await page.screenshot();
+      await page.evaluate(`window.seekTo(${dur})`);        // move away...
+      await page.evaluate(`window.seekTo(${ts})`);         // ...and back
+      const y = await page.screenshot();
+      shots.push(x);
+      if (h(x) !== h(y)) {
+        fails.push(`seekTo(${ts}) not deterministic — scene carries state across frames `
+                 + `(checked ${PLAN.join(', ')})`);
+        break;
+      }
+    }
 
     // Non-blank, measured on the screenshot rather than the canvas, so this works
     // for any backend (WebGL, 2D canvas, SVG/CSS, plain DOM). PNG compresses a
@@ -163,8 +247,13 @@ async function checkScene(browser, file) {
     // flat fill. Hardcoding 6000 silently mis-calibrated the moment VIEWPORT
     // changed, which is exactly the kind of coupling nobody notices.
     const blankFloor = Math.round((VIEWPORT.width * VIEWPORT.height) / 40);
-    if (a.length < blankFloor) {
-      fails.push(`frame looks blank (${a.length} bytes compressed, floor ${blankFloor})`);
+    // ALL-quantified: the old single sample failed a legitimate film on a 1.6%
+    // margin at one arbitrary second, and passed a broken one by 9 bytes.
+    for (let i = 0; i < shots.length; i++) {
+      if (shots[i].length < blankFloor) {
+        fails.push(`frame looks blank at t=${PLAN[i]} (${shots[i].length} bytes compressed, floor ${blankFloor})`);
+        break;
+      }
     }
 
     // --- advisory checks below: judgment calls, never fail the build --------
@@ -217,14 +306,19 @@ async function checkScene(browser, file) {
         await page.setViewportSize(SHIP_VIEWPORT);
         for (const b of beats) {
           if (!b.cap) continue;
-          const { width, innerWidth } = await page.evaluate(`(() => {
+          const { width, frameW } = await page.evaluate(`(() => {
             const el = document.getElementById('cap');
             el.textContent = ${JSON.stringify(b.cap)};
-            return { width: el.offsetWidth, innerWidth: window.innerWidth };
+            const ar = (window.FRAME && window.FRAME.aspect) || 16/9;
+            const frameW = Math.min(window.innerWidth, window.innerHeight * ar);
+            return { width: el.offsetWidth, innerWidth: window.innerWidth, frameW };
           })()`);
-          const limit = innerWidth * CAP_OVERFLOW_FRACTION;
+          // Measure against the FRAME, not the raw viewport. Overlays are sized
+          // as a fraction of the frame, so the frame is the only basis on which
+          // this number means the same thing at every window shape.
+          const limit = frameW * CAP_OVERFLOW_FRACTION;
           if (width > limit) {
-            warnings.push(`caption overflow: beat "${b.name}" measured ${width}px wide against ${innerWidth}px viewport (limit ${limit.toFixed(0)}px)`);
+            warnings.push(`caption overflow: beat "${b.name}" measured ${width}px wide against a ${frameW.toFixed(0)}px frame (limit ${limit.toFixed(0)}px)`);
           }
         }
         await page.setViewportSize(VIEWPORT);
@@ -234,6 +328,85 @@ async function checkScene(browser, file) {
       try { await page.setViewportSize(VIEWPORT); } catch (e2) {}
       warnings.push('caption overflow: check errored — ' + e.message.split('\n')[0]);
       try { await page.evaluate(`window.seekTo(${t})`); } catch (e2) {}
+    }
+
+    // CHECK: framing is invariant across window shapes.
+    //
+    // This is the guard for a whole bug CLASS, not one bug. Every other check in
+    // this file samples ONE window shape, and so did every other tool: shoot.js
+    // pinned 1920x1080, build.js opens no browser at all. A defect that only
+    // appears at a different aspect was therefore invisible to the entire test
+    // surface BY CONSTRUCTION -- which is exactly how both backends shipped a
+    // silent horizontal crop that only a human resizing a window ever saw.
+    //
+    // The invariant: the scene composes against FRAME.aspect and CONTAINS it, so
+    // the contents of the design frame must not depend on the window shape. We
+    // read the frame rect out of the canvas at three aspects, reduce each to a
+    // coarse luma grid, and compare. Cheap, because seekTo is pure.
+    //
+    // Tolerance, not equality: resampling a different pixel count into the same
+    // grid is never bit-exact. Bracketed on the real defect -- the pre-fix
+    // templates score 20-60 mean absolute difference here, a correct scene
+    // scores under 3.
+    try {
+      const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
+      const grid = async () => page.evaluate(`(() => {
+        const c = document.querySelector('canvas');
+        const W = window.innerWidth, H = window.innerHeight, AR = ${ar};
+        const fw = Math.min(W, H * AR), fh = fw / AR;
+        const fx = (W - fw) / 2, fy = (H - fh) / 2;
+        // map the frame rect out of the canvas into a fixed GX x GY luma grid
+        const GX = 32, GY = 18, out = [];
+        const sx = c.width / W, sy = c.height / H;
+        const tmp = document.createElement('canvas');
+        tmp.width = GX; tmp.height = GY;
+        const g = tmp.getContext('2d');
+        g.drawImage(c, fx * sx, fy * sy, fw * sx, fh * sy, 0, 0, GX, GY);
+        const d = g.getImageData(0, 0, GX, GY).data;
+        for (let i = 0; i < d.length; i += 4) out.push(0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]);
+        return out;
+      })()`);
+      const shapes = [
+        { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
+        { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
+        { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
+      ];
+      // Sample several points across the film and take the WORST. The first cut
+      // of this check sampled one t, landed on a near-blank title card, scored
+      // ~0 on a template known to crop, and reported all-clear -- a green
+      // control that never ran. A blank frame is invariant under every window
+      // shape precisely because it contains nothing.
+      const mad = (a, b) => a.reduce((s2, v, i) => s2 + Math.abs(v - b[i]), 0) / a.length;
+      const worst = { narrow: 0, wide: 0 };
+      for (const frac of SAMPLE_FRACTIONS) {
+        const ts = dur * frac;
+        const grids = {};
+        for (const sh of shapes) {
+          await page.setViewportSize({ width: sh.w, height: sh.h });
+          // Wait for the scene's own resize handler to land before sampling.
+          // Without this the grid is read off a STALE canvas and the numbers are
+          // nonsense in both directions -- the first run of this check scored a
+          // correctly-fixed template WORSE than a known-broken one. Same class as
+          // the smoke.js sampling race already recorded in the plan's postmortem;
+          // any check that changes viewport must re-settle before it measures.
+          await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+          await page.evaluate(`window.seekTo(${ts})`);
+          grids[sh.tag] = await grid();
+        }
+        for (const tag of ['narrow', 'wide']) {
+          worst[tag] = Math.max(worst[tag], mad(grids.design, grids[tag]));
+        }
+      }
+      for (const tag of ['narrow', 'wide']) {
+        if (worst[tag] > FRAMING_INVARIANCE_MAD) {
+          fails.push(`framing not aspect-invariant: the design frame's contents change at the ${tag} window shape (worst mean abs luma diff ${worst[tag].toFixed(1)} > ${FRAMING_INVARIANCE_MAD}). The scene is cropping or reflowing instead of containing FRAME.aspect.`);
+        }
+      }
+      await page.setViewportSize(VIEWPORT);
+      await page.evaluate(`window.seekTo(${t})`);
+    } catch (e) {
+      try { await page.setViewportSize(VIEWPORT); await page.evaluate(`window.seekTo(${t})`); } catch (e2) {}
+      warnings.push('framing invariance: check errored — ' + e.message.split('\n')[0]);
     }
 
     // CHECK: exposure, both tails. This template's renderer uses ACES tone
@@ -254,9 +427,9 @@ async function checkScene(browser, file) {
       // scene: the ink fraction of a flat frame sits near the p05 percentile
       // and moves with raster size. Wait for the buffer to match the viewport;
       // scenes without a resize handler just eat the short timeout.
-      await page.waitForFunction('document.getElementById("c").width === window.innerWidth',
+      await page.waitForFunction(`(() => { const c = document.querySelector('canvas'); return !c || c.width === window.innerWidth; })()`,
         { timeout: 2000 }).catch(() => {});
-      const times = EXPOSURE_SAMPLE_TIMES.map(f => f * dur);
+      const times = SAMPLE_FRACTIONS.map(f => f * dur);
       let worstClipped = 0, worstCrushed = 0, worstSpread = Infinity;
       for (const et of times) {
         // seekTo and the pixel sample run in ONE evaluate — a single JS task.
@@ -269,7 +442,7 @@ async function checkScene(browser, file) {
         // the interleaving is removed structurally rather than retried.
         const stats = await page.evaluate(`(() => {
           window.seekTo(${et});
-          const src = document.getElementById('c');
+          const src = document.querySelector('canvas');
           const w = ${EXPOSURE_SAMPLE_WIDTH};
           const h = Math.max(1, Math.round(src.height / src.width * w) || Math.round(innerHeight / innerWidth * w));
           const off = document.createElement('canvas');
@@ -299,7 +472,16 @@ async function checkScene(browser, file) {
       if (worstClipped > EXPOSURE_CLIPPED_THRESHOLD) {
         warnings.push(`exposure [provisional threshold]: washed out — ${(worstClipped * 100).toFixed(1)}% of pixels clipped to white — lower the exposure (STYLE.exposure in current templates) and desaturate/darken pale materials`);
       }
-      if (worstCrushed > EXPOSURE_CRUSHED_THRESHOLD) {
+      // A near-total black frame is not a register, it is a broken render.
+      // Bandaid by nature -- one threshold promoted from warn to fail -- but the
+      // class it closes is real: a 342-frame all-black film reported
+      // `all scenes pass` because the caption pill kept the frame from being
+      // technically EMPTY, so the blank check never fired and this one only
+      // whispered. >=99% near-black is never a design choice.
+      if (worstCrushed >= 0.99) {
+        fails.push(`render is ${(worstCrushed * 100).toFixed(1)}% near-black — this is a broken render, `
+                 + `not a dark register (check the GL backend and the post chain)`);
+      } else if (worstCrushed > EXPOSURE_CRUSHED_THRESHOLD) {
         warnings.push(`exposure [provisional threshold]: crushed — ${(worstCrushed * 100).toFixed(1)}% of pixels near black — raise exposure or add a fill/rim light`);
       }
       if (worstSpread < EXPOSURE_DYNRANGE_THRESHOLD) {
@@ -350,34 +532,82 @@ async function checkScene(browser, file) {
       try { const m = fs.readFileSync(f, 'utf8').match(KERNEL_RE); return m && { f, k: m[0] }; }
       catch (e) { return null; }
     }).filter(Boolean);
+    for (const f of scenes) {                       // half-fenced is not exempt
+      try {
+        const txt = fs.readFileSync(f, 'utf8');
+        if (txt.includes('KERNEL-START') && !txt.includes('KERNEL-END')) {
+          kernelFail = true;
+          console.log(`FAIL ${f} — has KERNEL-START with no matching KERNEL-END; `
+                    + `an unterminated fence is excluded from the parity check`);
+        }
+      } catch (e) {}
+    }
     if (kernels.length >= 2 && new Set(kernels.map(x => x.k)).size > 1) {
       kernelFail = true;
       console.log('FAIL kernel drift — the marked shared-kit block differs between: '
         + kernels.map(x => x.f).join(', '));
     }
+
+    // Same discipline for the cinematography solver. It reached SIX copies
+    // before this check existed -- the postmortem's own "at a third consumer,
+    // extract or marker-fence it" trigger, fired and unacted. Fencing it is the
+    // structural alternative to editing six files and hoping.
+    const SOLVER_RE = /\/\* ==== SOLVER-START ====[\s\S]*?\/\* ==== SOLVER-END ==== \*\//;
+    const solvers = scenes.map(f => {
+      try { const m = SOLVER_RE.exec(fs.readFileSync(f, 'utf8')); return m ? { f, k: m[0] } : null; }
+      catch (e) { return null; }
+    }).filter(Boolean);
+    for (const f of scenes) {                       // half-fenced is not exempt
+      try {
+        const txt = fs.readFileSync(f, 'utf8');
+        if (txt.includes('SOLVER-START') && !txt.includes('SOLVER-END')) {
+          kernelFail = true;
+          console.log(`FAIL ${f} — has SOLVER-START with no matching SOLVER-END; `
+                    + `an unterminated fence is excluded from the parity check`);
+        }
+      } catch (e) {}
+    }
+    if (solvers.length >= 2 && new Set(solvers.map(x => x.k)).size > 1) {
+      kernelFail = true;
+      console.log('FAIL solver drift — these scenes carry different SOLVER blocks:');
+      for (const x of solvers) console.log('       ' + x.f);
+    }
   }
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
+    // Hardware GL by default (ANGLE_BACKEND=swiftshader to force software).
+    // The old hardcoded software path let a Sky/PMREM scene render 100% black
+    // while this file reported `all scenes pass`.
+    args: (() => {
+      const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
+      const base = ['--hide-scrollbars', '--no-sandbox'];
+      if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
+      if (want === 'default') return base;
+      return [`--use-angle=${want}`, ...base];
+    })(),
   });
 
   let failed = kernelFail ? 1 : 0;
   let warned = 0;
   for (const scene of scenes) {
+    // There is exactly ONE artifact now. Vendoring embeds three directly into the
+    // scene, so the old source-vs-bundled pair collapsed into a single file --
+    // and with it the whole class of "the bundled copy drifted from the source".
+    // What survives is the property that mattered: assert the scene really is
+    // self-contained, because a scene that still points at an external library
+    // renders nothing the moment it is copied or committed on its own.
     const variants = [scene];
     try {
-      const out = execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
-                               { encoding: 'utf8' });
-      const m = out.match(/bundled -> (.+)/);
-      if (m) variants.push(m[1].trim());
+      execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
+                   { encoding: 'utf8' });
     } catch (e) {
-      console.log(`FAIL ${scene} [bundle] — ${e.message.split('\n')[0]}`);
+      console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
       failed++;
     }
     for (const v of variants) {
       const { fails, warnings } = await checkScene(browser, v);
-      const label = v.endsWith('.bundled.html') ? 'bundled' : 'source';
+      const label = 'source';
       if (fails.length) {
         failed++;
         console.log(`FAIL ${v} [${label}]`);

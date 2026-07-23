@@ -12,6 +12,14 @@ SVG backend gets its own file at this layer; the split exists so that
 renderer-specific rules stop reading as universal law (the wash rule below was
 exactly that mistake — see "Lighting and colour").
 
+## Bloom threshold: measure against the SKY-LIT surface
+
+`UnrealBloomPass` reads **pre-tone-mapped, scene-linear** values, and an env map
+lifts even a diffuse white surface far above intuition — so "keep the threshold
+above the sky's luminance" is the wrong rule. Bracketed on a real scene: 3.2
+blows the film to haze, 8.0 is right, 14.0 is indistinguishable from bloom off.
+The operative rule is **above the sky-lit luminance of your brightest material**.
+
 ## The camera rail
 
 - Keyframes in `KEYS[]`, smoothstep between consecutive pairs. Ease-in-out per
@@ -237,7 +245,16 @@ foot counter-rotated flat (`ankle = -(hip + knee)`). The kit:
 `build.js vendor` bundles `THREE.Sky`. Two results from building both into a
 real film and bisecting:
 
-- **`PMREMGenerator.fromScene` rendered every subsequent frame BLACK on
+PMREM under SwiftShader — bisected, and narrower than it was first written.
+PMREM is NOT broken: it works for both LDR and HDR sources on both backends
+(measured 67.07 vs 67.03, and 136.53 vs 136.50). The failure is specifically
+`Sky` rendered into a **half-float** target under SwiftShader (71.63 with the env
+black, against 151.12 on hardware), and it poisons **direct** lighting on every
+`MeshStandardMaterial`, not just ambient — a correct sky with pure-black
+silhouettes. Put an `EffectComposer` on top and the whole frame goes black.
+There is a working fallback: `Sky` -> `CubeCamera(UnsignedByteType)` ->
+`pmrem.fromCubemap`, which agrees across backends to 0.2% (108.14 vs 107.91).
+Verified working on hardware GL, which is now the default backend.
   SwiftShader** (software GL — the cloud/dev-container case), confirmed
   against a no-PMREM control. The standard recipe (a throwaway scene holding
   a Sky, `pmrem.fromScene(es).texture` into `scene.environment`, generated

@@ -3,7 +3,8 @@
 // any order, re-shot in ranges, and always match the live HTML loop.
 //
 // Usage:
-//   bun run shoot.js <scene.html> sample 0,2.5,7      -> sample_<t>.png previews
+//   bun run shoot.js <scene.html> sample 0,2.5,7      -> <scene>_sample_<t>.png
+//                                                       (into FRAMES_DIR if set)
 //   bun run shoot.js <scene.html> full [fps]          -> frames/f00000.png ... (fps default 30)
 //   bun run shoot.js <scene.html> full 30 --workers 4 -> same frames, N pages in parallel
 //   bun run shoot.js <scene.html> range <a> <b> [fps] -> re-shoot frames [a,b) after an edit
@@ -59,6 +60,39 @@ function num(v, dflt, label, { allowZero = false, max = Infinity } = {}) {
   return n;
 }
 
+
+/* ---------- GL backend ------------------------------------------------------
+   Hardware by default; ANGLE_BACKEND=swiftshader forces software.
+
+   This used to be hardcoded to swiftshader, which cost two things. Speed: on a
+   post-chain scene the GL draw alone is 182 ms/frame under SwiftShader against
+   3.3 ms on hardware -- 55x -- and 2.6x end to end. Correctness: a Sky-sourced
+   PMREM environment map poisons every MeshStandardMaterial fragment under
+   SwiftShader, and the shipped pipeline duly produced 342 black frames and a
+   black MP4 with no error and exit 0.
+
+   Determinism is unaffected: seekTo purity is a property WITHIN a renderer, and
+   smoke.js checks it there. Frames are NOT byte-identical across backends
+   (measured PSNR 57-58 dB, differences confined to antialiased edges and
+   speculars), so a regression compared byte-wise must fix the backend on both
+   sides -- which is why this is one env var rather than a silent default flip
+   per machine. */
+const ANGLE_OK = ['default', 'swiftshader', 'metal', 'gl', 'vulkan', 'd3d11', 'd3d9'];
+function angleArgs() {
+  const base = ['--hide-scrollbars', '--no-sandbox'];
+  const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
+  // Allow-list, because a typo used to be accepted silently: `swifthsader`
+  // launched on hardware GL while the author believed they were reproducing a
+  // software-GL regression byte-for-byte, which is the one thing this variable
+  // exists to make possible.
+  if (!ANGLE_OK.includes(want)) {
+    throw new Error(`ANGLE_BACKEND="${process.env.ANGLE_BACKEND}" is not one of: ${ANGLE_OK.join(', ')}`);
+  }
+  if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
+  if (want === 'default') return base;                 // let Chromium pick the GPU
+  return [`--use-angle=${want}`, ...base];
+}
+
 function chromiumPath() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
   try { const p = chromium.executablePath(); if (p && fs.existsSync(p)) return p; } catch (e) {}
@@ -92,7 +126,7 @@ function chromiumPath() {
 function clearFrames(dir) {
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fs.readdirSync(dir)) {
-    if (/^f\d{5}\.png$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
+    if (/^f\d{5}\.(png|jpg)$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
   }
 }
 
@@ -144,6 +178,16 @@ async function openScenePage(browser, sceneFile) {
   await page.goto(url.pathToFileURL(path.resolve(sceneFile)).href + '?record=1');
   await page.waitForFunction('window.sceneReady === true', { timeout: 20000 })
     .catch(() => { throw new Error('scene never set window.sceneReady — check the errors above'); });
+  // The scene declares the frame it was authored for; the recorder follows it.
+  // This is the whole mechanism behind non-16:9 output -- a scene that sets
+  // FRAME.px = [1080,1920] records vertical with no flag and no other edit.
+  // Scenes predating window.FRAME keep the historical 1920x1080 above.
+  const framePx = await page.evaluate('window.FRAME && window.FRAME.px');
+  if (Array.isArray(framePx) && framePx.length === 2
+      && framePx.every(n => Number.isFinite(n) && n > 0)
+      && (framePx[0] !== 1920 || framePx[1] !== 1080)) {
+    await page.setViewportSize({ width: Math.round(framePx[0]), height: Math.round(framePx[1]) });
+  }
   await page.evaluate('window.stopPlayback()');
   // No `|| 20` fallback: a missing DURATION is a contract violation, and
   // defaulting it silently renders a truncated film. Fail loudly instead.
@@ -174,7 +218,7 @@ async function openScenePage(browser, sceneFile) {
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
+    args: angleArgs(),
   });
   const { page, dur } = await openScenePage(browser, sceneFile);
 
@@ -185,18 +229,40 @@ async function openScenePage(browser, sceneFile) {
   // silently write to the wrong place in exactly the manual case.
   const outDir = process.env.FRAMES_DIR || 'frames';
 
+  /* PNG is lossless and correct for masters. It is also ~164-190 ms/frame of
+     encode+transfer against ~29 ms for JPEG q90 over the IDENTICAL readback
+     path -- measured, and on hardware GL that is ~95% of all capture time. So
+     review passes (sheet/strip/aspect), which already emit .jpg anyway, opt in
+     via SHOOT_FORMAT=jpeg. Measurements (motion) and deliverables (frames/all)
+     stay PNG: JPEG artifacts would add noise to a frame-difference metric. */
+  const FMT = (process.env.SHOOT_FORMAT || 'png').toLowerCase();
+  const shotOpts = FMT === 'jpeg' ? { type: 'jpeg', quality: 92 } : {};
+  // The extension follows the format. Writing JPEG bytes into a .png name made
+  // every downstream check (clearFrames, motion's frame count, ffmpeg's content
+  // sniffing) match on a lie, and made it possible to splice lossy frames into a
+  // lossless master by re-shooting a range with SHOOT_FORMAT exported.
+  const EXT = FMT === 'jpeg' ? 'jpg' : 'png';
+  const fname = i => `f${String(i).padStart(5, '0')}.${EXT}`;
   const shot = async (t, file) => {
     await page.evaluate(`window.seekTo(${t.toFixed(4)})`);
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, ...shotOpts });
   };
 
   if (mode === 'sample') {
+    // Honour FRAMES_DIR and prefix with the scene. Sample filenames used to be
+    // timestamp-derived and scene-independent, written to CWD regardless of
+    // FRAMES_DIR -- so two scenes sampled at the same t silently overwrote each
+    // other, which duly happened in a shared workspace.
+    const sDir = process.env.FRAMES_DIR || '.';
+    fs.mkdirSync(sDir, { recursive: true });
+    const sBase = path.basename(sceneFile).replace(/\.[^.]+$/, '');
     // sample was left out of the num() hardening: `sample 3O` produced NaN,
     // drove the scene with t=NaN and wrote sample_NaN.png with exit 0 -- the
     // exact typo cited as num()'s motivation, in the one mode it skipped.
     for (const t of (rest[0] || '0').split(',').map((x, i) => num(x, null, `sample time #${i + 1}`, { allowZero: true }))) {
-      await shot(t, `sample_${String(t).replace('.', '_')}.png`);
-      console.log('sample', t);
+      const f = path.join(sDir, `${sBase}_sample_${String(t).replace('.', '_')}.png`);
+      await shot(t, f);
+      console.log('sample', t, '->', f);
     }
   } else if (mode === 'full') {
     const fps = num(rest[0], 30, 'fps'), n = Math.round(fps * dur);
@@ -220,7 +286,7 @@ async function openScenePage(browser, sceneFile) {
     const shootChunk = async (pg, a, b) => {
       for (let i = a; i < b; i++) {
         await pg.evaluate(`window.seekTo(${(i / fps).toFixed(4)})`);
-        await pg.screenshot({ path: path.join(outDir, `f${String(i).padStart(5, '0')}.png`) });
+        await pg.screenshot({ path: path.join(outDir, fname(i)), ...shotOpts });
         if (++done % 60 === 0) console.log(`frame ${done}/${n}`);
       }
     };
@@ -240,8 +306,31 @@ async function openScenePage(browser, sceneFile) {
     const a = num(rest[0], null, 'start frame', { allowZero: true }), b = num(rest[1], null, 'end frame'),
           fps = num(rest[2], 30, 'fps');
     fs.mkdirSync(outDir, { recursive: true });
-    for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, `f${String(i).padStart(5, '0')}.png`));
+    for (let i = a; i < b; i++) await shot(i / fps, path.join(outDir, fname(i)));
     console.log('range done');
+  } else if (mode === 'aspects') {
+    // One moment, several window shapes, relative to the scene's OWN design
+    // frame — so this is meaningful for a vertical or square scene too. Feeds
+    // `build.js aspect`; the settle wait matters because the scene resizes its
+    // canvas in a resize handler and sampling before that lands reads a stale
+    // canvas (the bug that first made this check report nonsense).
+    const at = num(rest[0], 0, 'time', { allowZero: true });
+    const ar = (await page.evaluate('window.FRAME && window.FRAME.aspect')) || 16 / 9;
+    const shapes = [
+      { tag: 'design', w: 1280, h: Math.round(1280 / ar) },
+      { tag: 'narrow', w: 1100, h: Math.round(1100 / (ar * 0.72)) },
+      { tag: 'square', w: 1000, h: Math.round(1000 / (ar * 0.56)) },
+      { tag: 'wide',   w: 1600, h: Math.round(1600 / (ar * 1.33)) },
+    ];
+    const aDir = process.env.FRAMES_DIR || '.aspectframes';
+    clearFrames(aDir);
+    for (let i = 0; i < shapes.length; i++) {
+      await page.setViewportSize({ width: shapes[i].w, height: shapes[i].h });
+      await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+      await page.evaluate(`window.seekTo(${at.toFixed(4)})`);
+      await page.screenshot({ path: path.join(aDir, fname(i)), ...shotOpts });
+    }
+    console.log(JSON.stringify({ shapes }));
   } else if (mode === 'beats' || mode === 'manifest') {
     // beats: screenshot one frame per beat AND print the manifest (build.js
     // sheet tiles the frames). manifest: print the manifest only, no frames --
@@ -255,7 +344,7 @@ async function openScenePage(browser, sceneFile) {
       const beatsDir = process.env.FRAMES_DIR || '.sheetframes';
       clearFrames(beatsDir);
       for (const b of beats) {
-        await shot(b.t, path.join(beatsDir, `f${String(b.i).padStart(5, '0')}.png`));
+        await shot(b.t, path.join(beatsDir, fname(b.i)));
       }
     }
     console.log(beatsManifest({ synthetic, beats }));

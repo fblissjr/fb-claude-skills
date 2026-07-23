@@ -34,11 +34,19 @@ const path = require('path');
 // module imports over file://, and opening the scene straight from disk is the
 // point. So we bundle three ourselves into one classic script that sets
 // window.THREE — same ergonomics the old UMD build had, no network, no CDN.
+// Review passes capture JPEG: ~6x faster than PNG over the identical readback
+// path, and they tile to .jpg anyway. Measurements (motion) and deliverables
+// (frames/all) override this back to png -- a frame-difference metric must not
+// eat JPEG artifacts, and a master must stay lossless.
+const REVIEW_FMT = 'jpeg';
+const REVIEW_EXT = REVIEW_FMT === 'jpeg' ? 'jpg' : 'png';
+// One place for the output-basename rule, including the .bundled legacy suffix
+// now that nothing produces .bundled.html.
+const outBase = s => s.replace(/(\.bundled)?\.html$/, '');
 const VENDOR = 'three.global.js';
 const VENDOR_TAG = /<script src="\.\/three\.global\.js"><\/script>/;
-const bundleName = (src) => src.replace(/\.html$/, '.bundled.html');
 
-function vendor(dir = process.cwd()) {
+function vendor(dir = process.cwd(), target = null) {
   const out = path.join(dir, VENDOR);
   const entry = path.join(dir, '.three-entry.js');
   // The post-processing addons ride in the same bundle, attached to the THREE
@@ -69,59 +77,103 @@ function vendor(dir = process.cwd()) {
   } finally {
     fs.unlinkSync(entry);
   }
-  console.log('vendored -> ' + out);
-  return out;
+  // EMBED, then delete the .js. The library is a build input, never a shipped
+  // artifact: a scene that loads it via <script src> is not self-contained, and
+  // the moment anyone copies or commits just the .html it silently renders
+  // nothing. That shipped -- a committed 3D example sat in examples/ with a
+  // dangling ./three.global.js reference and did not run at all. Embedding is
+  // the only form that makes "opens straight from disk" true by construction,
+  // so the tooling does it automatically rather than asking authors to remember
+  // a bundle step. Cost is ~0.73 MB per scene, paid once, and accepted.
+  const embedded = target ? embedInto(target, fs.readFileSync(out, 'utf8')) : [];
+  fs.unlinkSync(out);
+  if (embedded.length) console.log('embedded three into: ' + embedded.join(', '));
+  else console.log('vendored three (no scene in ' + dir + ' had a vendor tag to embed into)');
+  return embedded;
 }
 
-function bundle(src) {
-  const dir = path.dirname(path.resolve(src));
-  const libPath = path.join(dir, VENDOR);
-  if (!fs.existsSync(libPath)) vendor(dir);
-  const lib = fs.readFileSync(libPath, 'utf8');
-  const html = fs.readFileSync(src, 'utf8');
-  if (!VENDOR_TAG.test(html)) { console.log('no vendor tag in ' + src + ' — already bundled?'); return src; }
-  const out = bundleName(src);
-  // bundleName is a regex replace that returns src UNCHANGED when it does not
-  // match -- so `bundle scene.htm` or `scene.HTML` used to write the inlined
-  // output over the source file and print "bundled -> scene.htm" as if fine,
-  // destroying the one file the header calls the single source of truth.
-  if (path.resolve(out) === path.resolve(src)) {
-    throw new Error(`refusing to overwrite the source: ${src} must end in .html`);
-  }
-  // The replacement MUST be a function, not a string: in a string replacement
-  // `$&`, `$'` and `` $` `` are substitution patterns, and minified three
-  // contains `$&` (`if($&$.isStackTrace)`), which silently splices the matched
-  // script tag into the middle of the library. A function replacement disables
-  // that interpretation. Also split any literal </script> so the library can't
-  // terminate the host tag early.
+// Splice the library into every .html in `dir` that still carries the vendor
+// tag. Replacement MUST be a function, not a string: in a string replacement
+// `$&`, `$'` and `` $` `` are substitution patterns and minified three contains
+// `$&`, which would splice the matched tag into the middle of the library. Also
+// split any literal </script> so the library cannot terminate the host tag.
+function embedInto(target, lib) {
+  // ONE file: the scene we were asked about. An earlier version walked the whole
+  // directory and rewrote every .html carrying the tag, which meant running any
+  // command on a scene sitting beside the template it was copied from silently
+  // rewrote `scene.template.html` itself with 0.77 MB of inlined three.js — and
+  // the result looks idempotent, so nothing ever flags it.
   const inline = '<script>' + lib.replace(/<\/script>/gi, '<\\/script>') + '</script>';
-  fs.writeFileSync(out, html.replace(VENDOR_TAG, () => inline));
-  console.log('bundled -> ' + out);
-  return out;
+  const html = fs.readFileSync(target, 'utf8');
+  if (!VENDOR_TAG.test(html)) return [];
+  fs.writeFileSync(target, html.replace(VENDOR_TAG, () => inline));
+  return [path.basename(target)];
 }
 
-// Any command that RENDERS a scene needs the vendored bundle present. bundle()
-// has auto-vendored since the start; loop and poster were added later and did
-// not, so a fresh checkout failed with "THREE is not defined" — loud, but
-// pointing at the scene contract when the real cause is a missing build step.
-// The needsThree test mirrors smoke.js: only vendor if the scene asks for three,
-// so a 2D or SVG backend is never forced to materialize a bundle it never loads.
+// bundle() is now an ASSERTION, not a transform. Vendoring embeds the library
+// directly into the scene (see vendor/embedInto), so a scene is self-contained
+// by the time anything can open it and there is no second ".bundled.html"
+// artifact to keep in sync. Kept as a command because callers and habits refer
+// to it, and because "make sure this file is self-contained" is still a thing
+// worth being able to ask for. Idempotent: safe to run any number of times.
+function bundle(src) {
+  ensureVendor(src);                       // embeds in place if the tag is still there
+  const html = fs.readFileSync(src, 'utf8');
+  if (VENDOR_TAG.test(html)) {
+    throw new Error(`could not embed three into ${src} — vendor tag still present`);
+  }
+  console.log(`self-contained -> ${src}`);
+  return src;
+}
 function ensureVendor(scene) {
   const dir = path.dirname(path.resolve(scene));
-  if (fs.existsSync(path.join(dir, VENDOR))) return;
   let src = '';
   try { src = fs.readFileSync(scene, 'utf8'); } catch (e) { return; }
-  if (/three\.global\.js/.test(src)) vendor(dir);
+  if (VENDOR_TAG.test(src)) vendor(dir, path.resolve(scene));   // embeds THIS scene only
 }
 
-function frames(scene, fps = 30, dir = 'frames') {
+// dir defaults to the SAME expression video() uses, so the shoot half and the
+// encode half of `all` can never disagree about where frames live. It used to
+// default to a bare 'frames', which then OVERRODE an ambient FRAMES_DIR on its
+// way to shoot.js while video() still honoured that ambient value -- so
+// `FRAMES_DIR=X build.js all` shot into frames/ and encoded from X/. That is
+// the same ship-the-wrong-film failure video()'s comment below describes, just
+// reintroduced through the other half of the pair, and it is SILENT whenever X
+// already holds frames: measured, a stale single frame in X produced a 0.0 MB
+// one-frame mp4 and exit 0. Callers that deliberately own a scratch dir
+// (sheet/loop/avif/strip) still pass one explicitly and are unaffected.
+
+/* ---------- workspace: ONE door to scratch space -----------------------------
+   Every review command used to hardcode its own dir name in the CWD
+   (.sheetframes, .motionframes, .stripframes, .aspectframes, .loopsrc,
+   .loopframes, .avifsrc, .avifframes) and rmSync it at entry AND in finally.
+   Five independent agents hit the consequence: two commands in one directory
+   silently corrupt each other. Measured worst case, two concurrent `frames`
+   runs produced a single dir holding 3 frames from one film and 70 from
+   another — 73 where one film alone needs 74 — and the next encode would have
+   shipped that chimera without a word.
+
+   Suffixing each of the six names with a pid would be the bandaid, and it is
+   the wrong shape: the seventh command someone adds will hardcode a seventh
+   name. So there is one function, and it is the only way to get scratch space.
+   A new command gets isolation for free, which is the whole point. */
+function workspace(scene, tag) {
+  const base = path.basename(String(scene || 'scene')).replace(/\.[^.]+$/, '').replace(/[^\w.-]/g, '_');
+  const dir = `.wk-${base}-${tag}-${process.pid}`;
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+
+function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
   ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
-      { env: { ...process.env, FRAMES_DIR: dir } });
+      { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: 'png' } });
 }
 
 function video(name, fps = 30) {
-  const out = name.replace(/(\.bundled)?\.html$/, '') + '.mp4';
+  const out = outBase(name) + '.mp4';
   // Honour the same override shoot.js does. video() hardcoded 'frames/' while
   // shoot.js read FRAMES_DIR, so a hand-run `FRAMES_DIR=shots shoot.js ... full`
   // followed by `build.js video` silently encoded the STALE frames/ from a
@@ -226,11 +278,11 @@ function shootAndScale(scene, fps, width, srcDir, tmpDir) {
 // unsure: one 960px still of this scene is 7.3KB against 290KB for the 288-frame
 // sequence, so a sequence that collapsed to a still is off by a factor of 40.
 function avif(scene, width = 720, fps = 12) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.avif';
-  const src = '.avifsrc', tmp = '.avifframes';
+  const src = workspace(scene, 'avifsrc'), tmp = workspace(scene, 'avif');
+  // workspace() already created these fresh; only the finally-clean is needed.
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
-  clean();
   try {
     const pngs = shootAndScale(scene, fps, width, src, tmp);
     // Same dependency shape as img2webp for the webp path: a separate encoder
@@ -256,7 +308,7 @@ function avif(scene, width = 720, fps = 12) {
 }
 
 function loop(scene, width = 720, fps = 12) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.webp';
   // Warn about sway BEFORE shooting a single frame. Without this, the 10x-90x
   // size penalty documented above LOOP_LIMIT is only discovered after the full
@@ -274,9 +326,9 @@ function loop(scene, width = 720, fps = 12) {
   // Shoot into our OWN directory. `loop` used to reuse frames/, which silently
   // overwrote the full-resolution frames a previous `build.js all` had shot --
   // so making a README loop destroyed the source of your mp4 with no warning.
-  const src = '.loopsrc', tmp = '.loopframes';
+  const src = workspace(scene, 'loopsrc'), tmp = workspace(scene, 'loop');
+  // workspace() already created these fresh; only the finally-clean is needed.
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
-  clean();
   try {
   // Explicit file list (from shootAndScale) rather than a shell glob. This does
   // NOT dodge ARG_MAX -- execFileSync argv goes through the same execve limit --
@@ -313,14 +365,22 @@ function loop(scene, width = 720, fps = 12) {
 // one — ship a still that links to the video instead. Costs ~20KB and needs no
 // held-camera compromise. Prints the markdown to paste.
 function poster(scene, t = 0, width = 960) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.jpg';
   const tag = String(t).replace('.', '_');
   ensureVendor(scene);
-  run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)]);
-  run('ffmpeg', ['-y', '-i', `sample_${tag}.png`, '-vf', `scale=${width}:-2`,
-    '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
-  fs.rmSync(`sample_${tag}.png`, { force: true });
+  // shoot.js writes <scene>_sample_<t>.png into FRAMES_DIR (scene-prefixed so two
+  // scenes sampled at the same t cannot overwrite each other). Own a workspace
+  // and read from it rather than guessing at a name in the CWD.
+  const pdir = workspace(scene, 'poster');
+  try {
+    run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)],
+        { env: { ...process.env, FRAMES_DIR: pdir } });
+    const shotPath = path.join(pdir, `${path.basename(base)}_sample_${tag}.png`);
+    if (!fs.existsSync(shotPath)) throw new Error(`poster: shoot.js did not write ${shotPath}`);
+    run('ffmpeg', ['-y', '-i', shotPath, '-vf', `scale=${width}:-2`,
+      '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+  } finally { fs.rmSync(pdir, { recursive: true, force: true }); }
   console.log(`poster -> ${out} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
   console.log(`\nPaste into the README, with VIDEO_URL from dragging the mp4 into an\n` +
               `issue/PR composer (a repo-relative mp4 will NOT render as a player):\n\n` +
@@ -340,9 +400,52 @@ function poster(scene, t = 0, width = 960) {
 // Both instances of that bug in a real scene were found by looking at a later
 // frame, so `sheet <scene> 480 0.95` is the pass that surfaces them: every beat
 // at its own end, where a station that should be dark is still lit.
+// `aspect` — render one moment at several window shapes and tile them.
+//
+// smoke.js's framing-invariance check can REJECT a scene whose design frame
+// changes with the window. It cannot APPROVE one: passing only means nothing
+// moved, not that the composition reads at a phone-shaped window. This is the
+// looking half, and it is the same division of labour the rest of the method
+// uses -- the lint is the floor, the eye is the judgment.
+//
+// Shapes are expressed RELATIVE to the scene's own FRAME.aspect, so this stays
+// meaningful for a 9:16 vertical or 1:1 square scene, not just 16:9.
+function aspectSheet(scene, t = 0, width = 520) {
+  ensureVendor(scene);
+  const out = outBase(scene) + '.aspect.jpg';
+  const dir = workspace(scene, 'aspect');
+  try {
+    const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
+    const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
+    const n = shapes.length;
+    // Each shape has DIFFERENT pixel dimensions. That rules out both the tile
+    // filter (needs uniform inputs) AND the image2 sequence demuxer, which stops
+    // reading at the first dimension change -- either way you silently get a
+    // sheet containing only the first cell. Feed them as separate inputs, fit
+    // each into a common box, and hstack, so every cell shows its window shape
+    // at true proportions against the same reference area.
+    const inputs = [];
+    for (let i = 0; i < n; i++) inputs.push('-i', path.join(dir, `f${String(i).padStart(5, '0')}.${REVIEW_EXT}`));
+    const box = `scale=${width}:${width}:force_original_aspect_ratio=decrease,` +
+                `pad=${width}:${width}:(ow-iw)/2:(oh-ih)/2:color=0x101010`;
+    const chains = shapes.map((_, i) => `[${i}:v]${box}[a${i}]`).join(';');
+    const stack = shapes.map((_, i) => `[a${i}]`).join('') + `hstack=inputs=${n}`;
+    run('ffmpeg', ['-y', ...inputs, '-filter_complex', `${chains};${stack}`, out]);
+    console.log(`aspect -> ${out}`);
+    console.log('\nlegend (each cell is the SAME t at a different window shape):');
+    shapes.forEach((sh, i) => console.log(`  cell ${i + 1}  ${sh.tag.padEnd(10)} ${sh.w}x${sh.h}  aspect ${(sh.w / sh.h).toFixed(2)}`));
+    console.log('\nRead the image. Every cell must show the SAME composition — a subject that\n' +
+                'drifts, crops, or reflows between cells is a framing bug the render will hide,\n' +
+                'because shoot.js only ever records the design shape.');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function sheet(scene, width = 480, frac = 0.6) {
   ensureVendor(scene);
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const sheetOut = base + '.sheet.jpg';
   const squintOut = base + '.squint.jpg';
   // Own this dir outright rather than trusting ambient FRAMES_DIR, then
@@ -350,27 +453,26 @@ function sheet(scene, width = 480, frac = 0.6) {
   // .loopsrc/.loopframes. Honouring an inherited FRAMES_DIR here and then
   // recursively deleting it would reopen the "FRAMES_DIR=. erased the scene"
   // failure shoot.js's full-mode comment describes, just one caller removed.
-  const dir = '.sheetframes';
-  fs.rmSync(dir, { recursive: true, force: true });
+  const dir = workspace(scene, 'sheet');
   try {
     // encoding: 'utf8' (not stdio: 'inherit') so the JSON line shoot.js prints
     // comes back to us instead of straight to our own stdout, where we'd have
     // no way to read the beat list back into this process. stderr still goes
     // through so scene errors are not swallowed.
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'beats', String(frac)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
     const { beats } = JSON.parse(stdout.trim().split('\n').pop());
     const n = beats.length;
     const cols = Math.min(4, Math.ceil(Math.sqrt(n)));
     const rows = Math.ceil(n / cols);
 
-    run('ffmpeg', ['-y', '-i', path.join(dir, 'f%05d.png'), '-vf',
+    run('ffmpeg', ['-y', '-i', path.join(dir, `f%05d.${REVIEW_EXT}`), '-vf',
       `scale=${width}:-2,tile=${cols}x${rows}:padding=6:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', sheetOut]);
 
     // 90px wide, one row: small enough that detail disappears and only the
     // silhouette is left, which is the point.
-    run('ffmpeg', ['-y', '-i', path.join(dir, 'f%05d.png'), '-vf',
+    run('ffmpeg', ['-y', '-i', path.join(dir, `f%05d.${REVIEW_EXT}`), '-vf',
       `scale=90:-2,tile=${n}x1:padding=3:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', squintOut]);
 
@@ -419,7 +521,7 @@ function sheet(scene, width = 480, frac = 0.6) {
 const STRIP_MAX = 16;
 function strip(scene, t0, t1, fps = 30, width = 480) {
   ensureVendor(scene);
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.strip.jpg';
   const a = Math.round(t0 * fps);
   let n = Math.round(t1 * fps) - a;
@@ -429,16 +531,15 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
       'A strip is for a suspect MOMENT; narrow the window rather than skimming a whole beat.');
     n = STRIP_MAX;
   }
-  const dir = '.stripframes';
-  fs.rmSync(dir, { recursive: true, force: true });
+  const dir = workspace(scene, 'strip');
   try {
     run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'range',
-      String(a), String(a + n), String(fps)], { env: { ...process.env, FRAMES_DIR: dir } });
+      String(a), String(a + n), String(fps)], { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT } });
     const cols = Math.min(4, n), rows = Math.ceil(n / cols);
     // -start_number because `range` names frames by their GLOBAL index (f00259),
     // not from zero -- that is what makes a re-shot range drop back into a full
     // render, and it means ffmpeg has to be told where the sequence begins.
-    run('ffmpeg', ['-y', '-start_number', String(a), '-i', path.join(dir, 'f%05d.png'),
+    run('ffmpeg', ['-y', '-start_number', String(a), '-i', path.join(dir, `f%05d.${REVIEW_EXT}`),
       '-vf', `scale=${width}:-2,tile=${cols}x${rows}:padding=6:color=0x1a1a1a`,
       '-frames:v', '1', '-update', '1', '-q:v', '4', out]);
     console.log(`strip -> ${out}  (${n} consecutive frames at ${fps}fps)`);
@@ -456,10 +557,16 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
 }
 
 function motion(scene, fps = 12) {
-  const dir = '.motionframes';
-  fs.rmSync(dir, { recursive: true, force: true });
+  const dir = workspace(scene, 'motion');
   try {
     frames(scene, fps, dir);
+    // Provenance: what we read must be what we wrote. Without this, a clobbered
+    // scratch dir produced a completely plausible per-beat profile covering a
+    // THIRD of the film -- 65 frames reported for a 254-frame render, exit 0,
+    // the only symptom one ffmpeg stderr line nobody reads. A wrong number that
+    // looks right is worse than no number.
+    const wroteN = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;  // motion is PNG by contract
+    if (wroteN < 2) throw new Error(`motion: only ${wroteN} frame(s) in ${dir} — the shoot did not produce a film`);
 
     const out = execFileSync('ffmpeg', ['-y', '-framerate', String(fps), '-i', path.join(dir, 'f%05d.png'),
       '-vf', 'tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-',
@@ -481,8 +588,26 @@ function motion(scene, fps = 12) {
     // Frame 0 has no predecessor, so tblend diffs it against itself (or
     // whatever ffmpeg does at the boundary depending on version) -- not a real
     // motion sample, and left in it would skew the median toward zero.
-    const values = series.slice(1);
-    if (!values.length) { console.log('motion: no frames captured, nothing to report'); return; }
+    // Provenance BEFORE any early return. The one outcome worse than a profile
+    // for part of a film is a reassuring line and exit 0 for none of it, and
+    // that path used to sit 75 lines above the assertion meant to prevent it.
+    // tblend emits exactly one delta per adjacent pair, so N frames -> N-1
+    // deltas; anything else means the scratch dir moved under us or ffmpeg
+    // stopped early. (The old `series.length < wroteN * 0.9` was wrong both
+    // ways: N-1 < 0.9N holds for every N < 10, so short films threw spuriously,
+    // while 25 frames could vanish from a 254-frame render undetected.)
+    const present = series.filter(v => v !== undefined).length;
+    if (present !== wroteN - 1) {
+      throw new Error(`motion: ${wroteN} frames written to ${dir} but ${present} deltas parsed `
+        + `(expected ${wroteN - 1}). The scratch dir was modified mid-run, or ffmpeg stopped `
+        + `early — refusing to report a profile for part of the film.`);
+    }
+    // FINDING: tblend has ALREADY dropped the unpaired first input, so its
+    // frame:0 IS the genuine 0->1 delta at pts 1/fps. Dropping it again hid the
+    // film's first inter-frame delta entirely and shifted every reported
+    // timestamp one frame early. Verified against ffmpeg output.
+    const values = series.filter(v => v !== undefined);
+    if (!values.length) { throw new Error('motion: no deltas parsed — nothing to report'); }
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
 
@@ -556,7 +681,6 @@ function motion(scene, fps = 12) {
       else { if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, i - 1]); runLen = 0; }
     });
     if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, values.length - 1]);
-
     console.log(`motion: ${values.length} frames at ${fps}fps, median frame-diff ${median.toFixed(2)}`);
     if (perBeat.length) {
       const peak = Math.max(...perBeat.map(b => b.mean)) || 1;
@@ -581,20 +705,22 @@ function motion(scene, fps = 12) {
   }
 }
 
-const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
+const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|aspect|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
 const [, , step, target, fpsArg, widthArg, extraArg] = process.argv;
-if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'strip', 'motion'].includes(step) && !target) {
+if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'aspect', 'strip', 'motion'].includes(step) && !target) {
   console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
 }
 const fps = Number(fpsArg || 30);
-if (step === 'vendor') vendor(target ? path.resolve(target) : process.cwd());
+if (step === 'vendor') { const tp = target ? path.resolve(target) : null;
+  vendor(tp ? path.dirname(tp) : process.cwd(), tp); }
 else if (step === 'avif') avif(target, Number(widthArg || 720), Number(fpsArg || 12));
 else if (step === 'loop') loop(target, Number(widthArg || 720), Number(fpsArg || 12));
 else if (step === 'poster') poster(target, Number(fpsArg || 0), Number(widthArg || 960));
 else if (step === 'bundle') bundle(target);
 else if (step === 'frames') frames(target, fps);
 else if (step === 'video') video(target, fps);
-else if (step === 'all') { const b = bundle(target); frames(b, fps); video(target, fps); }
+else if (step === 'all') { bundle(target); frames(target, fps); video(target, fps); }
+else if (step === 'aspect') aspectSheet(target, Number(fpsArg || 0), Number(widthArg || 520));
 else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg));
 else if (step === 'strip') strip(target, Number(fpsArg), Number(widthArg), Number(extraArg || 30));
 else if (step === 'motion') motion(target, Number(fpsArg || 12));

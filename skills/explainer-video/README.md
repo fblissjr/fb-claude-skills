@@ -12,20 +12,21 @@ independently and identically, which is why one scene file drives both the
 interactive HTML loop and the headless MP4 render. There is never a second copy
 to keep in sync.
 
-![skills are retrieval](skills/explainer-video/examples/skill-retrieval.webp)
+Every example ships its **source `.html`** beside a rendered `.avif`. The
+`.html` is the real artifact — the `.avif` is only a recording of it for readers
+of this page. Each one is a **single self-contained file**: three.js is embedded
+directly in the 3D scenes, so an example opens straight from disk and plays,
+with no build step, no sibling `.js`, and no network. That is enforced by the
+tooling rather than left to discipline — see the vendoring rule in
+[`SKILL.md`](skills/explainer-video/SKILL.md).
 
-*Built with this plugin and committed as a 204 KB animated WebP — 11s, held
-camera, three beats, and the best-verified case for inline rendering on
-GitHub. Source:
-[`skill-retrieval.html`](skills/explainer-video/examples/skill-retrieval.html).*
+The bundled **Canvas2D** example, in the paper-cutout style pack — the plugin
+explaining its own pipeline:
 
-A second bundled example is built on the **Canvas2D backend** in the
-paper-cutout style pack — the plugin explaining its own pipeline:
+![one scene, every format](skills/explainer-video/examples/one-scene-every-format.avif)
 
-![one scene, every format](skills/explainer-video/examples/one-scene-every-format.webp)
-
-*20.8s, six beats, held camera, flat 2D — committed as a 0.96 MB WebP and a
-0.10 MB AVIF
+*20.8s, six beats, held camera, flat 2D — committed as a 0.13 MB animated AVIF
+at 960px/15fps
 ([`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif)).
 Source:
 [`one-scene-every-format.html`](skills/explainer-video/examples/one-scene-every-format.html)
@@ -51,24 +52,59 @@ has been waiting for: if it animates inline above, the last row of the table
 in `references/delivery.md` gets its second observation. Source:
 [`toybot-walk.html`](skills/explainer-video/examples/toybot-walk.html).*
 
-The same film also ships under a second **style bible** — one line changed
-(`BIBLE='midnight'`), zero edits to beats, geometry, or the shot list:
-
-![toybot at midnight](skills/explainer-video/examples/toybot-walk.midnight.avif)
-
-*Low-key neon noir: 30° lens, locked tripod, 1.3s dollies, magenta rim,
-bloom-forward. This pair is the standing proof that the layers are actually
-separated — register swaps; content does not. Spec:
-[`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).*
+The same film also renders under a second **style bible** — one line changed
+(`BIBLE='midnight'`), zero edits to beats, geometry, or the shot list: low-key
+neon noir, 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom-forward.
+Flip the line and render it yourself; that the register swaps while the content
+does not is the point. Spec:
+[`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).
 
 The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
-[`skill-retrieval.avif`](skills/explainer-video/examples/skill-retrieval.avif),
+[`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
 whether GitHub animates AVIF inline (one real-world observation says yes; not
 independently confirmed here). The README's hero image above points at the
 WebP, the case with real verification behind it — re-pointing it at the AVIF
 and writing down what happens is the open follow-up.
+
+## More examples
+
+Four more films, each a single self-contained `.html` beside its `.avif`. They
+exist to cover registers the first two could not — a real external subject at
+length, a cross-world walkthrough, and two pieces with no explaining to do at
+all.
+
+![where winter heat comes from](skills/explainer-video/examples/heat-pump.avif)
+
+*__Where winter heat comes from__ — 36.6s, 10 beats, **three worlds** joined by
+four hard cuts under flashes: the street outside, the sealed refrigerant loop,
+and the molecular scale. Every cut verified at flash 0.980 on the exact frame
+the world changes. Source:
+[`heat-pump.html`](skills/explainer-video/examples/heat-pump.html).*
+
+![one push](skills/explainer-video/examples/chain-reaction.avif)
+
+*__One push__ — 16s, a six-link Rube Goldberg chain. Each link's trigger time is
+derived from the previous link's own curve, which is what makes it read as
+causation rather than six things happening near each other. Source:
+[`chain-reaction.html`](skills/explainer-video/examples/chain-reaction.html).*
+
+![pelican takes a walk](skills/explainer-video/examples/pelican-walk.avif)
+
+*__Pelican takes a walk__ — 17.8s, no explanation, just weather. Rain is 1600
+instanced streaks whose height is `mod(t)`, so there is no particle state
+anywhere; the lightning is three exponential decays at fixed offsets. Both are
+pure functions of `t`, which is the only reason a storm can be scrubbed
+frame-exactly. Source:
+[`pelican-walk.html`](skills/explainer-video/examples/pelican-walk.html).*
+
+![toybot victory dance](skills/explainer-video/examples/toybot-dance.avif)
+
+*__Toybot victory dance__ — 12.6s, **no captions at all**. The groove is one
+continuous phase with beats shaping only its amplitude, and the speaker pumps on
+the same expression that drives the dance. Source:
+[`toybot-dance.html`](skills/explainer-video/examples/toybot-dance.html).*
 
 ## Installation
 
@@ -173,11 +209,17 @@ the content-type mechanism, and the inline-rendering evidence chain:
 
 Both were found by rendering, not by reading, and both fail quietly if reverted.
 
-**three is vendored, never CDN-loaded.** three dropped its UMD build after
-0.160, so `build.js vendor` bundles it locally into `three.global.js`. The
-bundle must be IIFE format: a plain ESM bundle loaded as a classic script leaks
+**three is vendored locally and embedded in the scene — never CDN-loaded, never
+a sibling `.js`.** three dropped its UMD build after 0.160, so a CDN copy can no
+longer be loaded from a classic script at all; a CDN would also put the network
+in the render path and break the offline artifact. `build.js vendor` builds
+three as an IIFE and splices it into the HTML, then deletes the intermediate
+file. IIFE is not cosmetic: a plain ESM bundle loaded as a classic script leaks
 its top-level identifiers into global scope, where a minified `MW` collided with
-a scene variable and broke rendering.
+a scene variable and broke rendering. One scene is one self-contained file, and
+`smoke.js` fails any scene that is not — the previous arrangement made bundling
+a manual last step, and a committed example duly shipped pointing at a library
+that was not there.
 
 **The scene stays a classic `<script>`, never `type="module"`.** Chrome
 CORS-blocks ES module imports over `file://`, so a module-based scene cannot be
@@ -200,6 +242,5 @@ opened directly from disk — which is the entire point of the HTML artifact.
 | `skills/explainer-video/references/film-language.md` | Shot vocabulary: sizes, cuts, the match-cut constraint, rack-as-shots, camera energy |
 | `skills/explainer-video/references/styles/bibles.md` | Style bibles: one object constraining palette, lights, post, lens, cut pace, energy — with the committed control pair |
 | `skills/explainer-video/references/audio.md` | Narration/music extension design (designed, not yet wired) |
-| `skills/explainer-video/examples/skill-retrieval.html` | Worked example (3D): 11s, 3 beats, held camera, diagrammatic |
 | `skills/explainer-video/examples/one-scene-every-format.html` | Worked example (Canvas2D, paper-cutout pack): 20.8s, 6 beats — the pipeline explaining itself |
 | `skills/explainer-video/examples/toybot-walk.html` | Worked example (cinematic 3D): cel + outlines, analytic IK, rack focus, bloom — post chain proven deterministic |

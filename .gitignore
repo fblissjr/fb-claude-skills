@@ -235,3 +235,10 @@ models/
 # Internal logs (separate repo)
 internal/
 research/schema-processing/results/
+
+# explainer-video per-run scratch dirs (pid-suffixed, cleaned in finally)
+.wk-*
+.sheetframes
+.stripframes
+.motionframes
+.aspectframes

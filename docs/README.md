@@ -23,7 +23,10 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
 | [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
-| [explainer_video_roadmap.md](internals/explainer_video_roadmap.md) | Queued explainer-video work: named-beats refactor and what it unblocks |
+| [explainer_video_roadmap.md](internals/explainer_video_roadmap.md) | explainer-video per-item ledger: what shipped, what was refuted, what is still open |
+| [explainer_video_generalization_plan.md](internals/explainer_video_generalization_plan.md) | The arc that took explainer-video from one visual language to two backends, shot language and style bibles — with the run's postmortem |
+| [explainer_video_test_cases.md](internals/explainer_video_test_cases.md) | The test suite: cases as falsifiable hypotheses, with outcomes filled in |
+| [explainer_video_hardening_plan.md](internals/explainer_video_hardening_plan.md) | The remediation: ~51 findings grouped by root cause, structural fixes separated from deliberate bandaids |
 
 ## package documentation
 

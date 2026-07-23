@@ -5,7 +5,10 @@ controls discipline, continuity and semantics review, and the determinism
 rules. Everything here holds for any scene that implements the window
 contract, whatever renders the pixels.
 
-Two companion references hold what this file deliberately does not:
+Three companion references hold what this file deliberately does not:
+
+- `instruments.md` — what every check can and cannot see, with its measured
+  bracket. Read it before trusting a green result.
 
 - `style-3d.md` — the three.js cookbook: lighting, the camera rail, texture
   labels, procedural-asset recipes, r185 API notes, the performance envelope.
@@ -304,7 +307,14 @@ as starting points and re-measure rather than trusting the arithmetic:
   through. Width mattered more than beat length: stretching the beat alone just
   spaced the flickers further apart.
 - **A beat under ~3s felt rushed even when its caption was comfortably
-  legible.** Caption speed and motion speed are separate problems and the
+  legible.** Scope this correctly: the floor governs **the window in which a
+  MECHANISM must be read**, not beat length in general. A beat carrying a single
+  visible state change — a gag's punchline, a counter flipping — reads fine in
+  well under 2s, measured across four beats of one film. And the converse is
+  the trap nobody documents: **a physical event is often FASTER than a beat
+  wants to be.** A domino falls in 0.30s, a pendulum swings in 0.5s, while beats
+  want 3-4s. The honest options are several links per beat, or deliberately slow
+  physics — not stretching one event to fill the window. Caption speed and motion speed are separate problems and the
   caption is the weaker signal — a beat can pass a reading-speed check and still
   be too fast to follow.
 
@@ -554,9 +564,25 @@ Every frame is well composed, the motion is smooth, and the film still does not
 explain anything. This axis is what the whole exercise is for, and it has the
 weakest tooling: the test is a question you ask yourself.
 
-## Cover the caption
+## Cover everything except the geometry
 
-**Hide the caption and ask what the beat is about.** If you cannot tell, the
+**Hide every word and ask what the beat is about.**
+
+The older form of this test said "cover the caption", and that is too narrow in
+three directions, all found by building films it did not fit:
+
+- With **no captions** it degenerates to a silent pass — you cannot cover what is
+  not there. The underlying question survives and is sharper.
+- When **text is the subject** (kinetic typography, a title card), covering it
+  removes the film.
+- It **cannot see canvas text**, which is where a diagrammatic film's meaning
+  actually migrates. In one film built from an external document, 5 of 8 beats
+  survived with the DOM caption hidden and only **2 of 8** survived hiding the
+  canvas labels too — and those two were the beats built entirely from motion and
+  position. That ratio is the real result: geometry carried the mechanism beats,
+  and *labelled* geometry carried the rest.
+
+So: cover the DOM caption AND the drawn words. `?nocap` removes the first. If you cannot tell, the
 geometry is not carrying the explanation and you have built a slideshow with a
 3D background.
 
@@ -651,6 +677,106 @@ Untested; recorded because it is the specific thing to watch a spike for.
    bugs hide between sampled beats.
 
 Steps 5-7 are the ones that were missing. They are also the cheap ones.
+
+# Framing rules (breaking these breaks video/HTML parity too)
+
+Determinism makes the HTML and the render agree about *when*. It does nothing
+to make them agree about *what is in frame*. The render is always 1920x1080;
+the HTML is whatever shape the reader's window is.
+
+This shipped as a real defect and was invisible to the entire test surface,
+because **no tool in the chain ever opens a non-16:9 viewport** — `shoot.js`
+pins 1920x1080, `smoke.js` uses 640x360 and 1920x1080, `build.js` opens no
+browser at all. Only a human resizing a window could see it. Measured on a
+fixed world point at `(3,3,0)` in the 3D template, projected at four window
+shapes: `ndc.x` went **0.913 → 1.161** (off-frame) from aspect 1.78 → 1.40,
+while `ndc.y` held constant to four decimals. Vertical framing was exactly
+aspect-invariant; horizontal was not. On the shipped `toybot-walk`, that cut
+the sign out of the rack-focus shot at 1.40 — the exact failure that scene's
+own comment ("both subjects must be visible") was written to prevent.
+
+The fix is architectural, not a patch. An audit found **ten different implicit
+reference frames** in the pipeline — the canvas scaled by window height, the
+shot ladder by frame height, captions sized in fixed CSS px against the window
+but positioned as a percentage of it, `smoke.js` measuring exposure at 640x360
+and caption overflow at a hardcoded 1920, `motion`'s dead-air threshold against
+a global median. Several disagreed. Every defect found in that audit came from
+the same shape: **a measurement or a composition made against a frame nobody
+declared.**
+
+So one frame is now declared, in the scene, and everything resolves against it:
+
+```js
+const FRAME = { aspect: 16/9, px: [1920, 1080] };   // exported as window.FRAME
+```
+
+`shoot.js` sizes its viewport from `FRAME.px`; `smoke.js` measures overlay fit
+against `FRAME.aspect`; the templates compose against it; the DOM overlays are
+sized and positioned from CSS vars carrying the frame rect, so a caption is a
+fraction of the frame rather than a fixed number of window pixels. That last
+one is a **separate** parity gap the containment fix alone did not close.
+
+It also makes non-16:9 output first-class: `{aspect: 9/16, px: [1080,1920]}` is
+the entire edit for a vertical film. Note honestly that shot-size conventions
+are aspect-dependent — a WS does not frame the same composition in vertical as
+in landscape — so the ladder needs re-judging by eye, not merely re-running.
+
+Both templates therefore compose against the declared **design frame** and
+*contain* it:
+
+- **2D** scales by `Math.min(canvas.width/VIEW_W, canvas.height/VIEW_H)` rather
+  than by height alone.
+- **3D** widens the vertical fov when the window is narrower than the design
+  ratio, while the shot solver keeps using the **authored** lens for framing
+  distance. That split is what makes it contain rather than merely zoom out.
+
+Both are the identity at the design aspect, so every recorded frame is
+byte-identical (verified across all shipped scenes at two timestamps). The
+overlay change is not — it measures PSNR 79.0 dB (3D) / 74.0 dB (2D), above
+this file's 70 dB imperceptible bar, with the difference localized to the
+caption pill's antialiased edge.
+
+**The guard.** `smoke.js` now samples the design frame at three window shapes
+across three timestamps and fails if its contents change. Bracketed both ways:
+known-bad pre-fix templates score 24-31 mean absolute luma difference, correct
+scenes score 0.07-0.12, and the threshold sits at 8 in the gap. Two false
+starts are worth knowing, because both produced a confident all-clear:
+
+- The first version sampled a **single `t`** which landed on a near-blank title
+  card, scored ~0 on a template known to crop, and passed. A blank frame is
+  invariant under every window shape precisely because it contains nothing.
+- The second read a **stale canvas**, sampling before the scene's own resize
+  handler had run — which scored a correctly-fixed template *worse* than a
+  broken one. Same class as the `smoke.js` sampling race already recorded in
+  the generalization plan's postmortem. Any check that changes viewport must
+  re-settle before it measures.
+
+The lint is the floor, not the verdict: it can reject a scene, it cannot
+approve one, and the render is always the design shape so it can never show you
+this. `build.js aspect <scene> <t>` tiles one moment at four window shapes for
+the looking half.
+
+Three consequences to design around:
+
+- The size ladder's `f` is a fraction of the **design frame** height, not the
+  window's. The ladder constrains height and says nothing about width — which
+  is why a subject wider than ~1.8x its declared height crops at `FS` and
+  tighter regardless of window shape. Push in on a narrower named sub-subject
+  rather than inflating `h`.
+- A narrow window reveals world **above and below** the design frame, so
+  **never hide an element by parking it off-frame.** Gate it with scale or
+  opacity instead.
+- Captions are fixed CSS px, so they size against the *window*, not the frame.
+  That is a separate, still-open parity gap: `smoke.js` measures caption
+  overflow at 1920 wide, so a caption can pass there and still clip in a
+  1280-wide window.
+
+The alternative that preserves the authored lens exactly is scissor-letterbox
+(`renderer.setViewport`/`setScissor` into the largest 16:9 rect). It gives
+pixel-exact composition parity at every window shape, at the cost of visible
+bars and re-anchoring the DOM overlays. Contain is the default because it never
+shows bars; reach for letterbox when the HTML must be a faithful preview of the
+video.
 
 # Determinism rules (breaking these breaks video/HTML parity)
 

@@ -1,5 +1,114 @@
 # changelog
 
+## 0.65.0
+
+### fixed
+- **explainer-video 0.21.1 -> 0.22.0**: nine defects found by an adversarial code review of the hardening work, every one reproduced before being fixed. Three were introduced by this run.
+
+  **`vendor` destructively rewrote every `.html` in the scene's directory.** `embedInto` walked `readdirSync` and embedded three.js into any file carrying the vendor tag, and `ensureVendor` runs before *every* command that opens a scene. Reproduced: `build.js bundle a.html` in a directory holding a work-in-progress scene and a copy of `scene.template.html` rewrote all three from 26,934 to 797,327 bytes — the shipped template silently lost its placeholder and grew 30x, and the result looks idempotent so nothing would ever flag it. This is the most damaging thing the branch introduced. It now embeds into the target only, verified with a bystander file.
+
+  **The gate hard-required a canvas with `id="c"`, which the contract does not.** A scene satisfying the full contract, deterministic, correctly contained, but naming its canvas `stage`, **failed** with an unactionable `Cannot read properties of null`. Worse, the `>=99%` near-black hard-fail never ran for it — putting any such scene back in exactly the state that let a 342-frame all-black film report `all scenes pass`. Now queries `document.querySelector('canvas')` and tolerates canvas-less backends, which the file's own comment always promised.
+
+  **`motion`'s provenance assertion sat 75 lines *below* a silent no-op.** An early return printed "no frames captured, nothing to report" and exited 0 — the outcome strictly worse than the partial profile the assertion was written to prevent. The assertion now runs first, and its `0.9` heuristic is replaced by an exact count: `tblend` emits one delta per adjacent pair, so N frames must yield N−1. The old constant was wrong in both directions — `N−1 < 0.9N` holds for every `N < 10`, so short films threw spuriously, while 25 frames could vanish from a 254-frame render undetected. Relatedly, `slice(1)` was discarding a real sample on a false premise: `tblend` has *already* dropped the unpaired first input, so the film's first inter-frame delta was invisible by construction and every dead-air timestamp was reported one frame early.
+
+  **`anchorX` offset along world X, not camera-right** — so at `angle: 90` it moved the target straight toward the camera and produced no horizontal movement at all, which is precisely the framing problem it was added to solve.
+
+  **`SHOOT_FORMAT` wrote JPEG bytes into `.png` filenames**, and `range` (documented for hand use) honoured it from ambient env — so exporting it to speed up reviews and then re-shooting a range would splice lossy frames into a lossless master, with every downstream check matching on the extension and seeing nothing wrong. The extension now follows the format.
+
+  Also: the kernel/solver parity check silently exempted a file carrying `START` without `END` (delete one line and a scene becomes invisible to the drift check that justifies the duplicated-block pattern); `samplePlan`'s flash avoidance could move a sample *into* an adjacent flash — reproduced at 95% white on an ordinary 0.4s cut-in/cut-out pair — and depended on the order flashes were authored in, now fixed with merged intervals; and an invalid `ANGLE_BACKEND` was silently accepted, handing you hardware GL while you believed you were reproducing a software-GL regression.
+
+### changed
+- **explainer-video: the camera floor is now opt-in (`CONFIG.cameraFloor`), off by default.** The review argued it was the one change on the branch that narrowed expressiveness against the branch's own rule, and it was right: it clamped `p[1]` only, so the camera left the sphere the solver placed it on and the declared rung stopped producing the framing it promised — an author asking for a hero low angle silently got a higher one. A bare `0.35` world-unit default also baked a world scale into a skill whose claim is any subject at any scale: at `h ~ 0.2` (a circuit board, a molecule) *every* shot would clamp. Default behaviour is now identical to before the floor existed.
+
+## 0.64.1
+
+### fixed
+- **explainer-video 0.21.0 -> 0.21.1**: two real bugs and a round of simplification, from a review of the hardening work.
+
+  **`poster` was broken by this run's own `sample` rename.** `shoot.js` now writes `<scene>_sample_<t>.png` into `FRAMES_DIR`; `poster` still read `sample_<t>.png` from the CWD and would fail at the ffmpeg step. It now owns a workspace and asserts the file exists rather than guessing a name. **`build.js aspect` with no scene** reached `path.resolve(undefined)` and died instead of printing usage — it was added to `USAGE` and the dispatch but not the missing-target guard.
+
+  **`SHOOT_FORMAT` was dead configuration for `aspect`.** `aspects` mode bypassed the shared `shot()` helper and called `page.screenshot()` directly, so the review-capture format never applied and `aspect` paid full PNG cost while `sheet` and `strip` got the measured ~6x. Now 2s.
+
+  **The two Chromium resolvers had diverged on this branch.** `shoot.js` gained a numeric build-number sort; `smoke.js` kept a lexicographic one, which puts `chromium-1099` above `chromium-1223` — so the gate and the recorder could resolve different browsers on the same machine. Synced.
+
+### changed
+- **explainer-video: the sampling layer was over-built and is now the size of its job.** It shipped with `beats`/`peaks` modes and `frac`/`avoid` options, of which exactly one caller used one mode — the other branches were unreachable, written for a `peaks` mode never implemented. Earn-in applies to tooling too. It is now `samplePlan(dur, flashes, n)`, keeping the two behaviours that carry their weight: interior-only points (t=0 is a title card in essentially every scene, which is how the old single-sample check came to look at the one moment a broken scene was clean) and flash avoidance. Verified: all three determinism controls still caught, all six examples and both templates still pass.
+
+  Also removed: a `bundleName` helper orphaned when `bundle()` became an assertion, an `expectFrames` helper superseded by `motion`'s two inline checks, a `_wrote` alias of a variable in the same scope, a dead `shots[0]` binding, a `variants` loop that always had one element after the source/bundled pair collapsed, entry-time `clean()` calls deleting directories `workspace()` had just created, and seven copies of the output-basename regex. The framing check's sample constant was renamed off `EXPOSURE_SAMPLE_TIMES`, so re-bracketing exposure can no longer silently move framing's sample points.
+
+## 0.64.0
+
+### added
+- **explainer-video 0.20.0 -> 0.21.0**: `references/instruments.md` — a consolidated ledger of what every check can and cannot see, with its measured bracket. This is the modularisation the test run actually earned: the limits were real, measured, and scattered across `method.md`, code comments and a postmortem, which is the shape knowledge takes right before it gets forgotten. It leads with the rule they all serve — **a proxy can reject, it cannot approve** — and records what has *no* instrument (watching the loop, semantics, whether a beat is funny, cross-machine reproducibility) as plainly as what does.
+
+### changed
+- **explainer-video: docs corrected where they were actively misleading.** `style-3d.md`'s SwiftShader note read as "PMREM is broken"; bisected, PMREM works for LDR and HDR on both backends, and only `Sky` into a **half-float** target fails — poisoning *direct* lighting on every `MeshStandardMaterial`, with a fallback that agrees across backends to 0.2%. The bloom-threshold rule now reads "above the **sky-lit** luminance of your brightest material", bracketed at 3.2 (blown) / 8.0 (right) / 14.0 (no-op).
+
+  `film-language.md` documents the vocabulary added in 0.20.0 (union subjects, `d`, `anchorX`, the `FSA` rung) and stops promising what the renderer cannot do: **`whip` is a fast cut, not a whip pan** — it differs from `blend` only in duration, and `focus` requires a `BokehPass` the base template does not have, so a scaffolded scene that sets it gets silence. `h` is now documented as "the extent that must stay in frame", not "the subject's height" — three films cropped their own payoff on that distinction.
+
+  `method.md`'s semantics axis is restated as **"cover everything except the geometry"**. The old "cover the caption" degenerates to a silent pass with no captions, removes the film when text is the subject, and cannot see canvas text — in one film built from an external document, 5 of 8 beats survived hiding the DOM caption and only **2 of 8** survived hiding the drawn labels too. The pacing floor is rescoped to the window in which a *mechanism* must be read, with the undocumented converse recorded: a physical event is often **faster** than a beat wants to be (a domino falls in 0.30s while beats want 3-4s).
+
+## 0.63.0
+
+### changed
+- **explainer-video 0.19.0 -> 0.20.0**: hardening pass two — the framing vocabulary now measures what it promises, and the solver is fenced.
+
+  **The solver had reached SIX copies.** The generalization plan's postmortem set the trigger at "a third consumer, extract or marker-fence it"; it fired long ago and nothing acted. It is now inside `SOLVER-START`/`SOLVER-END` markers with a `smoke.js` parity check that hard-fails on drift, exactly like the deterministic kernel. Editing the solver is one edit again.
+
+  With the fence in place, the solver gained what the run showed it was missing: **union subjects** (`subject: ['plank','hammer']` solves the bounding box of both — every causal beat is two objects and the space between them, and hand-authoring a composite subject with an invented centre is the "coordinates were never the author's intent" the vocabulary exists to abolish); **projected fitting** when a subject declares depth (`d`), because an axis-aligned width is non-monotonic in camera angle — measured, a box that fitted at 0 and -45 degrees clipped at -26; a **horizontal anchor** (`anchorX`), the absence of which is why framing a named subject put its most important feature at the frame edge and authors fell back to framing regions; an **`FSA` rung** at f=.70 between `WS` (.50) and `FS` (.95), the workhorse "full body with a little air" framing that did not exist; and a **floor guard** so a low elevation at long distance can no longer put the camera underground. All optional and defaulting to prior behaviour: a subject declaring only `h` frames exactly as before.
+
+  **`window.FLASHES` joins the contract.** The new sampling layer's flash-avoidance was silently avoiding nothing, because `CONFIG` is a `const` in a classic script and never becomes a window property — so a legitimate film failed the blank check *inside its own world-cut flash*. Same shape as why `window.BEATS` exists: when a tool is tempted to parse scene internals, the contract is missing an export.
+
+  Regression: all six examples and both templates pass, with solver and kernel parity enforced across all of them.
+
+## 0.62.0
+
+### fixed
+- **explainer-video 0.18.0 -> 0.19.0**: hardening pass one, from a batched test run of eleven films. Full analysis in [docs/internals/explainer_video_hardening_plan.md](docs/internals/explainer_video_hardening_plan.md); the run's ~51 findings collapse into two root causes, and each gets a structural fix rather than a patch per symptom.
+
+  **Root cause 1 — instruments that generalise from a single sample.** `smoke.js:147` was `const t = Math.min(1, dur/3)`, which for any film over 3s is the *constant 1.0s* — inside the title card the workflow tells you to write first. Three controls on one scene proved the consequence: a provably non-deterministic scene reported **`all scenes pass`, 0 warnings**, because t=1.0 was the only timestamp where that scene was clean. The skill's central guarantee could report green on a scene that violated it.
+
+  Fixed structurally with a **sampling layer** every check draws from — it knows the duration, the beat table and the flash windows, offers `uniform`/`beats`/`peaks` modes, avoids `CONFIG.flashes` windows (which blind exactly the beats bracketing a world cut), and reports which points it used so a green result is auditable. Determinism and blankness are now **ALL-quantified** over a 4-point plan rather than spot-checked at one arbitrary second. Verified against all three controls: previously 1 of 3 caught, now 3 of 3, with the good scene still clean.
+
+  **Root cause 1, second half — runs were not isolated and nothing verified provenance.** Five agents independently hit fixed scratch directories; the worst measured case encoded 3 frames from one film and 70 from another, silently. Rather than suffix six hardcoded names with a pid (the seventh command would hardcode a seventh name), all scratch space now goes through one `workspace(scene, tag)` helper, and `motion` asserts that the frames it parses match the frames it wrote — which generalises to any future desync, including the stale-tail class. Verified with concurrent runs in one directory.
+
+  **Bandaids, labelled as such because they genuinely are:** a >=99% near-black frame is now a failure rather than an advisory (a 342-frame all-black render previously reported `all scenes pass`, because the caption pill kept the frame from being technically empty); `shoot.js sample` honours `FRAMES_DIR` and prefixes filenames by scene; `shoot.js` self-heals its vendor step like `build.js`.
+
+### changed
+- **explainer-video: renders are much faster, and the reason was measured, not guessed.** GL backend is now selectable and defaults to **hardware** (`ANGLE_BACKEND=swiftshader` forces software) — it was hardcoded to SwiftShader, which cost 55x on the GL draw for a post-chain scene and let a Sky/PMREM scene render 342 black frames with exit 0. Review passes (`sheet`/`strip`/`aspect`) now capture **JPEG q92** instead of PNG over the identical readback path; they already emit `.jpg`, so no deliverable changes. Measurements (`motion`) and masters (`frames`/`all`) stay PNG.
+
+  Measured: a review pass on the heaviest scene went **7s -> 1s**; a full 30fps render **38.5s -> 21.5s**. Benchmarked at 1920x1080: PNG 185.6 ms/frame, JPEG q92 30.9 ms, JPEG q80 29.5 ms — size nearly halves between q92 and q80 while time barely moves, which locates the remaining cost in CDP pixel readback rather than compression. WebP was tested and **is not available**: Playwright rejects it (`type: expected one of (png|jpeg)`), and it would land in the same ~30 ms band regardless.
+
+### added
+- **explainer-video: `examples/README.md`** describing each of the six films and stating plainly that the `.html` is the film — full resolution at display refresh — while the `.avif` beside it is a heavily compressed 960px/15fps recording that exists only because github.com cannot run a script tag. Judge a film by opening the HTML.
+- Root README now leads with explainer-video and links to the examples folder.
+
+## 0.61.0
+
+### added
+- **explainer-video 0.17.0 -> 0.18.0**: four new committed examples, and every example is now a genuinely self-contained single file.
+
+  **Examples.** The plugin previously shipped two films, both self-referential — the pipeline explaining itself, and a demo character. Added: **`heat-pump`** (36.6s, 10 beats, three worlds joined by four hard cuts under flashes, every cut verified at flash 0.980 on the exact frame the world changes), **`chain-reaction`** (16s, a six-link Rube Goldberg where each link's trigger time is derived from the previous link's own curve), **`pelican-walk`** (17.8s, no explanation — 1600 instanced rain streaks whose height is `mod(t)` and lightning as three exponential decays at fixed offsets, both pure functions of `t`), and **`toybot-dance`** (12.6s, no captions at all). That gives the examples cross-world walkthrough, causal-chain, and two non-explainer registers for the first time. `skill-retrieval` removed at the owner's request; `toybot-walk.midnight.avif` removed — `midnight` is a one-line render, which holds the control-pair claim more honestly than a committed artifact that can go stale against the scene.
+
+  **Vendoring is now structural, not a convention.** `build.js vendor` builds three as an IIFE, splices it directly into the HTML, and deletes the intermediate file — there is no `three.global.js` to ship and no `.bundled.html`. `ensureVendor` runs before every command that opens a scene, so a scene cannot reach a render, a review, or a commit still pointing at a library that is not inside it, and `smoke.js` fails any scene that is not self-contained (`bundle` is now an idempotent assertion rather than a transform). This closes a real defect: the committed 3D example shipped as un-bundled source with a dangling `./three.global.js` reference and **rendered nothing when opened**, because bundling was an optional manual last step. The old source-vs-bundled artifact pair collapses into one file, and with it the whole "the bundled copy drifted from the source" failure class.
+
+  Verified: all six examples self-contained, smoke green (contract, determinism, kernel parity, framing invariance), and byte-identical renders before and after embedding. AVIFs standardised at 960px/15fps.
+
+## 0.60.0
+
+### fixed
+- **explainer-video 0.15.0 -> 0.16.0**: two defects found by *running* the pipeline rather than reading it, both invisible from inside the recorded outputs.
+
+  **The HTML artifact and the recorded formats disagreed on framing.** SKILL.md's headline claim is that one scene file drives the live HTML loop and the frame-exact render alike. They were identical in *time* and not in *framing*. The 2D template scaled by `canvas.height/VIEW_H` alone, so visible world **width** was a function of the viewport's aspect ratio; the 3D solver pins the *vertical* extent (`dist = h/f/(2·tan(fov/2))`), so horizontal extent is vertical × aspect. Either way a window narrower than 16:9 silently cropped the sides. Measured on a fixed world point at `(3,3,0)` in the 3D template: `ndc.x` went **0.913 → 1.161** (off-frame) from aspect 1.78 → 1.40, while `ndc.y` held constant to four decimals.
+
+  It was invisible to the entire test surface **by construction** — no tool in the chain ever opens a non-16:9 viewport (`shoot.js` pins 1920x1080, `smoke.js` uses 640x360 and 1920x1080, `build.js` opens no browser). Only a human resizing a window could see it, and one did. Worst hit was the shipped `toybot-walk`: at 1.40 the sign was cut out of the rack-focus shot — the exact failure that scene's own comment ("both subjects must be visible") exists to prevent. Crop thresholds measured per example: `toybot-walk` 1.66 (only 7% margin at 16:9), `scene2d.template` 1.45, `skill-retrieval` 1.30, `one-scene-every-format` 1.07.
+
+  Both backends now compose against a fixed 16:9 **design frame** and contain it: 2D scales by `min(W/VIEW_W, H/VIEW_H)`; 3D widens the vertical fov below the design ratio while the shot solver keeps the **authored** lens for framing distance — the split that makes it contain rather than zoom out. Applied to both templates and all three examples. **Both are the identity at 16:9, verified byte-identical across all five shipped scenes at two timestamps**, so no committed artifact needed re-rendering and the match-cut constraint is untouched (it is a load-time pass over authored fields; `fitFov` is a uniform post-solver transform, so two shots with equal authored fov render equal fov at every aspect). `references/method.md` gains a "Framing rules" section as a sibling to the determinism rules, which were entirely temporal and had no home for this.
+
+  **`build.js all` could silently encode the wrong frames.** `frames()` declared `dir='frames'` as a default parameter and passed it as `FRAMES_DIR` to `shoot.js`, overriding any ambient value, while `video()` reads `process.env.FRAMES_DIR`. So `FRAMES_DIR=X build.js all` shot fresh frames into `frames/` and encoded from `X/` — the same ship-the-wrong-film failure the comment inside `video()` already describes and claims to have closed, reintroduced through the other half of the pair. Silent whenever `X` already held frames: measured, one stale frame produced a **0.0 MB one-frame mp4 and exit 0**, printed as success. Fixed by defaulting `frames()`'s `dir` to the same expression `video()` uses; callers that own a scratch dir (`sheet`/`loop`/`avif`/`strip`) pass one explicitly and are unaffected.
+
+  Known and still open, recorded in `method.md`: captions are fixed CSS px so they size against the window rather than the design frame, and `smoke.js` measures caption overflow at 1920 wide — a caption can pass there and still clip in a narrow window. The durable guard against the whole class is a smoke check at a second aspect ratio; not yet built.
+
 ## 0.59.0
 
 ### added

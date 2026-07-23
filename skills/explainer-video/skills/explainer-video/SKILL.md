@@ -2,21 +2,19 @@
 name: explainer-video
 description: >
   Create animated explainer sequences — 3D, diagrammatic, or cross-section — as
-  a self-contained looping HTML page, an MP4, or an animated WebP/AVIF that plays
-  inline in a GitHub README. Use when asked to "make a video / animation /
-  walkthrough / explainer / animated sequence / motion graphic" of any subject
-  in any field: a process, mechanism, system, architecture, organism, market,
-  supply chain, building, policy, or document (e.g. "turn docs/data-flywheel.md
-  into a 30-second video", "animate how a heat pump works", "show how our
-  approval process flows"). Two backends on one contract — three.js 3D (cel
-  shading, IK characters, a deterministic post chain, shots as data) and
-  Canvas2D flat vector — with the look chosen by swappable style packs and
-  bibles. Domain-agnostic — only the geometry and caption register change by
-  field, never the pipeline. Deterministic by construction:
-  the film is a pure function of time t, so one scene file drives the live HTML
-  loop and the frame-exact render alike. Do NOT use for editing existing video
-  files, screen recordings, or slide decks. Audio narration is designed but not
-  wired (see references/audio.md).
+  a self-contained HTML page, an MP4, or an animated WebP/AVIF that plays inline
+  in a README. Use when asked to "make a video / animation / walkthrough /
+  explainer / animated sequence / motion graphic" of any subject in any field:
+  a process, mechanism, system, architecture, organism, market, supply chain,
+  building, policy, or document (e.g. "turn docs/data-flywheel.md into a
+  30-second video", "animate how a heat pump works", "show how our approval
+  process flows"). Two backends — three.js 3D and Canvas2D flat vector — with
+  the look set by style packs and bibles. Domain-agnostic: only the geometry and
+  caption register change by field, never the pipeline. Deterministic — the film
+  is a pure function of time t, so one scene file drives the HTML loop and the
+  frame-exact render alike. Do NOT use for editing existing video files, screen
+  recordings, or slide decks. Audio narration is designed but not wired
+  (references/audio.md).
 metadata:
   author: Fred Bliss
   last_verified: 2026-07-21
@@ -32,6 +30,15 @@ scene file serves as both the interactive HTML artifact (a `requestAnimationFram
 loop mapping wall time onto `seekTo(t)`) and the source for a frame-exact MP4
 (headless Chromium stepping `seekTo(t)` frame by frame into ffmpeg).
 
+Parity has two halves, and `t` is only the first. **`t` fixes what happens;
+`FRAME` fixes what is on screen.** The render is whatever `FRAME.px` says; the
+HTML artifact is whatever shape the reader's window is — so both templates
+compose against the declared design frame and *contain* it. A window that is
+not the design shape reveals more world on the long axis; it never crops the
+composition. Everything measures against `FRAME` and nothing else: the canvas,
+the shot ladder, the DOM overlays, and the lints. See "Framing rules" in
+`references/method.md`.
+
 ## Workflow
 
 ### 1. Write the spec first (data before code)
@@ -44,7 +51,14 @@ topic:      what the sequence explains, one sentence
 source:     doc/file it's based on, if any (read it FIRST — facts before film)
 audience:   who watches, and what they should understand at the end
 duration_s: 15-40 typical; ~3-4s per beat is the pacing that reads well
-aspect:     16:9 default
+aspect:     16:9 default — the DESIGN FRAME, declared once in the scene as
+            `const FRAME = {aspect: 16/9, px: [1920,1080]}`. This is the single
+            source: shoot.js sizes its viewport from FRAME.px, smoke.js measures
+            overlay fit against FRAME.aspect, and both templates compose against
+            it. Vertical (9:16) and square (1:1) are first-class — set
+            `{aspect: 9/16, px: [1080,1920]}` and the whole pipeline follows;
+            no flags, no other edit. A window that is not the design shape
+            reveals world on the long axis, it never crops the composition.
 domain:     what field this is from — it decides the geometry vocabulary, not
             the pipeline (a pump, a protein, a portfolio, a permit process)
 style:      palette (3-5 colors), tone (playful | neutral | technical),
@@ -64,7 +78,9 @@ outputs:    html | mp4 | loop | avif | poster (see "Delivery" — decide this HE
 
 Decide delivery now — it constrains the beats, not just the encode step. Four
 peer options, not a ranked list (full comparison in "Delivery"): **HTML** is the
-interactive source itself — no encode step, no camera constraint, but it does
+interactive source itself — no encode step, no held-camera constraint (though
+it alone renders at the reader's window shape, so check a narrow window before
+shipping one — see "Framing rules" in `references/method.md`), but it does
 not run on github.com (script tags are stripped) and needs Pages or a published
 Artifact. **MP4** is the only format with audio and the only one that gives a
 true player, but that requires an issue/PR attachment — it does not render
@@ -122,7 +138,7 @@ unchanged on both. Pick by the look the spec calls for:
 cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
-bun run build.js vendor            # writes three.global.js beside the scene
+bun run build.js vendor            # EMBEDS three into the scene; leaves no .js
 ```
 
 Either scene is runnable as-is (placeholder scene, 12s) and already contains
@@ -148,7 +164,9 @@ the full contract:
 - driver — `window.seekTo(t)`, `window.DURATION`, `window.stopPlayback()`,
   `window.sceneReady`: the recorder contract; do not rename these. Plus
   `window.BEATS`, which exposes the beats table so tooling can label frames by
-  beat and check caption timing without re-parsing the source
+  beat and check caption timing without re-parsing the source, and
+  `window.FRAME`, the declared design frame — `shoot.js` sizes its viewport from
+  `FRAME.px`, so changing it is the only edit needed to ship vertical or square
 
 Replace the placeholder in the two marked sections: `buildWorlds()` (geometry)
 and `animate(t)` (per-beat motion, every property a function of `t`).
@@ -158,8 +176,20 @@ and `animate(t)` (per-beat motion, every property a function of `t`).
 ```bash
 bun run build.js sheet <name>.html            # one frame per beat -> .sheet.jpg + .squint.jpg
 bun run build.js sheet <name>.html 480 0.95   # every beat at its END — catches effects that park
+bun run build.js aspect <name>.html 8.5       # one moment at four window shapes -> .aspect.jpg
 bun run shoot.js <name>.html sample 0,3,7,11  # arbitrary timestamps, one PNG each
 ```
+
+Run the **0.95 end-of-beat sheet as a standing pass, not an option.** The default
+0.6 sample cannot show an effect that never finishes or a beat whose target
+arrives late — two shipped defects were caught only there: a payload dot that
+travelled to a box which did not draw until the following beat, and a connector
+routed through the interior of the box it was entering.
+
+`build.js aspect` is the framing counterpart. `smoke.js` can *reject* a scene
+whose design frame changes with the window; it cannot *approve* one, and the
+render is always the design shape so it can never show you this. Look at the
+tiled sheet: every cell must be the same composition.
 
 **Read the generated images with the Read tool — it renders them visually.** A
 filename is not a review, and every check below depends on having actually seen
@@ -263,8 +293,8 @@ bun run build.js poster <name>.html 7.2      # <name>.jpg + the markdown to past
 Four peer delivery options — HTML, MP4, WebP, AVIF — not a ranked list. Which
 one(s) to ship is a per-project call; choose by what the context needs.
 
-HTML: the bundled file (`build.js bundle`) is a single self-contained artifact
-that runs offline — the interactive, deterministic source itself, not a
+HTML: the scene file itself is a single self-contained artifact that runs
+offline (three is embedded at vendor time; `build.js bundle` just asserts it) — the interactive, deterministic source itself, not a
 rendering of it. It autoplays and loops. It does **not** run on github.com
 (script tags are stripped); serve it via GitHub Pages or publish it as an
 Artifact, both of which run it fine. A `build.js deploy` helper to automate
@@ -288,7 +318,7 @@ different costs — WebP's is on disk, AVIF's is at playback:
 
 | Scene | Inline artifact | Why |
 |---|---|---|
-| Held camera (diagram, architecture, data flow) | `loop` (WebP) or `avif` | Either decodes cheaply on a held camera. WebP's inline rendering is the best-verified case; `examples/skill-retrieval.html`: **204 KB** for 11s at 720px/12fps. |
+| Held camera (diagram, architecture, data flow) | `loop` (WebP) or `avif` | Either decodes cheaply on a held camera. WebP's inline rendering is the best-verified case; measured on a held-camera diagram: **0.27 MB** for 15.8s at 720px/12fps, against **4.58 MB** for the same pipeline on a moving camera — a 17x swing from camera choice alone. |
 | Moving camera you must ship inline | `avif` | A WebP loop here costs megabytes; AVIF stays small. Costs decode CPU at playback (below) — weigh against the audience's hardware. |
 | Size or bandwidth matters most | `avif` | ~7-54x smaller than WebP on disk. |
 | Authored diagram, motion *is* the explanation | Neither — hand-write an animated SVG | 10-25 KB, inline, no cap. Wrong tool for a rendered 3D scene; right tool for a diagram. |
@@ -324,7 +354,7 @@ register of the captions. The contract, the beats and the pipeline do not.
   processes, circuits, transit): flat planes, labeled boxes, a pulse traveling
   edges; camera glides between stations rather than cutting between worlds. Same
   contract, just calmer keyframes and an orthographic-feeling long lens (fov
-  20-25). See `examples/skill-retrieval.html`.
+  20-25). See `examples/one-scene-every-format.html`.
 - **Cross-section** (geology, buildings, machinery, soil, anything with hidden
   internals): a frontal cutaway slab. The one rule is that "inside" is invisible
   — internals must sit proud of the front face. See `references/style-3d.md`.
@@ -345,12 +375,35 @@ register of the captions. The contract, the beats and the pipeline do not.
 
 Pinned: `three@0.185.1`, `playwright-core@1.61.1`, ffmpeg on PATH, bun.
 
+**GL backend defaults to hardware.** `ANGLE_BACKEND=swiftshader` forces software
+if you need cross-machine byte-identity; note frames are NOT byte-identical
+across backends (PSNR 57-58 dB, antialiased edges and speculars only). Hardware
+is ~2.6x faster end to end on a post-chain scene and 55x on the GL draw — and
+software silently rendered a Sky/PMREM scene 100% black. Review passes capture
+JPEG (~6x faster than PNG over the same readback); masters stay PNG.
+
 Two constraints that dictate the setup — do not "simplify" them away:
 
-- **three is vendored, never CDN-loaded.** three dropped its UMD build after
-  0.160, so `build.js vendor` bundles it into `three.global.js` (an IIFE that
-  sets `window.THREE`). IIFE matters: a plain ESM bundle leaks its top-level
-  identifiers into global scope and collides with scene variables.
+- **three is vendored locally and EMBEDDED in the scene. Never CDN-loaded, never
+  a sibling `.js`.** Three constraints force this and none of them have relaxed:
+  a CDN means the render touches the network and the artifact stops working
+  offline; three dropped its UMD build after 0.160, so a CDN copy can no longer
+  be loaded from a classic `<script>` at all; and module imports are CORS-blocked
+  over `file://`, which is exactly how these artifacts are opened. So
+  `build.js vendor` builds three as an **IIFE** (a plain ESM bundle leaks its
+  top-level identifiers into global scope and collides with scene variables —
+  a minified `MW` shadowed one and broke an example) and splices it straight
+  into the HTML, deleting the intermediate file.
+
+  **One scene = one file.** There is no `.bundled.html` and no `three.global.js`
+  to ship alongside. This is enforced, not merely advised: `ensureVendor` runs
+  before every command that opens a scene, so a scene cannot reach the renderer
+  — or a reviewer, or a commit — still pointing at a library that is not inside
+  it, and `smoke.js` fails any scene that is not self-contained. The rule exists
+  because the previous arrangement made bundling a manual last step, and a
+  committed 3D example duly shipped as un-bundled source with a dangling
+  reference: it rendered nothing when opened. Cost is ~0.73 MB per 3D scene,
+  paid once, and worth it — the file is the artifact.
 - **The scene stays a classic `<script>`, never `type="module"`.** Chrome
   CORS-blocks ES module imports over `file://`, and opening the HTML straight
   from disk is the whole point of the artifact.
@@ -364,6 +417,8 @@ Two constraints that dictate the setup — do not "simplify" them away:
   and `motion` review passes (copy beside the scene)
 - `templates/smoke.js` — contract + determinism check, plus caption and exposure
   lints (run before a full shoot)
+- `references/instruments.md` — what every check can and cannot see, with its
+  measured bracket (read before trusting a green result)
 - `references/method.md` — the universal method: failure axes, beats and
   controls discipline, continuity/semantics review, determinism rules
   (L3: read when building, any backend)
