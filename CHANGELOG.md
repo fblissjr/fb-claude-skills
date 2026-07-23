@@ -1,5 +1,18 @@
 # changelog
 
+## 0.68.0
+
+### added
+- **explainer-video 0.24.0 -> 0.25.0**: the most repeated authoring bug in this skill's history finally has a name and a technique.
+
+  **Two things that must touch: measure the contact, do not infer it** (`references/method.md`). Four independent films had already hit this and each was written off as a one-off — a payload dot that arrived at empty space, a hammer head hanging 0.6 units clear of the plank it was meant to strike, a domino that swept *between* the paddles, a body that descended offset from the gate that opened it. A two-character fight scene made it a pattern: neither combatant's blow ever reached the other.
+
+  The cause is a vocabulary trap rather than carelessness. **`h`/`w` describe the FRAMING extent; the contact point is a different number that nothing records.** A pelican declaring `h:6.6, w:4.2` gives no hint that its beak tip sits +4.37 from its origin, so authors use the number that is written down. The section gives the measurement technique (`Box3` through `page.evaluate` — the same probe the cross-section film used for its front-face check), and shows solving the staging from the measured offsets rather than tuning a coefficient: the fight's two separations fell out as exactly 5.83 and 3.23. It also covers the two ways the check goes wrong — testing only one axis (one swing measured an x-overlap of −1.66 with a **y-overlap of 0.01**, arcing clean over its target) and ignoring whether the reach exists at all (a 1.72-unit arm cannot touch something 2.9 away).
+
+  **Geometric contact is not legible contact.** Overlapping bounding boxes mean the objects touch; they do not mean the viewer sees a hit. The contact point can sit behind a body, or the two interpenetrate and read as clipping. This is the interaction form of the existing "subject versus apparatus" rule.
+
+  Deliberately **not** built: a `build.js contact` checker. Four films hit the bug and none was *blocked* — each was fixed by hand once someone measured. Documenting the rule and the technique is the earned response; an instrument waits for a film that cannot proceed without one.
+
 ## 0.67.0
 
 ### added

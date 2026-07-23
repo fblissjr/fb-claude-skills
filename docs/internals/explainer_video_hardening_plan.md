@@ -332,6 +332,48 @@ Keeping faith with the earn-in discipline, and with the open-endedness rule:
 
 ---
 
+## Addendum — what the two-character scene taught (2026-07-22)
+
+Pass three shipped, then a fight scene between two existing characters was built
+as an end-to-end exercise. It confirmed the plan's central bet and added one
+finding the eleven earlier films had produced without anyone naming it.
+
+**The earn-in rule worked, in both directions.** `warp` was deferred in pass
+three as "no film is blocked on it" — every film that wanted slow motion had
+shipped without it. One scene later a film genuinely needed it, and it shipped
+then. That is the rule functioning, not an exception to it. Conversely, this
+scene did **not** earn a `build.js contact` checker (below), and it did not get
+one.
+
+**A fourth root cause, hiding in plain sight: contact points are never
+declared.** Four films had already hit this and each was written off as a
+one-off — a payload dot arriving at empty space, a hammer head hanging clear of
+its plank, a domino sweeping between the paddles, a body descending offset from
+the gate that opened it. The fight made it a pattern: **`h`/`w` describe the
+FRAMING extent, and the interaction point is a different number that nothing
+records.** Authors reach for the number that is written down.
+
+This is the same shape as root cause 2 — *vocabulary that promises more than it
+measures* — one level further in. `h` was corrected from "the subject's height"
+to "the extent that must stay in frame"; it still says nothing about where the
+thing actually touches. Resolved by documentation plus the measurement technique
+(`Box3` through `page.evaluate`, the same probe the cross-section film used),
+**not** by an instrument: four films hit it and none was *blocked*.
+
+**One process failure worth recording against myself.** Five rounds were spent
+tuning multipliers before anything was measured, and each round made the scene
+worse. The fix took minutes once the offsets were read. This is precisely the
+"iterate by looking, not by hoping" failure `method.md` documents — committed by
+the author of the pass that added the measuring instruments, in the same
+session. The lesson is not "measure more"; it is that **the pull toward tuning a
+coefficient is strongest exactly when a thing is nearly right**, and that is the
+moment to stop and instrument.
+
+**Still open on that scene:** geometric contact is not legible contact. Both
+blows now overlap on all three axes and still read as clipping rather than
+impact, because the contact point sits behind a body. The rule is written down
+(`method.md`); the scene has not been re-staged.
+
 ## Sequencing
 
 1. **Group 1 first**, because every subsequent measurement depends on it, and

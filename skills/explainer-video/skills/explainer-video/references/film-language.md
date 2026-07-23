@@ -59,6 +59,13 @@ second subject fell out of frame — sizes are conventions with meanings, not
 free parameters. Per-shot `anchor:` overrides the aim height when a
 composition needs it (the toybot rack aims low to hold the sign in frame).
 
+**A rung is relative to the DECLARED subject, not to the figure.** `MS` means
+"the subject spans 1.6 frame-heights" — waist-up when the subject is a whole
+person, and a close-up of *part of a head* when the subject is a head. Naming a
+small sub-subject and then reaching for a tight rung compounds twice and puts the
+camera inside it. For an insert on a named part, use a rung that FITS
+(`FSA`/`FS`); the tightness is already in the choice of subject.
+
 **Union subjects take WIDE rungs only.** `MS`/`MCU`/`CU` carry human-figure
 meanings — waist-up, chest-up, head — and a union box of two fighters has no
 waist. Asking for `MS` on a 9-unit-wide pair jams the camera into the gap
@@ -107,6 +114,13 @@ plane sits on `focus` (default: its subject);
 is two adjacent shots differing only in `focus`, joined by `blend`** — the
 focus distance interpolates with the same ease as the camera. No manual
 distance math survives in scene code.
+
+**Stage across the line, not down it.** Two subjects separated along an axis
+read as two subjects only when the camera looks ACROSS that axis — a small
+`angle` relative to their separation. Swinging near-perpendicular to the frame
+(a large `angle`) looks down the line and stacks them in depth, which is the
+problem side-on framing is usually reached for to fix. Get variety from
+elevation and from which side, not from going side-on.
 
 **Camera energy** — `CONFIG.energy`: `locked` (tripod), `steadicam` (gentle
 drift), `handheld` (documentary nerves) — seeded `noise1` tracks, amplitude

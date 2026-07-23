@@ -666,6 +666,63 @@ beats table and then has nothing to render.
 Flag assertion-shaped beats while the table is still text. At that point the fix
 is free.
 
+## Two things that must touch: measure the contact, do not infer it
+
+The single most repeated authoring bug across every film built for this skill.
+Four independent instances so far: a payload dot that **arrived at empty space**
+because its target drew a beat late; a hammer head that hung **0.6 units clear**
+of the plank it was supposed to strike; a domino that swept **between** two
+paddles it was meant to hit; a loaded body that descended in a column **offset
+from the gate that opened it**. And a fight in which neither the beak nor the
+swing ever reached the opponent.
+
+The cause is always the same, and it is a vocabulary trap rather than
+carelessness: **`h` and `w` describe the FRAMING extent, and the contact point
+is a different number.** A pelican declared `h:6.6, w:4.2` — nothing in that
+tells you its beak tip sits **+4.37** from its origin. Authors reach for the
+number they have, because it is the only one written down.
+
+So measure it. `seekTo` purity plus classic-script scope means a probe can read
+the scene's own objects with zero instrumentation:
+
+```js
+// in page.evaluate, at the frame the contact is supposed to happen
+const bb = o => { const b = new THREE.Box3().setFromObject(o); return b; };
+const beakTip   = bb(beak).max.x   - bird.position.x;   // +4.37
+const botFront  = bb(botTorso).min.x - bot.position.x;  // -1.46
+// contact requires separation === beakTip + |botFront|
+```
+
+Then **solve the staging from those offsets** instead of tuning a multiplier
+until it looks close. On the fight above, the separations fell out as exactly
+5.83 for the jab and 3.23 for the body-check, and the travel expressions were
+written from those two constants. Every round spent nudging a coefficient before
+that measurement made the scene worse, not better.
+
+**Check all three axes.** Closing the gap in X while the limb passes over the
+target in Y is the same miss and looks identical in a contact sheet: one swing
+measured an x-overlap of −1.66 with a **y-overlap of 0.01** — it arced cleanly
+above the body it was supposed to hit.
+
+**And check the reach exists at all.** An articulated limb has a fixed length
+from its pivot; if the target is further than that, no amount of rotation
+reaches it. A 1.72-unit arm cannot touch something 2.9 units away, and the
+honest fixes are to step the body in, or to change the action (a downward chop
+lands where a flat swing cannot).
+
+### Geometric contact is not legible contact
+
+Overlapping bounding boxes mean the objects touch. They do not mean the viewer
+sees a hit. The contact point can sit behind one of the bodies, or the two can
+simply interpenetrate and read as clipping rather than impact.
+
+This is the interaction form of "subject versus apparatus: decide who owns the
+middle third" above. The contact point is what is changing this beat, so it
+needs the frame — which usually means offsetting the two bodies in depth so they
+are not on a single line to camera, and staging the blow across that line rather
+than down it. A hit the camera cannot see did not land, however correct the
+maths.
+
 ## Motion that reads versus causality that reads
 
 These are different problems and the second is harder. A sweep only has to be
