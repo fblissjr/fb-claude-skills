@@ -62,11 +62,32 @@ report_drift() {  # $1=marker-stem  $2=human name
   return 1
 }
 
-out=$( { report_drift KERNEL "kernel"; report_drift SOLVER "solver"; } 2>/dev/null )
+# A shipped template must stay a small, readable starting point. Tools now
+# refuse to embed into one (build.js ensureVendor), but that guards the TOOL
+# path only -- this guards the ARTIFACT, so a hand edit, a merge, or a future
+# command that never goes through ensureVendor is caught the same way.
+# Bracketed both directions by observation: intact templates are 32 KB and
+# 24 KB; an inflated one measured 802 KB. Nothing legitimate sits near 200 KB.
+report_fat_templates() {
+  local f sz
+  for f in "$scenes"/templates/*.template.html; do
+    [ -e "$f" ] || continue
+    sz=$(wc -c < "$f" | tr -d ' ')
+    [ "$sz" -le 204800 ] && continue
+    echo "  $(basename "$f") is $((sz / 1024)) KB — a template should be well under 200 KB"
+    echo "    (looks like a vendored library was embedded into it; templates keep"
+    echo "     their <script src> tag and are copied before being built on)"
+  done
+}
+
+out=$( { report_drift KERNEL "kernel"; report_drift SOLVER "solver"; report_fat_templates; } 2>/dev/null )
 [ -n "$out" ] || exit 0
 
-echo "explainer-video: shared-block drift detected"
+echo "explainer-video: scene integrity check"
 echo "$out"
-echo "  These blocks are byte-identical by design; smoke.js hard-fails on drift."
-echo "  Edit them in ALL scenes or in none."
+case "$out" in
+  *"blocks differ"*|*"well-formed"*)
+    echo "  Marked blocks are byte-identical by design; smoke.js hard-fails on drift."
+    echo "  Edit them in ALL scenes or in none." ;;
+esac
 exit 0

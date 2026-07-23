@@ -1,5 +1,19 @@
 # changelog
 
+## 0.68.3
+
+### fixed
+- **explainer-video 0.25.2 -> 0.25.3**: the self-contained assertion knew one spelling of one tag.
+
+  Swept for more guards asking a weaker question than the operation they protect — the root cause behind 0.25.1 and 0.25.2 — and found the inverse form. `bundle()` asserted self-containment by testing `VENDOR_TAG`, anchored on exactly `<script src="./three.global.js"></script>`. A scene referencing anything external under any other spelling — single quotes, a CDN, a differently-named bundle — **passed** the assertion while carrying a reference that would not travel with the file. That is the failure the surrounding comment records as already having shipped: a committed 3D example with a dangling reference that rendered nothing.
+
+  It now asserts the property: no external `<script src>` remains, `data:` URIs excepted. This also **removes** a three.js assumption rather than adding one — the question is no longer "is the three tag gone" but "is anything external referenced", so the Canvas2D backend and any future SVG one get the same guarantee without the vendoring machinery being involved. Controlled: a normal scene still bundles, single-quoted and CDN references are now caught.
+
+  Swept clean otherwise. `motion`'s `f%05d.png` assumption holds because `frames()` pins `SHOOT_FORMAT: 'png'` rather than inheriting it. Noted but not changed: `build.js` keeps the command list, `USAGE`, and the dispatch chain as three parallel lists that must be edited together, and the `sway:` advisory parses scene source with a regex that a reformatting would silently defeat.
+
+### added
+- The `Stop` hook also flags a shipped template that has been inflated with an embedded library. `ensureVendor`'s refusal guards the tool path; this guards the artifact, so a hand edit, a merge, or a future command that never calls `ensureVendor` is caught the same way. Bracketed by observation in both directions: intact templates are 32 KB and 24 KB, an inflated one measured 802 KB, and nothing legitimate sits near the 200 KB threshold.
+
 ## 0.68.2
 
 ### fixed

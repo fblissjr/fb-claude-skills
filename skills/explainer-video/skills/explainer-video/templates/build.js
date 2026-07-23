@@ -122,6 +122,17 @@ function bundle(src) {
   if (VENDOR_TAG.test(html)) {
     throw new Error(`could not embed three into ${src} — vendor tag still present`);
   }
+  // Then assert the PROPERTY, not one spelling of one tag. The check above only
+  // knows the canonical `<script src="./three.global.js"></script>`; a scene
+  // referencing anything external under any other spelling -- single quotes, a
+  // CDN, a differently-named bundle -- passed "self-contained" while pointing at
+  // a file that would not travel with it. That failure already shipped once: a
+  // committed 3D example carried a dangling reference and rendered nothing at
+  // all. A data: URI is genuinely self-contained and is allowed.
+  const ext = html.match(/<script\b[^>]*\bsrc\s*=\s*["'](?!data:)[^"']*["'][^>]*>/i);
+  if (ext) {
+    throw new Error(`${src} is not self-contained — external script reference remains: ${ext[0]}`);
+  }
   console.log(`self-contained -> ${src}`);
   return src;
 }
