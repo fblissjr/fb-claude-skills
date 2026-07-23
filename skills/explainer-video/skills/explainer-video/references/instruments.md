@@ -116,6 +116,32 @@ Caveat: cells are padded into a common square box, so four window shapes render
 at four scales. A correctly contained subject can *look* like it drifts. When in
 doubt read the individual frames rather than the sheet.
 
+## Where a check belongs: the tool path or the artifact
+
+A guard placed on the code path only holds for callers who take that path. A
+guard placed on the artifact holds however the artifact got that way.
+
+The case that taught this: `build.js` embeds the vendored library into a scene
+in place, which is correct for an authored film and destructive for a shipped
+`*.template.html`. Running the gate rewrote a tracked 32 KB template with
+0.77 MB of inlined library, idempotently, so nothing flagged it. `ensureVendor`
+now refuses templates — but that only protects callers who go through
+`ensureVendor`. A hand edit, a bad merge, or a future command that writes the
+file directly all reproduce the same broken artifact past that guard. Checking
+the artifact's own invariant — a template is small and still carries its
+`<script src>` tag — catches every route to it, including routes nobody has
+written yet.
+
+**The instrument deliberately NOT built here** is worth as much as the one that
+was. The obvious move looked like "assert the working tree is clean after
+`smoke.js` runs". It is wrong: `smoke.js` runs mostly in an author's scratch
+directory, which is usually not a repository at all and where writing files is
+the entire point. The assertion would be false in the tool's primary use case
+and would have to be suppressed there — which is how a check becomes noise and
+then becomes bypassed. **When an invariant belongs to a repository rather than
+to a film, enforce it where repositories are enforced** (a repo hook, CI, a
+pre-commit check), not inside a tool that has no idea it is in one.
+
 ## What has no instrument
 
 Recorded honestly, because these are where films actually ship broken:

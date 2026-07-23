@@ -27,6 +27,8 @@ These bite on the first edit if you don't know them.
 
 6. **Three of this repo's own plugins are disabled here** via `enabledPlugins: false` in `.claude/settings.json`: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`. (`env-forge` is deprecated, not disabled — the `renames` map in `marketplace.json` handles its removal. An `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.) Their SessionStart hooks inject ~3,500 chars of convention text into every session, and in this repo those conventions are already stated twice — in `.claude/rules/general.md` and the user's global `CLAUDE.md`. The hooks stay in the plugins because they are the entire point for a repo with nothing written down; they are just redundant *here*. `path-privacy` and `pyright-autoconfig` remain enabled — the first enforces via PreToolUse, the second acts silently.
 
+7. **`.claude/settings.json` also carries a `Stop` hook** (`.claude/hooks/kernel-parity.sh`) that reports explainer-video kernel/solver drift and inflated templates at end of turn. Silent unless scene files are dirty and something is actually wrong. It is on `Stop` rather than `PostToolUse` on purpose: a kernel edit touches eight files and parity is legitimately broken after the first seven, so `PostToolUse` would cry wolf during correct work. Like invariant 5, **resetting `.claude/settings.json` silently removes it** — the checks it runs exist nowhere else at that cadence (`smoke.js` catches drift but costs a Chromium launch, and nothing else catches an inflated template at all).
+
 ## Where to find what
 
 | Working on... | Look at |

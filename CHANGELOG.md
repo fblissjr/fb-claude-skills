@@ -1,5 +1,16 @@
 # changelog
 
+## 0.68.4
+
+### added
+- **explainer-video 0.25.3 -> 0.25.4**: `references/instruments.md` gains "Where a check belongs: the tool path or the artifact".
+
+  The 0.25.2 fix left its reasoning unrecorded, which is the more valuable half. A guard on the code path holds only for callers who take that path — `ensureVendor` now refuses to embed into a template, but a hand edit, a bad merge, or a future command writing the file directly all reproduce the broken artifact past it. A guard on the artifact's own invariant catches every route, including ones nobody has written yet.
+
+  It also records **the instrument deliberately not built**, which this file treats as worth as much as the ones that were. "Assert the working tree is clean after `smoke.js` runs" is the obvious move and is wrong: `smoke.js` runs mostly in an author's scratch directory that is usually not a repository, where writing files is the entire point. The assertion would be false in the tool's primary use case and would need suppressing there — the standard route by which a check becomes noise and then gets bypassed. An invariant belonging to a repository gets enforced where repositories are enforced.
+
+- `CLAUDE.md` invariant 7 records the repo-local `Stop` hook and, like invariant 5, that resetting `.claude/settings.json` silently removes it — the checks it runs exist nowhere else at that cadence.
+
 ## 0.68.3
 
 ### fixed
