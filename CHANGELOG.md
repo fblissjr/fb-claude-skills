@@ -990,7 +990,6 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
 ## 0.22.5
 
 ### added
-- **dev-conventions**: new `dep-audit` skill -- dependency security auditing via `uv audit` (Python) and `bun audit` (JS/TS), transitive analysis, remediation workflow, CI integration
 - **dev-conventions**: version pinning conventions in python.md and javascript.md directives -- applications pin exact, libraries use floors/caret ranges
 - **dev-conventions**: dependency change tracking in doc-conventions -- session logs now include a structured table of package changes
 

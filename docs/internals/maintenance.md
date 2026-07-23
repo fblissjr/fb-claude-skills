@@ -34,7 +34,6 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Append-only audit log query | `skill-maintain log` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
-| Cross-project dependency scan (macOS) | `./tools/dep-audit-scan.sh` |
 | Promote `agent-state` MCP server from `_available_servers` → `mcpServers` | `/agent-state-mcp:enable` |
 
 ## Lower-level CLI
