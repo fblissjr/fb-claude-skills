@@ -35,8 +35,11 @@ The `rig`: `root` (place/rotate the character; limbs attach here at fixed
 frames), `body` (torso/neck/head/tail — bob and lean THIS, so cosmetic motion
 never moves the IK attach frames and planted feet stay planted), `head`,
 `neckChain`, `tailChain`, `limbs.{HL,HR,FL,FR}`, `planted`, and the framing
-estimates `height` and `length` (nose-to-tail — use as the subject's `h`/`w`;
-for quadrupeds declare `w` or the solver frames empty air).
+estimates `height`, `length` (nose-to-tail — the subject's `h`/`w`; declare
+`w` for quadrupeds or the solver frames empty air) and `centerX` (visual
+center relative to the root — subject pos is `[rootX + centerX, height/2,
+rootZ]`; aiming at the root orbits a quadruped's tail end and crops the
+head, measured as an FS rendering a wall of rump).
 
 ## The proportion vector
 

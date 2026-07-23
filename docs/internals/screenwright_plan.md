@@ -399,9 +399,19 @@ CHARACTER fence — normal-displaced geometry per layer, TSL noise coverage,
 alphaTestNode discard so fur never touches the transparency-ordering bill;
 byte-deterministic both backends on the quadruped) and fabric (sheen node
 recipe on MeshPhysicalNodeMaterial, verified rendering — node slots, per the
-transmission lesson). Remaining for the gate: the three gate characters as
-films (bear-and-bees, human, text-invented creature), squint-distinct,
-strip-checked.
+transmission lesson).
+
+*Step 3 DONE 2026-07-23 (screenwright 0.9.0):* `examples/menagerie.html` —
+bear + human + text-invented strider from one buildCharacter, squint-distinct
+(measured on the squint strip), planted (strip-checked per character),
+byte-deterministic both backends, film-reviewer-reviewed with all HIGH
+findings fixed (the look beat now carries on geometry in the nocap pass).
+Kit addition from the review round: `rig.centerX` (subject aim at the visual
+center, not the root — a root-aimed quadruped FS rendered a wall of rump).
+**Phase 2 gate reading:** the scaffold criteria (three characters, one
+scaffold, squint-distinct, planted) are demonstrated by menagerie;
+`bear-and-bees` the comedy short remains open as the phase's film deliverable
+and carries the comedic-timing half of the gate.
 
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
@@ -455,6 +465,13 @@ near the ~0.3–1 MB band (the frozen skill's 2.3 MB pelican outlier is the
 cautionary case). Related measured note: always-loaded SKILL.md size is the
 real ambient cost (the frozen skill's is ~6.8K tokens, over the spec's <5K
 guidance) — screenwright's SKILL.md stays lean by policy.
+
+Amended 2026-07-23 (owner directive): **do NOT render an AVIF/MP4 per shipped
+scene by default.** The HTML file IS the artifact — it plays from disk at
+full quality; an AVIF is lower-quality and costs an encode plus review time.
+Render deliverables (loop/avif/mp4, docs/media previews) only when asked.
+Test and interim renders live under gitignored `internal/` until explicitly
+promoted.
 
 ## Anti-template principle
 

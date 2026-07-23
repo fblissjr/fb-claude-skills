@@ -205,6 +205,9 @@ Two constraints that dictate the setup — do not "simplify" them away:
   (`workshop` / `neon`) — read at art-direction time
 - `examples/gearbox.html` — the regression film against frozen
   explainer-video: same scene body on both stacks, judged side-by-side
+- `examples/menagerie.html` — the character-scaffold demonstration: bear,
+  human, and an invented strider from one `buildCharacter`, three gaits,
+  fur and fabric packs live
 - `examples/materials.html` — the pack showcase: cel, SSS, glass in one
   film, including the overlapping-transparency ordering case
   (rendered previews live in the repository outside the plugin subtree —

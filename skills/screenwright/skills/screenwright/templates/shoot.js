@@ -2,6 +2,11 @@
 // Chromium and screenshots each frame — deterministic, so frames can be shot in
 // any order, re-shot in ranges, and always match the live HTML loop.
 //
+// This tool does NOT embed three: a fresh template copy still carrying its
+// vendor tag renders "THREE is not defined". Run `build.js bundle <scene>`
+// once first (every build.js command embeds automatically via ensureVendor;
+// direct shoot.js runs are the one path that does not).
+//
 // Usage:
 //   bun run shoot.js <scene.html> sample 0,2.5,7      -> <scene>_sample_<t>.png
 //                                                       (into FRAMES_DIR if set)

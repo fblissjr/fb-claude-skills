@@ -490,10 +490,17 @@ function buildCharacter(P,matFor){
   const nR=P.neckTilt*Math.PI/180,tR2=P.tailTilt*Math.PI/180;
   const height=Math.max(cy+Math.cos(tilt)*P.chestR*.8+Math.cos(nR)*P.neckLen+P.headR*2,
                         P.hipH+P.pelvisR)+.1;
-  const length=cx+Math.sin(nR)*P.neckLen+P.headR+P.muzzle
-              +P.pelvisR+Math.cos(tR2)*P.tailLen;
+  const fwd=cx+Math.sin(nR)*P.neckLen+P.headR+P.muzzle;   // nose, ahead of root
+  const back=P.pelvisR+Math.cos(tR2)*P.tailLen;           // tail, behind root
+  const length=fwd+back;
+  /* centerX: the body's visual center, RELATIVE TO THE ROOT. The root sits
+     at the pelvis, but a tilted torso puts most of the animal AHEAD of it —
+     a subject aimed at the root orbits the tail end and crops the head off
+     (measured: a quadruped FS rendered as a wall of rump). Subject pos:
+     [rootX + rig.centerX, rig.height/2, rootZ]. ~0 for upright bipeds. */
+  const centerX=(fwd-back)/2;
   return{P,root,body,head,neckChain,tailChain,limbs,mats,
-         planted:Object.values(limbs).filter(l=>l.planted),height,length,
+         planted:Object.values(limbs).filter(l=>l.planted),height,length,centerX,
          chestX:cx,chestY:cy};
 }
 

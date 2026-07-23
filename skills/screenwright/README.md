@@ -46,10 +46,15 @@ on PATH; `avifenc` (libavif) for AVIF loops, `img2webp` (webp) for WebP loops.
 
 ## Status
 
-Phases 0 (foundation) and 1 (regression, post, shading) of the plan are
-complete: templates, recorder, and instruments on the node stack, gated green
-on both backends; the `gearbox` regression film judged no worse than its
+Phases 0 (foundation) and 1 (regression, post, shading) are complete:
+templates, recorder, and instruments on the node stack, gated green on both
+backends; the `gearbox` regression film judged no worse than its
 frozen-skill twin; the cel/SSS/glass material packs verified under
 byte-determinism; style bibles v2 with the committed `workshop`/`neon`
-control pair. Later phases (the character scaffold, physics bake, registers,
-the interactive spike) land here as they pass their gates.
+control pair. Phase 2 (the character scaffold) is demonstrated: one
+parametric skeleton family with two-bone IK, planted gait, neck/tail
+chains, and fur/fabric packs — `examples/menagerie.html` walks a bear, a
+human, and an invented creature from one `buildCharacter`, squint-distinct
+and strip-checked. The phase's film deliverable (`bear-and-bees`) and later
+phases (physics bake, registers, the interactive spike) land as they pass
+their gates.

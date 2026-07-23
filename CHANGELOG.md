@@ -1,5 +1,13 @@
 # changelog
 
+## 0.77.0
+
+### added
+- **`screenwright` 0.9.0 — Phase 2 step 3: `examples/menagerie.html`, the character-scaffold gate demonstration.** A furred bear (lateral-sequence quadruped), a fabric-shirted human (biped), and a text-invented three-eyed whip-tailed strider — three proportion vectors through ONE `buildCharacter`, walking in on staggered gaits, all turning to the viewer, settling as a group. Gate criteria measured: squint-distinct silhouettes (the squint strip separates all three at 90px), planted feet (strip-checked for each), byte-determinism on both backends, cross-directory fence parity green (all five fences, templates + examples). Independently reviewed by the film-reviewer agent, which caught the round of defects author-eyes missed — the look beat happened entirely off-frame (heads yawed ~26° where the camera needed ~75°, and the shot framed one character while the other two turned off-screen), the film's only closeup was 70% void, the tail-wag idle blend spiked the wag rate ~5x for a few frames (phase blended through a t-scaled gate instead of crossfading amplitudes), a one-shot "breath" held every character 3-5% squashed from frame 0, and a bare floor made an 11-unit walk read as a treadmill. All fixed and re-verified; the nocap pass now carries the look beat on geometry alone. One kit addition fell out: `rig.centerX` (visual center relative to the root) — aiming a subject at a quadruped's root orbits its tail end and crops the head, measured as an FS rendering a wall of rump. Per owner policy (recorded in the plan): the HTML is the shipped artifact — no AVIF/MP4 is rendered by default; finalized scene HTMLs are also copied to gitignored `internal/scenes/` for local viewing.
+
+### fixed
+- **`explainer-video` 0.25.9 + screenwright examples README — cross-tree preview links were one directory short.** Both examples READMEs sit five levels below the repo root but linked `docs/media/` with four `../`, so every embedded preview 404'd on GitHub (owner-reported). Fixed to five and every link target verified to exist; the plugin-level READMEs (two levels deep) were already correct. Riding the same commit: the screenwright README Status section caught up to Phase 2 (it still named the character scaffold as future work), and shoot.js's header now states the embed gotcha (direct shoot.js runs do not vendor three — bundle first; every build.js command already does it automatically).
+
 ## 0.76.0
 
 ### added

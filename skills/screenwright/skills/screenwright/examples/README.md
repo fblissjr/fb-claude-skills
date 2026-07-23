@@ -10,7 +10,7 @@ These are the skill's teaching baselines — SKILL.md and the references point
 at them — and every one passed the full instrument suite (smoke on both
 backends, sheets, motion, independent review).
 
-Rendered previews live in [`docs/media/`](../../../../docs/media/) at the
+Rendered previews live in [`docs/media/`](../../../../../docs/media/) at the
 repo root, NOT here: the plugin subtree ships to every installed user (and
 is cached per version), so it carries only what the skill itself needs.
 
@@ -20,13 +20,24 @@ The regression film against frozen explainer-video: the same scene body on
 both stacks, judged side-by-side. Five beats, 16.5s, seamless loop by
 construction.
 
-![gearbox](../../../../docs/media/gearbox.avif)
+![gearbox](../../../../../docs/media/gearbox.avif)
 
 The same file carries the committed style-bible control pair: switch
 `const STYLE = BIBLES.workshop` to `BIBLES.neon` — one line — and the same
 beats render as a dark stage where the light is the subject:
 
-![gearbox neon](../../../../docs/media/gearbox-neon.avif)
+![gearbox neon](../../../../../docs/media/gearbox-neon.avif)
+
+## menagerie
+
+The Phase 2 character-scaffold gate demonstration: a furred bear, a
+fabric-shirted human, and a text-invented three-eyed strider — three
+proportion vectors through ONE `buildCharacter`, walking in on their own
+gaits (lateral-sequence quadruped, biped, long-stride biped), stopping,
+looking at camera. Squint-distinct silhouettes, strip-checked planted feet,
+byte-deterministic on both backends. Open the HTML — no rendered preview by
+policy (the scene file plays from disk at full quality; previews are cut on
+request only).
 
 ## materials
 
@@ -35,4 +46,4 @@ banding, subsurface scattering through thin ears, transmissive glass with
 dispersion over an emissive core (the overlapping-transparency ordering
 case). Recipes and measured gotchas: `../references/materials.md`.
 
-![materials](../../../../docs/media/materials.avif)
+![materials](../../../../../docs/media/materials.avif)

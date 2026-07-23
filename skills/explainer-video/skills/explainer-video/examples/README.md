@@ -11,7 +11,7 @@ resolution, and it is the same file the renderer reads — nothing is lost.
 
 Each film's `.avif` is a heavily compressed recording, kept only so the films
 show up inline on GitHub, which cannot run a script tag. The recordings live
-in the repo's [`docs/media/`](../../../../docs/media/), outside the plugin —
+in the repo's [`docs/media/`](../../../../../docs/media/), outside the plugin —
 installed plugins carry only what the skill needs. It is **960px wide at
 15fps** against the HTML's full resolution at 60fps, with lossy compression on
 top. Motion judders, gradients band, and fine linework softens. It is a
