@@ -1,5 +1,10 @@
 # changelog
 
+## 0.70.3
+
+### changed
+- **`explainer-video` 0.25.7 (frozen; plumbing-scoped) — the six rendered `.avif` recordings move to repo-level `docs/media/`,** matching the policy screenwright 0.2.2 established: recordings are human-browsing artifacts the skill never uses, and the plugin subtree (copied per retained version into every install cache — measured at 3 retained versions ≈ 3 copies of 8.4 MB, now ≈ 3 copies of 4 MB) carries only what the skill needs. All README embeds rewritten to cross-tree relative paths; the `bibles.md` and `delivery.md` prose mentions updated so no in-plugin doc implies the recordings sit beside the examples. The teaching `.html` films are untouched and stay in-plugin. delivery.md's evidence chain ("GitHub serves `.avif` as `image/avif`") is unaffected — the file is still served from the same repo, from a different directory.
+
 ## 0.70.2
 
 ### changed

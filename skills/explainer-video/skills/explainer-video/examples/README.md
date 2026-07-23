@@ -9,8 +9,10 @@ with no build step, no server, and no network.
 The `.html` **is** the film. It runs at your display's refresh rate, at full
 resolution, and it is the same file the renderer reads — nothing is lost.
 
-The `.avif` beside it is a heavily compressed recording, kept only so the films
-show up inline on GitHub, which cannot run a script tag. It is **960px wide at
+Each film's `.avif` is a heavily compressed recording, kept only so the films
+show up inline on GitHub, which cannot run a script tag. The recordings live
+in the repo's [`docs/media/`](../../../../docs/media/), outside the plugin —
+installed plugins carry only what the skill needs. It is **960px wide at
 15fps** against the HTML's full resolution at 60fps, with lossy compression on
 top. Motion judders, gradients band, and fine linework softens. It is a
 thumbnail, not the work — judge any of these by opening the HTML.

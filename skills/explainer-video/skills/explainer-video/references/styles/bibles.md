@@ -31,7 +31,7 @@ cannot):
 
 | bible | register | one-line summary |
 |---|---|---|
-| `toybox` (default — the committed `toybot-walk.avif`) | daylight paper-cutout | 42° lens, steadicam, .8s blends, warm keys, bloom only on the orb |
+| `toybox` (default — the committed `toybot-walk` render) | daylight paper-cutout | 42° lens, steadicam, .8s blends, warm keys, bloom only on the orb |
 | `midnight` (flip `BIBLE` and render) | low-key neon noir | 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom threshold .55 — glow carries the frame |
 
 If a bible swap did NOT categorically change the film, the layers would not

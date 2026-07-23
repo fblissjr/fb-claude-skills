@@ -155,7 +155,7 @@ AVIF and reported it renders and animates inline. Record it as exactly that — 
 single confirming observation, not a bracket, and not the same class of evidence
 as the fetch that backs the row above it.
 
-An animated `.avif` is now committed beside the example specifically so this is
+An animated `.avif` is committed in the repo (`docs/media/`) specifically so this is
 cheap to close: pointing the README's image at it is a one-line change, and
 viewing the rendered README settles the last row either way. It is committed as
 a peer delivery option and as the experiment that would settle the AVIF-inline

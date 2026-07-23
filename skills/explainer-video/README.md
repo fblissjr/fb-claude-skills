@@ -12,9 +12,10 @@ independently and identically, which is why one scene file drives both the
 interactive HTML loop and the headless MP4 render. There is never a second copy
 to keep in sync.
 
-Every example ships its **source `.html`** beside a rendered `.avif`. The
-`.html` is the real artifact — the `.avif` is only a recording of it for readers
-of this page. Each one is a **single self-contained file**: three.js is embedded
+Every example ships its **source `.html`**; the rendered `.avif` recordings
+embedded on this page live in the repo's `docs/media/` — outside the plugin,
+because installed plugins carry only what the skill needs and Claude never
+reads a recording. The `.html` is the real artifact. Each one is a **single self-contained file**: three.js is embedded
 directly in the 3D scenes, so an example opens straight from disk and plays,
 with no build step, no sibling `.js`, and no network. That is enforced by the
 tooling rather than left to discipline — see the vendoring rule in
@@ -23,11 +24,11 @@ tooling rather than left to discipline — see the vendoring rule in
 The bundled **Canvas2D** example, in the paper-cutout style pack — the plugin
 explaining its own pipeline:
 
-![one scene, every format](skills/explainer-video/examples/one-scene-every-format.avif)
+![one scene, every format](../../docs/media/one-scene-every-format.avif)
 
 *20.8s, six beats, held camera, flat 2D — committed as a 0.13 MB animated AVIF
 at 960px/15fps
-([`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif)).
+([`one-scene-every-format.avif`](../../docs/media/one-scene-every-format.avif)).
 Source:
 [`one-scene-every-format.html`](skills/explainer-video/examples/one-scene-every-format.html)
 — no three.js, no vendor step; the source file is the artifact. It is the
@@ -40,7 +41,7 @@ depth-of-field beat, and bloom budgeted to the payoff, all through the
 post-processing chain (`EffectComposer` → bokeh → bloom), which passes the
 byte-determinism check with the chain enabled:
 
-![toybot takes a walk](skills/explainer-video/examples/toybot-walk.avif)
+![toybot takes a walk](../../docs/media/toybot-walk.avif)
 
 *13.6s, four beats, moving camera — which is exactly the case WebP punishes,
 so this one is committed as a 0.25 MB animated AVIF only. The camera is
@@ -60,7 +61,7 @@ does not is the point. Spec:
 [`references/styles/bibles.md`](skills/explainer-video/references/styles/bibles.md).
 
 The same 3D film at the top is also committed as a **28.5 KB** animated AVIF —
-[`one-scene-every-format.avif`](skills/explainer-video/examples/one-scene-every-format.avif),
+[`one-scene-every-format.avif`](../../docs/media/one-scene-every-format.avif),
 7x smaller, 132 frames, verified animated with `avifdec --info`. It is
 committed as a peer delivery option and as the experiment that would settle
 whether GitHub animates AVIF inline (one real-world observation says yes; not
@@ -75,7 +76,7 @@ exist to cover registers the first two could not — a real external subject at
 length, a cross-world walkthrough, and two pieces with no explaining to do at
 all.
 
-![where winter heat comes from](skills/explainer-video/examples/heat-pump.avif)
+![where winter heat comes from](../../docs/media/heat-pump.avif)
 
 *__Where winter heat comes from__ — 36.6s, 10 beats, **three worlds** joined by
 four hard cuts under flashes: the street outside, the sealed refrigerant loop,
@@ -83,14 +84,14 @@ and the molecular scale. Every cut verified at flash 0.980 on the exact frame
 the world changes. Source:
 [`heat-pump.html`](skills/explainer-video/examples/heat-pump.html).*
 
-![one push](skills/explainer-video/examples/chain-reaction.avif)
+![one push](../../docs/media/chain-reaction.avif)
 
 *__One push__ — 16s, a six-link Rube Goldberg chain. Each link's trigger time is
 derived from the previous link's own curve, which is what makes it read as
 causation rather than six things happening near each other. Source:
 [`chain-reaction.html`](skills/explainer-video/examples/chain-reaction.html).*
 
-![pelican takes a walk](skills/explainer-video/examples/pelican-walk.avif)
+![pelican takes a walk](../../docs/media/pelican-walk.avif)
 
 *__Pelican takes a walk__ — 17.8s, no explanation, just weather. Rain is 1600
 instanced streaks whose height is `mod(t)`, so there is no particle state
@@ -99,7 +100,7 @@ pure functions of `t`, which is the only reason a storm can be scrubbed
 frame-exactly. Source:
 [`pelican-walk.html`](skills/explainer-video/examples/pelican-walk.html).*
 
-![toybot victory dance](skills/explainer-video/examples/toybot-dance.avif)
+![toybot victory dance](../../docs/media/toybot-dance.avif)
 
 *__Toybot victory dance__ — 12.6s, **no captions at all**. The groove is one
 continuous phase with beats shaping only its amplitude, and the speaker pumps on
