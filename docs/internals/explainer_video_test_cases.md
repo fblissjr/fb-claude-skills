@@ -675,6 +675,103 @@ checklist:
 
 ---
 
+## Tooling defects found by running the suite
+
+Both were found by *using* the pipeline, not by reading it, and neither is
+visible from inside the recorded outputs. Recorded here; the fixes are
+plugin-content changes and carry the version cascade.
+
+### 1. The HTML artifact and the recorded formats disagree on framing
+
+**Severity: high — it touches the skill's headline claim.** SKILL.md says the
+film is a pure function of `t` so "one scene file drives the live HTML loop and
+the frame-exact render alike." They are identical in **time**. They are not
+identical in **framing**.
+
+The 2D template's `applyCamera()` derives scale from height alone:
+
+```js
+const s=(canvas.height/VIEW_H)*zoom;
+```
+
+so the visible world *width* is `VIEW_H × (canvas.width/canvas.height)` — a pure
+function of the viewport's aspect ratio. Any window narrower than 16:9 silently
+crops the sides.
+
+It was never caught because **`shoot.js` hardcodes a 1920×1080 viewport**, so
+every recorded artifact is 16:9 by construction and can never exhibit the
+defect. Only the live HTML — opened in a real browser window — does. The owner
+hit it first: a ~1.40:1 Chrome window cropped the diagram badly while the WebP
+and AVIF of the same scene looked correct, which reads as an encoder problem
+and is not one.
+
+Measured on `a2-approval-flow.html` at a fixed `t`, same scene, four viewports:
+
+| viewport | aspect | result |
+|---|---|---|
+| 1920×1080 (what `shoot.js` records) | 1.78 | fully framed, comfortable margins |
+| 2000×1430 | 1.40 | leftmost and rightmost elements cut off |
+| 1440×1200 | 1.20 | severely cropped both sides |
+| 2560×1080 | 2.37 | fine (extra width is slack) |
+
+**Fix for the 2D backend** — contain the design area on both axes, letterboxing
+instead of cropping:
+
+```js
+const VIEW_H=90, VIEW_W=160;                 // design area, 16:9
+const s=Math.min(canvas.width/VIEW_W, canvas.height/VIEW_H)*zoom;
+```
+
+Verified: after the change all four viewports frame identically.
+
+The 3D backend is under separate investigation — it solves camera distance from
+subject **height** and a **vertical** fov (`dist = S.h/f/(2·tan(fov/2))`), which
+is the same height-only assumption, so it is expected to share the defect; the
+open questions are the correct compensation and whether making `fov`
+viewport-dependent weakens the load-time match-cut constraint, which compares
+`fov` between shots.
+
+Note this compounds the D4 size-ladder finding: the ladder is height-calibrated
+*and* the viewport is height-calibrated, so a wide subject is squeezed twice.
+
+### 2. `build.js all` could silently encode the wrong frames
+
+**Severity: high — silent, and it ships the wrong film.** `frames()` declared
+`dir = 'frames'` as a default parameter and then passed it as `FRAMES_DIR` to
+`shoot.js`, **overriding** any ambient `FRAMES_DIR`. But `video()` reads
+`process.env.FRAMES_DIR || 'frames'`. So `FRAMES_DIR=X build.js all` shot fresh
+frames into `frames/` and encoded from `X/`.
+
+This is the same ship-the-wrong-film failure the comment inside `video()`
+already describes and claims to have closed — reintroduced through the other
+half of the pair. When `X` is empty ffmpeg errors loudly, which is survivable.
+When `X` already holds frames it is **silent**: measured, a single stale frame
+in `X` produced a **0.0 MB one-frame mp4 and exit 0**, reported as
+`encoded -> ... (0.0 MB)`.
+
+Fixed by defaulting `frames()`'s `dir` to the *same expression* `video()` uses,
+so the shoot half and the encode half cannot disagree. Callers that
+deliberately own a scratch dir (`sheet`, `loop`, `avif`, `strip`) pass one
+explicitly and are unaffected. Verified with a positive control: the exact
+command that produced the 0.0 MB film now shoots 474 frames to the right place
+and encodes correctly.
+
+### Deliverable policy for the rest of the suite
+
+**HTML + MP4 only.** WebP/AVIF are set aside for testing — at 720px the
+raster loops are visibly soft, and the settings are not yet dialled in. MP4
+(`crf 17`, full resolution) is the honest quality reference and HTML is the
+interactive source. The delivery *measurements* already recorded (the held vs
+moving camera bracket) stand as size data; they were never quality claims.
+
+Related, and worth stating because it looked like a problem and is not:
+**ffmpeg's `drawtext` is irrelevant to this pipeline.** Captions and titles are
+DOM overlays precisely because the HTML is a first-class deliverable — they
+stay crisp in screenshots and restyle without touching the scene. The one place
+drawtext was ever considered was contact-sheet cell labels, and the roadmap
+rejected it because libfreetype is not guaranteed in every ffmpeg build; the
+legend prints to stdout instead. No ffmpeg text capability is required.
+
 ## Maintenance note (not a film)
 
 The plan's postmortem flags one structural risk this suite can't test with a

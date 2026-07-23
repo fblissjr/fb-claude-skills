@@ -114,7 +114,17 @@ function ensureVendor(scene) {
   if (/three\.global\.js/.test(src)) vendor(dir);
 }
 
-function frames(scene, fps = 30, dir = 'frames') {
+// dir defaults to the SAME expression video() uses, so the shoot half and the
+// encode half of `all` can never disagree about where frames live. It used to
+// default to a bare 'frames', which then OVERRODE an ambient FRAMES_DIR on its
+// way to shoot.js while video() still honoured that ambient value -- so
+// `FRAMES_DIR=X build.js all` shot into frames/ and encoded from X/. That is
+// the same ship-the-wrong-film failure video()'s comment below describes, just
+// reintroduced through the other half of the pair, and it is SILENT whenever X
+// already holds frames: measured, a stale single frame in X produced a 0.0 MB
+// one-frame mp4 and exit 0. Callers that deliberately own a scratch dir
+// (sheet/loop/avif/strip) still pass one explicitly and are unaffected.
+function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
   ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
       { env: { ...process.env, FRAMES_DIR: dir } });
