@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Screenwright scene</title>
+<style>
+  /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
+     and restyles without touching the scene. Colors/fonts come from CONFIG below. */
+  :root{--fx:0px;--fy:0px;--fw:1920px;--fh:1080px;}
+  html,body{margin:0;padding:0;overflow:hidden;background:#0e0b14;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  #cap{position:fixed;left:calc(var(--fx) + var(--fw)/2);bottom:calc(var(--fy) + var(--fh)*.055);transform:translateX(-50%);
+    font:600 calc(var(--fw)*.015625)/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(20,14,30,.62);padding:calc(var(--fw)*.00729167) calc(var(--fw)*.01770833);border-radius:999px;
+    white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.18);
+    text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #title{position:fixed;left:calc(var(--fx) + var(--fw)/2);top:calc(var(--fy) + var(--fh)*.07);transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
+  #title h1{font-size:calc(var(--fw)*.02291667);margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:calc(var(--fw)*.0125);margin:calc(var(--fw)*.003125) 0 0;font-weight:500;opacity:.9;}
+  /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
+     the text with a different AA mode after opacity round-trips through 0, so the
+     same t can differ by a few pixels depending on seek ORDER -- which breaks the
+     frames-shot-in-any-order guarantee for any frame containing overlay text. */
+  #cap,#title{will-change:opacity;}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 58%,rgba(10,6,18,.42) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="title"><h1></h1><p></p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<!-- PLACEHOLDER. `bun run build.js vendor` REPLACES this tag with three itself,
+     inlined, and deletes the intermediate file: one scene = one self-contained
+     .html, no sibling .js, no CDN. Never point this at a CDN — the render must
+     not touch the network, and three dropped its UMD build after 0.160 so a CDN
+     copy cannot be loaded from a classic script anyway. It MUST stay a classic
+     script, not type="module": Chrome CORS-blocks ES module imports over
+     file://, and opening the scene directly from disk is the whole point.
+     ensureVendor() runs before every command that opens a scene, so this tag
+     cannot survive into a render or a commit; smoke.js fails a scene that is
+     still carrying it. -->
+<script src="./three.global.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   CONTRACT (do not rename): window.seekTo(t), window.DURATION,
+   window.stopPlayback(), window.sceneReady.
+   Everything on screen is a pure function of t — no Math.random(),
+   no Date.now(), no accumulated state. That is what makes the
+   HTML loop and the MP4 render provably identical.
+   ============================================================ */
+
+/* ============================================================
+   BEATS — the single source of timing truth. Durations, not
+   absolute times: they accumulate, so lengthening one beat
+   shifts every later beat instead of silently overlapping it.
+   That is what makes retiming genuinely a one-line edit.
+
+   NOTHING else in this file may contain a literal timestamp.
+   Camera keyframes, captions and `duration` all derive from
+   here, and animate() addresses beats by NAME via ramp()/pulse().
+   ============================================================ */
+const BEATS = [
+  {name: 'title', dur: 2.8},
+  {name: 'one',   dur: 3.0, cap: "1 · First beat — what the viewer should notice"},
+  {name: 'two',   dur: 3.2, cap: "2 · Second beat"},
+  {name: 'three', dur: 3.0, cap: "3 · Payoff"},
+];
+
+/* ---------- STYLE: everything that is the LOOK. ----------
+   Split from CONFIG so a style pack (references/styles/) swaps this block and
+   nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
+   Materials are still created inline in buildWorlds(); lift shared palette
+   constants up here as the scene grows. */
+const STYLE = {
+  bg: 0x1a1426,
+  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+};
+
+/* ---------- CONFIG: everything that is neither timing nor look. ---------- */
+const CONFIG = {
+  title: "Your Title Here",
+  subtitle: "and a subtitle",
+  flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
+  seed: 20260721,                     // change to reshuffle all seeded randomness
+  sway: 0.06,                         // idle camera drift. Set to 0 for `build.js loop`:
+                                      // sway moves every pixel every frame, which defeats
+                                      // WebP/GIF inter-frame compression and can 10x the
+                                      // file size. Free in mp4, expensive inline.
+  capFade: 0.35,                      // caption fade inset from each beat edge, seconds
+  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
+};
+
+/* ---------- FRAME: the one declared reference frame ----------
+   Everything composes and measures against this and nothing else. `aspect` is
+   the design frame the scene is authored for; `px` is what shoot.js renders at
+   (it reads window.FRAME.px, so changing this here is the ONLY edit needed to
+   ship 9:16 vertical or 1:1 square -- the tooling follows).
+
+   Before this existed the skill measured against ten different implicit frames:
+   the canvas scaled by window height, captions sized in fixed CSS px against
+   the window, the shot ladder against frame height, smoke's overflow check
+   against a hardcoded 1920. They disagreed the moment a window was not 16:9. */
+const FRAME = { aspect: 16/9, px: [1920, 1080] };
+
+/* ==== KERNEL-START ====================================================
+   The shared kit. This block is byte-identical in every scene template —
+   smoke.js FAILS the run if two checked files carry different kernels.
+   Edit it in ALL templates or in none; it is the seed of a future
+   extracted kernel file, kept inline so scenes stay single-file.
+   ======================================================================= */
+/* ---------- deterministic kit ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(CONFIG.seed);
+const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
+const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+// bump() is rise-AND-FALL: it is 0 at BOTH ends and peaks in the middle. Correct
+// for "flash and go"; wrong for "grow and stay" — a burst scaled by bump(u,0,1)
+// shrinks back to nothing exactly when it should be at full size, which shipped
+// once. Use ss() when the effect should arrive and remain.
+const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+
+/* ---------- easing personalities (still pure functions) ----------
+   ss() is the neutral register. These are the other temperaments a style can
+   speak in — all closed forms, all safe anywhere a 0..1 u is in hand:
+   compose them with the beat addressing below, e.g. backOut(ramp(t,'one',0,.4)).
+   backOut(u)    : arrives with ~10% overshoot, then settles. Snappy, cartoonish.
+   elasticOut(u) : overshoots and rings down. Bigger personality than backOut —
+                   budget it for payoffs; EVERY arrival ringing reads as jelly.
+   quant(t,n)    : stop-motion. Quantize TIME before deriving a pose (n poses
+                   per second) and motion reads hand-made. Still deterministic —
+                   the quantized t is a pure function of t. Quantize per-object,
+                   never inside seekTo itself.
+   noise1(t,f,k) : seeded 1-D value noise in [-0.5,0.5] at frequency f Hz, from
+                   the frozen R pool. Same k = same track, different k =
+                   independent track. Handheld/idle wobble; keep amplitudes small.
+   GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE: backOut(0) carries positive
+   floating-point residue (~2e-16), so `if(eased<=0)` leaks one frame where
+   scaled geometry is invisible but anything unscaled beside it renders. */
+const backOut=(u,s=1.70158)=>{u=clamp(u,0,1);const v=u-1;return 1+(s+1)*v*v*v+s*v*v;};
+const elasticOut=(u,p=.3)=>{u=clamp(u,0,1);return u===0||u===1?u:Math.pow(2,-10*u)*Math.sin((u-p/4)*(2*Math.PI)/p)+1;};
+const quant=(t,n)=>Math.floor(t*n)/n;
+const noise1=(t,f=1,k=0)=>{const x=t*f,i=Math.floor(x),u=x-i,
+  g=j=>R[((j%R.length)+R.length)%R.length]-.5,s=u*u*(3-2*u);
+  return g(i+k*997)+(g(i+1+k*997)-g(i+k*997))*s;};
+
+/* ---------- beat addressing (use these, never raw timestamps) ----------
+   Resolve durations into absolute spans once, then address them by name.
+   The a/b arguments are FRACTIONS of the beat, not seconds, so an effect
+   keeps its place when the beat is retimed — which is also what lets
+   narration-driven timing rewrite durations without breaking animate(). */
+const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
+const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
+function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
+function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
+const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
+const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+// during() is a hard boolean at the beat edges, so any expression gated by it MUST be zero at both edges
+// or it steps discontinuously in one frame and reads as a pop. Safe use: toggling .visible on something
+// with scale already reaching 0. Adding a nonzero offset to a rotation inside if(during(...)) is the exact
+// shape that produced a visible 20-degree arm snap in a real scene. Reach for ramp() or pulse() first.
+const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
+const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
+
+/* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
+   must not stretch when the beat is retimed: a 0.25s flash, a 0.06s world cut,
+   a fixed settle time. Stretching a cut window with its beat would uncover the
+   cut — which is the one bug method.md says already cost a re-render. Fractions
+   for "across this part of the beat", seconds for "this many seconds". */
+const secAt  =(name,s=0)=>beat(name).t0+s;
+const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
+const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
+
+/* ---------- rampE: the eased value AND the raw gate, together ----------
+   The kit's warning says "GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE",
+   because backOut(0) carries ~2e-16 of positive residue and `if(eased<=0)` leaks
+   a frame where scaled geometry is invisible but anything unscaled beside it
+   renders at full size. The warning is correct and it does not work: the idiom
+   the kit offers is the single expression backOut(ramp(...)), and gating right
+   means splitting it. Three separate authors gated on the eased value HAVING
+   READ THIS WARNING. So hand back both and make the correct path the easy one.
+     const {u, e} = rampE(t,'beat',0,.4, backOut);
+     if (u <= 0) return;              // gate on the raw ramp
+     box.scale.setScalar(e);          // animate on the eased one            */
+const rampE=(t,name,a=0,b=1,ease=null)=>{const u=ramp(t,name,a,b);
+  return{u,e:ease?ease(u):u};};
+
+/* ---------- latch: when did the previous link hand over? ----------
+   ramp/pulse/during all answer "where am I inside this beat". A chain answers a
+   different question — "start when THAT finished, and then stay" — and the
+   difference is not cosmetic. Driving B from A's own expression is right for a
+   SUSTAINED coupling and wrong for an IMPULSIVE one: measured on a domino chain,
+   a hammer's post-impact ringdown retracted the driver by 54% of a contact width
+   and the entire fallen row stood back up and fell again. Derivation propagates
+   ONSET; it does not propagate PERSISTENCE.
+   latch gives you the onset as a TIME — monotone in t by construction, so it
+   cannot run backwards — and you then evaluate the link's own closed form from
+   there. `at` is the absolute second the driver crossed; everything after is the
+   link's business.
+     const t0 = latch(t, secAt('roll',.30));   // 0 before, seconds-since after
+     block.rotation.z = TH * ss(t0, 0, FALL_T);                              */
+const latch=(t,at)=>t<at?0:t-at;
+
+/* ---------- warp: a monotone reparameterisation of t ----------
+   Deferred once, deliberately, as "no film is blocked on it" — and then a film
+   was: a fight wants real slow-motion the instant a hit lands. It is one of the
+   cheapest things the architecture can do and nothing exposed it, because the
+   kit could say WHERE you are in a beat and never HOW FAST time runs there.
+
+   Segments slow (rate<1) or speed (rate>1) a window of REAL seconds; outside
+   them the clock runs 1:1. Strictly monotone for rate>0, and a pure function of
+   t, so seekTo purity is untouched — this is a lens on the clock, not a state
+   machine. Drive PHYSICS through it and leave BEATS on raw t, so cuts and
+   captions keep their real-time pacing while the action stretches:
+     const HITS=[{at:secAt('clash',.9), dur:.5, rate:.18}];
+     const T = warp(t, HITS);        // use T for bodies, t for beats/camera  */
+const warp=(t,segs=[])=>{
+  const S=[...segs].sort((x,y)=>x.at-y.at);
+  let out=0,cur=0;
+  for(const s of S){
+    const a=Math.max(s.at,cur),b=s.at+s.dur;
+    if(t<=a)break;
+    out+=a-cur;cur=a;
+    out+=(Math.min(t,b)-a)*(s.rate===undefined?1:s.rate);
+    cur=Math.min(t,b);
+    if(t<=b)return out;
+  }
+  return out+(t-cur);
+};
+
+/* ---------- the frame rect: composition and overlays share one basis ----------
+   The largest FRAME.aspect rect inside the viewport, centred -- which is exactly
+   the region the contained scene fills, on both backends. Publishing it as CSS
+   vars puts the DOM overlays in the SAME coordinate system as the geometry, so a
+   caption is a fixed fraction of the frame instead of a fixed number of window
+   pixels. Identity at the design aspect; the vars simply track the frame. */
+function frameRect(){
+  const W=innerWidth,H=innerHeight;
+  const w=Math.min(W,H*FRAME.aspect),h=w/FRAME.aspect;
+  return{x:(W-w)/2,y:(H-h)/2,w,h};
+}
+function applyFrameVars(){
+  const r=frameRect(),s=document.documentElement.style;
+  s.setProperty('--fx',r.x+'px');s.setProperty('--fy',r.y+'px');
+  s.setProperty('--fw',r.w+'px');s.setProperty('--fh',r.h+'px');
+}
+/* ==== KERNEL-END ==== */
+
+/* ---------- renderer: WebGPURenderer, both backends ----------
+   One renderer class, two backends. With a WebGPU adapter (WEBGPU=metal in the
+   recorder, or a real browser) it runs native WGSL; with none (default
+   headless, GPU-less CI) it transparently falls back to WebGL2 — same scene
+   code, same TSL materials, measured visually identical. Init is ASYNC: the
+   boot block at the bottom awaits renderer.init() and a compileAsync pre-warm
+   before signaling sceneReady, so the recorder can never capture a frame
+   whose shaders are still compiling. */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGPURenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);                            // fixed DPR = identical pixels everywhere
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185
+renderer.outputColorSpace=THREE.SRGBColorSpace;   // r152+ name; outputEncoding is gone
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=STYLE.exposure;
+/* uTime is the ONLY sanctioned time source for TSL node materials. The TSL
+   `time` node auto-increments off an internal clock and breaks seekTo
+   byte-identity — never import it. seekTo drives this uniform, so a node
+   graph reading uTime is exactly as pure as a property set from t. */
+const uTime=THREE.uniform(0);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(STYLE.bg);
+const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
+addEventListener('resize',resize);resize();
+
+/* ---------- shared helpers ---------- */
+const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
+const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
+
+/* ---------- lights (a sane default rig; tune per scene) ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
+const key=new THREE.DirectionalLight(0xfff1dd,1.3);
+key.position.set(6,12,8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
+
+/* ============================================================
+   WORLDS — replace this placeholder with your scene.
+   Pattern: one Group per world, offset far apart (e.g. y -60),
+   toggle .visible in animate(t), cut the camera under a flash.
+   ============================================================ */
+let demoKnot;   // handles you need in animate() get declared here
+function buildWorlds(){
+  const world=new THREE.Group();scene.add(world);
+  const floor=mesh(new THREE.PlaneGeometry(60,60),std(0xbfd3d6,{roughness:.9}),world);
+  floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+  /* The demo material is a TSL node graph on purpose: it is the pattern for
+     every procedural surface in this skill. colorNode reads uTime through the
+     sanctioned uniform, so the veining drifts with the film and stays a pure
+     function of t — smoke's byte-determinism check proves it. Zero assets:
+     the noise is MaterialX, computed on the GPU, nothing fetched. */
+  const knotMat=new THREE.MeshStandardNodeMaterial({roughness:.35});
+  const veins=THREE.mx_fractal_noise_float(
+    THREE.positionLocal.mul(1.6).add(uTime.mul(.25)),4,2.0,.5,1.0).mul(.5).add(.5);
+  knotMat.colorNode=THREE.mix(THREE.color(0x2a9d8f),THREE.color(0x8ad5c9),veins.smoothstep(.35,.8));
+  demoKnot=mesh(new THREE.TorusKnotGeometry(1.4,.42,120,16),knotMat,world,0,3,0);
+}
+buildWorlds();
+
+/* ============================================================
+   CINEMATOGRAPHY — shots as data, solved per frame.
+
+   SUBJECTS names the things a camera can frame. pos is a pure
+   function of t returning the subject's CENTER, so a moving
+   subject is a tracking shot for free. h is the height the
+   framing math uses. Craft note: track a subject's TRAVEL, not
+   its jumps — leave vertical action out of pos so it moves in
+   the frame instead of being cancelled by the camera.
+
+   SHOTS is the film's shot list — the cinematographer's half of
+   the film, the way BEATS is the editor's. Each shot starts at
+   a beat anchor and runs until the next shot starts:
+     subject  what the shot frames (a SUBJECTS key)
+     size     EWS WS FS MS MCU CU ECU — fraction of frame height
+              the subject occupies (see SIZES)
+     angle    degrees around the subject, 0 = from +Z
+     elev     degrees above level (default 6)
+     fov      this shot's lens (vertical degrees, default 42) —
+              long lens flattens, short lens dramatizes
+     size2 / angle2   optional end values: a push/pull or an
+              orbit eased across the shot's duration
+     focus    subject the DoF plane sits on (default: subject).
+              Scenes with a BokehPass read shotFocus each frame;
+              two adjacent shots differing only in focus, joined
+              by cut:'blend', ARE a rack focus.
+     cut      how the shot ENTERS: 'hard' (default), 'whip'
+              (0.16s snap), 'blend' (0.8s dolly-morph)
+     match    true = must enter with the SAME framing vocabulary
+              (size/angle/elev/fov) as the previous shot — the
+              match-cut constraint, checked at load, throws loud.
+   Raw keyframes are gone on purpose: coordinates were never the
+   author's intent, framing was. If a shot the vocabulary cannot
+   say is genuinely needed, extend the vocabulary — do not sneak
+   coordinates back in.
+   ============================================================ */
+const SUBJECTS={
+  knot:{pos:t=>[0,3+Math.sin(t*1.3)*.2,0],h:3.6},   // mirrors animate(): the aim rides the bob
+};
+// The size ladder, calibrated to the convention a cinematographer means:
+// f = how many frame-heights the subject's full height spans; a = the
+// vertical anchor on the subject the camera aims at. FS is full-body tight;
+// MS is waist-up — the first cut of this table shipped MS at full-shot
+// framing and the rack's second subject fell out of frame.
+const SHOTS=[
+  {at:['title',0], subject:'knot', size:'WS', angle:35},
+  {at:['one',.1],  subject:'knot', size:'FS', angle:60,  cut:'blend'},
+  {at:['two',.1],  subject:'knot', size:'FS', angle:-40, cut:'whip'},
+  {at:['three',0], subject:'knot', size:'WS', angle:35, size2:'FS', cut:'blend'},  // push in on the payoff
+].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
+SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+/* ==== SOLVER-START ====================================================
+   The cinematography solver. This block is byte-identical in every 3D scene —
+   smoke.js FAILS the run if two checked scenes carry different solvers. It had
+   reached SIX copies before this fence existed, which is precisely the drift
+   the generalization plan's postmortem said to pre-empt "at a third consumer".
+   Edit it in ALL 3D scenes or in none.
+   ====================================================================== */
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FSA:{f:.70,a:.5},FS:{f:.95,a:.5},
+             MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+const LENS=STYLE.lens||42;
+SHOTS.forEach((sh,i)=>{                 // the match-cut constraint — verified, not hoped
+  if(!sh.match)return;
+  const q=SHOTS[i-1]||{};
+  const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
+    &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
+    &&(sh.fov===undefined?LENS:sh.fov)===(q.fov===undefined?LENS:q.fov)
+    &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
+  if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
+});
+const CUT_DUR=Object.assign({hard:0,whip:.16,blend:.8},STYLE.cutDur||{});
+let shotFocus=12;
+
+/* A shot may name ONE subject or SEVERAL. Several resolves to the union box,
+   because every causal beat is two objects and the space between them — and
+   hand-authoring a composite subject with an invented centre is exactly the
+   "coordinates were never the author's intent" this vocabulary exists to
+   abolish. `d` (depth) is optional and defaults to 0, which keeps a subject
+   that declares only h/w framed exactly as before. */
+function subjectExtent(name,t){
+  const names=Array.isArray(name)?name:[name];
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity,z0=Infinity,z1=-Infinity,anyW=false;
+  for(const n of names){
+    const S=SUBJECTS[n];if(!S)throw new Error('unknown subject: '+n);
+    const[cx,cy,cz]=S.pos(t);
+    const w=S.w||S.h,h=S.h,d=S.d||0;
+    if(S.w)anyW=true;
+    x0=Math.min(x0,cx-w/2);x1=Math.max(x1,cx+w/2);
+    y0=Math.min(y0,cy-h/2);y1=Math.max(y1,cy+h/2);
+    z0=Math.min(z0,cz-d/2);z1=Math.max(z1,cz+d/2);
+  }
+  return{cx:(x0+x1)/2,cy:(y0+y1)/2,cz:(z0+z1)/2,w:x1-x0,h:y1-y0,d:z1-z0,
+         fitW:anyW||names.length>1};
+}
+
+function solveShot(sh,t){
+  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;
+  const A=SIZES[sh.size],B=sh.size2?SIZES[sh.size2]:A;
+  if(!A||!B)throw new Error('unknown size: '+(A?sh.size2:sh.size));
+  const f=lerp(A.f,B.f,u),anchor=sh.anchor!==undefined?sh.anchor:lerp(A.a,B.a,u);
+  const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
+  const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
+  const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
+  const fovd=sh.fov===undefined?LENS:sh.fov;
+  const E=subjectExtent(sh.subject,t);
+  /* Fit the PROJECTED box when depth is known. A subject's on-screen width
+     depends on the camera angle: measured on a real scene, a box that fitted at
+     0 and -45 degrees CLIPPED at -26, because an axis-aligned w is non-monotonic
+     in angle. With d undeclared the subject is treated as billboarded, which is
+     what every pre-existing scene assumed. */
+  const wProj=E.d>0?Math.abs(E.w*Math.cos(ang))+Math.abs(E.d*Math.sin(ang)):E.w;
+  const dist=Math.max(E.h/f,E.fitW?wProj/(f*FRAME.aspect):0)/(2*Math.tan(fovd*Math.PI/360));
+  /* Horizontal aim. The ladder had a vertical anchor and no horizontal one, in
+     both backends — which is why framing a named subject put its most important
+     feature at the frame edge and authors fell back to framing regions. */
+  /* Offset along CAMERA-RIGHT, not world X. Offsetting on world X made anchorX a
+     no-op at angle 0/180 flipped and, at angle 90, moved the target straight
+     toward the camera — changing focus distance and size instead of panning. */
+  const ax=sh.anchorX!==undefined?sh.anchorX:0;
+  const rx=Math.cos(ang),rz=-Math.sin(ang);          // camera-right, horizontal
+  const aimY=E.cy+(anchor-.5)*E.h;
+  const aimX=E.cx+ax*E.w*rx, aimZ=E.cz+ax*E.w*rz;
+  /* Floor guard: the solver had no clamps at all and would place the camera
+     below the ground plane at low elevation and long distance. Not a fix for
+     "camera inside the subject" — that is a LIE about extent, and the extent
+     check in smoke.js is what catches it. */
+  /* Camera floor is OPT-IN (CONFIG.cameraFloor, world units). It is off by
+     default on purpose: clamping y moves the camera off the sphere the solver
+     placed it on, so elevation and true distance both change and the declared
+     rung stops producing the framing it promises — an author asking for a hero
+     low angle would silently get a higher one. A default constant would also
+     bake a world scale into a skill whose whole claim is any subject at any
+     scale: at h~0.2 (a circuit board, a molecule) every shot would clamp. */
+  let py=aimY+Math.sin(elev)*dist;
+  if(CONFIG.cameraFloor!==undefined&&CONFIG.cameraFloor!==null)py=Math.max(CONFIG.cameraFloor,py);
+  return{p:[E.cx+Math.sin(ang)*Math.cos(elev)*dist,py,E.cz+Math.cos(ang)*Math.cos(elev)*dist],
+         l:[aimX,aimY,aimZ],fovd};
+}
+function focusDist(sh,t,p){const E=subjectExtent(sh.focus||sh.subject,t);
+  return Math.hypot(p[0]-E.cx,p[1]-E.cy,p[2]-E.cz);}
+const DESIGN_AR=FRAME.aspect;
+const fitFov=f=>camera.aspect>=DESIGN_AR?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
+function setCamera(t){
+  let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
+  const cur=SHOTS[i],c=solveShot(cur,t);
+  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p);
+  const cd=CUT_DUR[cur.cut||'hard'];
+  if(i>0&&cd>0&&t<cur.t+cd){                            // entering: whip or dolly-morph
+    const u=ss(t,cur.t,cur.t+cd),q=solveShot(SHOTS[i-1],t);
+    const mix=(a,b)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u),lerp(a[2],b[2],u)];
+    p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
+    fd=lerp(focusDist(SHOTS[i-1],t,q.p),fd,u);          // focus blends too — the rack
+  }
+  const en=STYLE.energy||CONFIG.energy||'steadicam';
+  const E2={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
+  const F=en==='handheld'?1.9:.55;
+  camera.position.set(p[0]+noise1(t,F,11)*E2*2,p[1]+noise1(t,F,12)*E2*1.2,p[2]);
+  camera.fov=fitFov(fovd);camera.updateProjectionMatrix();
+  camera.lookAt(l[0]+noise1(t,F,13)*E2*.8,l[1]+noise1(t,F,14)*E2*.5,l[2]);
+  shotFocus=fd;
+}
+/* ==== SOLVER-END ==== */
+
+/* ============================================================
+   ANIMATE — every property a pure function of t.
+   Use ss(t, start, end) ramps per beat; never accumulate.
+   ============================================================ */
+function animate(t){
+  demoKnot.rotation.y=t*.6;
+  demoKnot.rotation.x=Math.sin(t*.4)*.3;
+  demoKnot.position.y=3+Math.sin(t*1.3)*.2;
+  demoKnot.scale.setScalar(1+.3*pulse(t,'three'));   // payoff pulse, named not numbered
+}
+
+/* ---------- overlay (captions, title, flashes) ---------- */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+titleEl.querySelector('h1').textContent=CONFIG.title;
+titleEl.querySelector('p').textContent=CONFIG.subtitle;
+const flashEl=document.getElementById('flash');
+/* ?nocap hides the caption; ?strip=text hides every word on screen. The second
+   is the semantics instrument: "cover everything except the geometry" is the
+   test, and it used to require hand-editing a copy of the scene. */
+const NOCAP=location.search.includes('nocap')||location.search.includes('strip=text');
+function setOverlay(t){
+  // Title card spans the first beat, whatever it is called or how long it runs.
+  const T=BEAT[BEATS[0].name];
+  // Fade OUT completes at the beat boundary, not centred on it: a beat's content
+  // stays inside its own beat, so retiming the title never bleeds into the next.
+  titleEl.style.opacity=(NOCAP?0:ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
+
+  // Captions ARE beats — no parallel list to drift out of sync. The fade is
+  // inset from each beat edge, which is what used to be a hand-kept gap.
+  const F=CONFIG.capFade;
+  let txt="",op=0;
+  for(const b of BEATS){
+    if(!b.cap)continue;
+    const B=BEAT[b.name];
+    if(t>=B.t0&&t<=B.t1){txt=b.cap;op=ss(t,B.t0,B.t0+F)*(1-ss(t,B.t1-F,B.t1));break;}
+  }
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=(NOCAP?0:op).toFixed(3);
+
+  // Flashes anchor to beats too: {beat,at} instead of a bare timestamp.
+  // Flash half-width is per-flash (`w`, seconds), falling back to CONFIG.flashWidth
+  // and then to the historical 0.25. It was hardcoded, which made the shortest
+  // expressible flash 0.5s -- longer than an entire beat in one film, whose
+  // author had to reimplement the flash in scene code to get a 0.20s snap.
+  const FW=CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth;
+  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0),w=m.w===undefined?FW:m.w;
+    f=Math.max(f,bump(t,c-w,c+w));}
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ---------- driver (the recorder contract) ---------- */
+window.DURATION=TOTAL;                                 // derived from BEATS, cannot disagree
+// Exposing the beats table lets external tooling label frames by beat and check caption timing
+// without re-parsing scene source. Read by sheet and motion build commands and caption lints in smoke.js.
+window.BEATS=BEATS;
+// The declared frame is part of the contract: shoot.js sizes its viewport from
+// FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
+// does not export it renders at the historical 1920x1080 default.
+window.FRAME=FRAME;
+// Flash midpoints, resolved to absolute seconds. Part of the contract because a
+// tool cannot read them otherwise: CONFIG is a `const` in a classic script, so
+// it never becomes a window property, and smoke.js's flash-avoidance was
+// silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
+// is tempted to parse scene internals, the contract is missing an export.
+window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
+  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
+/* The nodeFrame tick before render is LOAD-BEARING for shadow determinism.
+   The node renderer updates each shadow map at most once per nodeFrame.frameId
+   (ShadowNode.updateBefore — the guard overrides even shadow.needsUpdate), and
+   frameId only advances in the renderer's INTERNAL rAF loop, never in render().
+   So two seekTo calls inside one browser tick leave the second one rendering
+   with the first one's shadow map — measured as a flaky byte-determinism FAIL
+   whose pixel diff was confined to shadowed regions. Ticking the frame here
+   makes seekTo self-contained for any caller pattern. Private API, pinned at
+   three 0.185.1; smoke fails loudly if an upgrade renames it. */
+window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);if(renderer._nodes)renderer._nodes.nodeFrame.update();renderer.render(scene,camera);};
+let playing=true,t0=null;
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
+window.stopPlayback=function(){playing=false;};
+/* Async boot — the one structural difference from a WebGL-era scene. init()
+   resolves the backend (WebGPU adapter or WebGL2 fallback); compileAsync
+   pre-warms every material in the scene graph so the first captured frame is
+   never mid-compile. ONLY THEN does sceneReady go true: the recorder waits on
+   it, so ordering here is what makes frame 0 as deterministic as frame 400.
+   seekTo stays synchronous after boot — renderAsync() is deprecated in r185
+   and the sync render inside seekTo is the verified path on both backends. */
+(async()=>{
+  await renderer.init();
+  await renderer.compileAsync(scene,camera);
+  /* Which backend actually rendered is a fact of the run, not of the scene —
+     it depends on flags AND on the Chromium build (one binary's default
+     exposes a WebGPU adapter, another's does not). Export it so tooling and
+     humans can see it instead of inferring it; frames are not byte-comparable
+     across backends. */
+  window.BACKEND=renderer.backend.isWebGPUBackend?'webgpu':'webgl2';
+  window.seekTo(0);
+  window.sceneReady=true;
+  if(!location.search.includes('record'))requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

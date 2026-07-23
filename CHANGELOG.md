@@ -1,5 +1,19 @@
 # changelog
 
+## 0.69.0
+
+### added
+- **`screenwright` 0.1.0 — a new plugin: the explainer-video successor on the three.js node stack.** Phase 0 (foundation) of `docs/internals/screenwright_plan.md`: the templates, recorder, and instruments ported from explainer-video to `WebGPURenderer` (transparent WebGL2 fallback) + TSL node materials, gated green on both backends. `explainer-video` is now frozen — published, bugfix-only — per the plan's founding decisions.
+
+  Phase 0 shipped four measured findings, each now encoded in the tools rather than in prose:
+
+  1. **Shadow maps update at most once per `nodeFrame.frameId`, and `render()` never advances it** — only the renderer's internal rAF loop does. Two `seekTo` calls in one browser tick left the second rendering with the first's shadow map: a flaky byte-determinism failure whose pixel diff was confined to shadowed regions. `seekTo` now ticks `renderer._nodes.nodeFrame.update()` before rendering (private API, pinned at `three@0.185.1`; smoke fails loudly on rename).
+  2. **The compositor can present a frame late** relative to the queued render, so the recorder settles one double-rAF between seek and screenshot — without it, screenshot hashes flaked over byte-identical canvas content.
+  3. **A half-dead WebGPU adapter ships the flat clear color with exit 0** — deterministic, caption crisp on top, four existing checks green. New hard check in `smoke.js`: a caption-stripped cold page must ship frames that change across sampled `t` and whose richest frame clears a measured luma-spread floor (broken 1.7 / healthy 3D 161.3 / flat 2D register 120.9; floor 12). Demonstrated firing on the real failure (playwright headless-shell + `WEBGPU=swiftshader`), not assumed. `shoot.js` refuses that adapter outright without `WEBGPU_UNSAFE_SHIP=1`.
+  4. **The Chromium cache scan matched nothing on Apple Silicon** (missing `-arm64` layouts) and silently fell through to system Chrome — an auto-updating build that disagreed with playwright's pinned one about WebGPU, which is how finding 3 hid. Both tools now scan both layouts.
+
+  Also: `WEBGPU=off|auto|metal|vulkan|swiftshader` recorder policy with conflict rejection (the wrong flag combination is how the silent black-frame configuration happens); `compileAsync` pre-warm before `sceneReady`; `window.BACKEND` export; the demo scene's material is a TSL MaterialX node graph driven by the sanctioned `uTime` uniform, proving the pattern under byte-determinism. New reference `references/webgpu-stack.md` carries the backend policy, the four node-stack determinism rules, and every measured bracket.
+
 ## 0.68.6
 
 ### removed

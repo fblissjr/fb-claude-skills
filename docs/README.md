@@ -27,6 +27,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [explainer_video_generalization_plan.md](internals/explainer_video_generalization_plan.md) | The arc that took explainer-video from one visual language to two backends, shot language and style bibles — with the run's postmortem |
 | [explainer_video_test_cases.md](internals/explainer_video_test_cases.md) | The test suite: cases as falsifiable hypotheses, with outcomes filled in |
 | [explainer_video_hardening_plan.md](internals/explainer_video_hardening_plan.md) | The remediation: ~51 findings grouped by root cause, structural fixes separated from deliberate bandaids |
+| [screenwright_plan.md](internals/screenwright_plan.md) | Founding plan for the WebGPU/TSL successor skill: layer split, character scaffold, test-case portfolio, phase gates — explainer-video freezes |
 
 ## package documentation
 

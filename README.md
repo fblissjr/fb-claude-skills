@@ -44,7 +44,8 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. First skill: `govuk-style` — GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). Adapted from [@fofr](https://twitter.com/fofr). |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
-| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF |
+| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF. **Frozen** -- bugfix-only; superseded over time by screenwright |
+| [screenwright](skills/screenwright/) | Skill | The explainer-video successor on the three.js node stack: deterministic films of any register (explainer, cutscene, meme, character short) on WebGPURenderer with WebGL2 fallback + TSL node materials, plus Canvas2D -- same contract and instruments, higher material ceiling. Plan: `docs/internals/screenwright_plan.md` |
 
 ### decomposition & model routing
 
