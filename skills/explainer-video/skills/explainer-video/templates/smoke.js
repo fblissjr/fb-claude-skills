@@ -149,9 +149,16 @@ function samplePlan(dur, flashes, n = 3) {
   // 0.4s apart (an ordinary cut-in/cut-out pair) put a sample at 95% white --
   // reintroducing the exact failure the sampler exists to prevent. It also made
   // the plan depend on the order the author happened to list CONFIG.flashes.
-  const HALF = 0.3;                      // template flash is bump(t, c-.25, c+.25)
+  // Each flash reports its OWN half-width now (CONFIG.flashWidth / per-flash w),
+  // so avoidance is calibrated against the real interval rather than a constant
+  // that silently went stale the moment flashes became parameterised.
+  const PAD = 0.05;
   const lo = 0.05, hi = Math.max(lo, dur - 0.05);
-  const iv = (flashes || []).map(c => [c - HALF, c + HALF]).sort((a, b) => a[0] - b[0]);
+  const iv = (flashes || []).map(f => {
+    const c = typeof f === 'number' ? f : f.t;
+    const w = (typeof f === 'number' ? 0.25 : (f.w === undefined ? 0.25 : f.w)) + PAD;
+    return [c - w, c + w];
+  }).sort((a, b) => a[0] - b[0]);
   const merged = [];
   for (const [a, b] of iv) {
     const last = merged[merged.length - 1];

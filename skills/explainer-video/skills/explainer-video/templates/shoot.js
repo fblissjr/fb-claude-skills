@@ -175,7 +175,11 @@ async function openScenePage(browser, sceneFile) {
   // renamed three API is the usual cause and fails quietly otherwise.
   page.on('pageerror', e => console.error('scene error: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') console.error('console: ' + m.text()); });
-  await page.goto(url.pathToFileURL(path.resolve(sceneFile)).href + '?record=1');
+  // SCENE_QUERY lets a review pass ask the scene for a variant of itself --
+  // today `strip=text`, which is how "cover everything except the geometry"
+  // became a standing pass instead of a hand-edited copy of the scene.
+  const q = process.env.SCENE_QUERY ? '&' + process.env.SCENE_QUERY : '';
+  await page.goto(url.pathToFileURL(path.resolve(sceneFile)).href + '?record=1' + q);
   await page.waitForFunction('window.sceneReady === true', { timeout: 20000 })
     .catch(() => { throw new Error('scene never set window.sceneReady — check the errors above'); });
   // The scene declares the frame it was authored for; the recorder follows it.

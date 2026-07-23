@@ -416,7 +416,8 @@ function aspectSheet(scene, t = 0, width = 520) {
   const dir = workspace(scene, 'aspect');
   try {
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT,
+        ...(stripText ? { SCENE_QUERY: 'strip=text' } : {}) }, stdio: ['ignore', 'pipe', 'inherit'] });
     const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
     const n = shapes.length;
     // Each shape has DIFFERENT pixel dimensions. That rules out both the tile
@@ -443,10 +444,13 @@ function aspectSheet(scene, t = 0, width = 520) {
   }
 }
 
-function sheet(scene, width = 480, frac = 0.6) {
+// `strip` here is the text-strip flag, not the strip command: sheet(scene, w,
+// frac, true) renders the same beats with every word removed, which is the
+// semantics pass. An author used to build this by hand-editing a copy.
+function sheet(scene, width = 480, frac = 0.6, stripText = false) {
   ensureVendor(scene);
   const base = outBase(scene);
-  const sheetOut = base + '.sheet.jpg';
+  const sheetOut = base + (stripText ? '.nocap.sheet.jpg' : '.sheet.jpg');
   const squintOut = base + '.squint.jpg';
   // Own this dir outright rather than trusting ambient FRAMES_DIR, then
   // rmSync it whole in the finally below -- same reasoning as loop()'s
@@ -460,7 +464,8 @@ function sheet(scene, width = 480, frac = 0.6) {
     // no way to read the beat list back into this process. stderr still goes
     // through so scene errors are not swallowed.
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'beats', String(frac)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT,
+        ...(stripText ? { SCENE_QUERY: 'strip=text' } : {}) }, stdio: ['ignore', 'pipe', 'inherit'] });
     const { beats } = JSON.parse(stdout.trim().split('\n').pop());
     const n = beats.length;
     const cols = Math.min(4, Math.ceil(Math.sqrt(n)));
@@ -721,7 +726,7 @@ else if (step === 'frames') frames(target, fps);
 else if (step === 'video') video(target, fps);
 else if (step === 'all') { bundle(target); frames(target, fps); video(target, fps); }
 else if (step === 'aspect') aspectSheet(target, Number(fpsArg || 0), Number(widthArg || 520));
-else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg));
+else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg), extraArg === 'nocap');
 else if (step === 'strip') strip(target, Number(fpsArg), Number(widthArg), Number(extraArg || 30));
 else if (step === 'motion') motion(target, Number(fpsArg || 12));
 else { console.error(USAGE); process.exit(1); }

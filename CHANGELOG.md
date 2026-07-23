@@ -1,5 +1,23 @@
 # changelog
 
+## 0.66.0
+
+### added
+- **explainer-video 0.22.0 -> 0.23.0**: hardening pass three — the kit gains time-shaping and a real text layer. Scoped by what actually blocked a film, not by what the plan listed: three planned primitives (`cyc`, `progress`, and initially `warp`) were **deliberately not built**, because every film that wanted them shipped without them. Building all nine would have repeated the mistake two reviews had just corrected — shipping surface with no callers.
+
+  **`rampE(t, beat, a, b, ease)`** returns `{u, e}` — the raw gate and the eased value together. The kernel warns "gate on the raw ramp, never on an eased value" because `backOut(0)` carries positive floating-point residue; **three separate authors gated on the eased value having read that warning**, because the idiom the kit offered was a single composed expression and gating correctly meant splitting it. Making the correct path the easy path beats warning louder.
+
+  **`latch(t, at)`** answers "when did the previous link hand over", which `ramp`/`pulse`/`during` cannot — they all answer "where am I inside this beat". This matters more than it sounds: driving B from A's own expression is right for a *sustained* coupling and wrong for an *impulsive* one. Measured on a domino chain, a hammer's post-impact ringdown retracted the driver by 54% of a contact width and **the entire fallen row stood back up and fell again**. Derivation propagates onset; it does not propagate persistence.
+
+  **`warp(t, segments)`** — a monotone reparameterisation of `t`, so a window of real seconds can run slow or fast while the beats keep their real-time pacing. This was explicitly deferred as unearned an hour before a film needed genuine slow-motion; it ships now because that film exists, which is the earn-in rule working rather than an exception to it. Verified monotone and pure.
+
+  **`txt()` / `txtWidth()`** replace a `label()` that was centre-align only, fixed weight, and unmeasurable — every 2D film rewrote it within minutes, and the blueprint pack documents primitives the template never shipped. `label()` is kept as the centred shortcut.
+
+  **`?strip=text` — the semantics instrument.** "Cover everything except the geometry" was the test and had no tool: an author hand-edited a copy of the scene to run it. Every draw routed through `txt()` becomes a no-op, and the DOM overlay hides too, so `build.js sheet <scene> 480 0.6 nocap` renders the same beats with every word removed on both backends. It works *because* the text helper is worth using — hand-rolled `fillText` opts out of it. Verified: the 2D example's sheet comes back wordless, and is markedly harder to read, which is exactly the finding the instrument exists to surface.
+
+### changed
+- **explainer-video: flash width is a parameter** (`CONFIG.flashWidth`, or per-flash `w`), was hardcoded at ±0.25s — so the shortest expressible flash was 0.5s, longer than an entire beat in one film whose author reimplemented the flash in scene code to get a 0.20s snap. `window.FLASHES` now carries each flash's width, and `smoke.js`'s sampler avoids the declared interval rather than an assumed constant that would have gone stale the moment flashes became parameterised.
+
 ## 0.65.0
 
 ### fixed

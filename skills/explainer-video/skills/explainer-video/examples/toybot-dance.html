@@ -4853,6 +4853,63 @@ const secAt  =(name,s=0)=>beat(name).t0+s;
 const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
 const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
 
+/* ---------- rampE: the eased value AND the raw gate, together ----------
+   The kit's warning says "GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE",
+   because backOut(0) carries ~2e-16 of positive residue and `if(eased<=0)` leaks
+   a frame where scaled geometry is invisible but anything unscaled beside it
+   renders at full size. The warning is correct and it does not work: the idiom
+   the kit offers is the single expression backOut(ramp(...)), and gating right
+   means splitting it. Three separate authors gated on the eased value HAVING
+   READ THIS WARNING. So hand back both and make the correct path the easy one.
+     const {u, e} = rampE(t,'beat',0,.4, backOut);
+     if (u <= 0) return;              // gate on the raw ramp
+     box.scale.setScalar(e);          // animate on the eased one            */
+const rampE=(t,name,a=0,b=1,ease=null)=>{const u=ramp(t,name,a,b);
+  return{u,e:ease?ease(u):u};};
+
+/* ---------- latch: when did the previous link hand over? ----------
+   ramp/pulse/during all answer "where am I inside this beat". A chain answers a
+   different question — "start when THAT finished, and then stay" — and the
+   difference is not cosmetic. Driving B from A's own expression is right for a
+   SUSTAINED coupling and wrong for an IMPULSIVE one: measured on a domino chain,
+   a hammer's post-impact ringdown retracted the driver by 54% of a contact width
+   and the entire fallen row stood back up and fell again. Derivation propagates
+   ONSET; it does not propagate PERSISTENCE.
+   latch gives you the onset as a TIME — monotone in t by construction, so it
+   cannot run backwards — and you then evaluate the link's own closed form from
+   there. `at` is the absolute second the driver crossed; everything after is the
+   link's business.
+     const t0 = latch(t, secAt('roll',.30));   // 0 before, seconds-since after
+     block.rotation.z = TH * ss(t0, 0, FALL_T);                              */
+const latch=(t,at)=>t<at?0:t-at;
+
+/* ---------- warp: a monotone reparameterisation of t ----------
+   Deferred once, deliberately, as "no film is blocked on it" — and then a film
+   was: a fight wants real slow-motion the instant a hit lands. It is one of the
+   cheapest things the architecture can do and nothing exposed it, because the
+   kit could say WHERE you are in a beat and never HOW FAST time runs there.
+
+   Segments slow (rate<1) or speed (rate>1) a window of REAL seconds; outside
+   them the clock runs 1:1. Strictly monotone for rate>0, and a pure function of
+   t, so seekTo purity is untouched — this is a lens on the clock, not a state
+   machine. Drive PHYSICS through it and leave BEATS on raw t, so cuts and
+   captions keep their real-time pacing while the action stretches:
+     const HITS=[{at:secAt('clash',.9), dur:.5, rate:.18}];
+     const T = warp(t, HITS);        // use T for bodies, t for beats/camera  */
+const warp=(t,segs=[])=>{
+  const S=[...segs].sort((x,y)=>x.at-y.at);
+  let out=0,cur=0;
+  for(const s of S){
+    const a=Math.max(s.at,cur),b=s.at+s.dur;
+    if(t<=a)break;
+    out+=a-cur;cur=a;
+    out+=(Math.min(t,b)-a)*(s.rate===undefined?1:s.rate);
+    cur=Math.min(t,b);
+    if(t<=b)return out;
+  }
+  return out+(t-cur);
+};
+
 /* ---------- the frame rect: composition and overlays share one basis ----------
    The largest FRAME.aspect rect inside the viewport, centred -- which is exactly
    the region the contained scene fills, on both backends. Publishing it as CSS
@@ -5373,12 +5430,16 @@ const titleEl=document.getElementById('title');
 titleEl.querySelector('h1').textContent=CONFIG.title;
 titleEl.querySelector('p').textContent=CONFIG.subtitle;
 const flashEl=document.getElementById('flash');
+/* ?nocap hides the caption; ?strip=text hides every word on screen. The second
+   is the semantics instrument: "cover everything except the geometry" is the
+   test, and it used to require hand-editing a copy of the scene. */
+const NOCAP=location.search.includes('nocap')||location.search.includes('strip=text');
 function setOverlay(t){
   // Title card spans the first beat, whatever it is called or how long it runs.
   const T=BEAT[BEATS[0].name];
   // Fade OUT completes at the beat boundary, not centred on it: a beat's content
   // stays inside its own beat, so retiming the title never bleeds into the next.
-  titleEl.style.opacity=(ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
+  titleEl.style.opacity=(NOCAP?0:ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
 
   // Captions ARE beats — no parallel list to drift out of sync. The fade is
   // inset from each beat edge, which is what used to be a hand-kept gap.
@@ -5390,10 +5451,16 @@ function setOverlay(t){
     if(t>=B.t0&&t<=B.t1){txt=b.cap;op=ss(t,B.t0,B.t0+F)*(1-ss(t,B.t1-F,B.t1));break;}
   }
   if(txt)capEl.textContent=txt;
-  capEl.style.opacity=op.toFixed(3);
+  capEl.style.opacity=(NOCAP?0:op).toFixed(3);
 
   // Flashes anchor to beats too: {beat,at} instead of a bare timestamp.
-  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0);f=Math.max(f,bump(t,c-.25,c+.25));}
+  // Flash half-width is per-flash (`w`, seconds), falling back to CONFIG.flashWidth
+  // and then to the historical 0.25. It was hardcoded, which made the shortest
+  // expressible flash 0.5s -- longer than an entire beat in one film, whose
+  // author had to reimplement the flash in scene code to get a 0.20s snap.
+  const FW=CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth;
+  let f=0;for(const m of CONFIG.flashes){const c=beatAt(m.beat,m.at||0),w=m.w===undefined?FW:m.w;
+    f=Math.max(f,bump(t,c-w,c+w));}
   flashEl.style.opacity=(f*.98).toFixed(3);
 }
 
@@ -5411,7 +5478,8 @@ window.FRAME=FRAME;
 // it never becomes a window property, and smoke.js's flash-avoidance was
 // silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
 // is tempted to parse scene internals, the contract is missing an export.
-window.FLASHES=(CONFIG.flashes||[]).map(m=>beatAt(m.beat,m.at||0));
+window.FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
+  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
 window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);composer.render();};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
