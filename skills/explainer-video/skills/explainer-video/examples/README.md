@@ -60,7 +60,7 @@ vector, no three.js at all — the source file is the artifact.
 
 ## Copying from these
 
-They are meant to be read and stolen from. The two templates in
+They are meant to be read and used any way you like. The templates in
 `../templates/` are the clean starting points; these are what the templates look
 like once a real film has been built on them. `toybot-walk` is the best model for
 a character or shot-driven piece, `one-scene-every-format` for a diagram,

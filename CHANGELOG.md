@@ -1,5 +1,17 @@
 # changelog
 
+## 0.68.1
+
+### fixed
+- **explainer-video 0.25.0 -> 0.25.1**: a scene could exempt itself from the kernel/solver parity check.
+
+  `smoke.js` extracts each shared block with a regex anchored on the full `/* ==== KERNEL-END ==== */` marker, but its half-fence guard asked the loose `txt.includes('KERNEL-END')`. A mangled marker — `KERNEL-ENDX` — satisfies the loose form as a substring while the anchored extraction stops matching, so the file **dropped silently out of the parity set with no failure reported**. That is precisely the self-exemption the guard was written to prevent; only outright deleting the marker was caught. Both guards now derive from the same regex that builds the parity set, so any broken fence, however broken, fails loudly.
+
+  Found by building a positive control for a new parity hook rather than by the gate itself, which is the recurring lesson here: the check that has never fired is indistinguishable from the check that cannot fire.
+
+### added
+- Repo-local `Stop` hook (`.claude/hooks/kernel-parity.sh`) reporting kernel/solver drift across explainer-video scenes at end of turn, and three delegation agents (`film-reviewer`, `doc-claim-auditor`, `control-builder`) in `.claude/agents/`.
+
 ## 0.68.0
 
 ### added

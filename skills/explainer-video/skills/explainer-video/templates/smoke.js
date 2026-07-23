@@ -542,9 +542,15 @@ async function checkScene(browser, file) {
     for (const f of scenes) {                       // half-fenced is not exempt
       try {
         const txt = fs.readFileSync(f, 'utf8');
-        if (txt.includes('KERNEL-START') && !txt.includes('KERNEL-END')) {
+        // Ask the SAME regex that builds the parity set. An earlier version
+        // asked `!txt.includes('KERNEL-END')`, which a mangled `KERNEL-ENDX`
+        // satisfies as a substring: the block stopped extracting, the file
+        // dropped out of the parity set, and this guard stayed silent -- the
+        // exact self-exemption it exists to prevent. Deriving both from one
+        // pattern means any broken fence, however broken, fails loudly.
+        if (txt.includes('KERNEL-START') && !KERNEL_RE.test(txt)) {
           kernelFail = true;
-          console.log(`FAIL ${f} — has KERNEL-START with no matching KERNEL-END; `
+          console.log(`FAIL ${f} — has KERNEL-START with no well-formed KERNEL-END; `
                     + `an unterminated fence is excluded from the parity check`);
         }
       } catch (e) {}
@@ -567,9 +573,9 @@ async function checkScene(browser, file) {
     for (const f of scenes) {                       // half-fenced is not exempt
       try {
         const txt = fs.readFileSync(f, 'utf8');
-        if (txt.includes('SOLVER-START') && !txt.includes('SOLVER-END')) {
+        if (txt.includes('SOLVER-START') && !SOLVER_RE.test(txt)) {   // see KERNEL note above
           kernelFail = true;
-          console.log(`FAIL ${f} — has SOLVER-START with no matching SOLVER-END; `
+          console.log(`FAIL ${f} — has SOLVER-START with no well-formed SOLVER-END; `
                     + `an unterminated fence is excluded from the parity check`);
         }
       } catch (e) {}

@@ -45,6 +45,17 @@ t=1.0 was the only timestamp in that film where the scene was clean. Quantifying
 over a sample plan is why all three now fail. **When a check reports absence, ask
 what a positive result would have looked like.**
 
+**Parity had the same shape of hole, one level down.** The kernel/solver rows
+above only mean anything for files actually *in* the comparison set, and a scene
+used to be able to leave it silently. Extraction is anchored on the full
+`/* ==== KERNEL-END ==== */`; the guard meant to catch a half-fenced file asked
+the loose `includes('KERNEL-END')`. A mangled `KERNEL-ENDX` satisfies the loose
+form and defeats the anchored one, so the block stopped extracting and nothing
+complained — a deleted marker failed, a *corrupted* one did not. Both now derive
+from the same pattern. The general rule, which is the third instance of it in
+this file: **when a guard and the thing it guards ask different questions, the
+gap between the two questions is where defects live.**
+
 ## `build.js motion`
 
 Reports per-beat motion energy and dead air. Its limits are measured, not
