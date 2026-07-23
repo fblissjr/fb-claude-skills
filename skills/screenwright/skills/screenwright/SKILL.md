@@ -54,12 +54,17 @@ Two templates, one window contract, every tool works on both:
 - `scene.template.html` — the 3D node stack: `WebGPURenderer` (WebGL2
   fallback), TSL node materials, shadows, the cinematography solver
   (`SHOTS[]` as data). Needs the vendor step.
+- `scene.character.template.html` — the 3D template PLUS the character
+  scaffold (`CHARACTER` fence): parametric skeleton family, two-bone IK,
+  planted gait, neck/tail chains. Copy THIS when the film has figures;
+  see `references/characters.md`.
 - `scene2d.template.html` — Canvas2D flat vector. Born self-contained; skip
   `bun add three` and `vendor` entirely.
 
 ```bash
 cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js,backend.js} .
 mv scene.template.html <name>.html
+# film has figures? copy scene.character.template.html instead of scene.template.html
 bun add three@0.185.1 playwright-core@1.61.1
 bun run build.js vendor <name>.html   # EMBEDS three into the scene; leaves no .js
 # (skipping this is recoverable: every command that opens a scene embeds
@@ -174,6 +179,7 @@ Two constraints that dictate the setup — do not "simplify" them away:
 ## Files
 
 - `templates/scene.template.html` — 3D scaffold (node stack)
+- `templates/scene.character.template.html` — 3D scaffold + character kit
 - `templates/scene2d.template.html` — 2D scaffold (Canvas2D, self-contained)
 - `templates/shoot.js` / `templates/build.js` — recorder + pipeline (sheet,
   strip, aspect, motion, loop, avif, poster)
@@ -191,6 +197,8 @@ Two constraints that dictate the setup — do not "simplify" them away:
   subsurface (thin/thick split), glass (transmissionNode, ordering
   discipline), bloom observations — read before authoring any surface
   beyond flat color
+- `references/characters.md` — the character scaffold: the proportion
+  vector, gait, chains, the add-on pattern, worked biped/quadruped vectors
 - `references/bibles.md` — style bibles v2: the whole look as ONE object
   (palette, exposure, post, lens, cut pace, camera energy), switched by one
   line; `examples/gearbox.html` ships the committed control pair

@@ -669,7 +669,7 @@ async function checkScene(browser, file) {
     // leave the parity set.
     const texts = new Map();                        // each file read ONCE
     for (const f of scenes) { try { texts.set(f, fs.readFileSync(f, 'utf8')); } catch (e) {} }
-    for (const name of ['KERNEL', 'SOLVER', 'RIG', 'DRIVER']) {
+    for (const name of ['KERNEL', 'SOLVER', 'RIG', 'DRIVER', 'CHARACTER']) {
       const RE = new RegExp(`\\/\\* ==== ${name}-START ====[\\s\\S]*?\\/\\* ==== ${name}-END ==== \\*\\/`);
       const found = [];
       for (const [f, txt] of texts) {

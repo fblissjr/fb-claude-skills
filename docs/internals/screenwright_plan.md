@@ -384,6 +384,17 @@ packs land here, tested on the characters they exist for. *Gate:*
 scaffold; each squint-distinct; walk cycles plant (no sliding feet on the
 strip check).
 
+*Step 1 DONE 2026-07-23 (screenwright 0.7.0):* the scaffold kit shipped as
+`templates/scene.character.template.html` with a fifth parity fence
+(`CHARACTER`) — skeleton family as one topology × proportion vector,
+lathed/capsule shells from pure code (no data tables needed until morph
+deltas arrive in Phase 3), ported two-bone IK generalized by bend direction,
+plant-grid gait generalized to any planted-limb set, closed-form neck/tail
+chains. Both the biped demo and a quadruped vector verified walking on both
+backends; strip check confirms planted feet hold. `references/characters.md`
+carries the vocabulary. Remaining for the gate: fur-shell + fabric packs,
+then the three gate characters as films.
+
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
 expressions carry the beat in the nocap pass — the caption is not doing the

@@ -1,5 +1,12 @@
 # changelog
 
+## 0.75.0
+
+### added
+- **`screenwright` 0.7.0 — Phase 2 step 1: the character scaffold.** New `templates/scene.character.template.html`: the 3D template plus a parity-fenced `CHARACTER` block (the fifth fence, registered in smoke) holding the scaffold kit — ONE parametric skeleton family where a character is a point in proportion space (`propDefaults` overrides) plus a material choice (`matFor(part)` is the seam where shading packs will plug in). The kit: lathed-profile torso + capsule shells generated from the proportion vector at load (pure code, zero assets), analytic two-bone IK ported from the predecessor's proven walker (generalized with a bend direction: knee-forward hind legs, elbow-back forelegs), the plant-grid gait generalized to any planted-limb set (biped `0/.5`; quadruped lateral-sequence `0/.25/.5/.75`, each limb's plant column riding its own attach x), and closed-form chain helpers (`chainCurl`, `chainWave`) for neck/tail — the "IK extends to spine/tail" half of the plan, done analytically. Loud build-time reach checks (match-cut-constraint spirit) replace silent hyperextension. New `references/characters.md` documents the vector, gait, conventions, and a QUADRUPED vector verified building and walking, not just the biped demo. The template demo walks a tailed biped through title/walk/look/settle and grew the face-features-as-scene-add-ons pattern (eyes riding `rig.head` — which also fixed front/back ambiguity: a bare sphere head made front shots read as back shots).
+
+  Template-authoring findings measured on the way, kept as comments: near-equal overlapping shell radii z-fight into jagged seams (hence ONE lathed torso profile); `shoulderW` must clear the torso silhouette or hanging arms embed in it; framing estimates must respect torso/neck tilt or the camera frames empty air above a quadruped; solver angle 0 is the PROFILE (0 = from +Z), a misread that cost two probe rounds. Verified: smoke green on both backends (webgl2 + webgpu confirmed), CHARACTER fence parity-checked, contact sheet and mid-walk strip read frame by frame — planted feet hold their ground position across cells. Gate work remaining in Phase 2: fur-shell/fabric packs, then `bear-and-bees` + human + text-invented creature from the one scaffold, squint-distinct, strip-checked.
+
 ## 0.74.0
 
 ### changed

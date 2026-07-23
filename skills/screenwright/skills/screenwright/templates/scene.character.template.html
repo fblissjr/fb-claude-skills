@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Screenwright character scene</title>
+<style>
+  /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
+     and restyles without touching the scene. Colors/fonts come from CONFIG below. */
+  :root{--fx:0px;--fy:0px;--fw:1920px;--fh:1080px;}
+  html,body{margin:0;padding:0;overflow:hidden;background:#0e0b14;width:100%;height:100%;}
+  #c{display:block;width:100vw;height:100vh;}
+  #cap{position:fixed;left:calc(var(--fx) + var(--fw)/2);bottom:calc(var(--fy) + var(--fh)*.055);transform:translateX(-50%);
+    font:600 calc(var(--fw)*.015625)/1.3 "Avenir Next","Segoe UI",system-ui,sans-serif;
+    color:#fff;background:rgba(20,14,30,.62);padding:calc(var(--fw)*.00729167) calc(var(--fw)*.01770833);border-radius:999px;
+    white-space:nowrap;opacity:0;border:1px solid rgba(255,255,255,.18);
+    text-shadow:0 2px 8px rgba(0,0,0,.5);}
+  #title{position:fixed;left:calc(var(--fx) + var(--fw)/2);top:calc(var(--fy) + var(--fh)*.07);transform:translateX(-50%);text-align:center;
+    font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#fff;opacity:0;}
+  #title h1{font-size:calc(var(--fw)*.02291667);margin:0;font-weight:800;text-shadow:0 3px 14px rgba(0,0,0,.55);}
+  #title p{font-size:calc(var(--fw)*.0125);margin:calc(var(--fw)*.003125) 0 0;font-weight:500;opacity:.9;}
+  /* will-change pins these as compositor layers. Without it Chrome re-rasterizes
+     the text with a different AA mode after opacity round-trips through 0, so the
+     same t can differ by a few pixels depending on seek ORDER -- which breaks the
+     frames-shot-in-any-order guarantee for any frame containing overlay text. */
+  #cap,#title{will-change:opacity;}
+  #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 58%,rgba(10,6,18,.42) 100%);}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="title"><h1></h1><p></p></div>
+<div id="cap"></div>
+<div id="flash"></div>
+<!-- PLACEHOLDER. `bun run build.js vendor` REPLACES this tag with three itself,
+     inlined, and deletes the intermediate file: one scene = one self-contained
+     .html, no sibling .js, no CDN. Never point this at a CDN — the render must
+     not touch the network, and three dropped its UMD build after 0.160 so a CDN
+     copy cannot be loaded from a classic script anyway. It MUST stay a classic
+     script, not type="module": Chrome CORS-blocks ES module imports over
+     file://, and opening the scene directly from disk is the whole point.
+     ensureVendor() runs before every command that opens a scene, so this tag
+     cannot survive into a render or a commit; smoke.js fails a scene that is
+     still carrying it. -->
+<script src="./three.global.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   CONTRACT (do not rename): window.seekTo(t), window.DURATION,
+   window.stopPlayback(), window.sceneReady.
+   Everything on screen is a pure function of t — no Math.random(),
+   no Date.now(), no accumulated state. That is what makes the
+   HTML loop and the MP4 render provably identical.
+   ============================================================ */
+
+/* ============================================================
+   BEATS — the single source of timing truth. Durations, not
+   absolute times: they accumulate, so lengthening one beat
+   shifts every later beat instead of silently overlapping it.
+   That is what makes retiming genuinely a one-line edit.
+
+   NOTHING else in this file may contain a literal timestamp.
+   Camera keyframes, captions and `duration` all derive from
+   here, and animate() addresses beats by NAME via ramp()/pulse().
+   ============================================================ */
+const BEATS = [
+  {name: 'title',  dur: 2.6},
+  {name: 'walk',   dur: 5.2, cap: "1 · One scaffold — proportions are the character"},
+  {name: 'look',   dur: 2.6, cap: "2 · Neck and tail are the same chain data"},
+  {name: 'settle', dur: 2.2, cap: "3 · Feet plant — gait derives from distance"},
+];
+
+/* ---------- STYLE: everything that is the LOOK. ----------
+   Split from CONFIG so a style pack (a bible — references/bibles.md) swaps
+   this block and nothing else. Timing lives in BEATS; the look — INCLUDING
+   camera energy, lens and cut pace (energy/lens/cutDur, read by the solver) —
+   lives here. Materials are still created inline in buildWorlds(); lift
+   shared palette constants up here as the scene grows. */
+const STYLE = {
+  bg: 0x1a1426,
+  exposure: 1.0,                      // if the scene looks washed out, LOWER this first
+  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
+};
+
+/* ---------- CONFIG: everything that is neither timing nor look. ---------- */
+const CONFIG = {
+  title: "The character scaffold",
+  subtitle: "one skeleton family, any figure",
+  flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
+  seed: 20260721,                     // change to reshuffle all seeded randomness
+  sway: 0.06,                         // idle camera drift. Set to 0 for `build.js loop`:
+                                      // sway moves every pixel every frame, which defeats
+                                      // WebP/GIF inter-frame compression and can 10x the
+                                      // file size. Free in mp4, expensive inline.
+  capFade: 0.35,                      // caption fade inset from each beat edge, seconds
+};
+
+/* ---------- FRAME: the one declared reference frame ----------
+   Everything composes and measures against this and nothing else. `aspect` is
+   the design frame the scene is authored for; `px` is what shoot.js renders at
+   (it reads window.FRAME.px, so changing this here is the ONLY edit needed to
+   ship 9:16 vertical or 1:1 square -- the tooling follows).
+
+   Before this existed the skill measured against ten different implicit frames:
+   the canvas scaled by window height, captions sized in fixed CSS px against
+   the window, the shot ladder against frame height, smoke's overflow check
+   against a hardcoded 1920. They disagreed the moment a window was not 16:9. */
+const FRAME = { aspect: 16/9, px: [1920, 1080] };
+
+/* ==== KERNEL-START ====================================================
+   The shared kit. This block is byte-identical in every scene template —
+   smoke.js FAILS the run if two checked files carry different kernels.
+   Edit it in ALL templates or in none; it is the seed of a future
+   extracted kernel file, kept inline so scenes stay single-file.
+   ======================================================================= */
+/* ---------- deterministic kit ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const rng=mulberry32(CONFIG.seed);
+const R=[];for(let i=0;i<4000;i++)R.push(rng());     // frozen random pool — index it, never re-draw
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,u)=>a+(b-a)*u;
+// Zero-width span would be 0/0 -> NaN, which propagates silently into a
+// position (mesh vanishes) or an opacity string. Guard rather than poison.
+const ss=(t,t0,t1)=>{if(t1===t0)return t>=t0?1:0;const u=clamp((t-t0)/(t1-t0),0,1);return u*u*(3-2*u);};   // smooth 0→1
+// bump() is rise-AND-FALL: it is 0 at BOTH ends and peaks in the middle. Correct
+// for "flash and go"; wrong for "grow and stay" — a burst scaled by bump(u,0,1)
+// shrinks back to nothing exactly when it should be at full size, which shipped
+// once. Use ss() when the effect should arrive and remain.
+const bump=(t,t0,t1)=>{if(t1===t0)return 0;const u=clamp((t-t0)/(t1-t0),0,1);return Math.sin(u*Math.PI);}; // rise+fall
+
+/* ---------- easing personalities (still pure functions) ----------
+   ss() is the neutral register. These are the other temperaments a style can
+   speak in — all closed forms, all safe anywhere a 0..1 u is in hand:
+   compose them with the beat addressing below, e.g. backOut(ramp(t,'one',0,.4)).
+   backOut(u)    : arrives with ~10% overshoot, then settles. Snappy, cartoonish.
+   elasticOut(u) : overshoots and rings down. Bigger personality than backOut —
+                   budget it for payoffs; EVERY arrival ringing reads as jelly.
+   quant(t,n)    : stop-motion. Quantize TIME before deriving a pose (n poses
+                   per second) and motion reads hand-made. Still deterministic —
+                   the quantized t is a pure function of t. Quantize per-object,
+                   never inside seekTo itself.
+   noise1(t,f,k) : seeded 1-D value noise in [-0.5,0.5] at frequency f Hz, from
+                   the frozen R pool. Same k = same track, different k =
+                   independent track. Handheld/idle wobble; keep amplitudes small.
+   GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE: backOut(0) carries positive
+   floating-point residue (~2e-16), so `if(eased<=0)` leaks one frame where
+   scaled geometry is invisible but anything unscaled beside it renders. */
+const backOut=(u,s=1.70158)=>{u=clamp(u,0,1);const v=u-1;return 1+(s+1)*v*v*v+s*v*v;};
+const elasticOut=(u,p=.3)=>{u=clamp(u,0,1);return u===0||u===1?u:Math.pow(2,-10*u)*Math.sin((u-p/4)*(2*Math.PI)/p)+1;};
+const quant=(t,n)=>Math.floor(t*n)/n;
+const noise1=(t,f=1,k=0)=>{const x=t*f,i=Math.floor(x),u=x-i,
+  g=j=>R[((j%R.length)+R.length)%R.length]-.5,s=u*u*(3-2*u);
+  return g(i+k*997)+(g(i+1+k*997)-g(i+k*997))*s;};
+
+/* ---------- beat addressing (use these, never raw timestamps) ----------
+   Resolve durations into absolute spans once, then address them by name.
+   The a/b arguments are FRACTIONS of the beat, not seconds, so an effect
+   keeps its place when the beat is retimed — which is also what lets
+   narration-driven timing rewrite durations without breaking animate(). */
+const BEAT={};{let acc=0;for(const b of BEATS){BEAT[b.name]={...b,t0:acc,t1:acc+b.dur};acc+=b.dur;}}
+const TOTAL=BEATS.reduce((s,b)=>s+b.dur,0);
+function beat(name){const B=BEAT[name];if(!B)throw new Error('unknown beat: '+name);return B;}
+function span(name,a=0,b=1){const B=beat(name);return[B.t0+a*B.dur,B.t0+b*B.dur];}
+const ramp =(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return ss(t,x,y);};    // 0→1 ramp
+const pulse=(t,name,a=0,b=1)=>{const[x,y]=span(name,a,b);return bump(t,x,y);};  // rise+fall
+// during() is a hard boolean at the beat edges, so any expression gated by it MUST be zero at both edges
+// or it steps discontinuously in one frame and reads as a pop. Safe use: toggling .visible on something
+// with scale already reaching 0. Adding a nonzero offset to a rotation inside if(during(...)) is the exact
+// shape that produced a visible 20-degree arm snap in a real scene. Reach for ramp() or pulse() first.
+const during=(t,name)=>t>=beat(name).t0&&t<beat(name).t1;
+const beatAt=(name,at=0)=>span(name,at,at)[0];                                  // absolute t
+
+/* Seconds-from-beat-start variants. Use these when a duration is PHYSICAL and
+   must not stretch when the beat is retimed: a 0.25s flash, a 0.06s world cut,
+   a fixed settle time. Stretching a cut window with its beat would uncover the
+   cut — which is the one bug method.md says already cost a re-render. Fractions
+   for "across this part of the beat", seconds for "this many seconds". */
+const secAt  =(name,s=0)=>beat(name).t0+s;
+const rampS  =(t,name,s0,s1)=>ss(t,secAt(name,s0),secAt(name,s1));
+const pulseS =(t,name,s0,s1)=>bump(t,secAt(name,s0),secAt(name,s1));
+
+/* ---------- rampE: the eased value AND the raw gate, together ----------
+   The kit's warning says "GATE ON THE RAW RAMP u, NEVER ON AN EASED VALUE",
+   because backOut(0) carries ~2e-16 of positive residue and `if(eased<=0)` leaks
+   a frame where scaled geometry is invisible but anything unscaled beside it
+   renders at full size. The warning is correct and it does not work: the idiom
+   the kit offers is the single expression backOut(ramp(...)), and gating right
+   means splitting it. Three separate authors gated on the eased value HAVING
+   READ THIS WARNING. So hand back both and make the correct path the easy one.
+     const {u, e} = rampE(t,'beat',0,.4, backOut);
+     if (u <= 0) return;              // gate on the raw ramp
+     box.scale.setScalar(e);          // animate on the eased one            */
+const rampE=(t,name,a=0,b=1,ease=null)=>{const u=ramp(t,name,a,b);
+  return{u,e:ease?ease(u):u};};
+
+/* ---------- latch: when did the previous link hand over? ----------
+   ramp/pulse/during all answer "where am I inside this beat". A chain answers a
+   different question — "start when THAT finished, and then stay" — and the
+   difference is not cosmetic. Driving B from A's own expression is right for a
+   SUSTAINED coupling and wrong for an IMPULSIVE one: measured on a domino chain,
+   a hammer's post-impact ringdown retracted the driver by 54% of a contact width
+   and the entire fallen row stood back up and fell again. Derivation propagates
+   ONSET; it does not propagate PERSISTENCE.
+   latch gives you the onset as a TIME — monotone in t by construction, so it
+   cannot run backwards — and you then evaluate the link's own closed form from
+   there. `at` is the absolute second the driver crossed; everything after is the
+   link's business.
+     const t0 = latch(t, secAt('roll',.30));   // 0 before, seconds-since after
+     block.rotation.z = TH * ss(t0, 0, FALL_T);                              */
+const latch=(t,at)=>t<at?0:t-at;
+
+/* ---------- warp: a monotone reparameterisation of t ----------
+   Deferred once, deliberately, as "no film is blocked on it" — and then a film
+   was: a fight wants real slow-motion the instant a hit lands. It is one of the
+   cheapest things the architecture can do and nothing exposed it, because the
+   kit could say WHERE you are in a beat and never HOW FAST time runs there.
+
+   Segments slow (rate<1) or speed (rate>1) a window of REAL seconds; outside
+   them the clock runs 1:1. Strictly monotone for rate>0, and a pure function of
+   t, so seekTo purity is untouched — this is a lens on the clock, not a state
+   machine. Drive PHYSICS through it and leave BEATS on raw t, so cuts and
+   captions keep their real-time pacing while the action stretches:
+     const HITS=[{at:secAt('clash',.9), dur:.5, rate:.18}];
+     const T = warp(t, HITS);        // use T for bodies, t for beats/camera  */
+const warp=(t,segs=[])=>{
+  const S=[...segs].sort((x,y)=>x.at-y.at);
+  let out=0,cur=0;
+  for(const s of S){
+    const a=Math.max(s.at,cur),b=s.at+s.dur;
+    if(t<=a)break;
+    out+=a-cur;cur=a;
+    out+=(Math.min(t,b)-a)*(s.rate===undefined?1:s.rate);
+    cur=Math.min(t,b);
+    if(t<=b)return out;
+  }
+  return out+(t-cur);
+};
+
+/* ---------- the frame rect: composition and overlays share one basis ----------
+   The largest FRAME.aspect rect inside the viewport, centred -- which is exactly
+   the region the contained scene fills, on both backends. Publishing it as CSS
+   vars puts the DOM overlays in the SAME coordinate system as the geometry, so a
+   caption is a fixed fraction of the frame instead of a fixed number of window
+   pixels. Identity at the design aspect; the vars simply track the frame. */
+function frameRect(){
+  const W=innerWidth,H=innerHeight;
+  const w=Math.min(W,H*FRAME.aspect),h=w/FRAME.aspect;
+  return{x:(W-w)/2,y:(H-h)/2,w,h};
+}
+function applyFrameVars(){
+  const r=frameRect(),s=document.documentElement.style;
+  s.setProperty('--fx',r.x+'px');s.setProperty('--fy',r.y+'px');
+  s.setProperty('--fw',r.w+'px');s.setProperty('--fh',r.h+'px');
+}
+/* ==== KERNEL-END ==== */
+
+/* ==== RIG-START =======================================================
+   Renderer, post pipeline, and mesh helpers. Byte-identical in every 3D
+   scene — smoke.js FAILS the run if two checked scenes differ here; edit it
+   in ALL 3D scenes or in none. Fenced because it carries two of the
+   LOAD-BEARING determinism guards (sortObjects=false, frustumCulled=false)
+   — exactly the code whose silent drift costs the most. The light rig below
+   the fence is deliberately OUTSIDE it: lights are tuned per scene.
+   ====================================================================== */
+/* ---------- renderer: WebGPURenderer, both backends ----------
+   One renderer class, two backends. With a WebGPU adapter (WEBGPU=metal in the
+   recorder, or a real browser) it runs native WGSL; with none (default
+   headless, GPU-less CI) it transparently falls back to WebGL2 — same scene
+   code, same TSL materials, measured visually identical. Init is ASYNC: the
+   boot block at the bottom awaits renderer.init() and a compileAsync pre-warm
+   before signaling sceneReady, so the recorder can never capture a frame
+   whose shaders are still compiling. */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGPURenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(1);                            // fixed DPR = identical pixels everywhere
+/* sortObjects=false is LOAD-BEARING for determinism on r185's node renderer.
+   Confirmed by a minimal out-of-pipeline reproduction (3 meshes, no shadows,
+   both backends): with depth sorting on, REVISITING a state after the sort
+   order changed renders objects at the previous render's pose — first visit
+   correct, every revisit wrong, 100% deterministic-wrong, sticky across
+   re-renders; the stale object's SHADOW draws at the correct pose while its
+   beauty pass lags. Object motion through depth order is a sufficient
+   trigger; camera cuts are just the common cause. sortObjects=false: 40/40
+   clean in the repro, 16/16 on the real scene. Cost: transparent objects
+   draw in CREATION order — when they overlap on screen, create the farther
+   one first. */
+renderer.sortObjects=false;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185
+renderer.outputColorSpace=THREE.SRGBColorSpace;   // r152+ name; outputEncoding is gone
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=STYLE.exposure;
+/* uTime is the ONLY sanctioned time source for TSL node materials. The TSL
+   `time` node auto-increments off an internal clock and breaks seekTo
+   byte-identity — never import it. seekTo drives this uniform, so a node
+   graph reading uTime is exactly as pure as a property set from t. */
+const uTime=THREE.uniform(0);
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(STYLE.bg);
+const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
+addEventListener('resize',resize);resize();
+
+/* ---------- post pipeline: ALWAYS on, pass-through by default ----------
+   Every scene renders through RenderPipeline even with no effects, so the
+   post path is exercised by smoke's determinism and shipped-frame checks on
+   every scene — the untested path is the broken path (that lesson is why
+   Phase 0 exists). Effects are STYLE flags, per-frame pure only:
+     STYLE.bloom: true | {strength,radius,threshold}  — threshold brackets
+       are UNMEASURED on the TSL implementation; do not import the old
+       UnrealBloomPass numbers (see webgpu-stack.md).
+     STYLE.dof:   true | {maxBlur} — focus distance follows the SHOTS[]
+       `focus` property via the solver's shotFocus, so two adjacent shots
+       differing only in focus, joined by cut:'blend', ARE a rack focus.
+   No temporal passes, ever — they break seekTo byte-identity. */
+const uFocus=THREE.uniform(12);
+const pipeline=new THREE.RenderPipeline(renderer);
+{
+  const scenePass=THREE.pass(scene,camera);
+  let out=scenePass.getTextureNode('output');
+  if(STYLE.dof){const o=STYLE.dof===true?{}:STYLE.dof;
+    out=THREE.dof(out,scenePass.getTextureNode('depth'),uFocus,o.maxBlur===undefined?.02:o.maxBlur);}
+  if(STYLE.bloom){const o=STYLE.bloom===true?{}:STYLE.bloom;
+    out=out.add(THREE.bloom(out,o.strength===undefined?.5:o.strength,o.radius===undefined?.3:o.radius,o.threshold===undefined?.9:o.threshold));}
+  pipeline.outputNode=out;
+}
+
+/* ---------- shared helpers ---------- */
+const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
+const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
+/* frustumCulled=false is LOAD-BEARING for determinism, not a perf oversight.
+   The node renderer's per-mesh cull decision was measured consuming a STALE
+   pose: a mesh near the frustum edge rendered or vanished depending on which
+   t the camera arrived FROM, and the wrong answer persisted through repeated
+   renders at the same t (one gear tooth, present from one seek path, absent
+   from another — byte-determinism failure, arrival-path-keyed). Scenes here
+   are a few dozen meshes; culling buys nothing and costs the contract. */
+function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;if(parent)parent.add(o);return o;}
+function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
+/* ==== RIG-END ==== */
+
+/* ---------- lights (a sane default rig; tune per scene) ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
+const key=new THREE.DirectionalLight(0xfff1dd,1.3);
+key.position.set(6,12,8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
+
+/* ==== CHARACTER-START ==================================================
+   The character scaffold. ONE parametric skeleton family — a character is a
+   point in proportion space (propDefaults overrides) plus a shell/material
+   choice. Byte-identical in every scene that carries it; smoke.js
+   parity-checks this fence like KERNEL/SOLVER. Scenes without characters
+   simply do not carry it — the block costs nothing when absent.
+   Doctrine (the founding plan): scaffold-as-data, authored once, never a
+   runtime asset fetch. Every function below is a pure function of its
+   inputs — posing is closed-form (two-bone IK, distributed chain bends), so
+   seekTo purity is untouched. The IK and plant-grid gait are ports of the
+   predecessor's PROVEN walker (its measured lessons kept as comments).
+   ======================================================================= */
+
+/* ---------- proportions: the character IS this vector ----------
+   Lengths in world units, angles in degrees. Facing +X; sagittal plane XY;
+   z is lateral. "A bear", "a human", "the creature you just described" are
+   overrides of these defaults plus a material choice — see
+   references/characters.md for worked vectors. */
+function propDefaults(){
+  return {
+    hipH: 2.3,            // pelvis height at rest; hind legs must out-reach it
+    torsoLen: 2.0,        // pelvis -> chest along the spine
+    torsoTilt: 0,         // 0 = upright biped .. ~85 = horizontal quadruped
+    pelvisR: .8, chestR: .9,
+    neckLen: .55, neckSegs: 2, neckTilt: 0,   // tilt: degrees from vertical toward +X
+    headR: .6, muzzle: 0,                     // muzzle: box length ahead of the face, 0 = none
+    tailLen: 0, tailSegs: 0, tailR: .16, tailTilt: -20, // tilt<0 droops
+    // stance widths. shoulderW must clear the torso silhouette or hanging
+    // arms embed in it (seen on the first render of this template):
+    // shoulderW/2 >= chestR + foreR*~0.4.
+    shoulderW: 2.0, hipW: 1.25,
+    foreUpper: 1.05, foreLower: 1.0, foreR: .26,
+    hindUpper: 1.25, hindLower: 1.2, hindR: .3,
+    footLen: .8, footH: .26,
+    quadruped: false,     // true: forelimbs PLANT (gait) instead of hanging (arms)
+  };
+}
+
+/* ---------- skeleton + shells ----------
+   buildCharacter(P, matFor) -> rig. matFor(part) returns the material for
+   'torso'|'head'|'muzzle'|'limb'|'foot'|'tail' — the seam where shading
+   packs (toon, SSS, fur shells) plug in without touching the skeleton.
+   Structure: limbs hang off root at FIXED attach points; everything else
+   (torso shells, neck, head, tail) lives in rig.body, which scenes bob and
+   lean freely — the proven walker's trick: cosmetic body motion never moves
+   the IK attach frames, so planted feet stay planted. */
+const Cap=(r,len)=>new THREE.CapsuleGeometry(r,len,6,16);
+function buildLimb(parent,ax,ay,az,U,L,r,bend,mats,foot){
+  const attach=new THREE.Group();parent.add(attach);attach.position.set(ax,ay,az);
+  const ug=Cap(r,U);ug.translate(0,-U/2,0);mesh(ug,mats.limb,attach);
+  const mid=new THREE.Group();attach.add(mid);mid.position.y=-U;
+  const lg=Cap(r*.78,L);lg.translate(0,-L/2,0);mesh(lg,mats.limb,mid);
+  const end=new THREE.Group();mid.add(end);end.position.y=-L;
+  if(foot){const fg=B(foot[0],foot[1],r*1.7);fg.translate(foot[0]*.18,-foot[1]/2,0);mesh(fg,mats.foot,end);}
+  return{attach,mid,end,L1:U,L2:L,ax,ay,bend,phase:0,planted:false};
+}
+function buildCharacter(P,matFor){
+  const D=propDefaults();P=Object.assign(D,P||{});
+  const mats={torso:matFor('torso'),head:matFor('head'),muzzle:matFor('muzzle'),
+              limb:matFor('limb'),foot:matFor('foot'),tail:matFor('tail')};
+  // Loud reach checks, same spirit as the match-cut constraint: a leg that
+  // cannot reach the floor "solves" to a silent hyperextension every frame.
+  if(P.hindUpper+P.hindLower<=P.hipH)
+    throw new Error('character: hind legs cannot reach the ground (hindUpper+hindLower <= hipH)');
+  const tilt=P.torsoTilt*Math.PI/180;
+  const cx=Math.sin(tilt)*P.torsoLen, cy=P.hipH+Math.cos(tilt)*P.torsoLen;
+  if(P.quadruped&&P.foreUpper+P.foreLower<=cy)
+    throw new Error('character: forelegs cannot reach the ground (foreUpper+foreLower <= shoulder height)');
+  const root=new THREE.Group();scene.add(root);
+  const body=new THREE.Group();root.add(body);
+  // torso: ONE lathed profile — pelvis dome, eased waist, chest dome — not
+  // overlapping primitives: bulge spheres whose radii nearly match the
+  // capsule under them z-fight into jagged seams (seen on the first render
+  // of this template). Still capsule-hull territory, deliberately not a
+  // sculpt; silhouettes come from proportions.
+  const prof=[];
+  for(let i=0;i<=4;i++){const a2=i/4*Math.PI/2;
+    prof.push(new THREE.Vector2(Math.sin(a2)*P.pelvisR,-Math.cos(a2)*P.pelvisR));}
+  for(let i=1;i<10;i++){const u=i/10;
+    prof.push(new THREE.Vector2(lerp(P.pelvisR,P.chestR,ss(u,.12,.88))*(1-.07*Math.sin(Math.PI*u)),u*P.torsoLen));}
+  for(let i=0;i<=4;i++){const a2=i/4*Math.PI/2;
+    prof.push(new THREE.Vector2(Math.cos(a2)*P.chestR,P.torsoLen+Math.sin(a2)*P.chestR));}
+  const tg=new THREE.LatheGeometry(prof,24);tg.rotateZ(-tilt);
+  mesh(tg,mats.torso,body,0,P.hipH,0);
+  // neck chain: segments along local +y, base at the chest TOP surface (a
+  // base at the chest CENTER sank the head halfway into the torso), tilted
+  // toward +X by neckTilt
+  const neckChain=[];let np=new THREE.Group();body.add(np);
+  np.position.set(cx+Math.sin(tilt)*P.chestR*.8,cy+Math.cos(tilt)*P.chestR*.8,0);
+  np.rotation.z=-(P.neckTilt*Math.PI/180);
+  const nSeg=P.neckLen/Math.max(1,P.neckSegs);
+  for(let i=0;i<P.neckSegs;i++){
+    const g=new THREE.Group();np.add(g);if(i)g.position.y=nSeg;
+    const ng=Cap(P.headR*.42,nSeg);ng.translate(0,nSeg/2,0);mesh(ng,mats.torso,g);
+    neckChain.push(g);np=g;
+  }
+  const head=new THREE.Group();np.add(head);head.position.y=P.neckSegs?nSeg:0;
+  mesh(S(P.headR,24,18),mats.head,head,0,P.headR*.6,0);
+  if(P.muzzle>0){const mg=B(P.muzzle,P.headR*.75,P.headR*.85);
+    mg.translate(P.muzzle/2,0,0);mesh(mg,mats.muzzle,head,P.headR*.55,P.headR*.28,0);}
+  // tail chain: segments along local -y, base rotated to point behind (+tilt raises)
+  const tailChain=[];
+  if(P.tailSegs>0&&P.tailLen>0){
+    let tp=new THREE.Group();body.add(tp);tp.position.set(-P.pelvisR*.5,P.hipH,0);
+    tp.rotation.z=-(Math.PI/2+P.tailTilt*Math.PI/180);
+    const tSeg=P.tailLen/P.tailSegs;
+    for(let i=0;i<P.tailSegs;i++){
+      const g=new THREE.Group();tp.add(g);if(i)g.position.y=-tSeg;
+      const r=lerp(P.tailR,P.tailR*.35,i/Math.max(1,P.tailSegs-1));
+      const sg=Cap(r,tSeg);sg.translate(0,-tSeg/2,0);mesh(sg,mats.tail,g);
+      tailChain.push(g);tp=g;
+    }
+  }
+  // limbs: hind pair always plants; fore pair plants only when quadruped
+  const foot=[P.footLen,P.footH];
+  const limbs={
+    HL:buildLimb(root,0,P.hipH, P.hipW/2,P.hindUpper,P.hindLower,P.hindR, 1,mats,foot),
+    HR:buildLimb(root,0,P.hipH,-P.hipW/2,P.hindUpper,P.hindLower,P.hindR, 1,mats,foot),
+  };
+  if(P.quadruped){
+    limbs.FL=buildLimb(root,cx,cy, P.shoulderW/2,P.foreUpper,P.foreLower,P.foreR,-1,mats,foot);
+    limbs.FR=buildLimb(root,cx,cy,-P.shoulderW/2,P.foreUpper,P.foreLower,P.foreR,-1,mats,foot);
+    // lateral-sequence walk: HL, FL, HR, FR — each a quarter cycle apart
+    limbs.HL.phase=0;limbs.FL.phase=.25;limbs.HR.phase=.5;limbs.FR.phase=.75;
+    for(const k of['HL','HR','FL','FR'])limbs[k].planted=true;
+  }else{
+    // arms hang from the CHEST (they ride body lean); scenes swing them
+    limbs.FL=buildLimb(body,cx,cy, P.shoulderW/2,P.foreUpper,P.foreLower,P.foreR,-1,mats,null);
+    limbs.FR=buildLimb(body,cx,cy,-P.shoulderW/2,P.foreUpper,P.foreLower,P.foreR,-1,mats,null);
+    limbs.HL.phase=0;limbs.HR.phase=.5;
+    limbs.HL.planted=limbs.HR.planted=true;
+  }
+  // Framing estimates for SUBJECTS: height respects torso/neck tilt (a
+  // quadruped is much shorter than the sum of its part lengths — the first
+  // vertical-only formula made the camera frame empty air above a bear),
+  // length is nose-to-tail, for a quadruped subject's w.
+  const nR=P.neckTilt*Math.PI/180,tR2=P.tailTilt*Math.PI/180;
+  const height=Math.max(cy+Math.cos(tilt)*P.chestR*.8+Math.cos(nR)*P.neckLen+P.headR*2,
+                        P.hipH+P.pelvisR)+.1;
+  const length=cx+Math.sin(nR)*P.neckLen+P.headR+P.muzzle
+              +P.pelvisR+Math.cos(tR2)*P.tailLen;
+  return{P,root,body,head,neckChain,tailChain,limbs,
+         planted:Object.values(limbs).filter(l=>l.planted),height,length,
+         chestX:cx,chestY:cy};
+}
+
+/* ---------- analytic two-bone IK (ported, proven) ----------
+   Closed form in the sagittal plane — law of cosines gives the mid joint,
+   the end counter-rotates flat. bend +1 = knee-forward (hind legs, human);
+   bend -1 = elbow-back (quadruped forelegs). dx,dy are the target RELATIVE
+   TO THE ATTACH point (root space). */
+function solveLimb(l,dx,dy){
+  const d=clamp(Math.hypot(dx,dy),.2,l.L1+l.L2-.01);
+  const phi=Math.atan2(dx,-dy);
+  const a=Math.acos(clamp((l.L1*l.L1+d*d-l.L2*l.L2)/(2*l.L1*d),-1,1));
+  const g=Math.acos(clamp((l.L1*l.L1+l.L2*l.L2-d*d)/(2*l.L1*l.L2),-1,1));
+  l.attach.rotation.z=phi+l.bend*a;
+  l.mid.rotation.z=-l.bend*(Math.PI-g);
+  l.end.rotation.z=-(l.attach.rotation.z+l.mid.rotation.z);
+}
+
+/* ---------- plant-grid gait (ported, proven) ----------
+   Everything derives from DISTANCE TRAVELLED s, never wall time — feet
+   freeze mid-plant when the body stops. Each planted limb alternates
+   stance/swing over a 2-stride cycle; its plant point is a pure function of
+   the cycle index. The grid anchors at the walk's START (anchored at the
+   origin, the first frame's target sat a film-width ahead and the IK swung
+   both legs horizontal — shipped once, caught on the contact sheet).
+   Per-limb, the plant column rides the limb's own attach x, which is what
+   makes the SAME grid serve a foreleg planting a torso-length ahead. */
+function footTarget(s,phase,stride,swingH){
+  const cyc=s/(2*stride)+phase;
+  const n=Math.floor(cyc),u=cyc-n;
+  const x0=(n-phase)*2*stride;
+  if(u<.55)return[x0,0];
+  const w=ss(u,.55,1);
+  return[x0+2*stride*w,Math.sin(w*Math.PI)*swingH];
+}
+/* gaitPose(rig, s, vAmp, opts): solve every planted limb of the rig.
+   s     distance travelled since the walk began (world units, >= 0)
+   vAmp  motion envelope 0..1 — blend to a rest stance as it dies, or the
+         last cycle leaves the feet mid-stride (measured lesson)
+   opts  {start: world x where the walk began (default 0),
+          stride, swingH, rootX: rig.root.position.x by default}
+   Scenes own all EXPRESSION (bob, lean, arm swing, hops): gaitPose plants
+   feet, nothing else. For a hop, bypass it and call solveLimb with tucked
+   targets — targets, not pose freezing. gaitBob is the shared phase. */
+function gaitBob(s,stride){return Math.sin(Math.PI*s/stride);}
+function gaitPose(rig,s,vAmp,o={}){
+  const P=rig.P;
+  const stride=o.stride!==undefined?o.stride:(P.hindUpper+P.hindLower)*.62;
+  const swingH=o.swingH!==undefined?o.swingH:.28*stride;
+  const start=o.start||0;
+  const rootX=o.rootX!==undefined?o.rootX:rig.root.position.x;
+  for(const l of rig.planted){
+    let[fx,fy]=footTarget(s,l.phase,stride,swingH);
+    fx+=start+l.ax;                                  // plant column under the attach
+    const rest=rootX+l.ax+(l.phase>=.5?-.18:.13)*stride; // staggered rest stance
+    fx=lerp(rest,fx,clamp(vAmp*2.5,0,1));
+    fy=fy*vAmp;
+    solveLimb(l,fx-rootX-l.ax,fy-l.ay);
+  }
+  return stride;
+}
+
+/* ---------- chains: the spine/tail/neck vocabulary ----------
+   All closed-form, all RESTATE (assignment, never +=). Axes for a chain
+   built by buildCharacter: z = curl (sagittal), x = wag (lateral), y = twist.
+   chainCurl distributes a total bend evenly; chainWave is phase-lagged
+   follow-through — procedural secondary motion, a pure function of its
+   phase argument (drive it from s while moving, from t while idling). */
+function chainCurl(chain,totalRad,axis){
+  const per=totalRad/Math.max(1,chain.length);
+  for(const g of chain)g.rotation[axis||'z']=per;
+}
+function chainWave(chain,phase,amp,lag,axis){
+  chain.forEach((g,i)=>{g.rotation[axis||'x']=amp*Math.sin(phase-i*(lag===undefined?.7:lag));});
+}
+/* ==== CHARACTER-END ==== */
+
+/* ============================================================
+   WORLDS — replace this placeholder with your scene.
+   The demo: ONE default-proportioned walker (small tail added so
+   the chain vocabulary is on screen). A bear, a human, a creature
+   are the SAME calls with different proportion vectors —
+   references/characters.md carries worked vectors.
+   ============================================================ */
+let walker;
+function buildWorlds(){
+  const world=new THREE.Group();scene.add(world);
+  const floor=mesh(new THREE.PlaneGeometry(60,60),std(0xbfd3d6,{roughness:.9}),world);
+  floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+  walker=buildCharacter(
+    {tailLen:1.8,tailSegs:4,neckSegs:2,muzzle:.4},
+    part=>std({torso:0x2a9d8f,head:0x8ad5c9,muzzle:0x257a70,limb:0x257a70,
+               foot:0xe9b44c,tail:0x2a9d8f}[part],{roughness:.6}));
+  // Face features are SCENE add-ons riding rig.head — the attach-point
+  // pattern: the scaffold ships anatomy, the scene ships character. (They
+  // also make facing unambiguous; a bare sphere reads the same front and
+  // back, which made the first render's front shots look like back shots.)
+  for(const sz of[-1,1]){
+    const e=mesh(S(.13,12,10),std(0xf6f3ec,{roughness:.35}),walker.head,.42,.56,sz*.24);
+    mesh(S(.06,8,6),std(0x1c232e,{roughness:.3}),e,.09,0,0);
+  }
+}
+buildWorlds();
+
+/* ============================================================
+   CINEMATOGRAPHY — shots as data, solved per frame.
+
+   SUBJECTS names the things a camera can frame. pos is a pure
+   function of t returning the subject's CENTER, so a moving
+   subject is a tracking shot for free. h is the height the
+   framing math uses. Craft note: track a subject's TRAVEL, not
+   its jumps — leave vertical action out of pos so it moves in
+   the frame instead of being cancelled by the camera.
+
+   SHOTS is the film's shot list — the cinematographer's half of
+   the film, the way BEATS is the editor's. Each shot starts at
+   a beat anchor and runs until the next shot starts:
+     subject  what the shot frames (a SUBJECTS key)
+     size     EWS WS FSA FS MS MCU CU ECU — fraction of frame height
+              the subject occupies (see SIZES)
+     angle    degrees around the subject, 0 = from +Z
+     elev     degrees above level (default 6)
+     fov      this shot's lens (vertical degrees, default 42) —
+              long lens flattens, short lens dramatizes
+     size2 / angle2   optional end values: a push/pull or an
+              orbit eased across the shot's duration
+     focus    subject the DoF plane sits on (default: subject).
+              Scenes with a BokehPass read shotFocus each frame;
+              two adjacent shots differing only in focus, joined
+              by cut:'blend', ARE a rack focus.
+     cut      how the shot ENTERS: 'hard' (default), 'whip'
+              (0.16s snap), 'blend' (0.8s dolly-morph)
+     match    true = must enter with the SAME framing vocabulary
+              (size/angle/elev/fov) as the previous shot — the
+              match-cut constraint, checked at load, throws loud.
+   Raw keyframes are gone on purpose: coordinates were never the
+   author's intent, framing was. If a shot the vocabulary cannot
+   say is genuinely needed, extend the vocabulary — do not sneak
+   coordinates back in.
+   ============================================================ */
+// Travel as a named closed form — SUBJECTS and animate() both derive from
+// THIS, so the camera and the body can never disagree (proven-walker rule).
+const WALK_START=-11;
+const walkerXAt=t=>lerp(WALK_START,0,ramp(t,'walk',.04,.96));
+const SUBJECTS={
+  walker:{pos:t=>[walkerXAt(t),walker.height/2,0],h:walker.height+.4},
+};
+// The size ladder, calibrated to the convention a cinematographer means:
+// f = how many frame-heights the subject's full height spans; a = the
+// vertical anchor on the subject the camera aims at. FS is full-body tight;
+// MS is waist-up — the first cut of this table shipped MS at full-shot
+// framing and the rack's second subject fell out of frame.
+const SHOTS=[
+  {at:['title',0],  subject:'walker', size:'WS',  angle:30},
+  {at:['walk',.08], subject:'walker', size:'FS',  angle:55, cut:'blend'},   // tracking — pos moves, camera follows
+  {at:['look',.05], subject:'walker', size:'MS', anchor:.82, angle:15, cut:'whip'},
+  {at:['settle',0], subject:'walker', size:'WS',  angle:30, size2:'FSA', cut:'blend'},
+].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
+SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
+/* ==== SOLVER-START ====================================================
+   The cinematography solver. This block is byte-identical in every 3D scene —
+   smoke.js FAILS the run if two checked scenes carry different solvers. It had
+   reached SIX copies before this fence existed, which is precisely the drift
+   the generalization plan's postmortem said to pre-empt "at a third consumer".
+   Edit it in ALL 3D scenes or in none.
+   ====================================================================== */
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FSA:{f:.70,a:.5},FS:{f:.95,a:.5},
+             MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+const LENS=STYLE.lens||42;
+SHOTS.forEach((sh,i)=>{                 // the match-cut constraint — verified, not hoped
+  if(!sh.match)return;
+  const q=SHOTS[i-1]||{};
+  const same=sh.size===q.size&&(sh.angle||0)===(q.angle||0)
+    &&(sh.elev===undefined?6:sh.elev)===(q.elev===undefined?6:q.elev)
+    &&(sh.fov===undefined?LENS:sh.fov)===(q.fov===undefined?LENS:q.fov)
+    &&JSON.stringify(sh.anchor===undefined?null:sh.anchor)===JSON.stringify(q.anchor===undefined?null:q.anchor);
+  if(!same)throw new Error('match cut into SHOTS['+i+'] breaks framing: size/angle/elev/fov must equal the previous shot');
+});
+const CUT_DUR=Object.assign({hard:0,whip:.16,blend:.8},STYLE.cutDur||{});
+let shotFocus=12;
+
+/* A shot may name ONE subject or SEVERAL. Several resolves to the union box,
+   because every causal beat is two objects and the space between them — and
+   hand-authoring a composite subject with an invented centre is exactly the
+   "coordinates were never the author's intent" this vocabulary exists to
+   abolish. `d` (depth) is optional and defaults to 0, which keeps a subject
+   that declares only h/w framed exactly as before. */
+function subjectExtent(name,t){
+  const names=Array.isArray(name)?name:[name];
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity,z0=Infinity,z1=-Infinity,anyW=false;
+  for(const n of names){
+    const S=SUBJECTS[n];if(!S)throw new Error('unknown subject: '+n);
+    const[cx,cy,cz]=S.pos(t);
+    const w=S.w||S.h,h=S.h,d=S.d||0;
+    if(S.w)anyW=true;
+    x0=Math.min(x0,cx-w/2);x1=Math.max(x1,cx+w/2);
+    y0=Math.min(y0,cy-h/2);y1=Math.max(y1,cy+h/2);
+    z0=Math.min(z0,cz-d/2);z1=Math.max(z1,cz+d/2);
+  }
+  return{cx:(x0+x1)/2,cy:(y0+y1)/2,cz:(z0+z1)/2,w:x1-x0,h:y1-y0,d:z1-z0,
+         fitW:anyW||names.length>1};
+}
+
+function solveShot(sh,t){
+  const u=sh.t1>sh.t?ss(t,sh.t,sh.t1):0;
+  const A=SIZES[sh.size],B=sh.size2?SIZES[sh.size2]:A;
+  if(!A||!B)throw new Error('unknown size: '+(A?sh.size2:sh.size));
+  const f=lerp(A.f,B.f,u),anchor=sh.anchor!==undefined?sh.anchor:lerp(A.a,B.a,u);
+  const a2=sh.angle2===undefined?(sh.angle||0):sh.angle2;
+  const ang=lerp(sh.angle||0,a2,u)*Math.PI/180;
+  const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
+  const fovd=sh.fov===undefined?LENS:sh.fov;
+  const E=subjectExtent(sh.subject,t);
+  /* Fit the PROJECTED box when depth is known. A subject's on-screen width
+     depends on the camera angle: measured on a real scene, a box that fitted at
+     0 and -45 degrees CLIPPED at -26, because an axis-aligned w is non-monotonic
+     in angle. With d undeclared the subject is treated as billboarded, which is
+     what every pre-existing scene assumed. */
+  const wProj=E.d>0?Math.abs(E.w*Math.cos(ang))+Math.abs(E.d*Math.sin(ang)):E.w;
+  const dist=Math.max(E.h/f,E.fitW?wProj/(f*FRAME.aspect):0)/(2*Math.tan(fovd*Math.PI/360));
+  /* Horizontal aim. The ladder had a vertical anchor and no horizontal one, in
+     both backends — which is why framing a named subject put its most important
+     feature at the frame edge and authors fell back to framing regions. */
+  /* Offset along CAMERA-RIGHT, not world X. Offsetting on world X made anchorX a
+     no-op at angle 0/180 flipped and, at angle 90, moved the target straight
+     toward the camera — changing focus distance and size instead of panning. */
+  const ax=sh.anchorX!==undefined?sh.anchorX:0;
+  const rx=Math.cos(ang),rz=-Math.sin(ang);          // camera-right, horizontal
+  const aimY=E.cy+(anchor-.5)*E.h;
+  const aimX=E.cx+ax*E.w*rx, aimZ=E.cz+ax*E.w*rz;
+  /* Floor guard: the solver had no clamps at all and would place the camera
+     below the ground plane at low elevation and long distance. Not a fix for
+     "camera inside the subject" — that is a LIE about extent, and the extent
+     check in smoke.js is what catches it. */
+  /* Camera floor is OPT-IN (CONFIG.cameraFloor, world units). It is off by
+     default on purpose: clamping y moves the camera off the sphere the solver
+     placed it on, so elevation and true distance both change and the declared
+     rung stops producing the framing it promises — an author asking for a hero
+     low angle would silently get a higher one. A default constant would also
+     bake a world scale into a skill whose whole claim is any subject at any
+     scale: at h~0.2 (a circuit board, a molecule) every shot would clamp. */
+  let py=aimY+Math.sin(elev)*dist;
+  if(CONFIG.cameraFloor!==undefined&&CONFIG.cameraFloor!==null)py=Math.max(CONFIG.cameraFloor,py);
+  return{p:[E.cx+Math.sin(ang)*Math.cos(elev)*dist,py,E.cz+Math.cos(ang)*Math.cos(elev)*dist],
+         l:[aimX,aimY,aimZ],fovd,E};
+}
+/* E rides along from solveShot: the default focus (the shot's own subject) is
+   the extent solveShot already computed for the same subject at the same t —
+   recomputing it doubled the extent work, twice over inside a blend window. */
+function focusDist(sh,t,p,E){const X=sh.focus?subjectExtent(sh.focus,t):E;
+  return Math.hypot(p[0]-X.cx,p[1]-X.cy,p[2]-X.cz);}
+const fitFov=f=>camera.aspect>=FRAME.aspect?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*FRAME.aspect/camera.aspect)*180/Math.PI;
+function setCamera(t){
+  let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
+  const cur=SHOTS[i],c=solveShot(cur,t);
+  let p=c.p,l=c.l,fovd=c.fovd,fd=focusDist(cur,t,c.p,c.E);
+  const cd=CUT_DUR[cur.cut||'hard'];
+  if(i>0&&cd>0&&t<cur.t+cd){                            // entering: whip or dolly-morph
+    const u=ss(t,cur.t,cur.t+cd),q=solveShot(SHOTS[i-1],t);
+    const mix=(a,b)=>[lerp(a[0],b[0],u),lerp(a[1],b[1],u),lerp(a[2],b[2],u)];
+    p=mix(q.p,p);l=mix(q.l,l);fovd=lerp(q.fovd,fovd,u);
+    fd=lerp(focusDist(SHOTS[i-1],t,q.p,q.E),fd,u);      // focus blends too — the rack
+  }
+  const en=STYLE.energy||'steadicam';                    // energy is a STYLE (bible) field
+  const E2={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
+  const F=en==='handheld'?1.9:.55;
+  camera.position.set(p[0]+noise1(t,F,11)*E2*2,p[1]+noise1(t,F,12)*E2*1.2,p[2]);
+  camera.fov=fitFov(fovd);camera.updateProjectionMatrix();
+  camera.lookAt(l[0]+noise1(t,F,13)*E2*.8,l[1]+noise1(t,F,14)*E2*.5,l[2]);
+  shotFocus=fd;
+}
+/* ==== SOLVER-END ==== */
+
+/* ============================================================
+   ANIMATE — every property a pure function of t.
+   Use ss(t, start, end) ramps per beat; never accumulate.
+   ============================================================ */
+function animate(t){
+  const x=walkerXAt(t);
+  const s=x-WALK_START;                          // gait rides distance, never t
+  const vAmp=pulse(t,'walk',.04,.96);            // motion envelope: settles at both ends
+  walker.root.position.x=x;
+  const stride=gaitPose(walker,s,vAmp,{start:WALK_START});
+  const bob=gaitBob(s,stride);
+  // expression is the scene's job — gaitPose only plants feet:
+  walker.body.position.y=.09*bob*vAmp;
+  walker.body.rotation.z=.07*vAmp;               // lean into the walk
+  walker.limbs.FL.attach.rotation.z=.5*bob*vAmp; // arm swing (biped: arms hang free)
+  walker.limbs.FR.attach.rotation.z=-.5*bob*vAmp;
+  walker.limbs.FL.mid.rotation.z=walker.limbs.FR.mid.rotation.z=.25; // resting elbow flex
+  // look beat: distributed aim across the neck chain, then release
+  const look=pulse(t,'look',.1,.9);
+  chainCurl(walker.neckChain,.35*look,'z');      // lift the head
+  walker.head.rotation.y=-.5*look;               // turn toward the +Z camera
+  // tail: ONE wave restated per frame — gait-coupled wag while walking,
+  // t-driven idle sway as the envelope dies (s freezes when the body stops)
+  chainWave(walker.tailChain,Math.PI*s/stride+1.7*t*(1-vAmp),
+            .28*vAmp+.07*(1-vAmp),.7,'x');
+  // settle: one backOut breath on arrival — an effect that finishes leaves
+  const b=backOut(ramp(t,'settle',.1,.55));
+  walker.body.scale.y=1+.04*(b-1);
+}
+
+/* ==== DRIVER-START ====================================================
+   Overlay + the recorder contract + async boot. Byte-identical in every 3D
+   scene — smoke.js FAILS the run if two checked scenes differ here; edit it
+   in ALL 3D scenes or in none. Fenced because it carries the third
+   LOAD-BEARING determinism guard (the nodeFrame tick in seekTo) and the
+   sceneReady ordering. Everything scene-specific it touches arrives via
+   BEATS/CONFIG/STYLE — customize those, not this block.
+   ====================================================================== */
+/* ---------- overlay (captions, title, flashes) ---------- */
+const capEl=document.getElementById('cap');
+const titleEl=document.getElementById('title');
+titleEl.querySelector('h1').textContent=CONFIG.title;
+titleEl.querySelector('p').textContent=CONFIG.subtitle;
+const flashEl=document.getElementById('flash');
+/* ?nocap hides the caption; ?strip=text hides every word on screen. The second
+   is the semantics instrument: "cover everything except the geometry" is the
+   test, and it used to require hand-editing a copy of the scene. */
+const NOCAP=location.search.includes('nocap')||location.search.includes('strip=text');
+/* Flashes anchor to beats ({beat,at}), resolved ONCE to absolute seconds with
+   their half-widths: per-flash `w`, else CONFIG.flashWidth, else the
+   historical 0.25 (it was hardcoded once, which made the shortest expressible
+   flash 0.5s — longer than an entire beat in one film). Both the renderer in
+   setOverlay and the window.FLASHES contract export consume THIS list, so the
+   render and the tooling cannot disagree about flash windows — the resolution
+   used to be written twice and could drift. */
+const FLASHES=(CONFIG.flashes||[]).map(m=>({t:beatAt(m.beat,m.at||0),
+  w:m.w===undefined?(CONFIG.flashWidth===undefined?.25:CONFIG.flashWidth):m.w}));
+function setOverlay(t){
+  // Title card spans the first beat, whatever it is called or how long it runs.
+  const T=BEAT[BEATS[0].name];
+  // Fade OUT completes at the beat boundary, not centred on it: a beat's content
+  // stays inside its own beat, so retiming the title never bleeds into the next.
+  titleEl.style.opacity=(NOCAP?0:ss(t,T.t0+.2,T.t0+.8)*(1-ss(t,T.t1-.6,T.t1))).toFixed(3);
+
+  // Captions ARE beats — no parallel list to drift out of sync. The fade is
+  // inset from each beat edge, which is what used to be a hand-kept gap.
+  const F=CONFIG.capFade;
+  let txt="",op=0;
+  for(const b of BEATS){
+    if(!b.cap)continue;
+    const B=BEAT[b.name];
+    if(t>=B.t0&&t<=B.t1){txt=b.cap;op=ss(t,B.t0,B.t0+F)*(1-ss(t,B.t1-F,B.t1));break;}
+  }
+  if(txt)capEl.textContent=txt;
+  capEl.style.opacity=(NOCAP?0:op).toFixed(3);
+
+  // Flashes: from the ONE resolved list above.
+  let f=0;for(const m of FLASHES)f=Math.max(f,bump(t,m.t-m.w,m.t+m.w));
+  flashEl.style.opacity=(f*.98).toFixed(3);
+}
+
+/* ---------- driver (the recorder contract) ---------- */
+window.DURATION=TOTAL;                                 // derived from BEATS, cannot disagree
+// Exposing the beats table lets external tooling label frames by beat and check caption timing
+// without re-parsing scene source. Read by sheet and motion build commands and caption lints in smoke.js.
+window.BEATS=BEATS;
+// The declared frame is part of the contract: shoot.js sizes its viewport from
+// FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
+// does not export it renders at the historical 1920x1080 default.
+window.FRAME=FRAME;
+// Flash midpoints, resolved to absolute seconds. Part of the contract because a
+// tool cannot read them otherwise: CONFIG is a `const` in a classic script, so
+// it never becomes a window property, and smoke.js's flash-avoidance was
+// silently avoiding nothing. Same shape as why window.BEATS exists — when a tool
+// is tempted to parse scene internals, the contract is missing an export.
+window.FLASHES=FLASHES;
+// Caption fade, resolved, same rule — smoke's reading-speed lint needs it and
+// used to probe CONFIG (scene internals) against a mirrored default.
+window.CAPFADE=CONFIG.capFade;
+// Cut-entry windows, resolved to absolute seconds — so smoke can sample INSIDE
+// shot transitions. Found by review: every fixed-fraction sample point missed
+// every blend window on a shipped film, making transition-confined bugs
+// structurally invisible to the whole suite.
+window.SHOTS=SHOTS.map(s=>({t:s.t,cutEnd:s.t+(CUT_DUR[s.cut||'hard']||0)}));
+/* The nodeFrame tick before render is LOAD-BEARING for shadow determinism.
+   The node renderer updates each shadow map at most once per nodeFrame.frameId
+   (ShadowNode.updateBefore — the guard overrides even shadow.needsUpdate), and
+   frameId only advances in the renderer's INTERNAL rAF loop, never in render().
+   So two seekTo calls inside one browser tick leave the second one rendering
+   with the first one's shadow map — measured as a flaky byte-determinism FAIL
+   whose pixel diff was confined to shadowed regions. Ticking the frame here
+   makes seekTo self-contained for any caller pattern. Private API, pinned at
+   three 0.185.1; smoke fails loudly if an upgrade renames it. */
+window.seekTo=function(t){t=clamp(t,0,TOTAL);uTime.value=t;setCamera(t);animate(t);setOverlay(t);uFocus.value=shotFocus;if(renderer._nodes)renderer._nodes.nodeFrame.update();else console.warn('nodeFrame API missing: shadow determinism guard inactive');pipeline.render();};
+let playing=true,t0=null;
+function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
+window.stopPlayback=function(){playing=false;};
+/* Async boot — the one structural difference from a WebGL-era scene. init()
+   resolves the backend (WebGPU adapter or WebGL2 fallback); compileAsync
+   pre-warms every material in the scene graph so the first captured frame is
+   never mid-compile. ONLY THEN does sceneReady go true: the recorder waits on
+   it, so ordering here is what makes frame 0 as deterministic as frame 400.
+   seekTo stays synchronous after boot — renderAsync() is deprecated in r185
+   and the sync render inside seekTo is the verified path on both backends. */
+(async()=>{
+  await renderer.init();
+  await renderer.compileAsync(scene,camera);
+  /* Which backend actually rendered is a fact of the run, not of the scene —
+     it depends on flags AND on the Chromium build (one binary's default
+     exposes a WebGPU adapter, another's does not). Export it so tooling and
+     humans can see it instead of inferring it; frames are not byte-comparable
+     across backends. */
+  window.BACKEND=renderer.backend.isWebGPUBackend?'webgpu':'webgl2';
+  window.seekTo(0);
+  window.sceneReady=true;
+  if(!location.search.includes('record'))requestAnimationFrame(loop);
+})();
+/* ==== DRIVER-END ==== */
+</script>
+</body>
+</html>
