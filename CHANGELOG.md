@@ -1,5 +1,10 @@
 # changelog
 
+## 0.78.0
+
+### changed
+- **`screenwright` 0.10.0 — simplify pass over the 0.6.0–0.9.1 range: five findings applied, headlined by a sixth parity fence.** The structural one: the page scaffold (overlay CSS + caption/title/vig/flash DOM, lines 1–46 of every 3D scene) had reached FIVE byte-identical unfenced copies — the exact "at a third consumer, extract or marker-fence it" trigger the SOLVER fence's own comment memorializes, fired and unacted again. It is now the `HTML` fence: HTML-comment markers (the block lives outside `<script>`, so the JS-comment marker form cannot fence it), a second regex arm in smoke's parametrized parity loop, verified byte-identical across all five carriers and green on the cross-directory run. This block carries the `will-change` compositor-layer hint — determinism-relevant, previously mirrored only by discipline. The rest: `build.js`'s `REVIEW_EXT` restored to a derivation of `REVIEW_FMT` (it had been snapped to a literal `'jpg'` under a comment still claiming the derivation — changing `REVIEW_FMT` would have silently broken every sheet/strip/poster ffmpeg path); dead `chestX`/`chestY` dropped from `buildCharacter`'s return in both `CHARACTER` carriers (never read anywhere; the rig API now matches characters.md's documented field list); menagerie's 36-line CINEMATOGRAPHY doc block trimmed to the 4-line pointer gearbox and materials already use; characters.md's "Not here yet" closing no longer contradicts the fur/fabric section 40 lines above it (fur and fabric shipped in 0.8.0). Efficiency angle reviewed clean — no findings. Verification: smoke green for all five 3D scenes on webgl2 and both character carriers on webgpu; cross-directory fence parity green with the new fence in the loop.
+
 ## 0.77.1
 
 ### fixed

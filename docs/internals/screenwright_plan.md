@@ -431,6 +431,14 @@ bibles.md's rule ("a hex literal in a material is a look decision hiding
 from the bible switch") applies when the first character bible pair arrives;
 palette keys move into STYLE then, not before.
 
+*Simplify pass over the same range (2026-07-23, screenwright 0.10.0):* the
+sixth parity fence, `HTML` — the shared page scaffold (overlay CSS + caption
+DOM, carrying the will-change compositor hint) had silently reached five
+identical unfenced copies; now HTML-comment-fenced in all five 3D scenes and
+in smoke's parity loop (a second regex arm, since the block lives outside
+`<script>`). Plus four small cleanups; ledger in CHANGELOG 0.78.0. The
+standing cross-directory parity rule now covers six fences.
+
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
 expressions carry the beat in the nocap pass — the caption is not doing the

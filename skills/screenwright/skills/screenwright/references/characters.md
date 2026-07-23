@@ -127,7 +127,6 @@ else.
 
 ## Not here yet (deliberately)
 
-Fur shells and fabric packs land later in Phase 2, tested on the characters
-they exist for; the face morph basis, expression library and hands are
-Phase 3 (`the-briefing` gates them). Secondary motion stays procedural
+The face morph basis, expression library and hands are Phase 3
+(`the-briefing` gates them). Secondary motion stays procedural
 (`chainWave`) or baked — never integrated at runtime.

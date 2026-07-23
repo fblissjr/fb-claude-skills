@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <title>Screenwright character scene</title>
+<!-- ==== HTML-START ==== -->
+<!-- Shared page scaffold (overlay CSS + caption/title/vig/flash DOM), byte-identical
+     in every 3D scene: smoke.js parity-checks this HTML fence. Edit it in ALL
+     scenes or in none. -->
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -44,6 +48,7 @@
      ensureVendor() runs before every command that opens a scene, so this tag
      cannot survive into a render or a commit; smoke.js fails a scene that is
      still carrying it. -->
+<!-- ==== HTML-END ==== -->
 <script src="./three.global.js"></script>
 <script>
 "use strict";
@@ -500,8 +505,7 @@ function buildCharacter(P,matFor){
      [rootX + rig.centerX, rig.height/2, rootZ]. ~0 for upright bipeds. */
   const centerX=(fwd-back)/2;
   return{P,root,body,head,neckChain,tailChain,limbs,mats,
-         planted:Object.values(limbs).filter(l=>l.planted),height,length,centerX,
-         chestX:cx,chestY:cy};
+         planted:Object.values(limbs).filter(l=>l.planted),height,length,centerX};
 }
 
 /* ---------- analytic two-bone IK (ported, proven) ----------

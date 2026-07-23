@@ -104,8 +104,10 @@ Replace the two marked sections: `buildWorlds()` (geometry) and `animate(t)`
   `cut:'blend'`, are a rack focus).
 - No temporal post passes, no `ComputeNode`, no storage buffers.
 - Shared scene blocks are marker-fenced (`KERNEL`/`SOLVER`, plus `RIG`/
-  `DRIVER` in 3D scenes) and smoke byte-parity-checks every fence across the
-  scenes it is pointed at: edit a fenced block in ALL scenes or in none.
+  `DRIVER`/`HTML` in 3D scenes and `CHARACTER` in character scenes) and smoke
+  byte-parity-checks every fence across the scenes it is pointed at: edit a
+  fenced block in ALL scenes or in none. `HTML` uses HTML-comment markers
+  (it fences the page scaffold outside `<script>`); the rest use JS comments.
 
 ### 3. Review on three axes (looking is the method)
 

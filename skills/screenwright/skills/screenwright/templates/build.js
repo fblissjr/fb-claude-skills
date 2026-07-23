@@ -40,7 +40,7 @@ const path = require('path');
 // (frames/all) override this back to png -- a frame-difference metric must not
 // eat JPEG artifacts, and a master must stay lossless.
 const REVIEW_FMT = 'jpeg';
-const REVIEW_EXT = 'jpg';               // the extension follows REVIEW_FMT
+const REVIEW_EXT = REVIEW_FMT === 'jpeg' ? 'jpg' : 'png';
 // One place for the output-basename rule, including the .bundled legacy suffix
 // now that nothing produces .bundled.html.
 const outBase = s => s.replace(/(\.bundled)?\.html$/, '');

@@ -669,8 +669,12 @@ async function checkScene(browser, file) {
     // leave the parity set.
     const texts = new Map();                        // each file read ONCE
     for (const f of scenes) { try { texts.set(f, fs.readFileSync(f, 'utf8')); } catch (e) {} }
-    for (const name of ['KERNEL', 'SOLVER', 'RIG', 'DRIVER', 'CHARACTER']) {
-      const RE = new RegExp(`\\/\\* ==== ${name}-START ====[\\s\\S]*?\\/\\* ==== ${name}-END ==== \\*\\/`);
+    for (const name of ['KERNEL', 'SOLVER', 'RIG', 'DRIVER', 'CHARACTER', 'HTML']) {
+      // HTML fences the shared page scaffold (overlay CSS + caption/title DOM),
+      // which lives outside <script> — its markers are HTML comments, not JS ones.
+      const RE = name === 'HTML'
+        ? new RegExp(`<!-- ==== ${name}-START ==== -->[\\s\\S]*?<!-- ==== ${name}-END ==== -->`)
+        : new RegExp(`\\/\\* ==== ${name}-START ====[\\s\\S]*?\\/\\* ==== ${name}-END ==== \\*\\/`);
       const found = [];
       for (const [f, txt] of texts) {
         // Half-fenced is not exempt — and ask the SAME regex that builds the
