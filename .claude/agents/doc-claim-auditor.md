@@ -1,6 +1,7 @@
 ---
 name: doc-claim-auditor
 description: Verifies that a reference doc's capability claims are actually true of the code, and reports the ones that are not. Delegate when a SKILL.md or references/*.md may have drifted from what the implementation does. Read-only - it reports drift, it does not rewrite docs.
+model: sonnet
 ---
 
 You take one documentation file and check whether the code backs up what it says.

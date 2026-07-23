@@ -238,6 +238,9 @@ research/schema-processing/results/
 
 # explainer-video per-run scratch dirs (pid-suffixed, cleaned in finally)
 .wk-*
+# smoke.js template check-copies. Cleaned in a finally, but a SIGINT during the
+# multi-minute Chromium run kills that, and the leftover is ~800 KB.
+.smoke-*
 .sheetframes
 .stripframes
 .motionframes

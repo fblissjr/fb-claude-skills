@@ -1,5 +1,24 @@
 # changelog
 
+## 0.68.5
+
+### fixed
+- **explainer-video 0.25.4 -> 0.25.5**: a code review found ten real defects, including two in the guard added to prevent them.
+
+  **The parity hook had reimplemented the check instead of calling it.** Verified: a scene whose marker was mangled to `KERNEL-STARTX` dropped out of the comparison in total silence — the exact self-exemption fixed in 0.25.1, reintroduced in bash, diverged from `smoke.js` on day one. `smoke.js` gains `--parity-only`: marker parity plus template integrity with no browser launch, and the hook is now a wrapper around it. One implementation. **A check duplicated into its caller is subject to the rule it enforces**, recorded in `instruments.md`.
+
+  **The hook's own frugality defeated it.** It only ran when scene files were dirty. This repo commits at the end of a turn, so the tree was clean exactly when the check mattered and it never fired — verified by committing real drift and watching it pass. It now runs every stop; measured cost is 0.2s.
+
+  **The self-containment assertion still knew one spelling.** HTML permits unquoted attribute values, so `<script src=./evil.js>` passed as self-contained — the 0.25.3 defect one level down. It was also `<script>`-only while the changelog claimed "is anything external referenced" and promised the Canvas2D backend a guarantee, which is the backend likeliest to pull a font or stylesheet rather than a script. Now covers `script`/`link`/`img`/`iframe`/`video`/`audio`/`source`/`track`/`embed`, quoted or not, with `data:`/`blob:` allowed and `<a href>` deliberately excluded. Ten controls both directions; all six shipped examples still pass.
+
+  **`smoke.js` paid for a build it threw away.** The pre-flight `build.js vendor` had no target, and `vendor()` deletes its own output, so every run built a full minified three.js bundle that was immediately discarded and an `existsSync` guard that could never short-circuit. Removed; the real embed happens per-scene during bundling.
+
+  Also: `.smoke-*` scratch copies are gitignored and excluded from scene discovery (an interrupted run left one behind, and the next run adopted it as a real scene — joining the parity set and being rendered); the half-fence message pointed at the END marker when a mangled START reads identically; and the vestigial single-element `variants` loop is gone, so the cleanup `finally` scope is legible.
+
+### changed
+- `doc-claim-auditor` pinned to `model: sonnet` — grep-and-classify against code is what `.claude/rules/model-delegation.md` calls well-specified, mechanical and verifiable. `film-reviewer` and `control-builder` now state in-file why they deliberately inherit the session model instead.
+- Dropped the `CLAUDE.md` invariant added in 0.68.4 for the `Stop` hook. It did not bite on first edit, which is that section's bar; the hook is discoverable from `settings.json` and self-documented, and the lesson worth keeping lives in `instruments.md`.
+
 ## 0.68.4
 
 ### added

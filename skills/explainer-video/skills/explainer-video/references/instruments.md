@@ -132,15 +132,32 @@ the artifact's own invariant — a template is small and still carries its
 `<script src>` tag — catches every route to it, including routes nobody has
 written yet.
 
-**The instrument deliberately NOT built here** is worth as much as the one that
-was. The obvious move looked like "assert the working tree is clean after
+The artifact check itself lives in `smoke.js --parity-only`, next to marker
+parity, because it is the same kind of property: pure string work over the
+files, no render required. That mode exists so a fast caller — an editor hook,
+a pre-commit, CI's cheap stage — can run these without paying a Chromium
+launch.
+
+**Resist reimplementing it in the caller.** A first attempt wrote the parity
+logic a second time, in bash, inside the hook. It diverged from this file on
+day one: a scene with a mangled `KERNEL-STARTX` marker dropped out of the
+comparison in total silence — the exact self-exemption the check exists to
+catch, and the exact two-copies-drift failure the marker fences exist to
+prevent. **A check duplicated into its caller is subject to the rule it
+enforces.** Callers should be wrappers.
+
+**The instrument deliberately NOT built here** is worth as much as the ones
+that were. The obvious move looked like "assert the working tree is clean after
 `smoke.js` runs". It is wrong: `smoke.js` runs mostly in an author's scratch
 directory, which is usually not a repository at all and where writing files is
 the entire point. The assertion would be false in the tool's primary use case
 and would have to be suppressed there — which is how a check becomes noise and
-then becomes bypassed. **When an invariant belongs to a repository rather than
-to a film, enforce it where repositories are enforced** (a repo hook, CI, a
-pre-commit check), not inside a tool that has no idea it is in one.
+then becomes bypassed. **An invariant that belongs to a repository gets
+enforced where repositories are enforced** (a hook, CI, a pre-commit check),
+not inside a tool that has no idea it is in one. Note the split: *a template is
+small and self-contained* is a property of the file, so it lives here; *the
+tree has no uncommitted changes* is a property of the repository, so it does
+not.
 
 ## What has no instrument
 

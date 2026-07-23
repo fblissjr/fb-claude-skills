@@ -128,10 +128,25 @@ function bundle(src) {
   // CDN, a differently-named bundle -- passed "self-contained" while pointing at
   // a file that would not travel with it. That failure already shipped once: a
   // committed 3D example carried a dangling reference and rendered nothing at
-  // all. A data: URI is genuinely self-contained and is allowed.
-  const ext = html.match(/<script\b[^>]*\bsrc\s*=\s*["'](?!data:)[^"']*["'][^>]*>/i);
+  // all.
+  //
+  // Two subtleties, both found by controls rather than by reasoning:
+  //  - HTML permits UNQUOTED attribute values, so `src=./evil.js` is valid and
+  //    an approximation requiring quotes waves it through -- the same
+  //    "knows one spelling" defect one level down. Hence the optional-quote
+  //    alternation.
+  //  - It is not only <script>. A Canvas2D scene is likelier to pull a font or
+  //    stylesheet than a script, so restricting this to <script src> made the
+  //    guarantee weakest exactly where it was advertised strongest. <link>,
+  //    <img>, <iframe>, <video>, <audio>, <source>, <track> and <embed> travel
+  //    the same way. <a href> is deliberately NOT included: a hyperlink is not
+  //    an embedded resource and a scene may legitimately link out.
+  // data: and blob: URIs are genuinely self-contained and are allowed.
+  const EXTERNAL_REF =
+    /<(?:script|link|img|iframe|video|audio|source|track|embed)\b[^>]*?\b(?:src|href)\s*=\s*(?:"(?!data:|blob:)[^"]*"|'(?!data:|blob:)[^']*'|(?!["']|data:|blob:)[^\s>]+)/i;
+  const ext = html.match(EXTERNAL_REF);
   if (ext) {
-    throw new Error(`${src} is not self-contained — external script reference remains: ${ext[0]}`);
+    throw new Error(`${src} is not self-contained — external reference remains: ${ext[0].trim()}`);
   }
   console.log(`self-contained -> ${src}`);
   return src;

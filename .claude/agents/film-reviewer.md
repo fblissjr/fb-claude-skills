@@ -4,6 +4,12 @@ description: Reviews an explainer-video scene on the three failure axes (composi
 ---
 
 You review a single `explainer-video` scene and report what is wrong with it.
+> **Model:** deliberately inherits the session model rather than pinning a
+> cheaper tier. `.claude/rules/model-delegation.md` routes down only when a
+> task is well-specified, mechanical AND verifiable; this one is a judgment call over rendered
+> images, and its output is the thing a human acts on.
+> Pin a tier here only if that stops being true.
+
 
 The skill's own references are the authority, not this file. **Read them first**,
 because they change and this brief does not:

@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
-# Stop hook: catch kernel/solver drift in explainer-video scenes the moment a
-# turn ends, instead of waiting for someone to run smoke.js (which spawns
+# Stop hook: report explainer-video marker drift and template damage at the end
+# of a turn, instead of waiting for someone to run the full gate (which spawns
 # Chromium and takes minutes).
 #
-# WHY Stop AND NOT PostToolUse: updating the kernel means editing 8 files in
-# sequence, and parity is legitimately broken after edits 1 through 7. On
-# PostToolUse this would fire seven times during correct work, which is exactly
-# the "gate that cries wolf gets bypassed" failure this repo already documents.
-# By Stop, the multi-file edit is complete and parity genuinely should hold.
+# THIS FILE DELIBERATELY CONTAINS NO PARITY LOGIC. It calls
+# `smoke.js --parity-only`, which is the same code the real gate runs. The
+# first version of this hook reimplemented the check in bash and had already
+# diverged from smoke.js on day one -- it dropped a file with a mangled
+# `KERNEL-STARTX` marker out of the comparison in total silence, which is the
+# exact self-exemption bug the check exists to catch, and the exact
+# two-copies-drift failure the marker fences exist to prevent. Keep it a
+# wrapper. If the check needs to change, change it in smoke.js.
 #
-# Silent unless something is wrong. Exits 0 always -- this is a reminder, not a
-# gate; smoke.js is the gate.
+# WHY Stop AND NOT PostToolUse: a kernel edit touches eight files and parity is
+# legitimately broken after the first seven, so PostToolUse would cry wolf
+# through every correct multi-file edit, and a gate that cries wolf gets
+# bypassed. By Stop the edit is complete and parity genuinely should hold.
+#
+# Runs on EVERY stop, with no working-tree precondition. An earlier version
+# only ran when scene files were dirty, which sounded frugal and silently
+# defeated the whole hook: this repo commits at the end of a turn, so the tree
+# was clean exactly when the check mattered most and it never fired.
+#
+# Silent on success. Exits 0 always -- a reminder, not a gate; smoke.js is the
+# gate.
 set -uo pipefail
 
 root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
@@ -18,76 +31,21 @@ root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 scenes="$root/skills/explainer-video/skills/explainer-video"
 [ -d "$scenes" ] || exit 0
 
-# Only speak up if scene files were actually touched. A clean tree means this
-# turn did not edit scenes, and a reminder about them would be pure noise.
-dirty=$(git -C "$root" status --porcelain -- \
-  "skills/explainer-video/skills/explainer-video/templates/*.html" \
-  "skills/explainer-video/skills/explainer-video/examples/*.html" 2>/dev/null)
-[ -n "$dirty" ] || exit 0
+# Repo-relative paths, run from the repo root: the output is easier to read and
+# no absolute path can end up quoted into a commit or a doc by a later reader.
+cd "$root" || exit 0
+rel="skills/explainer-video/skills/explainer-video"
+files=()
+for f in "$rel"/templates/*.html "$rel"/examples/*.html; do
+  [ -e "$f" ] && files+=("$f")
+done
+[ "${#files[@]}" -gt 0 ] || exit 0
 
-# Markers are matched as FIXED strings against the full marker, never as a
-# loose "KERNEL-END" substring -- a mangled `KERNEL-ENDX` satisfies the loose
-# form while the block stops extracting, so the file silently drops out of the
-# comparison. smoke.js had exactly that gap; both now anchor the same way.
-report_drift() {  # $1=marker-stem  $2=human name
-  local stem="$1" name="$2" f h
-  local s="/* ==== $stem-START ====" e="/* ==== $stem-END ==== */"
-  local -a files=() hashes=()
-  for f in "$scenes"/templates/*.html "$scenes"/examples/*.html; do
-    [ -e "$f" ] || continue
-    # No block at all is legitimate -- 2D scenes carry no solver.
-    grep -qF -- "$s" "$f" || continue
-    # A half-fenced file is a real problem: it silently drops out of every
-    # parity comparison, the one thing the duplicated-block pattern cannot
-    # survive.
-    if ! grep -qF -- "$e" "$f"; then
-      echo "  $(basename "$f") has $stem-START with no well-formed $stem-END"
-      echo "    (an unterminated fence is EXCLUDED from parity checks)"
-      return 1
-    fi
-    h=$(awk -v s="$s" -v e="$e" \
-          'index($0,s){b=1} b{print} b&&index($0,e){exit}' "$f" \
-        | shasum -a256 | cut -d' ' -f1)
-    files+=("$(basename "$f")"); hashes+=("$h")
-  done
-  [ "${#hashes[@]}" -ge 2 ] || return 0
-  local uniq
-  uniq=$(printf '%s\n' "${hashes[@]}" | sort -u | wc -l | tr -d ' ')
-  [ "$uniq" -eq 1 ] && return 0
-  echo "  $name blocks differ across these scenes:"
-  local i
-  for i in "${!files[@]}"; do
-    echo "    ${hashes[$i]:0:8}  ${files[$i]}"
-  done
-  return 1
+out=$(node "$rel/templates/smoke.js" --parity-only "${files[@]}" 2>&1) || {
+  echo "explainer-video: scene integrity check"
+  # Drop the trailing status line; the FAIL lines above it carry the detail.
+  echo "$out" | grep -v '^parity/integrity:' | sed 's/^/  /'
+  echo "  Marked blocks are byte-identical by design and templates stay small."
+  echo "  Full gate: bun run smoke.js (spawns Chromium)."
 }
-
-# A shipped template must stay a small, readable starting point. Tools now
-# refuse to embed into one (build.js ensureVendor), but that guards the TOOL
-# path only -- this guards the ARTIFACT, so a hand edit, a merge, or a future
-# command that never goes through ensureVendor is caught the same way.
-# Bracketed both directions by observation: intact templates are 32 KB and
-# 24 KB; an inflated one measured 802 KB. Nothing legitimate sits near 200 KB.
-report_fat_templates() {
-  local f sz
-  for f in "$scenes"/templates/*.template.html; do
-    [ -e "$f" ] || continue
-    sz=$(wc -c < "$f" | tr -d ' ')
-    [ "$sz" -le 204800 ] && continue
-    echo "  $(basename "$f") is $((sz / 1024)) KB — a template should be well under 200 KB"
-    echo "    (looks like a vendored library was embedded into it; templates keep"
-    echo "     their <script src> tag and are copied before being built on)"
-  done
-}
-
-out=$( { report_drift KERNEL "kernel"; report_drift SOLVER "solver"; report_fat_templates; } 2>/dev/null )
-[ -n "$out" ] || exit 0
-
-echo "explainer-video: scene integrity check"
-echo "$out"
-case "$out" in
-  *"blocks differ"*|*"well-formed"*)
-    echo "  Marked blocks are byte-identical by design; smoke.js hard-fails on drift."
-    echo "  Edit them in ALL scenes or in none." ;;
-esac
 exit 0

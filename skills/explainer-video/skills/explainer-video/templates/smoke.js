@@ -506,23 +506,32 @@ async function checkScene(browser, file) {
 }
 
 (async () => {
-  let scenes = process.argv.slice(2);
+  const argv = process.argv.slice(2);
+  // --parity-only: the static half of this gate (marker parity + template
+  // integrity) with NO browser launch. It exists so a fast caller -- an editor
+  // hook, a pre-commit, CI's cheap stage -- can check the properties that are
+  // pure string work without paying a multi-minute Chromium run. Critically it
+  // is the SAME code, not a reimplementation: a second copy in another language
+  // is the two-copies-drift failure this very check exists to prevent, and a
+  // bash re-implementation of it had already diverged from this one on its
+  // first day (it dropped a file with a mangled START marker silently).
+  const parityOnly = argv.includes('--parity-only');
+  let scenes = argv.filter(a => a !== '--parity-only');
   if (!scenes.length) {
     scenes = fs.readdirSync(process.cwd())
-      .filter(f => f.endsWith('.html') && !f.endsWith('.bundled.html'));
+      // `.smoke-*` are this script's own scratch copies. Excluded explicitly:
+      // one left behind by an interrupted run would otherwise be adopted as a
+      // real scene on the next run -- joining the parity set and being rendered.
+      .filter(f => f.endsWith('.html') && !f.endsWith('.bundled.html')
+                   && !path.basename(f).startsWith('.smoke-'));
   }
   if (!scenes.length) { console.error('no scenes to check'); process.exit(1); }
 
-  // Bundling is part of what we are testing, so build it rather than trust it.
-  // Vendor only if a scene actually asks for three — this script tests the
-  // contract, not the renderer, and a 2D or SVG backend must not be forced to
-  // materialize a three bundle it never references.
-  const needsThree = scenes.some(f => {
-    try { return /three\.global\.js/.test(fs.readFileSync(f, 'utf8')); } catch (e) { return false; }
-  });
-  if (needsThree && !fs.existsSync('three.global.js')) {
-    execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'vendor'], { stdio: 'inherit' });
-  }
+  // NOTE: no pre-flight `build.js vendor` here. It used to run one, but
+  // `vendor()` with no target deletes the bundle it just built, so every run
+  // paid a full minified three build whose product was discarded and whose
+  // existsSync guard could never short-circuit. The real embed happens
+  // per-scene inside ensureVendor during the bundle step below.
 
   // Kernel parity: templates carry a marked shared-kit block that must stay
   // byte-identical across files — the two-copies-drift rule, enforced the way
@@ -550,8 +559,9 @@ async function checkScene(browser, file) {
         // pattern means any broken fence, however broken, fails loudly.
         if (txt.includes('KERNEL-START') && !KERNEL_RE.test(txt)) {
           kernelFail = true;
-          console.log(`FAIL ${f} — has KERNEL-START with no well-formed KERNEL-END; `
-                    + `an unterminated fence is excluded from the parity check`);
+          console.log(`FAIL ${f} — has KERNEL-START but no well-formed KERNEL block; `
+                    + `check BOTH markers — a mangled START reads the same way here, `
+                    + `and either way the file is excluded from the parity check`);
         }
       } catch (e) {}
     }
@@ -575,8 +585,8 @@ async function checkScene(browser, file) {
         const txt = fs.readFileSync(f, 'utf8');
         if (txt.includes('SOLVER-START') && !SOLVER_RE.test(txt)) {   // see KERNEL note above
           kernelFail = true;
-          console.log(`FAIL ${f} — has SOLVER-START with no well-formed SOLVER-END; `
-                    + `an unterminated fence is excluded from the parity check`);
+          console.log(`FAIL ${f} — has SOLVER-START but no well-formed SOLVER block; `
+                    + `check BOTH markers — the file is excluded from the parity check`);
         }
       } catch (e) {}
     }
@@ -585,6 +595,30 @@ async function checkScene(browser, file) {
       console.log('FAIL solver drift — these scenes carry different SOLVER blocks:');
       for (const x of solvers) console.log('       ' + x.f);
     }
+
+    // Template integrity, checked here because it is the same kind of property:
+    // pure string work over the files, no render required. A shipped
+    // `*.template.html` is a small readable starting point that keeps its
+    // `<script src>` tag; build.js refuses to embed into one, but that guards
+    // the TOOL path, and an artifact can be broken by a hand edit or a merge
+    // that never calls it. Bracketed by observation both ways: intact templates
+    // measured 32 KB and 24 KB, an inflated one 802 KB. Nothing sits near 200.
+    for (const f of scenes) {
+      if (!/\.template\.html$/.test(path.basename(f))) continue;
+      let sz = 0;
+      try { sz = fs.statSync(f).size; } catch (e) { continue; }
+      if (sz <= 200 * 1024) continue;
+      kernelFail = true;
+      console.log(`FAIL ${f} — template is ${Math.round(sz / 1024)} KB; a template `
+                + `must stay well under 200 KB (a vendored library looks embedded `
+                + `into it — templates keep their <script src> tag and are copied `
+                + `before being built on)`);
+    }
+  }
+
+  if (parityOnly) {
+    console.log(kernelFail ? '\nparity/integrity: FAILED' : '\nparity/integrity: ok');
+    process.exit(kernelFail ? 1 : 0);
   }
 
   const browser = await chromium.launch({
@@ -626,33 +660,29 @@ async function checkScene(browser, file) {
       target = tmp;
     }
     try {
-    const variants = [target];
-    try {
-      execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', target],
-                   { encoding: 'utf8' });
-    } catch (e) {
-      console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
-      failed++;
-    }
-    for (const v of variants) {
-      const { fails, warnings } = await checkScene(browser, v);
-      const label = 'source';
+      try {
+        execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', target],
+                     { encoding: 'utf8' });
+      } catch (e) {
+        console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
+        failed++;
+      }
+      const { fails, warnings } = await checkScene(browser, target);
       if (fails.length) {
         failed++;
-        console.log(`FAIL ${scene} [${label}]`);
+        console.log(`FAIL ${scene} [source]`);
         for (const f of fails) console.log('       ' + f);
       } else {
-        console.log(`ok   ${scene} [${label}]`);
+        console.log(`ok   ${scene} [source]`);
       }
       // Advisory: printed after the ok/FAIL line, never counted toward `failed`
       // or the exit code — a scene with only warnings still prints `ok` and
       // still exits 0.
       if (warnings.length) {
         warned += warnings.length;
-        console.log(`warn ${scene} [${label}]`);
+        console.log(`warn ${scene} [source]`);
         for (const w of warnings) console.log('       ' + w);
       }
-    }
     } finally {
       // finally, not end-of-loop: a throwing check must not leave a 0.77 MB
       // .smoke-*.html sitting in templates/ for someone to commit by accident.
