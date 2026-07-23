@@ -59,6 +59,31 @@ function num(v, dflt, label, { allowZero = false, max = Infinity } = {}) {
   return n;
 }
 
+
+/* ---------- GL backend ------------------------------------------------------
+   Hardware by default; ANGLE_BACKEND=swiftshader forces software.
+
+   This used to be hardcoded to swiftshader, which cost two things. Speed: on a
+   post-chain scene the GL draw alone is 182 ms/frame under SwiftShader against
+   3.3 ms on hardware -- 55x -- and 2.6x end to end. Correctness: a Sky-sourced
+   PMREM environment map poisons every MeshStandardMaterial fragment under
+   SwiftShader, and the shipped pipeline duly produced 342 black frames and a
+   black MP4 with no error and exit 0.
+
+   Determinism is unaffected: seekTo purity is a property WITHIN a renderer, and
+   smoke.js checks it there. Frames are NOT byte-identical across backends
+   (measured PSNR 57-58 dB, differences confined to antialiased edges and
+   speculars), so a regression compared byte-wise must fix the backend on both
+   sides -- which is why this is one env var rather than a silent default flip
+   per machine. */
+function angleArgs() {
+  const base = ['--hide-scrollbars', '--no-sandbox'];
+  const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
+  if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
+  if (want === 'default') return base;                 // let Chromium pick the GPU
+  return [`--use-angle=${want}`, ...base];
+}
+
 function chromiumPath() {
   if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
   try { const p = chromium.executablePath(); if (p && fs.existsSync(p)) return p; } catch (e) {}
@@ -184,7 +209,7 @@ async function openScenePage(browser, sceneFile) {
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
+    args: angleArgs(),
   });
   const { page, dur } = await openScenePage(browser, sceneFile);
 
@@ -195,18 +220,34 @@ async function openScenePage(browser, sceneFile) {
   // silently write to the wrong place in exactly the manual case.
   const outDir = process.env.FRAMES_DIR || 'frames';
 
+  /* PNG is lossless and correct for masters. It is also ~164-190 ms/frame of
+     encode+transfer against ~29 ms for JPEG q90 over the IDENTICAL readback
+     path -- measured, and on hardware GL that is ~95% of all capture time. So
+     review passes (sheet/strip/aspect), which already emit .jpg anyway, opt in
+     via SHOOT_FORMAT=jpeg. Measurements (motion) and deliverables (frames/all)
+     stay PNG: JPEG artifacts would add noise to a frame-difference metric. */
+  const FMT = (process.env.SHOOT_FORMAT || 'png').toLowerCase();
+  const shotOpts = FMT === 'jpeg' ? { type: 'jpeg', quality: 92 } : {};
   const shot = async (t, file) => {
     await page.evaluate(`window.seekTo(${t.toFixed(4)})`);
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, ...shotOpts });
   };
 
   if (mode === 'sample') {
+    // Honour FRAMES_DIR and prefix with the scene. Sample filenames used to be
+    // timestamp-derived and scene-independent, written to CWD regardless of
+    // FRAMES_DIR -- so two scenes sampled at the same t silently overwrote each
+    // other, which duly happened in a shared workspace.
+    const sDir = process.env.FRAMES_DIR || '.';
+    fs.mkdirSync(sDir, { recursive: true });
+    const sBase = path.basename(sceneFile).replace(/\.[^.]+$/, '');
     // sample was left out of the num() hardening: `sample 3O` produced NaN,
     // drove the scene with t=NaN and wrote sample_NaN.png with exit 0 -- the
     // exact typo cited as num()'s motivation, in the one mode it skipped.
     for (const t of (rest[0] || '0').split(',').map((x, i) => num(x, null, `sample time #${i + 1}`, { allowZero: true }))) {
-      await shot(t, `sample_${String(t).replace('.', '_')}.png`);
-      console.log('sample', t);
+      const f = path.join(sDir, `${sBase}_sample_${String(t).replace('.', '_')}.png`);
+      await shot(t, f);
+      console.log('sample', t, '->', f);
     }
   } else if (mode === 'full') {
     const fps = num(rest[0], 30, 'fps'), n = Math.round(fps * dur);

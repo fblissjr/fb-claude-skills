@@ -1,5 +1,27 @@
 # changelog
 
+## 0.62.0
+
+### fixed
+- **explainer-video 0.18.0 -> 0.19.0**: hardening pass one, from a batched test run of eleven films. Full analysis in [docs/internals/explainer_video_hardening_plan.md](docs/internals/explainer_video_hardening_plan.md); the run's ~51 findings collapse into two root causes, and each gets a structural fix rather than a patch per symptom.
+
+  **Root cause 1 — instruments that generalise from a single sample.** `smoke.js:147` was `const t = Math.min(1, dur/3)`, which for any film over 3s is the *constant 1.0s* — inside the title card the workflow tells you to write first. Three controls on one scene proved the consequence: a provably non-deterministic scene reported **`all scenes pass`, 0 warnings**, because t=1.0 was the only timestamp where that scene was clean. The skill's central guarantee could report green on a scene that violated it.
+
+  Fixed structurally with a **sampling layer** every check draws from — it knows the duration, the beat table and the flash windows, offers `uniform`/`beats`/`peaks` modes, avoids `CONFIG.flashes` windows (which blind exactly the beats bracketing a world cut), and reports which points it used so a green result is auditable. Determinism and blankness are now **ALL-quantified** over a 4-point plan rather than spot-checked at one arbitrary second. Verified against all three controls: previously 1 of 3 caught, now 3 of 3, with the good scene still clean.
+
+  **Root cause 1, second half — runs were not isolated and nothing verified provenance.** Five agents independently hit fixed scratch directories; the worst measured case encoded 3 frames from one film and 70 from another, silently. Rather than suffix six hardcoded names with a pid (the seventh command would hardcode a seventh name), all scratch space now goes through one `workspace(scene, tag)` helper, and `motion` asserts that the frames it parses match the frames it wrote — which generalises to any future desync, including the stale-tail class. Verified with concurrent runs in one directory.
+
+  **Bandaids, labelled as such because they genuinely are:** a >=99% near-black frame is now a failure rather than an advisory (a 342-frame all-black render previously reported `all scenes pass`, because the caption pill kept the frame from being technically empty); `shoot.js sample` honours `FRAMES_DIR` and prefixes filenames by scene; `shoot.js` self-heals its vendor step like `build.js`.
+
+### changed
+- **explainer-video: renders are much faster, and the reason was measured, not guessed.** GL backend is now selectable and defaults to **hardware** (`ANGLE_BACKEND=swiftshader` forces software) — it was hardcoded to SwiftShader, which cost 55x on the GL draw for a post-chain scene and let a Sky/PMREM scene render 342 black frames with exit 0. Review passes (`sheet`/`strip`/`aspect`) now capture **JPEG q92** instead of PNG over the identical readback path; they already emit `.jpg`, so no deliverable changes. Measurements (`motion`) and masters (`frames`/`all`) stay PNG.
+
+  Measured: a review pass on the heaviest scene went **7s -> 1s**; a full 30fps render **38.5s -> 21.5s**. Benchmarked at 1920x1080: PNG 185.6 ms/frame, JPEG q92 30.9 ms, JPEG q80 29.5 ms — size nearly halves between q92 and q80 while time barely moves, which locates the remaining cost in CDP pixel readback rather than compression. WebP was tested and **is not available**: Playwright rejects it (`type: expected one of (png|jpeg)`), and it would land in the same ~30 ms band regardless.
+
+### added
+- **explainer-video: `examples/README.md`** describing each of the six films and stating plainly that the `.html` is the film — full resolution at display refresh — while the `.avif` beside it is a heavily compressed 960px/15fps recording that exists only because github.com cannot run a script tag. Judge a film by opening the HTML.
+- Root README now leads with explainer-video and links to the examples folder.
+
 ## 0.61.0
 
 ### added

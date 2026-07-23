@@ -113,6 +113,67 @@ const EXPOSURE_DYNRANGE_THRESHOLD = 18;
 const EXPOSURE_SAMPLE_WIDTH = 320;       // downscale width for the offscreen luma sample
 const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
 
+
+/* ---------- the sampling layer ----------------------------------------------
+   Every check in this file used to hand-roll its own sampling, which is why the
+   SAME defect kept appearing independently: the determinism check, the blank
+   check, the contact sheet and (until it was re-bracketed) the framing lint each
+   picked their own point and then reported about the whole film.
+
+   The proof that this matters, measured on one scene with three controls: a
+   provably non-deterministic scene reported `all scenes pass, 0 warnings`,
+   because `t = Math.min(1, dur/3)` is the CONSTANT 1.0s for any film over 3s —
+   inside the title card the workflow tells you to write first — and t=1.0 was
+   the only timestamp in that film where the scene was clean.
+
+   So sampling becomes shared infrastructure rather than a habit. A check states
+   a plan, gets points that respect what the harness already knows (duration,
+   beats, flash windows), and REPORTS WHICH POINTS IT USED — a green result
+   should be auditable, not authoritative.
+
+   avoid:'flash' matters more than it looks: CONFIG.flashes peaks at beat edges,
+   so any fixed fraction lands inside the white-out on exactly the beats that
+   bracket a world cut — the highest-risk moments in a two-world film. */
+function samplePlan(dur, beats, flashes, opts = {}) {
+  const { mode = 'uniform', n = 3, frac = 0.6, avoid = 'flash' } = opts;
+  let ts = [];
+  if (mode === 'beats' && beats && beats.length) {
+    let acc = 0;
+    for (const b of beats) { ts.push(acc + Math.min(frac, 1 - 1e-6) * b.dur); acc += b.dur; }
+  } else {
+    // uniform: interior points, never 0 or DURATION (both are edges, and t=0 is
+    // a title card in essentially every scene this skill produces)
+    for (let i = 1; i <= n; i++) ts.push(dur * (i / (n + 1)));
+  }
+  if (avoid === 'flash' && Array.isArray(flashes) && flashes.length) {
+    const HALF = 0.3;   // the template's flash is bump(t, c-.25, c+.25); pad it
+    ts = ts.map(t => {
+      for (const c of flashes) {
+        if (Math.abs(t - c) < HALF) {
+          const alt = t < c ? c - HALF - 0.05 : c + HALF + 0.05;
+          return Math.min(Math.max(alt, 0.05), dur - 0.05);
+        }
+      }
+      return t;
+    });
+  }
+  return ts.map(t => Number(Math.min(Math.max(t, 0), dur).toFixed(4)));
+}
+
+// Resolve CONFIG.flashes ({beat,at}) to absolute seconds using window.BEATS.
+async function flashTimes(page) {
+  try {
+    return await page.evaluate(`(() => {
+      const F = (window.CONFIG && window.CONFIG.flashes) || [];
+      const B = window.BEATS || [];
+      if (!F.length || !B.length) return [];
+      const at = {}; let acc = 0;
+      for (const b of B) { at[b.name] = acc; acc += b.dur; }
+      return F.map(f => (at[f.beat] || 0) + (f.at || 0) * ((B.find(b => b.name === f.beat) || {}).dur || 0));
+    })()`);
+  } catch (e) { return []; }
+}
+
 async function checkScene(browser, file) {
   const fails = [];
   const warnings = [];
@@ -144,18 +205,33 @@ async function checkScene(browser, file) {
     // same pipeline, and this check must not lock that out.
 
     const dur = await page.evaluate('window.DURATION');
-    const t = Math.min(1, dur / 3);
-
-    // Determinism: same t twice must be byte-identical. Catches accumulated
-    // state, Math.random(), and wall-clock leaking into the scene — each of
-    // which silently desyncs the MP4 from the HTML loop.
-    await page.evaluate(`window.seekTo(${t})`);
-    const a = await page.screenshot();
-    await page.evaluate(`window.seekTo(${dur})`);          // move away...
-    await page.evaluate(`window.seekTo(${t})`);            // ...and back
-    const b = await page.screenshot();
+    const rawBeats = await page.evaluate('window.BEATS');
+    const flashes = await flashTimes(page);
+    // ALL-quantified over a plan, not a spot check at one arbitrary second.
+    const PLAN = samplePlan(dur, rawBeats, flashes, { mode: 'uniform', n: 4 });
+    const t = PLAN[0];
     const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
-    if (h(a) !== h(b)) fails.push(`seekTo(${t}) not deterministic — scene carries state across frames`);
+
+    // Determinism: same t twice must be byte-identical, at EVERY sampled point.
+    // Catches accumulated state, Math.random(), and wall-clock leaking into the
+    // scene — each of which silently desyncs the MP4 from the HTML loop.
+    // Quantified ALL: one clean timestamp proves nothing, and a scene whose
+    // title card is static is clean at exactly the moment the old check looked.
+    let shots = [];
+    for (const ts of PLAN) {
+      await page.evaluate(`window.seekTo(${ts})`);
+      const x = await page.screenshot();
+      await page.evaluate(`window.seekTo(${dur})`);        // move away...
+      await page.evaluate(`window.seekTo(${ts})`);         // ...and back
+      const y = await page.screenshot();
+      shots.push(x);
+      if (h(x) !== h(y)) {
+        fails.push(`seekTo(${ts}) not deterministic — scene carries state across frames `
+                 + `(checked ${PLAN.join(', ')})`);
+        break;
+      }
+    }
+    const a = shots[0];
 
     // Non-blank, measured on the screenshot rather than the canvas, so this works
     // for any backend (WebGL, 2D canvas, SVG/CSS, plain DOM). PNG compresses a
@@ -167,8 +243,13 @@ async function checkScene(browser, file) {
     // flat fill. Hardcoding 6000 silently mis-calibrated the moment VIEWPORT
     // changed, which is exactly the kind of coupling nobody notices.
     const blankFloor = Math.round((VIEWPORT.width * VIEWPORT.height) / 40);
-    if (a.length < blankFloor) {
-      fails.push(`frame looks blank (${a.length} bytes compressed, floor ${blankFloor})`);
+    // ALL-quantified: the old single sample failed a legitimate film on a 1.6%
+    // margin at one arbitrary second, and passed a broken one by 9 bytes.
+    for (let i = 0; i < shots.length; i++) {
+      if (shots[i].length < blankFloor) {
+        fails.push(`frame looks blank at t=${PLAN[i]} (${shots[i].length} bytes compressed, floor ${blankFloor})`);
+        break;
+      }
     }
 
     // --- advisory checks below: judgment calls, never fail the build --------
@@ -387,7 +468,16 @@ async function checkScene(browser, file) {
       if (worstClipped > EXPOSURE_CLIPPED_THRESHOLD) {
         warnings.push(`exposure [provisional threshold]: washed out — ${(worstClipped * 100).toFixed(1)}% of pixels clipped to white — lower the exposure (STYLE.exposure in current templates) and desaturate/darken pale materials`);
       }
-      if (worstCrushed > EXPOSURE_CRUSHED_THRESHOLD) {
+      // A near-total black frame is not a register, it is a broken render.
+      // Bandaid by nature -- one threshold promoted from warn to fail -- but the
+      // class it closes is real: a 342-frame all-black film reported
+      // `all scenes pass` because the caption pill kept the frame from being
+      // technically EMPTY, so the blank check never fired and this one only
+      // whispered. >=99% near-black is never a design choice.
+      if (worstCrushed >= 0.99) {
+        fails.push(`render is ${(worstCrushed * 100).toFixed(1)}% near-black — this is a broken render, `
+                 + `not a dark register (check the GL backend and the post chain)`);
+      } else if (worstCrushed > EXPOSURE_CRUSHED_THRESHOLD) {
         warnings.push(`exposure [provisional threshold]: crushed — ${(worstCrushed * 100).toFixed(1)}% of pixels near black — raise exposure or add a fill/rim light`);
       }
       if (worstSpread < EXPOSURE_DYNRANGE_THRESHOLD) {
@@ -447,7 +537,16 @@ async function checkScene(browser, file) {
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--hide-scrollbars', '--no-sandbox'],
+    // Hardware GL by default (ANGLE_BACKEND=swiftshader to force software).
+    // The old hardcoded software path let a Sky/PMREM scene render 100% black
+    // while this file reported `all scenes pass`.
+    args: (() => {
+      const want = (process.env.ANGLE_BACKEND || 'default').toLowerCase();
+      const base = ['--hide-scrollbars', '--no-sandbox'];
+      if (want === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
+      if (want === 'default') return base;
+      return [`--use-angle=${want}`, ...base];
+    })(),
   });
 
   let failed = kernelFail ? 1 : 0;

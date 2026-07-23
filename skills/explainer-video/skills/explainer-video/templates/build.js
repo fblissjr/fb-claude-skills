@@ -34,6 +34,11 @@ const path = require('path');
 // module imports over file://, and opening the scene straight from disk is the
 // point. So we bundle three ourselves into one classic script that sets
 // window.THREE — same ergonomics the old UMD build had, no network, no CDN.
+// Review passes capture JPEG: ~6x faster than PNG over the identical readback
+// path, and they tile to .jpg anyway. Measurements (motion) and deliverables
+// (frames/all) override this back to png -- a frame-difference metric must not
+// eat JPEG artifacts, and a master must stay lossless.
+const REVIEW_FMT = 'jpeg';
 const VENDOR = 'three.global.js';
 const VENDOR_TAG = /<script src="\.\/three\.global\.js"><\/script>/;
 const bundleName = (src) => src.replace(/\.html$/, '.bundled.html');
@@ -135,10 +140,47 @@ function ensureVendor(scene) {
 // already holds frames: measured, a stale single frame in X produced a 0.0 MB
 // one-frame mp4 and exit 0. Callers that deliberately own a scratch dir
 // (sheet/loop/avif/strip) still pass one explicitly and are unaffected.
+
+/* ---------- workspace: ONE door to scratch space -----------------------------
+   Every review command used to hardcode its own dir name in the CWD
+   (.sheetframes, .motionframes, .stripframes, .aspectframes, .loopsrc,
+   .loopframes, .avifsrc, .avifframes) and rmSync it at entry AND in finally.
+   Five independent agents hit the consequence: two commands in one directory
+   silently corrupt each other. Measured worst case, two concurrent `frames`
+   runs produced a single dir holding 3 frames from one film and 70 from
+   another — 73 where one film alone needs 74 — and the next encode would have
+   shipped that chimera without a word.
+
+   Suffixing each of the six names with a pid would be the bandaid, and it is
+   the wrong shape: the seventh command someone adds will hardcode a seventh
+   name. So there is one function, and it is the only way to get scratch space.
+   A new command gets isolation for free, which is the whole point. */
+function workspace(scene, tag) {
+  const base = path.basename(String(scene || 'scene')).replace(/\.[^.]+$/, '').replace(/[^\w.-]/g, '_');
+  const dir = `.wk-${base}-${tag}-${process.pid}`;
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/* Provenance: assert the frames we are about to READ are the frames we WROTE.
+   This is the half that generalises — it catches any future desync, not just
+   the concurrent one, including the stale-tail class build.js already carries
+   three comments about. `motion` reported a plausible per-beat profile for a
+   third of a film because nothing compared what it got to what it asked for. */
+function expectFrames(dir, want, what) {
+  const got = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;
+  if (got !== want) {
+    throw new Error(`${what}: expected ${want} frames in ${dir}, found ${got}. `
+      + `Another process may have written here, or the shoot failed partway.`);
+  }
+  return got;
+}
+
 function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
   ensureVendor(scene);
   run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'full', String(fps)],
-      { env: { ...process.env, FRAMES_DIR: dir } });
+      { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: 'png' } });
 }
 
 function video(name, fps = 30) {
@@ -249,7 +291,7 @@ function shootAndScale(scene, fps, width, srcDir, tmpDir) {
 function avif(scene, width = 720, fps = 12) {
   const base = scene.replace(/(\.bundled)?\.html$/, '');
   const out = base + '.avif';
-  const src = '.avifsrc', tmp = '.avifframes';
+  const src = workspace(scene, 'avifsrc'), tmp = workspace(scene, 'avif');
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
   clean();
   try {
@@ -295,7 +337,7 @@ function loop(scene, width = 720, fps = 12) {
   // Shoot into our OWN directory. `loop` used to reuse frames/, which silently
   // overwrote the full-resolution frames a previous `build.js all` had shot --
   // so making a README loop destroyed the source of your mp4 with no warning.
-  const src = '.loopsrc', tmp = '.loopframes';
+  const src = workspace(scene, 'loopsrc'), tmp = workspace(scene, 'loop');
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
   clean();
   try {
@@ -374,12 +416,10 @@ function poster(scene, t = 0, width = 960) {
 function aspectSheet(scene, t = 0, width = 520) {
   ensureVendor(scene);
   const out = scene.replace(/(\.bundled)?\.html$/, '') + '.aspect.jpg';
-  const dir = '.aspectframes';
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
+  const dir = workspace(scene, 'aspect');
   try {
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
     const shapes = JSON.parse(stdout.trim().split('\n').pop()).shapes;
     const n = shapes.length;
     // Each shape has DIFFERENT pixel dimensions. That rules out both the tile
@@ -416,15 +456,14 @@ function sheet(scene, width = 480, frac = 0.6) {
   // .loopsrc/.loopframes. Honouring an inherited FRAMES_DIR here and then
   // recursively deleting it would reopen the "FRAMES_DIR=. erased the scene"
   // failure shoot.js's full-mode comment describes, just one caller removed.
-  const dir = '.sheetframes';
-  fs.rmSync(dir, { recursive: true, force: true });
+  const dir = workspace(scene, 'sheet');
   try {
     // encoding: 'utf8' (not stdio: 'inherit') so the JSON line shoot.js prints
     // comes back to us instead of straight to our own stdout, where we'd have
     // no way to read the beat list back into this process. stderr still goes
     // through so scene errors are not swallowed.
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'beats', String(frac)],
-      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir }, stdio: ['ignore', 'pipe', 'inherit'] });
+      { encoding: 'utf8', env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT }, stdio: ['ignore', 'pipe', 'inherit'] });
     const { beats } = JSON.parse(stdout.trim().split('\n').pop());
     const n = beats.length;
     const cols = Math.min(4, Math.ceil(Math.sqrt(n)));
@@ -495,11 +534,11 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
       'A strip is for a suspect MOMENT; narrow the window rather than skimming a whole beat.');
     n = STRIP_MAX;
   }
-  const dir = '.stripframes';
+  const dir = workspace(scene, 'strip');
   fs.rmSync(dir, { recursive: true, force: true });
   try {
     run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'range',
-      String(a), String(a + n), String(fps)], { env: { ...process.env, FRAMES_DIR: dir } });
+      String(a), String(a + n), String(fps)], { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT } });
     const cols = Math.min(4, n), rows = Math.ceil(n / cols);
     // -start_number because `range` names frames by their GLOBAL index (f00259),
     // not from zero -- that is what makes a re-shot range drop back into a full
@@ -522,10 +561,16 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
 }
 
 function motion(scene, fps = 12) {
-  const dir = '.motionframes';
-  fs.rmSync(dir, { recursive: true, force: true });
+  const dir = workspace(scene, 'motion');
   try {
     frames(scene, fps, dir);
+    // Provenance: what we read must be what we wrote. Without this, a clobbered
+    // scratch dir produced a completely plausible per-beat profile covering a
+    // THIRD of the film -- 65 frames reported for a 254-frame render, exit 0,
+    // the only symptom one ffmpeg stderr line nobody reads. A wrong number that
+    // looks right is worse than no number.
+    const wroteN = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;
+    if (wroteN < 2) throw new Error(`motion: only ${wroteN} frame(s) in ${dir} — the shoot did not produce a film`);
 
     const out = execFileSync('ffmpeg', ['-y', '-framerate', String(fps), '-i', path.join(dir, 'f%05d.png'),
       '-vf', 'tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-',
@@ -537,6 +582,7 @@ function motion(scene, fps = 12) {
     // metadata they interleave.
     const series = [];
     let pendingFrame = null;
+    const _wrote = wroteN;   // captured for the post-parse provenance check
     for (const line of out.split('\n')) {
       const fm = line.match(/frame:(\d+)/);
       if (fm) { pendingFrame = Number(fm[1]); continue; }
@@ -623,6 +669,11 @@ function motion(scene, fps = 12) {
     });
     if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, values.length - 1]);
 
+        if (series.length < _wrote * 0.9) {
+      throw new Error(`motion: parsed ${series.length} frame deltas but ${_wrote} frames were written `
+        + `to ${dir}. The scratch dir was modified mid-run, or ffmpeg stopped early — refusing to `
+        + `report a profile for part of the film.`);
+    }
     console.log(`motion: ${values.length} frames at ${fps}fps, median frame-diff ${median.toFixed(2)}`);
     if (perBeat.length) {
       const peak = Math.max(...perBeat.map(b => b.mean)) || 1;
