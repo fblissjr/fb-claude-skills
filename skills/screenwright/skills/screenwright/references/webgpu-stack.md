@@ -151,9 +151,11 @@ Zero assets: MaterialX noise (`mx_noise_float` — the Perlin-style one; there
 is NO `mx_perlin_noise_float` export and a typo'd node name propagates as
 `undefined` silently — plus `mx_worley_noise_float`, `mx_fractal_noise_float`,
 `mx_aastep`) computes on the GPU. `MeshPhysicalNodeMaterial` (transmission,
-`dispersion`, sheen, iridescence), `MeshSSSNodeMaterial` and
-`MeshToonNodeMaterial` are exercised by the material packs — recipes and
-measured traps in `materials.md`, demonstrated in `examples/materials.html`.
+`dispersion`, sheen, iridescence) and `MeshSSSNodeMaterial` are exercised by
+the material packs — recipes and measured traps in `materials.md`,
+demonstrated in `examples/materials.html`. `MeshToonNodeMaterial` is available
+but deliberately unused: the cel recipe authors its banding directly in the
+node graph on `MeshBasicNodeMaterial` instead.
 Post chains compose through
 `THREE.RenderPipeline` (`PostProcessing` is its deprecated alias). The
 template runs one ALWAYS, pass-through by default, with `STYLE.bloom` and

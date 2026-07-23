@@ -510,7 +510,7 @@ function buildCharacter(P,matFor){
    bend -1 = elbow-back (quadruped forelegs). dx,dy are the target RELATIVE
    TO THE ATTACH point (root space). */
 function solveLimb(l,dx,dy){
-  const d=clamp(Math.hypot(dx,dy),.2,l.L1+l.L2-.01);
+  const d=clamp(Math.hypot(dx,dy),Math.min(.2,l.L1+l.L2-.02),l.L1+l.L2-.01); // floor may not exceed reach (insect-scale rigs)
   const phi=Math.atan2(dx,-dy);
   const a=Math.acos(clamp((l.L1*l.L1+d*d-l.L2*l.L2)/(2*l.L1*d),-1,1));
   const g=Math.acos(clamp((l.L1*l.L1+l.L2*l.L2-d*d)/(2*l.L1*l.L2),-1,1));
@@ -699,7 +699,7 @@ buildWorlds();
 const WALK_START=-11;
 const walkerXAt=t=>lerp(WALK_START,0,ramp(t,'walk',.04,.96));
 const SUBJECTS={
-  walker:{pos:t=>[walkerXAt(t),walker.height/2,0],h:walker.height+.4},
+  walker:{pos:t=>[walkerXAt(t)+walker.centerX,walker.height/2,0],h:walker.height+.4},
 };
 // The size ladder, calibrated to the convention a cinematographer means:
 // f = how many frame-heights the subject's full height spans; a = the
@@ -853,9 +853,10 @@ function animate(t){
   // t-driven idle sway as the envelope dies (s freezes when the body stops)
   chainWave(walker.tailChain,Math.PI*s/stride+1.7*t*(1-vAmp),
             .28*vAmp+.07*(1-vAmp),.7,'x');
-  // settle: one backOut breath on arrival — an effect that finishes leaves
-  const b=backOut(ramp(t,'settle',.1,.55));
-  walker.body.scale.y=1+.04*(b-1);
+  // settle breath: an inhale-exhale PULSE (zero outside its window — a
+  // backOut(ramp)-1 breath holds the walker 4% squashed from frame 0)
+  const breath=pulse(t,'settle',.08,.62);
+  walker.body.scale.y=1+.04*breath;
 }
 
 /* ==== DRIVER-START ====================================================

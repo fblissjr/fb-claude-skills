@@ -119,7 +119,7 @@
       "name": "screenwright",
       "source": "./skills/screenwright",
       "description": "Deterministic animated films of any register — explainer, game cutscene, meme, character short — on the three.js node stack (WebGPURenderer with WebGL2 fallback, TSL node materials, MaterialX procedural noise) plus a Canvas2D backend, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF. Successor to explainer-video: same beats/shots/instruments method, new renderer and material ceiling.",
-      "version": "0.9.0"
+      "version": "0.9.1"
     }
   ],
   "renames": {

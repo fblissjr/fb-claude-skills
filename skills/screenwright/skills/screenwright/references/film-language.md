@@ -122,7 +122,7 @@ read as two subjects only when the camera looks ACROSS that axis — a small
 problem side-on framing is usually reached for to fix. Get variety from
 elevation and from which side, not from going side-on.
 
-**Camera energy** — `CONFIG.energy`: `locked` (tripod), `steadicam` (gentle
+**Camera energy** — `STYLE.energy`: `locked` (tripod), `steadicam` (gentle
 drift), `handheld` (documentary nerves) — seeded `noise1` tracks, amplitude
 riding `CONFIG.sway` so `build.js loop`'s held-camera warning stays honest.
 

@@ -413,6 +413,24 @@ scaffold, squint-distinct, planted) are demonstrated by menagerie;
 `bear-and-bees` the comedy short remains open as the phase's film deliverable
 and carries the comedic-timing half of the gate.
 
+*Post-gate code review (2026-07-23, screenwright 0.9.1):* five-agent pass
+over the 0.6.0–0.9.0 range. Fixed: shoot.js's swiftshader refusal had gone
+dead in the backend.js extraction (called `angleArgs()` without
+`refuseSwiftshaderShip: true` — the documented asymmetry existed only in
+comments); the template demo missed two fixes that landed only in menagerie
+(subject aim without `rig.centerX` cropped the FS at the feet — verified on
+before/after sheets — and the backOut(ramp) breath held the walker 4%
+squashed from frame 0); `solveLimb`'s clamp floor (absolute .2) inverted for
+rigs with reach under .21, posing limbs beyond their own length — floor now
+`min(.2, reach-.02)`, a proven no-op at shipped scales but load-bearing for
+insect-scale rigs (the bees). Docs: webgpu-stack.md overclaimed
+`MeshToonNodeMaterial` as exercised; film-language.md still said
+`CONFIG.energy`. New carry-forward, dispositioned not fixed: character
+material colors are hex literals in `buildCharacter` calls, not STYLE keys —
+bibles.md's rule ("a hex literal in a material is a look decision hiding
+from the bible switch") applies when the first character bible pair arrives;
+palette keys move into STYLE then, not before.
+
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
 expressions carry the beat in the nocap pass — the caption is not doing the

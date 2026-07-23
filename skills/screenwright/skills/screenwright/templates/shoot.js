@@ -171,7 +171,7 @@ async function openScenePage(browser, sceneFile) {
 
   const browser = await chromium.launch({
     executablePath: chromiumPath(),
-    args: angleArgs(),
+    args: angleArgs({ refuseSwiftshaderShip: true }),
   });
   const { page, dur } = await openScenePage(browser, sceneFile);
 

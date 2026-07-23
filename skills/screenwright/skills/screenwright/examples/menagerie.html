@@ -1089,7 +1089,7 @@ function buildCharacter(P,matFor){
    bend -1 = elbow-back (quadruped forelegs). dx,dy are the target RELATIVE
    TO THE ATTACH point (root space). */
 function solveLimb(l,dx,dy){
-  const d=clamp(Math.hypot(dx,dy),.2,l.L1+l.L2-.01);
+  const d=clamp(Math.hypot(dx,dy),Math.min(.2,l.L1+l.L2-.02),l.L1+l.L2-.01); // floor may not exceed reach (insect-scale rigs)
   const phi=Math.atan2(dx,-dy);
   const a=Math.acos(clamp((l.L1*l.L1+d*d-l.L2*l.L2)/(2*l.L1*d),-1,1));
   const g=Math.acos(clamp((l.L1*l.L1+l.L2*l.L2-d*d)/(2*l.L1*l.L2),-1,1));
