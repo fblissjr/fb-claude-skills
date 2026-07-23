@@ -1,5 +1,10 @@
 # changelog
 
+## 0.70.2
+
+### changed
+- **`screenwright` 0.2.2 — rendered previews move out of the plugin subtree.** Decided on measured install mechanics (an opus agent verified both steps on a live install): `marketplace add` shallow-clones the whole repo either way, but `plugin install` copies the plugin subtree into a per-version cache — so binary previews in the plugin dir get duplicated per retained version while contributing nothing to the skill (Claude never reads an AVIF; only the HTML baselines teach, and `examples/` never auto-loads into context per the Agent Skills spec). `gearbox.avif` now lives in repo-level `docs/media/`, embedded by the new `examples/README.md` via cross-tree relative path (GitHub resolves it; no release-asset uploads needed). New standing rule, recorded in the plan: **SKILL.md never cites paths outside the plugin subtree** — the install cache lacks `docs/`, so such pointers would dangle for every installed user. Teaching HTML files stay in-plugin and bundled: self-containment is doctrinal, and there is no way to avoid embedding three without reopening the shipped-broken-example class.
+
 ## 0.70.1
 
 ### changed

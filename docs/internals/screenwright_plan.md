@@ -372,15 +372,22 @@ for: SKILL.md teaches by pointing at in-tree baselines, READMEs embed the
 AVIFs by relative path, and delivery.md's own doctrine forbids the LFS
 workaround (raw serves pointer files, breaking embeds).
 
-Disciplines that keep this durable as the portfolio grows (~9 more films):
-ship only examples a SKILL.md reference or README embed actually cites; cap
-AVIF encodes near the ~0.3–1 MB band (the frozen skill's 2.3 MB pelican
-outlier is the cautionary case — a re-encode candidate under its bugfix-only
-policy); and the revisit trigger is ~50 MB of examples, at which point
-README-only eye-candy moves to release-asset URLs while SKILL-referenced
-baselines stay in-plugin. Related measured note: always-loaded SKILL.md size
-is the real ambient cost (the frozen skill's is ~6.8K tokens, over the
-spec's <5K guidance) — screenwright's SKILL.md stays lean by policy.
+Amended same day after owner pushback, and the amendment is better: the
+teaching HTML files stay in-plugin (bundled — self-containment is doctrinal
+and there is genuinely no way around embedding three without reopening the
+shipped-broken-example class), but **rendered AVIF previews live in the
+repo-level `docs/media/`, outside every plugin subtree**. They are
+human-browsing artifacts with zero skill value (Claude never reads them;
+only the HTML teaches). Examples READMEs embed them by relative path
+(GitHub resolves across the tree), the per-version install cache stops
+duplicating them, and no release-asset uploads are ever needed. The one
+rule: SKILL.md must never cite anything outside the plugin subtree — the
+install cache lacks `docs/`, so such pointers dangle for installed users.
+Remaining disciplines: ship only examples something cites; cap AVIF encodes
+near the ~0.3–1 MB band (the frozen skill's 2.3 MB pelican outlier is the
+cautionary case). Related measured note: always-loaded SKILL.md size is the
+real ambient cost (the frozen skill's is ~6.8K tokens, over the spec's <5K
+guidance) — screenwright's SKILL.md stays lean by policy.
 
 ## Anti-template principle
 

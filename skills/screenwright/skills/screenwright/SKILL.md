@@ -176,4 +176,5 @@ Two constraints that dictate the setup — do not "simplify" them away:
   the six determinism rules, recorder mechanics, measured brackets
 - `examples/gearbox.html` — the regression film against frozen
   explainer-video: same scene body on both stacks, judged side-by-side
-  (`examples/gearbox.avif` is its inline render)
+  (rendered preview in the repo's `docs/media/`, outside the plugin —
+  deliberately: installed plugins carry only what the skill needs)
