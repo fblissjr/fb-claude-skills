@@ -3,7 +3,8 @@
 // any order, re-shot in ranges, and always match the live HTML loop.
 //
 // Usage:
-//   bun run shoot.js <scene.html> sample 0,2.5,7      -> sample_<t>.png previews
+//   bun run shoot.js <scene.html> sample 0,2.5,7      -> <scene>_sample_<t>.png
+//                                                       (into FRAMES_DIR if set)
 //   bun run shoot.js <scene.html> full [fps]          -> frames/f00000.png ... (fps default 30)
 //   bun run shoot.js <scene.html> full 30 --workers 4 -> same frames, N pages in parallel
 //   bun run shoot.js <scene.html> range <a> <b> [fps] -> re-shoot frames [a,b) after an edit
@@ -313,7 +314,7 @@ async function openScenePage(browser, sceneFile) {
       await page.setViewportSize({ width: shapes[i].w, height: shapes[i].h });
       await page.evaluate('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
       await page.evaluate(`window.seekTo(${at.toFixed(4)})`);
-      await page.screenshot({ path: path.join(aDir, `f${String(i).padStart(5, '0')}.png`) });
+      await page.screenshot({ path: path.join(aDir, `f${String(i).padStart(5, '0')}.png`), ...shotOpts });
     }
     console.log(JSON.stringify({ shapes }));
   } else if (mode === 'beats' || mode === 'manifest') {

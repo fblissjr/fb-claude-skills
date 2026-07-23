@@ -1,5 +1,21 @@
 # changelog
 
+## 0.64.1
+
+### fixed
+- **explainer-video 0.21.0 -> 0.21.1**: two real bugs and a round of simplification, from a review of the hardening work.
+
+  **`poster` was broken by this run's own `sample` rename.** `shoot.js` now writes `<scene>_sample_<t>.png` into `FRAMES_DIR`; `poster` still read `sample_<t>.png` from the CWD and would fail at the ffmpeg step. It now owns a workspace and asserts the file exists rather than guessing a name. **`build.js aspect` with no scene** reached `path.resolve(undefined)` and died instead of printing usage — it was added to `USAGE` and the dispatch but not the missing-target guard.
+
+  **`SHOOT_FORMAT` was dead configuration for `aspect`.** `aspects` mode bypassed the shared `shot()` helper and called `page.screenshot()` directly, so the review-capture format never applied and `aspect` paid full PNG cost while `sheet` and `strip` got the measured ~6x. Now 2s.
+
+  **The two Chromium resolvers had diverged on this branch.** `shoot.js` gained a numeric build-number sort; `smoke.js` kept a lexicographic one, which puts `chromium-1099` above `chromium-1223` — so the gate and the recorder could resolve different browsers on the same machine. Synced.
+
+### changed
+- **explainer-video: the sampling layer was over-built and is now the size of its job.** It shipped with `beats`/`peaks` modes and `frac`/`avoid` options, of which exactly one caller used one mode — the other branches were unreachable, written for a `peaks` mode never implemented. Earn-in applies to tooling too. It is now `samplePlan(dur, flashes, n)`, keeping the two behaviours that carry their weight: interior-only points (t=0 is a title card in essentially every scene, which is how the old single-sample check came to look at the one moment a broken scene was clean) and flash avoidance. Verified: all three determinism controls still caught, all six examples and both templates still pass.
+
+  Also removed: a `bundleName` helper orphaned when `bundle()` became an assertion, an `expectFrames` helper superseded by `motion`'s two inline checks, a `_wrote` alias of a variable in the same scope, a dead `shots[0]` binding, a `variants` loop that always had one element after the source/bundled pair collapsed, entry-time `clean()` calls deleting directories `workspace()` had just created, and seven copies of the output-basename regex. The framing check's sample constant was renamed off `EXPOSURE_SAMPLE_TIMES`, so re-bracketing exposure can no longer silently move framing's sample points.
+
 ## 0.64.0
 
 ### added

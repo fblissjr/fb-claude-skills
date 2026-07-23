@@ -39,9 +39,11 @@ const path = require('path');
 // (frames/all) override this back to png -- a frame-difference metric must not
 // eat JPEG artifacts, and a master must stay lossless.
 const REVIEW_FMT = 'jpeg';
+// One place for the output-basename rule, including the .bundled legacy suffix
+// now that nothing produces .bundled.html.
+const outBase = s => s.replace(/(\.bundled)?\.html$/, '');
 const VENDOR = 'three.global.js';
 const VENDOR_TAG = /<script src="\.\/three\.global\.js"><\/script>/;
-const bundleName = (src) => src.replace(/\.html$/, '.bundled.html');
 
 function vendor(dir = process.cwd()) {
   const out = path.join(dir, VENDOR);
@@ -163,19 +165,6 @@ function workspace(scene, tag) {
   return dir;
 }
 
-/* Provenance: assert the frames we are about to READ are the frames we WROTE.
-   This is the half that generalises — it catches any future desync, not just
-   the concurrent one, including the stale-tail class build.js already carries
-   three comments about. `motion` reported a plausible per-beat profile for a
-   third of a film because nothing compared what it got to what it asked for. */
-function expectFrames(dir, want, what) {
-  const got = fs.readdirSync(dir).filter(f => /^f\d{5}\.png$/.test(f)).length;
-  if (got !== want) {
-    throw new Error(`${what}: expected ${want} frames in ${dir}, found ${got}. `
-      + `Another process may have written here, or the shoot failed partway.`);
-  }
-  return got;
-}
 
 function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
   ensureVendor(scene);
@@ -184,7 +173,7 @@ function frames(scene, fps = 30, dir = process.env.FRAMES_DIR || 'frames') {
 }
 
 function video(name, fps = 30) {
-  const out = name.replace(/(\.bundled)?\.html$/, '') + '.mp4';
+  const out = outBase(name) + '.mp4';
   // Honour the same override shoot.js does. video() hardcoded 'frames/' while
   // shoot.js read FRAMES_DIR, so a hand-run `FRAMES_DIR=shots shoot.js ... full`
   // followed by `build.js video` silently encoded the STALE frames/ from a
@@ -289,11 +278,11 @@ function shootAndScale(scene, fps, width, srcDir, tmpDir) {
 // unsure: one 960px still of this scene is 7.3KB against 290KB for the 288-frame
 // sequence, so a sequence that collapsed to a still is off by a factor of 40.
 function avif(scene, width = 720, fps = 12) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.avif';
   const src = workspace(scene, 'avifsrc'), tmp = workspace(scene, 'avif');
+  // workspace() already created these fresh; only the finally-clean is needed.
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
-  clean();
   try {
     const pngs = shootAndScale(scene, fps, width, src, tmp);
     // Same dependency shape as img2webp for the webp path: a separate encoder
@@ -319,7 +308,7 @@ function avif(scene, width = 720, fps = 12) {
 }
 
 function loop(scene, width = 720, fps = 12) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.webp';
   // Warn about sway BEFORE shooting a single frame. Without this, the 10x-90x
   // size penalty documented above LOOP_LIMIT is only discovered after the full
@@ -338,8 +327,8 @@ function loop(scene, width = 720, fps = 12) {
   // overwrote the full-resolution frames a previous `build.js all` had shot --
   // so making a README loop destroyed the source of your mp4 with no warning.
   const src = workspace(scene, 'loopsrc'), tmp = workspace(scene, 'loop');
+  // workspace() already created these fresh; only the finally-clean is needed.
   const clean = () => { for (const d of [src, tmp]) fs.rmSync(d, { recursive: true, force: true }); };
-  clean();
   try {
   // Explicit file list (from shootAndScale) rather than a shell glob. This does
   // NOT dodge ARG_MAX -- execFileSync argv goes through the same execve limit --
@@ -376,14 +365,22 @@ function loop(scene, width = 720, fps = 12) {
 // one — ship a still that links to the video instead. Costs ~20KB and needs no
 // held-camera compromise. Prints the markdown to paste.
 function poster(scene, t = 0, width = 960) {
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.jpg';
   const tag = String(t).replace('.', '_');
   ensureVendor(scene);
-  run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)]);
-  run('ffmpeg', ['-y', '-i', `sample_${tag}.png`, '-vf', `scale=${width}:-2`,
-    '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
-  fs.rmSync(`sample_${tag}.png`, { force: true });
+  // shoot.js writes <scene>_sample_<t>.png into FRAMES_DIR (scene-prefixed so two
+  // scenes sampled at the same t cannot overwrite each other). Own a workspace
+  // and read from it rather than guessing at a name in the CWD.
+  const pdir = workspace(scene, 'poster');
+  try {
+    run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'sample', String(t)],
+        { env: { ...process.env, FRAMES_DIR: pdir } });
+    const shotPath = path.join(pdir, `${path.basename(base)}_sample_${tag}.png`);
+    if (!fs.existsSync(shotPath)) throw new Error(`poster: shoot.js did not write ${shotPath}`);
+    run('ffmpeg', ['-y', '-i', shotPath, '-vf', `scale=${width}:-2`,
+      '-q:v', '4', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+  } finally { fs.rmSync(pdir, { recursive: true, force: true }); }
   console.log(`poster -> ${out} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
   console.log(`\nPaste into the README, with VIDEO_URL from dragging the mp4 into an\n` +
               `issue/PR composer (a repo-relative mp4 will NOT render as a player):\n\n` +
@@ -415,7 +412,7 @@ function poster(scene, t = 0, width = 960) {
 // meaningful for a 9:16 vertical or 1:1 square scene, not just 16:9.
 function aspectSheet(scene, t = 0, width = 520) {
   ensureVendor(scene);
-  const out = scene.replace(/(\.bundled)?\.html$/, '') + '.aspect.jpg';
+  const out = outBase(scene) + '.aspect.jpg';
   const dir = workspace(scene, 'aspect');
   try {
     const stdout = execFileSync('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'aspects', String(t)],
@@ -448,7 +445,7 @@ function aspectSheet(scene, t = 0, width = 520) {
 
 function sheet(scene, width = 480, frac = 0.6) {
   ensureVendor(scene);
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const sheetOut = base + '.sheet.jpg';
   const squintOut = base + '.squint.jpg';
   // Own this dir outright rather than trusting ambient FRAMES_DIR, then
@@ -524,7 +521,7 @@ function sheet(scene, width = 480, frac = 0.6) {
 const STRIP_MAX = 16;
 function strip(scene, t0, t1, fps = 30, width = 480) {
   ensureVendor(scene);
-  const base = scene.replace(/(\.bundled)?\.html$/, '');
+  const base = outBase(scene);
   const out = base + '.strip.jpg';
   const a = Math.round(t0 * fps);
   let n = Math.round(t1 * fps) - a;
@@ -535,7 +532,6 @@ function strip(scene, t0, t1, fps = 30, width = 480) {
     n = STRIP_MAX;
   }
   const dir = workspace(scene, 'strip');
-  fs.rmSync(dir, { recursive: true, force: true });
   try {
     run('bun', ['run', path.join(__dirname, 'shoot.js'), scene, 'range',
       String(a), String(a + n), String(fps)], { env: { ...process.env, FRAMES_DIR: dir, SHOOT_FORMAT: REVIEW_FMT } });
@@ -582,7 +578,6 @@ function motion(scene, fps = 12) {
     // metadata they interleave.
     const series = [];
     let pendingFrame = null;
-    const _wrote = wroteN;   // captured for the post-parse provenance check
     for (const line of out.split('\n')) {
       const fm = line.match(/frame:(\d+)/);
       if (fm) { pendingFrame = Number(fm[1]); continue; }
@@ -669,8 +664,8 @@ function motion(scene, fps = 12) {
     });
     if (runLen >= DEAD_MIN_FRAMES) dead.push([runStart, values.length - 1]);
 
-        if (series.length < _wrote * 0.9) {
-      throw new Error(`motion: parsed ${series.length} frame deltas but ${_wrote} frames were written `
+        if (series.length < wroteN * 0.9) {
+      throw new Error(`motion: parsed ${series.length} frame deltas but ${wroteN} frames were written `
         + `to ${dir}. The scratch dir was modified mid-run, or ffmpeg stopped early — refusing to `
         + `report a profile for part of the film.`);
     }
@@ -700,7 +695,7 @@ function motion(scene, fps = 12) {
 
 const USAGE = 'usage: bun run build.js vendor|bundle|frames|video|all|avif|loop|poster|sheet|aspect|strip|motion <scene.html> [fps|t|t0] [width|t1] [frac|fps]';
 const [, , step, target, fpsArg, widthArg, extraArg] = process.argv;
-if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'strip', 'motion'].includes(step) && !target) {
+if (['bundle', 'frames', 'video', 'all', 'avif', 'loop', 'poster', 'sheet', 'aspect', 'strip', 'motion'].includes(step) && !target) {
   console.error(`${step}: missing <scene.html>\n${USAGE}`); process.exit(1);
 }
 const fps = Number(fpsArg || 30);
@@ -711,7 +706,7 @@ else if (step === 'poster') poster(target, Number(fpsArg || 0), Number(widthArg 
 else if (step === 'bundle') bundle(target);
 else if (step === 'frames') frames(target, fps);
 else if (step === 'video') video(target, fps);
-else if (step === 'all') { const b = bundle(target); frames(b, fps); video(target, fps); }
+else if (step === 'all') { bundle(target); frames(target, fps); video(target, fps); }
 else if (step === 'aspect') aspectSheet(target, Number(fpsArg || 0), Number(widthArg || 520));
 else if (step === 'sheet') sheet(target, Number(fpsArg || 480), widthArg === undefined ? 0.6 : Number(widthArg));
 else if (step === 'strip') strip(target, Number(fpsArg), Number(widthArg), Number(extraArg || 30));

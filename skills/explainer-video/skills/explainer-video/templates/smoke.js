@@ -40,7 +40,11 @@ function chromiumPath() {
                        path.join(os.homedir(), 'Library/Caches/ms-playwright'),
                        path.join(os.homedir(), '.cache/ms-playwright')]) {
     if (!cache || !fs.existsSync(cache)) continue;
-    for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort().reverse()) {
+          // Numeric by build, matching shoot.js. Lexicographic sorts chromium-1099
+      // above chromium-1223, so the gate and the recorder could resolve
+      // different browsers on the same machine.
+      const byBuild = (a, b) => (parseInt(b.replace(/\D+/g, ''), 10) || 0) - (parseInt(a.replace(/\D+/g, ''), 10) || 0);
+      for (const d of fs.readdirSync(cache).filter(d => d.startsWith('chromium')).sort(byBuild)) {
       for (const rel of ['chrome-linux/chrome', 'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
                          'chrome-headless-shell-linux64/chrome-headless-shell',
                          'chrome-mac/headless_shell']) {
@@ -111,7 +115,7 @@ const EXPOSURE_CRUSHED_THRESHOLD = 0.35; // warn if worst-case crushed fraction 
 // blankness on any backend stays covered by the PNG-size check.
 const EXPOSURE_DYNRANGE_THRESHOLD = 18;
 const EXPOSURE_SAMPLE_WIDTH = 320;       // downscale width for the offscreen luma sample
-const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
+const SAMPLE_FRACTIONS = [0.25, 0.5, 0.8]; // fractions of DURATION to sample and take the worst of
 
 
 /* ---------- the sampling layer ----------------------------------------------
@@ -134,30 +138,22 @@ const EXPOSURE_SAMPLE_TIMES = [0.25, 0.5, 0.8]; // fractions of DURATION to samp
    avoid:'flash' matters more than it looks: CONFIG.flashes peaks at beat edges,
    so any fixed fraction lands inside the white-out on exactly the beats that
    bracket a world cut — the highest-risk moments in a two-world film. */
-function samplePlan(dur, beats, flashes, opts = {}) {
-  const { mode = 'uniform', n = 3, frac = 0.6, avoid = 'flash' } = opts;
-  let ts = [];
-  if (mode === 'beats' && beats && beats.length) {
-    let acc = 0;
-    for (const b of beats) { ts.push(acc + Math.min(frac, 1 - 1e-6) * b.dur); acc += b.dur; }
-  } else {
-    // uniform: interior points, never 0 or DURATION (both are edges, and t=0 is
-    // a title card in essentially every scene this skill produces)
-    for (let i = 1; i <= n; i++) ts.push(dur * (i / (n + 1)));
-  }
-  if (avoid === 'flash' && Array.isArray(flashes) && flashes.length) {
-    const HALF = 0.3;   // the template's flash is bump(t, c-.25, c+.25); pad it
-    ts = ts.map(t => {
-      for (const c of flashes) {
-        if (Math.abs(t - c) < HALF) {
-          const alt = t < c ? c - HALF - 0.05 : c + HALF + 0.05;
-          return Math.min(Math.max(alt, 0.05), dur - 0.05);
-        }
-      }
-      return t;
-    });
-  }
-  return ts.map(t => Number(Math.min(Math.max(t, 0), dur).toFixed(4)));
+function samplePlan(dur, flashes, n = 3) {
+  // Interior points only: t=0 and t=DURATION are edges, and t=0 is a title card
+  // in essentially every scene this skill produces -- which is exactly how the
+  // old single-sample check came to look at the one moment a broken scene was
+  // clean. Flash avoidance matters because CONFIG.flashes peaks at beat edges,
+  // so a fixed fraction lands inside the white-out on the beats bracketing a
+  // world cut: the highest-risk moments in a two-world film.
+  const HALF = 0.3;                      // template flash is bump(t, c-.25, c+.25)
+  const ts = [];
+  for (let i = 1; i <= n; i++) ts.push(dur * (i / (n + 1)));
+  return ts.map(t => {
+    for (const c of (flashes || [])) {
+      if (Math.abs(t - c) < HALF) t = t < c ? c - HALF - 0.05 : c + HALF + 0.05;
+    }
+    return Number(Math.min(Math.max(t, 0.05), dur - 0.05).toFixed(4));
+  });
 }
 
 // Flash midpoints come from the contract (window.FLASHES), not from parsing
@@ -200,10 +196,9 @@ async function checkScene(browser, file) {
     // same pipeline, and this check must not lock that out.
 
     const dur = await page.evaluate('window.DURATION');
-    const rawBeats = await page.evaluate('window.BEATS');
     const flashes = await flashTimes(page);
     // ALL-quantified over a plan, not a spot check at one arbitrary second.
-    const PLAN = samplePlan(dur, rawBeats, flashes, { mode: 'uniform', n: 4 });
+    const PLAN = samplePlan(dur, flashes, 4);
     const t = PLAN[0];
     const h = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
@@ -226,7 +221,6 @@ async function checkScene(browser, file) {
         break;
       }
     }
-    const a = shots[0];
 
     // Non-blank, measured on the screenshot rather than the canvas, so this works
     // for any backend (WebGL, 2D canvas, SVG/CSS, plain DOM). PNG compresses a
@@ -369,7 +363,7 @@ async function checkScene(browser, file) {
       // shape precisely because it contains nothing.
       const mad = (a, b) => a.reduce((s2, v, i) => s2 + Math.abs(v - b[i]), 0) / a.length;
       const worst = { narrow: 0, wide: 0 };
-      for (const frac of EXPOSURE_SAMPLE_TIMES) {
+      for (const frac of SAMPLE_FRACTIONS) {
         const ts = dur * frac;
         const grids = {};
         for (const sh of shapes) {
@@ -420,7 +414,7 @@ async function checkScene(browser, file) {
       // scenes without a resize handler just eat the short timeout.
       await page.waitForFunction('document.getElementById("c").width === window.innerWidth',
         { timeout: 2000 }).catch(() => {});
-      const times = EXPOSURE_SAMPLE_TIMES.map(f => f * dur);
+      const times = SAMPLE_FRACTIONS.map(f => f * dur);
       let worstClipped = 0, worstCrushed = 0, worstSpread = Infinity;
       for (const et of times) {
         // seekTo and the pixel sample run in ONE evaluate — a single JS task.
@@ -578,7 +572,7 @@ async function checkScene(browser, file) {
     }
     for (const v of variants) {
       const { fails, warnings } = await checkScene(browser, v);
-      const label = v.endsWith('.bundled.html') ? 'bundled' : 'source';
+      const label = 'source';
       if (fails.length) {
         failed++;
         console.log(`FAIL ${v} [${label}]`);
