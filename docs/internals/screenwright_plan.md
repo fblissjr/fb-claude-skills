@@ -392,8 +392,16 @@ deltas arrive in Phase 3), ported two-bone IK generalized by bend direction,
 plant-grid gait generalized to any planted-limb set, closed-form neck/tail
 chains. Both the biped demo and a quadruped vector verified walking on both
 backends; strip check confirms planted feet hold. `references/characters.md`
-carries the vocabulary. Remaining for the gate: fur-shell + fabric packs,
-then the three gate characters as films.
+carries the vocabulary.
+
+*Step 2 DONE 2026-07-23 (screenwright 0.8.0):* fur (shell layers in the
+CHARACTER fence — normal-displaced geometry per layer, TSL noise coverage,
+alphaTestNode discard so fur never touches the transparency-ordering bill;
+byte-deterministic both backends on the quadruped) and fabric (sheen node
+recipe on MeshPhysicalNodeMaterial, verified rendering — node slots, per the
+transmission lesson). Remaining for the gate: the three gate characters as
+films (bear-and-bees, human, text-invented creature), squint-distinct,
+strip-checked.
 
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;

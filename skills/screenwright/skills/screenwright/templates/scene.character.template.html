@@ -492,7 +492,7 @@ function buildCharacter(P,matFor){
                         P.hipH+P.pelvisR)+.1;
   const length=cx+Math.sin(nR)*P.neckLen+P.headR+P.muzzle
               +P.pelvisR+Math.cos(tR2)*P.tailLen;
-  return{P,root,body,head,neckChain,tailChain,limbs,
+  return{P,root,body,head,neckChain,tailChain,limbs,mats,
          planted:Object.values(limbs).filter(l=>l.planted),height,length,
          chestX:cx,chestY:cy};
 }
@@ -554,6 +554,59 @@ function gaitPose(rig,s,vAmp,o={}){
     solveLimb(l,fx-rootX-l.ax,fy-l.ay);
   }
   return stride;
+}
+
+/* ---------- fur: shell layers ----------
+   addFur(meshObj, opts) grows L concentric shells as CHILDREN of the mesh
+   (they ride every transform the IK moves). Each shell is the same geometry
+   displaced along its own normals — real shell fur, not a scale hack — with
+   a TSL noise coverage that thins toward the tips and darkens toward the
+   roots. Alpha-test discard, NOT transparency: fur stays on the opaque
+   pipeline, so it never joins the sortObjects=false transparency-ordering
+   bill (materials.md). Deterministic: coverage is a pure function of local
+   position; nothing reads time. Shadows are off per shell — L shadow casters
+   per part is noise for the map and pays nothing on screen.
+   opts: {layers:8, len:.18, freq:16, cover:.72, color, roughness:.85}
+   cover is the fraction of the surface still furred at the TIP layer. */
+function addFur(meshObj,o={}){
+  const L=o.layers||8,len=o.len===undefined?.18:o.len;
+  const freq=o.freq||16,cover=o.cover===undefined?.72:o.cover;
+  const col=new THREE.Color(o.color!==undefined?o.color:(meshObj.material.color||0x808080));
+  const shells=[];
+  for(let i=1;i<=L;i++){
+    const u=i/L;
+    const g=meshObj.geometry.clone();
+    const p=g.attributes.position,n=g.attributes.normal;
+    for(let v=0;v<p.count;v++){
+      p.setXYZ(v,p.getX(v)+n.getX(v)*len*u,
+                 p.getY(v)+n.getY(v)*len*u,
+                 p.getZ(v)+n.getZ(v)*len*u);
+    }
+    p.needsUpdate=true;
+    const m=new THREE.MeshStandardNodeMaterial({roughness:o.roughness===undefined?.85:o.roughness});
+    const noise=THREE.mx_fractal_noise_float(THREE.positionLocal.mul(freq),2,2.0,.5,1.0).mul(.5).add(.5);
+    // strand coverage: keep where noise clears a floor that rises with u
+    m.opacityNode=THREE.step(THREE.float(lerp(1-cover*.9,1-cover*.25,1-u)),noise);
+    m.alphaTestNode=THREE.float(.5);            // node slot, not the property — the reliable interface
+    m.colorNode=THREE.color(col.getHex()).mul(lerp(.55,1.05,u));  // dark roots, lit tips
+    const sh=new THREE.Mesh(g,m);
+    sh.castShadow=false;sh.receiveShadow=false;sh.frustumCulled=false;
+    meshObj.add(sh);shells.push(sh);
+  }
+  return shells;
+}
+
+/* furCharacter(rig, parts, opts): fur every mesh of the named parts —
+   identified by their shared per-part material instance, so scene add-ons
+   (eyes, props) are never furred by accident. Collect first, then fur:
+   addFur adds children mid-walk. Fur color defaults to each part's own. */
+function furCharacter(rig,parts,o={}){
+  const wanted=new Set(parts.map(p=>rig.mats[p]));
+  const targets=[];
+  rig.root.traverse(m=>{if(m.isMesh&&wanted.has(m.material))targets.push(m);});
+  const out=[];
+  for(const m of targets)out.push(...addFur(m,{color:m.material.color.getHex(),...o}));
+  return out;
 }
 
 /* ---------- chains: the spine/tail/neck vocabulary ----------

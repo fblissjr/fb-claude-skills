@@ -1,5 +1,10 @@
 # changelog
 
+## 0.76.0
+
+### added
+- **`screenwright` 0.8.0 — Phase 2 step 2: the fur and fabric packs.** Fur is kit code in the `CHARACTER` fence: `addFur(mesh, opts)` grows shell layers as children of the mesh (riding every IK transform) — the same geometry displaced along its own normals per layer, TSL fractal-noise coverage thinning toward the tips and darkening toward the roots, discarded via `alphaTestNode` so fur stays on the OPAQUE pipeline and never joins the sortObjects transparency-ordering bill; shells cast no shadows. `furCharacter(rig, parts, opts)` furs whole parts, identified by their shared per-part material instance so scene add-ons (eyes, props) are never furred by accident. Verified byte-deterministic on both backends on the quadruped vector. Fabric is a `matFor` recipe, not code: `MeshPhysicalNodeMaterial` + `sheenNode`/`sheenRoughnessNode`/`sheenColorNode`, verified rendering on r185 (the sheen rim visibly brightens grazing angles on a roughness-.9 base) — node slots again, with the plain `sheen` property presumed unreliable the way `transmission` measurably is. Both documented in `references/characters.md` with a cross-reference from `materials.md`. Phase 2 remaining: the three gate films (bear-and-bees, human, text-invented creature).
+
 ## 0.75.0
 
 ### added

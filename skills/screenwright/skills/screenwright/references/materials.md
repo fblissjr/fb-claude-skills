@@ -91,3 +91,11 @@ template's pale palette. So, as with the old stack: **what blooms is
 palette-conditional** — bracket on your film's own palette before trusting
 any number, and put emissives you want haloed in direct view, not behind
 glass.
+
+## Fur and fabric (the character packs)
+
+Live with the character scaffold, not here: fur is shell-layer kit code in
+`scene.character.template.html` (`addFur`/`furCharacter` — alpha-test
+discard, so it never joins the transparency-ordering bill above), fabric is
+a sheen recipe on `MeshPhysicalNodeMaterial`. Both node-slot-driven and both
+verified rendering; see `characters.md`.

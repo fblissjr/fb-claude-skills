@@ -84,6 +84,34 @@ Hops are IK targets, not pose freezing (proven-walker lesson): bypass
 gaitPose during airtime and call `solveLimb` with targets tucked toward the
 body, asymmetrically, or the feet read as one.
 
+## Fur (shell layers) and fabric (sheen)
+
+**Fur** is kit code: `furCharacter(rig, ['torso','limb','tail'], opts)` furs
+every mesh of the named parts (identified by their shared per-part material,
+so scene add-ons are never furred by accident), or `addFur(mesh, opts)` for
+one mesh. Each of `opts.layers` (8) shells is the same geometry displaced
+along its own normals by `opts.len` — real shell fur riding every IK
+transform — with TSL noise coverage that thins toward the tips and darkens
+toward the roots. Alpha-test discard via `alphaTestNode` (node slot, per the
+materials.md rule), NOT transparency: fur stays on the opaque pipeline and
+never joins the sortObjects ordering bill. Verified byte-deterministic on
+both backends on the quadruped vector above. Shells cast no shadows —
+L casters per part is shadow-map noise that pays nothing on screen.
+
+**Fabric** is a material recipe for `matFor`, verified rendering on r185
+(the sheen rim brightens grazing angles on a rough base — look for it on
+shoulder edges):
+
+```js
+const m = new THREE.MeshPhysicalNodeMaterial({color: 0x7a3550, roughness: .9});
+m.sheenNode = THREE.float(1.0);
+m.sheenRoughnessNode = THREE.float(.4);
+m.sheenColorNode = THREE.color(0xffd9e0);
+```
+
+Node slots again — the plain `sheen` property is presumed unreliable the
+same way `transmission` measurably is (materials.md).
+
 ## Features are scene add-ons
 
 The scaffold ships anatomy; the scene ships character. Attach features to
