@@ -1,5 +1,20 @@
 # changelog
 
+## 0.60.0
+
+### fixed
+- **explainer-video 0.15.0 -> 0.16.0**: two defects found by *running* the pipeline rather than reading it, both invisible from inside the recorded outputs.
+
+  **The HTML artifact and the recorded formats disagreed on framing.** SKILL.md's headline claim is that one scene file drives the live HTML loop and the frame-exact render alike. They were identical in *time* and not in *framing*. The 2D template scaled by `canvas.height/VIEW_H` alone, so visible world **width** was a function of the viewport's aspect ratio; the 3D solver pins the *vertical* extent (`dist = h/f/(2·tan(fov/2))`), so horizontal extent is vertical × aspect. Either way a window narrower than 16:9 silently cropped the sides. Measured on a fixed world point at `(3,3,0)` in the 3D template: `ndc.x` went **0.913 → 1.161** (off-frame) from aspect 1.78 → 1.40, while `ndc.y` held constant to four decimals.
+
+  It was invisible to the entire test surface **by construction** — no tool in the chain ever opens a non-16:9 viewport (`shoot.js` pins 1920x1080, `smoke.js` uses 640x360 and 1920x1080, `build.js` opens no browser). Only a human resizing a window could see it, and one did. Worst hit was the shipped `toybot-walk`: at 1.40 the sign was cut out of the rack-focus shot — the exact failure that scene's own comment ("both subjects must be visible") exists to prevent. Crop thresholds measured per example: `toybot-walk` 1.66 (only 7% margin at 16:9), `scene2d.template` 1.45, `skill-retrieval` 1.30, `one-scene-every-format` 1.07.
+
+  Both backends now compose against a fixed 16:9 **design frame** and contain it: 2D scales by `min(W/VIEW_W, H/VIEW_H)`; 3D widens the vertical fov below the design ratio while the shot solver keeps the **authored** lens for framing distance — the split that makes it contain rather than zoom out. Applied to both templates and all three examples. **Both are the identity at 16:9, verified byte-identical across all five shipped scenes at two timestamps**, so no committed artifact needed re-rendering and the match-cut constraint is untouched (it is a load-time pass over authored fields; `fitFov` is a uniform post-solver transform, so two shots with equal authored fov render equal fov at every aspect). `references/method.md` gains a "Framing rules" section as a sibling to the determinism rules, which were entirely temporal and had no home for this.
+
+  **`build.js all` could silently encode the wrong frames.** `frames()` declared `dir='frames'` as a default parameter and passed it as `FRAMES_DIR` to `shoot.js`, overriding any ambient value, while `video()` reads `process.env.FRAMES_DIR`. So `FRAMES_DIR=X build.js all` shot fresh frames into `frames/` and encoded from `X/` — the same ship-the-wrong-film failure the comment inside `video()` already describes and claims to have closed, reintroduced through the other half of the pair. Silent whenever `X` already held frames: measured, one stale frame produced a **0.0 MB one-frame mp4 and exit 0**, printed as success. Fixed by defaulting `frames()`'s `dir` to the same expression `video()` uses; callers that own a scratch dir (`sheet`/`loop`/`avif`/`strip`) pass one explicitly and are unaffected.
+
+  Known and still open, recorded in `method.md`: captions are fixed CSS px so they size against the window rather than the design frame, and `smoke.js` measures caption overflow at 1920 wide — a caption can pass there and still clip in a narrow window. The durable guard against the whole class is a smoke check at a second aspect ratio; not yet built.
+
 ## 0.59.0
 
 ### added

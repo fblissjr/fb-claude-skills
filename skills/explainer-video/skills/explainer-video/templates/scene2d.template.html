@@ -174,7 +174,7 @@ addEventListener('resize',resize);resize();
    the scene resolution-independent; the shipping render is whatever viewport
    shoot.js opens. The camera is {x,y,zoom} keyframes anchored to beats —
    the exact convention the 3D template's KEYS[] uses, minus one dimension. */
-const VIEW_H=90;
+const VIEW_H=90, VIEW_W=160;   // design frame: 16:9 at 90 world units tall
 const KEYS=[
   {beat:'title', at:0,  x:0,  y:0, zoom:1},
   {beat:'one',   at:.5, x:0,  y:0, zoom:1},
@@ -188,7 +188,11 @@ function applyCamera(t){
   const cx=lerp(a.x,b.x,u)+noise1(t,.5,1)*sw*8;
   const cy=lerp(a.y,b.y,u)+noise1(t,.5,2)*sw*5;
   const zoom=lerp(a.zoom,b.zoom,u);
-  const s=(canvas.height/VIEW_H)*zoom;
+  // CONTAIN the design frame on both axes. Scaling by height alone made the
+  // visible world WIDTH = VIEW_H*aspect, so any window narrower than 16:9
+  // silently cropped the sides -- while shoot.js pins 1920x1080 and therefore
+  // never showed it. Identity at 16:9; narrower windows letterbox instead.
+  const s=Math.min(canvas.width/VIEW_W,canvas.height/VIEW_H)*zoom;
   ctx.setTransform(s,0,0,s,canvas.width/2-cx*s,canvas.height/2-cy*s);
 }
 

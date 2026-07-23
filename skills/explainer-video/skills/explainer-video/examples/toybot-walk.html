@@ -462,6 +462,20 @@ function solveShot(sh,t){
 }
 function focusDist(sh,t,p){const S=SUBJECTS[sh.focus||sh.subject];if(!S)throw new Error('unknown focus subject');
   const[x,y,z]=S.pos(t);return Math.hypot(p[0]-x,p[1]-y,p[2]-z);}
+/* ---------- design frame ----------
+   The render is always 1920x1080, but the HTML artifact is whatever shape the
+   reader's window is. The solver pins the VERTICAL extent (dist = h/f/2tan(fov/2)),
+   so horizontal extent = vertical * aspect: a window narrower than 16:9 silently
+   CROPS THE SIDES. Measured on a fixed world point, ndc.x went 0.913 -> 1.161
+   (off-frame) from 1.78 -> 1.40 while ndc.y held constant to 4dp.
+   fitFov widens the vertical fov below the design ratio so the horizontal extent
+   is held instead: narrow windows reveal world above and below, never less to the
+   sides. The SOLVER keeps the authored fov for framing distance; only the
+   projection widens -- that split is what makes this contain rather than zoom out.
+   Identity at 16:9, so every recorded frame is byte-identical (verified). */
+const DESIGN_AR=16/9;
+const fitFov=f=>camera.aspect>=DESIGN_AR?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
 function setCamera(t){
   let i=0;for(let k=0;k<SHOTS.length;k++)if(t>=SHOTS[k].t)i=k;
   const cur=SHOTS[i],c=solveShot(cur,t);
@@ -480,7 +494,7 @@ function setCamera(t){
   const E={locked:0,steadicam:1,handheld:4}[en]*CONFIG.sway;
   const F=en==='handheld'?1.9:.55;
   camera.position.set(p[0]+noise1(t,F,11)*E*2,p[1]+noise1(t,F,12)*E*1.2,p[2]);
-  camera.fov=fovd;camera.updateProjectionMatrix();
+  camera.fov=fitFov(fovd);camera.updateProjectionMatrix();
   camera.lookAt(l[0]+noise1(t,F,13)*E*.8,l[1]+noise1(t,F,14)*E*.5,l[2]);
   shotFocus=fd;
 }

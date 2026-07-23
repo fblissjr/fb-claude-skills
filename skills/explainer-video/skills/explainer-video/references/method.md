@@ -652,6 +652,57 @@ Untested; recorded because it is the specific thing to watch a spike for.
 
 Steps 5-7 are the ones that were missing. They are also the cheap ones.
 
+# Framing rules (breaking these breaks video/HTML parity too)
+
+Determinism makes the HTML and the render agree about *when*. It does nothing
+to make them agree about *what is in frame*. The render is always 1920x1080;
+the HTML is whatever shape the reader's window is.
+
+This shipped as a real defect and was invisible to the entire test surface,
+because **no tool in the chain ever opens a non-16:9 viewport** — `shoot.js`
+pins 1920x1080, `smoke.js` uses 640x360 and 1920x1080, `build.js` opens no
+browser at all. Only a human resizing a window could see it. Measured on a
+fixed world point at `(3,3,0)` in the 3D template, projected at four window
+shapes: `ndc.x` went **0.913 → 1.161** (off-frame) from aspect 1.78 → 1.40,
+while `ndc.y` held constant to four decimals. Vertical framing was exactly
+aspect-invariant; horizontal was not. On the shipped `toybot-walk`, that cut
+the sign out of the rack-focus shot at 1.40 — the exact failure that scene's
+own comment ("both subjects must be visible") was written to prevent.
+
+Both templates therefore compose against a fixed 16:9 **design frame** and
+*contain* it:
+
+- **2D** scales by `Math.min(canvas.width/VIEW_W, canvas.height/VIEW_H)` rather
+  than by height alone.
+- **3D** widens the vertical fov when the window is narrower than the design
+  ratio, while the shot solver keeps using the **authored** lens for framing
+  distance. That split is what makes it contain rather than merely zoom out.
+
+Both are the identity at 16:9, so every recorded frame is byte-identical
+(verified across all shipped scenes at two timestamps).
+
+Three consequences to design around:
+
+- The size ladder's `f` is a fraction of the **design frame** height, not the
+  window's. The ladder constrains height and says nothing about width — which
+  is why a subject wider than ~1.8x its declared height crops at `FS` and
+  tighter regardless of window shape. Push in on a narrower named sub-subject
+  rather than inflating `h`.
+- A narrow window reveals world **above and below** the design frame, so
+  **never hide an element by parking it off-frame.** Gate it with scale or
+  opacity instead.
+- Captions are fixed CSS px, so they size against the *window*, not the frame.
+  That is a separate, still-open parity gap: `smoke.js` measures caption
+  overflow at 1920 wide, so a caption can pass there and still clip in a
+  1280-wide window.
+
+The alternative that preserves the authored lens exactly is scissor-letterbox
+(`renderer.setViewport`/`setScissor` into the largest 16:9 rect). It gives
+pixel-exact composition parity at every window shape, at the cost of visible
+bars and re-anchoring the DOM overlays. Contain is the default because it never
+shows bars; reach for letterbox when the HTML must be a faithful preview of the
+video.
+
 # Determinism rules (breaking these breaks video/HTML parity)
 
 - All randomness from the seeded pool `R[]`, indexed, never re-drawn.

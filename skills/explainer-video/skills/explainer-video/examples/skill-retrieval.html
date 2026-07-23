@@ -86,8 +86,14 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=CONFIG.exposure;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(CONFIG.bg);
-const camera=new THREE.PerspectiveCamera(24,16/9,.1,300);   // long lens: reads orthographic
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+const BASE_FOV=24, DESIGN_AR=16/9;                           // long lens: reads orthographic
+const camera=new THREE.PerspectiveCamera(BASE_FOV,DESIGN_AR,.1,300);
+// Widen the vertical fov when the window is narrower than the 16:9 design frame,
+// so a narrow window reveals world above/below instead of cropping the sides.
+// Always recomputed from BASE_FOV, never from camera.fov, so resizes cannot compound.
+const fitFov=f=>camera.aspect>=DESIGN_AR?f:
+  2*Math.atan(Math.tan(f*Math.PI/360)*DESIGN_AR/camera.aspect)*180/Math.PI;
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=fitFov(BASE_FOV);camera.updateProjectionMatrix();}
 addEventListener('resize',resize);resize();
 
 /* ---------- helpers ---------- */

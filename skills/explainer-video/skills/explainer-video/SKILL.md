@@ -2,21 +2,19 @@
 name: explainer-video
 description: >
   Create animated explainer sequences — 3D, diagrammatic, or cross-section — as
-  a self-contained looping HTML page, an MP4, or an animated WebP/AVIF that plays
-  inline in a GitHub README. Use when asked to "make a video / animation /
-  walkthrough / explainer / animated sequence / motion graphic" of any subject
-  in any field: a process, mechanism, system, architecture, organism, market,
-  supply chain, building, policy, or document (e.g. "turn docs/data-flywheel.md
-  into a 30-second video", "animate how a heat pump works", "show how our
-  approval process flows"). Two backends on one contract — three.js 3D (cel
-  shading, IK characters, a deterministic post chain, shots as data) and
-  Canvas2D flat vector — with the look chosen by swappable style packs and
-  bibles. Domain-agnostic — only the geometry and caption register change by
-  field, never the pipeline. Deterministic by construction:
-  the film is a pure function of time t, so one scene file drives the live HTML
-  loop and the frame-exact render alike. Do NOT use for editing existing video
-  files, screen recordings, or slide decks. Audio narration is designed but not
-  wired (see references/audio.md).
+  a self-contained HTML page, an MP4, or an animated WebP/AVIF that plays inline
+  in a README. Use when asked to "make a video / animation / walkthrough /
+  explainer / animated sequence / motion graphic" of any subject in any field:
+  a process, mechanism, system, architecture, organism, market, supply chain,
+  building, policy, or document (e.g. "turn docs/data-flywheel.md into a
+  30-second video", "animate how a heat pump works", "show how our approval
+  process flows"). Two backends — three.js 3D and Canvas2D flat vector — with
+  the look set by style packs and bibles. Domain-agnostic: only the geometry and
+  caption register change by field, never the pipeline. Deterministic — the film
+  is a pure function of time t, so one scene file drives the HTML loop and the
+  frame-exact render alike. Do NOT use for editing existing video files, screen
+  recordings, or slide decks. Audio narration is designed but not wired
+  (references/audio.md).
 metadata:
   author: Fred Bliss
   last_verified: 2026-07-21
@@ -32,6 +30,13 @@ scene file serves as both the interactive HTML artifact (a `requestAnimationFram
 loop mapping wall time onto `seekTo(t)`) and the source for a frame-exact MP4
 (headless Chromium stepping `seekTo(t)` frame by frame into ffmpeg).
 
+Parity has two halves, and `t` is only the first. **`t` fixes what happens; the
+16:9 design frame fixes what is on screen.** The render is always 1920x1080,
+but the HTML artifact is whatever shape the reader's window is — so both
+templates compose against a fixed design frame and *contain* it. A browser
+window narrower than 16:9 reveals more world above and below; it never crops
+the composition. See "Framing rules" in `references/method.md`.
+
 ## Workflow
 
 ### 1. Write the spec first (data before code)
@@ -44,7 +49,11 @@ topic:      what the sequence explains, one sentence
 source:     doc/file it's based on, if any (read it FIRST — facts before film)
 audience:   who watches, and what they should understand at the end
 duration_s: 15-40 typical; ~3-4s per beat is the pacing that reads well
-aspect:     16:9 default
+aspect:     16:9 — the design frame, and it is fixed. shoot.js renders
+            1920x1080 and both templates compose against 16:9; a narrower
+            browser window shows extra world above and below, never less to
+            the sides. Changing it means changing DESIGN_AR (3D) / VIEW_W (2D)
+            in the scene AND shoot.js's viewport together.
 domain:     what field this is from — it decides the geometry vocabulary, not
             the pipeline (a pump, a protein, a portfolio, a permit process)
 style:      palette (3-5 colors), tone (playful | neutral | technical),
@@ -64,7 +73,9 @@ outputs:    html | mp4 | loop | avif | poster (see "Delivery" — decide this HE
 
 Decide delivery now — it constrains the beats, not just the encode step. Four
 peer options, not a ranked list (full comparison in "Delivery"): **HTML** is the
-interactive source itself — no encode step, no camera constraint, but it does
+interactive source itself — no encode step, no held-camera constraint (though
+it alone renders at the reader's window shape, so check a narrow window before
+shipping one — see "Framing rules" in `references/method.md`), but it does
 not run on github.com (script tags are stripped) and needs Pages or a published
 Artifact. **MP4** is the only format with audio and the only one that gives a
 true player, but that requires an issue/PR attachment — it does not render
