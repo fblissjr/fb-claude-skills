@@ -1,5 +1,16 @@
 # changelog
 
+## 0.61.0
+
+### added
+- **explainer-video 0.17.0 -> 0.18.0**: four new committed examples, and every example is now a genuinely self-contained single file.
+
+  **Examples.** The plugin previously shipped two films, both self-referential — the pipeline explaining itself, and a demo character. Added: **`heat-pump`** (36.6s, 10 beats, three worlds joined by four hard cuts under flashes, every cut verified at flash 0.980 on the exact frame the world changes), **`chain-reaction`** (16s, a six-link Rube Goldberg where each link's trigger time is derived from the previous link's own curve), **`pelican-walk`** (17.8s, no explanation — 1600 instanced rain streaks whose height is `mod(t)` and lightning as three exponential decays at fixed offsets, both pure functions of `t`), and **`toybot-dance`** (12.6s, no captions at all). That gives the examples cross-world walkthrough, causal-chain, and two non-explainer registers for the first time. `skill-retrieval` removed at the owner's request; `toybot-walk.midnight.avif` removed — `midnight` is a one-line render, which holds the control-pair claim more honestly than a committed artifact that can go stale against the scene.
+
+  **Vendoring is now structural, not a convention.** `build.js vendor` builds three as an IIFE, splices it directly into the HTML, and deletes the intermediate file — there is no `three.global.js` to ship and no `.bundled.html`. `ensureVendor` runs before every command that opens a scene, so a scene cannot reach a render, a review, or a commit still pointing at a library that is not inside it, and `smoke.js` fails any scene that is not self-contained (`bundle` is now an idempotent assertion rather than a transform). This closes a real defect: the committed 3D example shipped as un-bundled source with a dangling `./three.global.js` reference and **rendered nothing when opened**, because bundling was an optional manual last step. The old source-vs-bundled artifact pair collapses into one file, and with it the whole "the bundled copy drifted from the source" failure class.
+
+  Verified: all six examples self-contained, smoke green (contract, determinism, kernel parity, framing invariance), and byte-identical renders before and after embedding. AVIFs standardised at 960px/15fps.
+
 ## 0.60.0
 
 ### fixed

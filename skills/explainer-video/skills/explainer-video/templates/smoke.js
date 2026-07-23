@@ -453,14 +453,18 @@ async function checkScene(browser, file) {
   let failed = kernelFail ? 1 : 0;
   let warned = 0;
   for (const scene of scenes) {
+    // There is exactly ONE artifact now. Vendoring embeds three directly into the
+    // scene, so the old source-vs-bundled pair collapsed into a single file --
+    // and with it the whole class of "the bundled copy drifted from the source".
+    // What survives is the property that mattered: assert the scene really is
+    // self-contained, because a scene that still points at an external library
+    // renders nothing the moment it is copied or committed on its own.
     const variants = [scene];
     try {
-      const out = execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
-                               { encoding: 'utf8' });
-      const m = out.match(/bundled -> (.+)/);
-      if (m) variants.push(m[1].trim());
+      execFileSync('bun', ['run', path.join(__dirname, 'build.js'), 'bundle', scene],
+                   { encoding: 'utf8' });
     } catch (e) {
-      console.log(`FAIL ${scene} [bundle] — ${e.message.split('\n')[0]}`);
+      console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
       failed++;
     }
     for (const v of variants) {

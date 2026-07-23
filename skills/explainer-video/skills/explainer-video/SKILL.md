@@ -138,7 +138,7 @@ unchanged on both. Pick by the look the spec calls for:
 cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
-bun run build.js vendor            # writes three.global.js beside the scene
+bun run build.js vendor            # EMBEDS three into the scene; leaves no .js
 ```
 
 Either scene is runnable as-is (placeholder scene, 12s) and already contains
@@ -293,8 +293,8 @@ bun run build.js poster <name>.html 7.2      # <name>.jpg + the markdown to past
 Four peer delivery options — HTML, MP4, WebP, AVIF — not a ranked list. Which
 one(s) to ship is a per-project call; choose by what the context needs.
 
-HTML: the bundled file (`build.js bundle`) is a single self-contained artifact
-that runs offline — the interactive, deterministic source itself, not a
+HTML: the scene file itself is a single self-contained artifact that runs
+offline (three is embedded at vendor time; `build.js bundle` just asserts it) — the interactive, deterministic source itself, not a
 rendering of it. It autoplays and loops. It does **not** run on github.com
 (script tags are stripped); serve it via GitHub Pages or publish it as an
 Artifact, both of which run it fine. A `build.js deploy` helper to automate
@@ -377,10 +377,26 @@ Pinned: `three@0.185.1`, `playwright-core@1.61.1`, ffmpeg on PATH, bun.
 
 Two constraints that dictate the setup — do not "simplify" them away:
 
-- **three is vendored, never CDN-loaded.** three dropped its UMD build after
-  0.160, so `build.js vendor` bundles it into `three.global.js` (an IIFE that
-  sets `window.THREE`). IIFE matters: a plain ESM bundle leaks its top-level
-  identifiers into global scope and collides with scene variables.
+- **three is vendored locally and EMBEDDED in the scene. Never CDN-loaded, never
+  a sibling `.js`.** Three constraints force this and none of them have relaxed:
+  a CDN means the render touches the network and the artifact stops working
+  offline; three dropped its UMD build after 0.160, so a CDN copy can no longer
+  be loaded from a classic `<script>` at all; and module imports are CORS-blocked
+  over `file://`, which is exactly how these artifacts are opened. So
+  `build.js vendor` builds three as an **IIFE** (a plain ESM bundle leaks its
+  top-level identifiers into global scope and collides with scene variables —
+  a minified `MW` shadowed one and broke an example) and splices it straight
+  into the HTML, deleting the intermediate file.
+
+  **One scene = one file.** There is no `.bundled.html` and no `three.global.js`
+  to ship alongside. This is enforced, not merely advised: `ensureVendor` runs
+  before every command that opens a scene, so a scene cannot reach the renderer
+  — or a reviewer, or a commit — still pointing at a library that is not inside
+  it, and `smoke.js` fails any scene that is not self-contained. The rule exists
+  because the previous arrangement made bundling a manual last step, and a
+  committed 3D example duly shipped as un-bundled source with a dangling
+  reference: it rendered nothing when opened. Cost is ~0.73 MB per 3D scene,
+  paid once, and worth it — the file is the artifact.
 - **The scene stays a classic `<script>`, never `type="module"`.** Chrome
   CORS-blocks ES module imports over `file://`, and opening the HTML straight
   from disk is the whole point of the artifact.

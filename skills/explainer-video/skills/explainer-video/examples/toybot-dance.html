@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Toybot takes a walk</title>
+<title>Toybot victory dance</title>
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -4706,11 +4706,15 @@ void main() {
    Camera keyframes, captions and `duration` all derive from
    here, and animate() addresses beats by NAME via ramp()/pulse().
    ============================================================ */
+/* NO CAPTIONS. Nothing here carries a `cap`, deliberately: this film has
+   nothing to explain. The beats still do their job — they are what stops five
+   moves running together into one long wiggle. */
 const BEATS = [
-  {name:'title',  dur:2.4},
-  {name:'arrive', dur:4.2, cap:"Two-bone IK — feet that actually plant"},
-  {name:'rack',   dur:3.6, cap:"Rack focus — a real depth of field"},
-  {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
+  {name:'title', dur:2.2},   // the music starts; the bot has not noticed yet
+  {name:'stomp', dur:2.8},   // two-step in place, arms pumping
+  {name:'spin',  dur:2.2},   // a full pirouette
+  {name:'jump',  dur:2.0},   // crouch, air, land
+  {name:'pose',  dur:3.4},   // arm up, antenna blazes, confetti
 ];
 
 /* ============================================================
@@ -4754,8 +4758,8 @@ if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
-  title: "Toybot takes a walk",
-  subtitle: "cel shading · analytic IK · rack focus · bloom",
+  title: "Victory Dance",
+  subtitle: "cue the music",
   flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
   seed: 20260721,                     // change to reshuffle all seeded randomness
   sway: 0.04,                         // idle camera drift. Set to 0 for `build.js loop`:
@@ -4954,10 +4958,23 @@ const world=new THREE.Group();scene.add(world);
 const floor=mesh(new THREE.PlaneGeometry(200,200),toon(STYLE.floor),world);
 floor.rotation.x=-Math.PI/2;floor.castShadow=false;
 
-// the prop: a little signpost near the lens — the OTHER subject of the rack
-const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
-om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
-om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+/* The prop is a speaker, and it is doing semantic work, not set dressing. Its
+   cones pump on the SAME expression the bot's groove is built from (kickAt), and
+   the music envelope leads the dance envelope by a fraction of a beat. That is
+   the phase-and-derivation lever from method.md's causality section, used to say
+   "the music is why he is dancing" in a film with no caption to say it. */
+const prop=new THREE.Group();world.add(prop);prop.position.set(-6.2,0,3.4);prop.rotation.y=.44;
+om(B(3.0,3.7,1.9),toon(STYLE.body),prop,0,1.85,0);            // cabinet
+om(B(3.25,.42,2.15),toon(STYLE.trim),prop,0,3.75,0);          // top trim
+const cones=[];
+for(const cy of [1.15,2.62]){
+  const c=om(C(.60,.74,.34,22),toon(STYLE.ink),prop,0,cy,.95);
+  c.rotation.x=Math.PI/2;                                     // local +y becomes +z: it pumps at us
+  const d=mesh(S(.30,14,10),new THREE.MeshStandardMaterial(
+    {color:STYLE.accent,emissive:STYLE.accent,emissiveIntensity:.2,roughness:.45}),prop,0,cy,1.10);
+  d.castShadow=false;
+  cones.push({c,d});
+}
 
 /* ---------- world dressing: the three remaining material families ----------
    Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
@@ -4997,12 +5014,46 @@ om(new THREE.LatheGeometry(
   g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
   c.fillStyle=g;c.fillRect(0,0,256,256);
   const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
-  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
+  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,14.5,.62,-11.5);
   rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
 }
 
+/* ---------- confetti: closed-form ballistics, never integrated ----------
+   Exactly the case method.md warns about ("where you will be tempted to break
+   this"): the natural way to write a burst is to carry velocity frame to frame.
+   Position here is a pure function of t — launch angle, speed and spin all read
+   out of the frozen R pool, and the landing time is solved analytically so a
+   piece FREEZES on the floor instead of skating outward forever. */
+const CONF_N=140, CONF_G=5.2, CONF_Y0=4.6, CONF_FLOOR=.07;
+const conf=new THREE.InstancedMesh(new THREE.BoxGeometry(.30,.42,.05),
+  new THREE.MeshBasicMaterial(),CONF_N);
+conf.castShadow=conf.receiveShadow=false;conf.visible=false;conf.frustumCulled=false;
+world.add(conf);
+{ const col=new THREE.Color(),pal=[STYLE.accent,STYLE.trim,STYLE.body,0xfff4e2];
+  for(let i=0;i<CONF_N;i++)col.setHex(pal[Math.floor(R[900+i]*4)%4]),conf.setColorAt(i,col);
+  conf.instanceColor.needsUpdate=true; }
+const _cm=new THREE.Matrix4(),_cq=new THREE.Quaternion(),_ce=new THREE.Euler(),
+      _cp=new THREE.Vector3(),_cs=new THREE.Vector3();
+
+/* ---------- music notes ----------
+   Added in round 3 for the SEMANTICS axis, not for decoration. With no caption
+   to say so, a green box with two dark discs is not reliably a speaker — it is
+   a green box. The notes are the cartoon shorthand that names it, and because
+   they are emitted on the same kick the cones pump on, they also carry the
+   music's tempo into the air between the speaker and the bot.
+   Each note's cycle is (phase/2 + i/NOTE_N) mod 1 — a pure function of t. */
+const NOTE_N=5, notes=[];
+for(let i=0;i<NOTE_N;i++){
+  const g=new THREE.Group();world.add(g);
+  const m=new THREE.MeshBasicMaterial({color:STYLE.trim});
+  mesh(S(.26,12,10),m,g,0,0,0).castShadow=false;
+  mesh(B(.09,.72,.09),m,g,.22,.34,0).castShadow=false;
+  mesh(B(.34,.11,.09),m,g,.36,.66,0).castShadow=false;
+  notes.push(g);
+}
+
 // ---- the bot: every joint is a Group, so outlines and IK ride together ----
-const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;
+const L1=1.7,L2=1.7,HIP=3.5;
 const bot=new THREE.Group();world.add(bot);
 const torso=new THREE.Group();bot.add(torso);torso.position.y=HIP;
 om(B(2.2,2.5,1.4),toon(STYLE.body),torso,0,1.25,0);
@@ -5053,55 +5104,68 @@ function solveLeg(l,dx,dy){
   l.ankle.rotation.z=-(l.hip.rotation.z+l.knee.rotation.z);
 }
 
-/* Gait: everything derives from DISTANCE TRAVELLED s, never wall time — feet
-   freeze mid-plant when the bot stops (method.md, cyclic motion). Each foot
-   alternates stance/swing over a 2-stride cycle; its plant point is a pure
-   function of the cycle index. */
-const START=-16;                                   // where the walk begins, world x
-function footTarget(s,phase){
-  const cyc=s/(2*STRIDE)+phase;
-  const n=Math.floor(cyc),u=cyc-n;
-  // Plant grid anchored at START — anchored at the origin, dx hit +16 at the
-  // first frame and the IK swung both legs horizontal. Shipped, seen, fixed.
-  const x0=(n-phase)*2*STRIDE+START;
-  if(u<.55)return[x0,0];                           // stance: nailed to the floor
-  const w=ss(u,.55,1);                             // swing to the next plant
-  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
-}
+/* No gait function here. The walk example derives its stride from DISTANCE
+   TRAVELLED so the feet freeze when the bot stops; a dance in place has no
+   travel to derive from, so the cycle comes from the continuous phase instead
+   (phaseAt below) and the amplitude envelope does the settling. The sliding-feet
+   hazard is absent because the planted foot's target is an absolute world
+   height, not a swing offset. */
 
 /* ============================================================
    CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
    camera keyframes; the solver in the template does the framing.
    ============================================================ */
-// Travel and hop as named closed forms — the SUBJECTS registry and animate()
-// both derive from THESE, so the camera and the body can never disagree.
-const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
-const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+/* ---------- the groove: ONE continuous phase, not a sum of per-beat ramps ----
+   ss() has zero derivative at both ends, so a beat-by-beat rhythm would come to
+   a dead stop on every boundary — in a film whose whole subject is not stopping.
+   phaseAt() runs unbroken from 0 to TOTAL; the named beats only shape its
+   AMPLITUDE and hang events off it. DANCE_HZ is a rate, not a timestamp. */
+const DANCE_HZ=1.85;
+const phaseAt=t=>t*DANCE_HZ;
+const kickAt =t=>Math.max(0,Math.sin(2*Math.PI*phaseAt(t)));   // the downbeat
+// Two envelopes, deliberately offset: the speaker comes up first and goes down
+// last, the bot follows. Music leads, dance answers.
+const musicAt=t=>ramp(t,'title',.14,.52)*(1-ramp(t,'pose',.66,.94));
+const danceAt=t=>ramp(t,'title',.76,1.00)*(1-ramp(t,'pose',.26,.52));
+// hop and crouch are named closed forms so SUBJECTS and animate() cannot disagree
+const hopAt   =t=>{const u=ramp(t,'jump',.18,.70);return 3.1*Math.sin(u*Math.PI);};
+const spinHop =t=>.55*pulse(t,'spin',.08,.92);
 
 const SUBJECTS={
-  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
-  // a tracked jump cancels itself on screen.
-  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
-  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
+  // bot center EXCLUDES hop and bob: the camera holds still while HE moves in
+  // frame. A tracked jump cancels itself on screen.
+  // h is the TRUE standing height, feet to the top of the antenna orb (9.6),
+  // not the 7.8 the walk example used. 7.8 measures to the top of the head, and
+  // every rung tighter than WS then framed the antenna out — which in this film
+  // is the thing that lights up for the payoff. Round-1 defect, seen on the
+  // 0.95 sheet at the spin and pose beats.
+  bot:{pos:t=>[0,4.8,0],h:9.6},
+  head:{pos:t=>[0,7.8,0],h:3.6},          // named sub-subject: head + antenna
+  // the subject of the opening shot is the speaker AND the notes it throws — so
+  // h covers both. Framing a 4.4-tall cabinet alone put the notes off the top.
+  speaker:{pos:t=>[-6.2,3.4,3.4],h:7.6},
 };
 // The size ladder, calibrated to the convention a cinematographer means:
 // f = how many frame-heights the subject's full height spans; a = the
 // vertical anchor on the subject the camera aims at. FS is full-body tight;
 // MS is waist-up — the first cut of this table shipped MS at full-shot
 // framing and the rack's second subject fell out of frame.
-const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+// FSA is a LOCAL addition, not in the shipped ladder: the stock rungs jump
+// 0.50 (WS) -> 0.95 (FS), a factor of 1.9, and there is nothing in between.
+// "Full body with a little air" is the workhorse framing of a character film,
+// and without it every shot is either cropped at the crown (FS leaves 5%
+// margin by definition, which a hop or a raised arm eats instantly) or a
+// distant WS with two thirds of the frame empty floor. Both were observed.
+const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FSA:{f:.70,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
 const SHOTS=[
-  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
-  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
-  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
-  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
-  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
-  // a rack to an off-screen subject explains nothing — both subjects must be
-  // visible at different depths for the focus pull to read.
-  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
-  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
-  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
-  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
+  {at:['title',0],   subject:'speaker',size:'FS', angle:-38, elev:4},                          // open on the speaker — the music is first
+  {at:['title',.58], subject:'bot',    size:'FSA',angle:-20, elev:3,  cut:'blend'},            // widen; he is standing there not dancing yet
+  {at:['stomp',.04], subject:'bot',    size:'FSA',angle:20,  elev:3,  cut:'blend'},            // in on the two-step, feet visible
+  {at:['stomp',.62], subject:'head',   size:'FS', angle:9,   elev:1,  cut:'whip'},             // WHIP to the head: antenna, eyes, the groove up close
+  {at:['spin',.02],  subject:'bot',    size:'FSA',angle:-18, elev:6,  cut:'whip'},             // out again for the pirouette
+  {at:['jump',0],    subject:'bot',    size:'FSA',anchor:.64,angle:8, elev:-3, cut:'blend'},   // low angle, aim high: he goes UP out of the lower third
+  {at:['pose',.03],  subject:'bot',    size:'FSA',angle:-4,  elev:4,  cut:'whip'},             // punch in on the landing
+  {at:['pose',.42],  subject:'bot',    size:'FSA',size2:'WS',angle:6, elev:9,  cut:'blend'},   // pull out through the confetti
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
@@ -5178,44 +5242,87 @@ function setCamera(t){
    ANIMATE — every property a pure function of t.
    ============================================================ */
 function animate(t){
-  // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
-  const botX=botXAt(t);
-  const s=botX+16;
-  const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
+  const ph=phaseAt(t), k=kickAt(t);
+  const E=danceAt(t), M=musicAt(t);
+  const s2=Math.sin(2*Math.PI*ph), c2=Math.cos(2*Math.PI*ph);
 
-  // the spark beat, sequenced so its two events don't fight: anticipation
-  // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
-  // cut ran hop and glow together and the payoff read as neither.
+  /* ---- body ---- every term below is a pulse or a spanning ramp, so each one
+     returns to zero on its own. Nothing is gated by during(). ---- */
+  const crouch=pulse(t,'jump',.02,.30);            // anticipation
   const hop=hopAt(t);
-  const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
-              +.06*(backOut(ramp(t,'spark',.58,.78))-1);
-  bot.position.set(botX,hop,0);
-  torso.scale.set(1/Math.sqrt(squash),squash,1/Math.sqrt(squash));
-  torso.position.y=HIP+.14*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  torso.rotation.z=.10*vAmp;                       // lean into the walk
-  head.rotation.z=-.06*vAmp+.08*Math.sin(Math.PI*s/STRIDE)*vAmp;
+  const land =pulse(t,'jump',.70,.88);             // absorb
+  const bodyY=hop+spinHop(t)-1.05*crouch-.34*land-.30*k*E;
+  bot.position.set(0,bodyY,0);
+  bot.rotation.y=2*Math.PI*ramp(t,'spin',.10,.86); // one full turn; ends where it began
 
-  // legs: foot targets in WORLD, solved relative to each hip in bot space.
-  // Mid-hop the targets tuck toward the body instead of chasing the floor.
-  for(const[l,ph]of[[legL,0],[legR,.5]]){
-    let[fx,fy]=footTarget(s,ph);
-    fx=lerp(botX+(ph?-.7:.5),fx,clamp(vAmp*2.5,0,1)); // ease to a rest stance when stopped
-    fx+=(ph?-.45:.45)*clamp(hop,0,1);              // stagger the tuck so the feet read as two
-    fy=fy*vAmp+hop*(ph?.85:.62);                   // back leg tucks higher — jump-pose asymmetry
-    solveLeg(l,fx-botX,fy-HIP);
+  let sq=1-.20*crouch+.16*pulse(t,'jump',.30,.58)-.20*land-.055*k*E;
+  torso.scale.set(1/Math.sqrt(sq),sq,1/Math.sqrt(sq));
+  torso.rotation.y=.36*s2*E;                       // twist on the beat
+  torso.rotation.z=.11*c2*E;
+  head.rotation.z=-.11*c2*E;
+  head.rotation.y=-.30*s2*E+.55*pulse(t,'pose',.08,.44);   // one last look at the lens
+  ant.rotation.z=.30*s2*E+.18*pulse(t,'jump',.30,.90);     // the antenna whips
+
+  /* ---- arms ---- */
+  const wide =ramp(t,'spin',.04,.34)*(1-ramp(t,'spin',.78,1.0));   // out for the turn, and gone
+  const punch=pulse(t,'jump',.26,.66);
+  const raise=ramp(t,'pose',.05,.28);                              // parks: the film ends on it
+  armL.rotation.z= .30+.95*s2*E+1.20*wide+1.30*punch+2.10*raise;
+  armR.rotation.z=-.30-.95*s2*E-1.20*wide-1.30*punch-.55*raise;
+
+  /* ---- legs ---- foot heights are authored in WORLD y and converted, so a
+     planted foot stays on the floor no matter what the body does: crouch, bob
+     and landing squash all bend the knees for free instead of sinking him. */
+  const tuck=clamp(hop/3.1,0,1);
+  const spread=ramp(t,'pose',.04,.26);
+  for(const[l,ph0,sgn]of[[legL,0,1],[legR,.5,-1]]){
+    const w=Math.max(0,Math.sin(2*Math.PI*(ph+ph0)));      // this foot's turn to lift
+    const lift=1.30*w*E*(1-tuck)+.45*pulse(t,'spin',.06,.94);
+    const fx=sgn*(.55*E*(1-tuck)+.80*spread)+.75*lift+sgn*.55*tuck;
+    const fyW=lerp(lift,bodyY+1.35,tuck);                  // world height of the foot
+    solveLeg(l,fx,fyW-bodyY-HIP);
   }
-  armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
 
-  // DoF follows the shot list: shotFocus is solved per frame, and the rack
-  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
+  /* ---- the speaker: same kick, leading envelope ---- */
+  const pump=k*M;
+  prop.scale.set(1+.05*pump,1-.045*pump,1+.05*pump);
+  for(const c of cones){
+    c.c.scale.y=1+.60*pump;                                // local +y is +z: it pushes air at us
+    c.d.position.z=1.10+.34*pump;
+    c.d.material.emissiveIntensity=.15+1.7*pump;           // restated, never nudged
+  }
+  for(let i=0;i<NOTE_N;i++){
+    const f=phaseAt(t)/2+i/NOTE_N, u=f-Math.floor(f);      // pure: mod, not accumulation
+    const n=notes[i];
+    n.position.set(-6.2+1.0+Math.sin(u*4.4+i*1.7)*.85, 3.9+3.6*u, 3.4+.7+Math.cos(u*3.1+i)*.5);
+    n.rotation.z=Math.sin(u*5+i)*.30;
+    n.scale.setScalar(M*(ss(u,0,.14)*(1-ss(u,.62,1))));    // fades out well before it recycles
+  }
+
+  // DoF follows the shot list — shotFocus is solved per frame by setCamera.
   bokeh.uniforms.focus.value=shotFocus;
 
-  // bloom payoff: the orb wakes for the finale (park is deliberate — the film
-  // ends on it), plus a proud little spin. Restated every frame, never +=.
-  orbMat.emissiveIntensity=.25+5.2*ramp(t,'spark',.60,.76);
-  orb.scale.setScalar(1+.18*pulse(t,'spark',.60,.85));
-  head.rotation.y=.6*Math.sin(2*Math.PI*ramp(t,'spark',.78,.98));
+  /* ---- bloom payoff: the antenna wakes on the pose ---- */
+  orbMat.emissiveIntensity=.25+1.4*k*M+5.0*ramp(t,'pose',.14,.36);
+  orb.scale.setScalar(1+.14*k*M+.24*pulse(t,'pose',.14,.52));
+
+  /* ---- confetti ---- */
+  const tb=t-secAt('pose',.16);
+  conf.visible=tb>0;                                       // safe: scale is 0 at tb=0
+  if(tb>0){
+    const sc=.95*ss(tb,0,.10);
+    for(let i=0;i<CONF_N;i++){
+      const a=R[1200+i]*Math.PI*2, sp=1.5+4.6*R[1400+i], vy=5.2+3.8*R[1600+i];
+      // analytic landing time — after it, x/z/spin freeze and the piece lies still
+      const tl=(vy+Math.sqrt(vy*vy+4*CONF_G*(CONF_Y0-CONF_FLOOR)))/(2*CONF_G);
+      const te=Math.min(tb,tl);
+      _ce.set(te*(2.4+6*R[1800+i]),te*(1.6+5*R[2000+i]),a+te*3.1);
+      _cp.set(Math.cos(a)*sp*te,Math.max(CONF_FLOOR,CONF_Y0+vy*tb-CONF_G*tb*tb),Math.sin(a)*sp*te);
+      _cq.setFromEuler(_ce);_cs.setScalar(sc);
+      _cm.compose(_cp,_cq,_cs);conf.setMatrixAt(i,_cm);
+    }
+    conf.instanceMatrix.needsUpdate=true;
+  }
 }
 
 /* ---------- overlay (captions, title, flashes) ---------- */

@@ -69,49 +69,60 @@ function vendor(dir = process.cwd()) {
   } finally {
     fs.unlinkSync(entry);
   }
-  console.log('vendored -> ' + out);
-  return out;
+  // EMBED, then delete the .js. The library is a build input, never a shipped
+  // artifact: a scene that loads it via <script src> is not self-contained, and
+  // the moment anyone copies or commits just the .html it silently renders
+  // nothing. That shipped -- a committed 3D example sat in examples/ with a
+  // dangling ./three.global.js reference and did not run at all. Embedding is
+  // the only form that makes "opens straight from disk" true by construction,
+  // so the tooling does it automatically rather than asking authors to remember
+  // a bundle step. Cost is ~0.73 MB per scene, paid once, and accepted.
+  const embedded = embedInto(dir, fs.readFileSync(out, 'utf8'));
+  fs.unlinkSync(out);
+  if (embedded.length) console.log('embedded three into: ' + embedded.join(', '));
+  else console.log('vendored three (no scene in ' + dir + ' had a vendor tag to embed into)');
+  return embedded;
 }
 
-function bundle(src) {
-  const dir = path.dirname(path.resolve(src));
-  const libPath = path.join(dir, VENDOR);
-  if (!fs.existsSync(libPath)) vendor(dir);
-  const lib = fs.readFileSync(libPath, 'utf8');
-  const html = fs.readFileSync(src, 'utf8');
-  if (!VENDOR_TAG.test(html)) { console.log('no vendor tag in ' + src + ' — already bundled?'); return src; }
-  const out = bundleName(src);
-  // bundleName is a regex replace that returns src UNCHANGED when it does not
-  // match -- so `bundle scene.htm` or `scene.HTML` used to write the inlined
-  // output over the source file and print "bundled -> scene.htm" as if fine,
-  // destroying the one file the header calls the single source of truth.
-  if (path.resolve(out) === path.resolve(src)) {
-    throw new Error(`refusing to overwrite the source: ${src} must end in .html`);
-  }
-  // The replacement MUST be a function, not a string: in a string replacement
-  // `$&`, `$'` and `` $` `` are substitution patterns, and minified three
-  // contains `$&` (`if($&$.isStackTrace)`), which silently splices the matched
-  // script tag into the middle of the library. A function replacement disables
-  // that interpretation. Also split any literal </script> so the library can't
-  // terminate the host tag early.
+// Splice the library into every .html in `dir` that still carries the vendor
+// tag. Replacement MUST be a function, not a string: in a string replacement
+// `$&`, `$'` and `` $` `` are substitution patterns and minified three contains
+// `$&`, which would splice the matched tag into the middle of the library. Also
+// split any literal </script> so the library cannot terminate the host tag.
+function embedInto(dir, lib) {
   const inline = '<script>' + lib.replace(/<\/script>/gi, '<\\/script>') + '</script>';
-  fs.writeFileSync(out, html.replace(VENDOR_TAG, () => inline));
-  console.log('bundled -> ' + out);
-  return out;
+  const done = [];
+  for (const f of fs.readdirSync(dir)) {
+    if (!/\.html$/i.test(f)) continue;
+    const full = path.join(dir, f);
+    const html = fs.readFileSync(full, 'utf8');
+    if (!VENDOR_TAG.test(html)) continue;
+    fs.writeFileSync(full, html.replace(VENDOR_TAG, () => inline));
+    done.push(f);
+  }
+  return done;
 }
 
-// Any command that RENDERS a scene needs the vendored bundle present. bundle()
-// has auto-vendored since the start; loop and poster were added later and did
-// not, so a fresh checkout failed with "THREE is not defined" — loud, but
-// pointing at the scene contract when the real cause is a missing build step.
-// The needsThree test mirrors smoke.js: only vendor if the scene asks for three,
-// so a 2D or SVG backend is never forced to materialize a bundle it never loads.
+// bundle() is now an ASSERTION, not a transform. Vendoring embeds the library
+// directly into the scene (see vendor/embedInto), so a scene is self-contained
+// by the time anything can open it and there is no second ".bundled.html"
+// artifact to keep in sync. Kept as a command because callers and habits refer
+// to it, and because "make sure this file is self-contained" is still a thing
+// worth being able to ask for. Idempotent: safe to run any number of times.
+function bundle(src) {
+  ensureVendor(src);                       // embeds in place if the tag is still there
+  const html = fs.readFileSync(src, 'utf8');
+  if (VENDOR_TAG.test(html)) {
+    throw new Error(`could not embed three into ${src} — vendor tag still present`);
+  }
+  console.log(`self-contained -> ${src}`);
+  return src;
+}
 function ensureVendor(scene) {
   const dir = path.dirname(path.resolve(scene));
-  if (fs.existsSync(path.join(dir, VENDOR))) return;
   let src = '';
   try { src = fs.readFileSync(scene, 'utf8'); } catch (e) { return; }
-  if (/three\.global\.js/.test(src)) vendor(dir);
+  if (VENDOR_TAG.test(src)) vendor(dir);          // embeds in place, leaves no .js
 }
 
 // dir defaults to the SAME expression video() uses, so the shoot half and the

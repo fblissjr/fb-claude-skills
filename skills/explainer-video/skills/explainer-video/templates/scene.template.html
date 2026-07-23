@@ -34,11 +34,16 @@
 <div id="title"><h1></h1><p></p></div>
 <div id="cap"></div>
 <div id="flash"></div>
-<!-- three is vendored locally, never loaded from a CDN: `bun run build.js vendor`
-     writes three.global.js beside the scene (a single self-contained bundle that
-     sets window.THREE). It MUST stay a classic script, not type="module" —
-     Chrome CORS-blocks ES module imports over file://, and opening the scene
-     directly from disk is the whole point. `build.js bundle` inlines this file. -->
+<!-- PLACEHOLDER. `bun run build.js vendor` REPLACES this tag with three itself,
+     inlined, and deletes the intermediate file: one scene = one self-contained
+     .html, no sibling .js, no CDN. Never point this at a CDN — the render must
+     not touch the network, and three dropped its UMD build after 0.160 so a CDN
+     copy cannot be loaded from a classic script anyway. It MUST stay a classic
+     script, not type="module": Chrome CORS-blocks ES module imports over
+     file://, and opening the scene directly from disk is the whole point.
+     ensureVendor() runs before every command that opens a scene, so this tag
+     cannot survive into a render or a commit; smoke.js fails a scene that is
+     still carrying it. -->
 <script src="./three.global.js"></script>
 <script>
 "use strict";

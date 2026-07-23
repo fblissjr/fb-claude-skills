@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Toybot takes a walk</title>
+<title>Where winter heat comes from</title>
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -4707,63 +4707,40 @@ void main() {
    here, and animate() addresses beats by NAME via ramp()/pulse().
    ============================================================ */
 const BEATS = [
-  {name:'title',  dur:2.4},
-  {name:'arrive', dur:4.2, cap:"Two-bone IK — feet that actually plant"},
-  {name:'rack',   dur:3.6, cap:"Rack focus — a real depth of field"},
-  {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
+  {name:'title',   dur:3.0},
+  {name:'cold',    dur:3.6, cap:"It is \u22122\u00B0C out here. There is still heat in that air."},
+  {name:'dive',    dur:4.2, cap:"Inside the unit, one sealed loop moves it"},
+  {name:'evap',    dur:3.8, cap:"The evaporator: refrigerant boiling at \u221210\u00B0C"},
+  {name:'micro',   dur:4.4, cap:"Boiling is the trick \u2014 changing state absorbs heat"},
+  {name:'comp',    dur:3.4, cap:"The compressor squeezes it. Squeezing is heating."},
+  {name:'cond',    dur:3.4, cap:"The condenser hands that heat to your rooms"},
+  {name:'valve',   dur:2.8, cap:"A valve drops the pressure. Cold again."},
+  {name:'loopout', dur:3.6, cap:"Round and round, for as long as the power is on"},
+  {name:'payoff',  dur:4.4, cap:"One unit of electricity in. Three of heat out."},
 ];
 
-/* ============================================================
-   STYLE BIBLES — one object constrains EVERY layer: palette,
-   lights, post, glass (default lens), cut pace, camera energy.
-   BIBLE is the one-line film switch; BEATS, the cast, the world
-   and the SHOT LIST never change. That separation is the whole
-   point of the layered build — this file is its control pair.
-   ============================================================ */
-const BIBLE='toybox';                 // 'toybox' | 'midnight'
-const BIBLES={
-  toybox:{                            // daylight paper-cutout, gentle and warm
-    bg:0xdfe6ea, floor:0xe7dcc8, exposure:1.0,
-    ink:0x26221c,
-    body:0x2a9d8f, accent:0xe05d3d, trim:0xe9b44c,
-    tree:0x37806b, trunk:0x6b4a32,
-    matcap:['#f6e0c8','#c76b4a','#2a1409'],
-    toonSteps:3,
-    outline:1.055,
-    lens:42, energy:'steadicam',
-    cutDur:{},                        // template pace: blends at .8s
-    lights:{hemi:[0xdfeaf2,0xcbb89a,.45],key:[0xfff2dc,1.45],rim:[0xbfd8ff,.8]},
-    post:{bloomStrength:.55,bloomRadius:.3,bloomThreshold:.82,aperture:.00032,maxblur:.006},
-  },
-  midnight:{                          // low-key noir: long glass, locked camera, glow
-    bg:0x0b0e1a, floor:0x121830, exposure:1.05,
-    ink:0x05060c,
-    body:0x2e4a8a, accent:0xff3d81, trim:0x00e5ff,
-    tree:0x16324a, trunk:0x0e1f30,
-    matcap:['#cfe6ff','#48608f','#0a0d1c'],
-    toonSteps:2,                      // harder banding — noir contrast
-    outline:1.055,
-    lens:30, energy:'locked',         // longer lens flattens; tripod stillness
-    cutDur:{blend:1.3},               // slow, deliberate dollies
-    lights:{hemi:[0x24365e,0x05070f,.3],key:[0x9fc0ff,1.5],rim:[0xff3d81,1.5]},
-    post:{bloomStrength:1.0,bloomRadius:.35,bloomThreshold:.55,aperture:.00045,maxblur:.008},
-  },
+/* ---------- STYLE: everything that is the LOOK. ----------
+   Split from CONFIG so a style pack (references/styles/) swaps this block and
+   nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
+   Materials are still created inline in buildWorlds(); lift shared palette
+   constants up here as the scene grows. */
+const STYLE = {
+  bg: 0x101a26,
+  exposure: 0.94,                     // snow at ACES clips fast; lowered after the first sheet
 };
-const STYLE=BIBLES[BIBLE];
-if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
-  title: "Toybot takes a walk",
-  subtitle: "cel shading · analytic IK · rack focus · bloom",
-  flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
-  seed: 20260721,                     // change to reshuffle all seeded randomness
-  sway: 0.04,                         // idle camera drift. Set to 0 for `build.js loop`:
-                                      // sway moves every pixel every frame, which defeats
-                                      // WebP/GIF inter-frame compression and can 10x the
-                                      // file size. Free in mp4, expensive inline.
-  capFade: 0.35,                      // caption fade inset from each beat edge, seconds
-  energy: 'steadicam',                // camera nerves: 'locked' | 'steadicam' | 'handheld'
+  title: "Where Winter Heat Comes From",
+  subtitle: "a heat pump, all the way down",
+  // Four world cuts. Each {beat,at} centres a bump() 0.5s wide, so the flash is
+  // at FULL opacity on exactly the frame the world changes -- which is what
+  // makes the hard .visible boolean in animate() safe.
+  flashes: [{beat:'dive',at:0},{beat:'micro',at:0},{beat:'comp',at:0},{beat:'payoff',at:0}],
+  seed: 20260722,
+  sway: 0.05,
+  capFade: 0.35,
+  energy: 'steadicam',
 };
 
 /* ---------- FRAME: the one declared reference frame ----------
@@ -4777,6 +4754,7 @@ const CONFIG = {
    the window, the shot ladder against frame height, smoke's overflow check
    against a hardcoded 1920. They disagreed the moment a window was not 16:9. */
 const FRAME = { aspect: 16/9, px: [1920, 1080] };
+
 /* ==== KERNEL-START ====================================================
    The shared kit. This block is byte-identical in every scene template —
    smoke.js FAILS the run if two checked files carry different kernels.
@@ -4878,36 +4856,8 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=STYLE.exposure;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(STYLE.bg);
-scene.fog=new THREE.Fog(STYLE.bg,26,90);
-const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
-
-/* ---------- sky + IBL: measured, and deliberately NOT in this film ----------
-   Both were built and bisected here, and both are recorded in style-3d.md:
-   - PMREMGenerator.fromScene left every subsequent frame BLACK on SwiftShader
-     (software GL, the dev-container case), confirmed against a no-PMREM
-     control. Standard recipe, expected to work on hardware GL; unverified
-     there. The chrome pod below reads convincingly from the directional rig
-     alone, which is why the film does not miss it.
-   - The visible Sky dome WORKS but is HDR-bright: on this film's low-horizon
-     composition it put a blinding band across every frame and fought ACES at
-     any exposure. Judged against the flat-background control, the control
-     won. Sky suits open-sky compositions with high camera angles — it stays
-     bundled (THREE.Sky) for films shaped like that. */
-
-/* ---------- post chain: per-frame pure, so seekTo stays byte-deterministic.
-   RenderPass -> Bokeh (DoF) -> Bloom -> OutputPass (tone map + sRGB).
-   NEVER add temporal passes (TAA, accumulation blur): they carry state across
-   frames and break the HTML/MP4 parity this whole architecture exists for.
-   smoke.js's byte-identity check is the enforcement. ---------- */
-const composer=new THREE.EffectComposer(renderer);
-composer.addPass(new THREE.RenderPass(scene,camera));
-const bokeh=new THREE.BokehPass(scene,camera,{focus:12,aperture:STYLE.post.aperture,maxblur:STYLE.post.maxblur});
-composer.addPass(bokeh);
-composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),
-  STYLE.post.bloomStrength,STYLE.post.bloomRadius,STYLE.post.bloomThreshold));
-composer.addPass(new THREE.OutputPass());
-
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
+const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
 addEventListener('resize',resize);resize();
 
 /* ---------- shared helpers ---------- */
@@ -4915,194 +4865,224 @@ const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
 const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
 const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
 function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
 
-/* ---------- cel kit: stepped gradient map + inverted-hull outlines ----------
-   MeshToonMaterial + a NearestFilter gradient map gives the banded light;
-   the linework is a BackSide black shell 4.5% larger, ADDED AS A CHILD so it
-   rides every pivot the IK moves. Emissive-driven bloom passes through the
-   toon bands untouched, which is why the threshold sits above the palette. */
-const GRAD=(()=>{const n=STYLE.toonSteps,d=new Uint8Array(n);
-  for(let i=0;i<n;i++)d[i]=Math.round(90+165*i/(n-1));
-  const t=new THREE.DataTexture(d,n,1,THREE.RedFormat);
-  t.minFilter=t.magFilter=THREE.NearestFilter;t.needsUpdate=true;return t;})();
-const toon=(color,opts={})=>new THREE.MeshToonMaterial(Object.assign({color,gradientMap:GRAD},opts));
-const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:STYLE.ink,side:THREE.BackSide});
-function om(g,m,parent,px,py,pz){                 // outlined mesh
-  const o=mesh(g,m,parent,px,py,pz);
-  const s=new THREE.Mesh(g,OUTLINE_MAT);s.scale.setScalar(STYLE.outline);
-  s.castShadow=false;s.receiveShadow=false;o.add(s);
-  return o;
+/* ---------- lights: ONE RIG PER WORLD ----------
+   Worlds are separate Groups offset far apart, and a Group whose .visible is
+   false takes its lights with it. That keeps the rig pure — no per-frame light
+   repositioning to keep deterministic — and it is the only way the shadow
+   camera can be tight around each world at once. A single global rig centred on
+   world A leaves worlds B and C unshadowed and unlit, which is not obvious
+   until you render them. */
+function lightRig(group, sky, ground, keyCol, keyInt, span){
+  group.add(new THREE.HemisphereLight(sky, ground, .62));
+  const k=new THREE.DirectionalLight(keyCol, keyInt);
+  k.position.set(7,13,9); k.castShadow=true;
+  k.shadow.mapSize.set(2048,2048);
+  k.shadow.camera.left=-span;k.shadow.camera.right=span;
+  k.shadow.camera.top=span;k.shadow.camera.bottom=-span;
+  k.shadow.camera.near=.5;k.shadow.camera.far=90;
+  group.add(k); k.target.position.set(0,0,0); group.add(k.target);
+  const f=new THREE.DirectionalLight(0xbfd4ff,.38); f.position.set(-7,6,-5);
+  group.add(f); f.target.position.set(0,0,0); group.add(f.target);
 }
 
-/* ---------- lights (toon reads them as bands) ---------- */
-// Hemisphere stays LOW: toon quantizes directional light into bands, but
-// hemisphere irradiance is smooth and washes the cel look out on top.
-// Hemisphere stays LOW: toon quantizes directional light into bands, but
-// hemisphere irradiance is smooth and washes the cel look out on top.
-scene.add(new THREE.HemisphereLight(STYLE.lights.hemi[0],STYLE.lights.hemi[1],STYLE.lights.hemi[2]));
-const key=new THREE.DirectionalLight(STYLE.lights.key[0],STYLE.lights.key[1]);
-key.position.set(7,11,7);key.castShadow=true;
-key.shadow.mapSize.set(2048,2048);
-key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=16;key.shadow.camera.bottom=-16;
-scene.add(key);
-const rim=new THREE.DirectionalLight(STYLE.lights.rim[0],STYLE.lights.rim[1]);rim.position.set(-6,7,-8);scene.add(rim);
-
 /* ============================================================
-   WORLD — the bot, its ground, and one prop to rack focus onto.
+   WORLDS — three settings, offset far apart on Y.
+     A  y   0   the house on a cold day        (exterior)
+     B  y -60   the sealed refrigerant loop    (inside the machine)
+     C  y-120   refrigerant molecules boiling  (inside the fluid)
+   Camera jumps between them are instantaneous and hidden under a
+   full-opacity flash — see CONFIG.flashes and the CUT_* constants.
    ============================================================ */
-const world=new THREE.Group();scene.add(world);
-const floor=mesh(new THREE.PlaneGeometry(200,200),toon(STYLE.floor),world);
-floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+let wA,wB,wC, fanBlades, winMats=[], snow=[], loopCurve, drops=[], dropMats=[],
+    compBody, valvePinch, inArrows, outArrows, mols=[], molBase=[], molGas=[],
+    chimney, warmGlow, cArrows=[], elecCube, heatCubes=[];
 
-// the prop: a little signpost near the lens — the OTHER subject of the rack
-const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
-om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
-om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+const COLD=0x4da6ff, HOT=0xff5533, MID=0x9fb8c8;
 
-/* ---------- world dressing: the three remaining material families ----------
-   Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
-   matching BackSide instanced shell so the outlines are one draw call too.
-   Urn: LatheGeometry, toon — curves without an asset file.
-   Pod: MeshPhysicalMaterial reading scene.environment — the IBL proof.
-   Boulder: MeshMatcapMaterial with a matcap PAINTED at load on a canvas —
-   sculpted-clay shading with zero lights and zero files. ---------- */
-{
-  const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
-  const treeM=toon(STYLE.tree),trunkM=toon(STYLE.trunk);
-  const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
-  const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
-  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
-  for(let i=0;i<N;i++){
-    const x=-60+120*R[i*3],z=-9-40*R[i*3+1],h=2.2+3.4*R[i*3+2];
-    P.set(x,h/2+.7,z);V.set(h*.42,h,h*.42);
-    M.compose(P,Q,V);tree.setMatrixAt(i,M);
-    M.compose(P,Q,V.clone().multiplyScalar(1.06));treeO.setMatrixAt(i,M);
-    M.compose(new THREE.Vector3(x,.35,z),Q,new THREE.Vector3(1,1,1));trunk.setMatrixAt(i,M);
+function buildWorlds(){
+  /* ---------------- WORLD A: the house, outside, at -2 C ---------------- */
+  wA=new THREE.Group(); scene.add(wA);
+  lightRig(wA, 0xd6e8ff, 0x94a4b4, 0xfff2e0, 1.25, 26);
+  const snowMat=std(0xe9eff6,{roughness:.96});
+  const gnd=mesh(new THREE.PlaneGeometry(120,120),snowMat,wA,0,0,0);
+  gnd.rotation.x=-Math.PI/2; gnd.castShadow=false;
+  const wallMat=std(0xf0e2cd,{roughness:.85});
+  mesh(B(11,7.4,9),wallMat,wA,0,3.7,0);
+  const roof=mesh(new THREE.ConeGeometry(8.6,4.4,4),std(0x50606e,{roughness:.7}),wA,0,9.6,0);
+  roof.rotation.y=Math.PI/4;
+  chimney=mesh(B(1.3,3.2,1.3),std(0x6a5a52,{roughness:.8}),wA,-3.2,11.2,1.6);
+  // windows sit PROUD of the wall face — an inset window is invisible at any
+  // shot size, the cross-section rule applied to a facade
+  const winMat=()=>{const m=std(0x2e3a46,{roughness:.35,emissive:0xffc978,emissiveIntensity:0});
+    winMats.push(m); return m;};
+  [[-3,4.4],[3,4.4],[-3,1.4],[3,1.4]].forEach(([x,y])=>mesh(B(2.2,2.0,.25),winMat(),wA,x,y,4.62));
+  mesh(B(1.8,3.4,.25),std(0x7a5a3e,{roughness:.8}),wA,0,1.7,4.62);
+  // the outdoor unit — the thing the film is actually about
+  const unit=new THREE.Group(); unit.position.set(9.2,0,2.2); wA.add(unit);
+  mesh(B(4.2,3.6,2.6),std(0xa8b2ba,{roughness:.55,metalness:.25}),unit,0,1.9,0);
+  for(let i=0;i<5;i++) mesh(B(3.6,.14,.1),std(0x6b757d,{roughness:.6}),unit,0,.9+i*.42,1.34);
+  fanBlades=new THREE.Group(); fanBlades.position.set(0,2.55,1.36); unit.add(fanBlades);
+  mesh(C(.34,.34,.3),std(0x5b656d,{roughness:.5}),fanBlades,0,0,0).rotation.x=Math.PI/2;
+  for(let i=0;i<4;i++){const b=mesh(B(1.5,.5,.09),std(0xdfe6ea,{roughness:.4}),fanBlades,0,0,.1);
+    b.rotation.z=i*Math.PI/2; b.position.set(Math.cos(i*Math.PI/2)*.85,Math.sin(i*Math.PI/2)*.85,.1);}
+  mesh(new THREE.TorusGeometry(1.35,.12,8,28),std(0x8f9aa2,{roughness:.5}),unit,0,2.55,1.36);
+  // snow: 70 flakes, position a pure function of t, scale sin(frac*PI) so a
+  // wrapping flake is at zero size on the frame it teleports
+  const flakeG=S(.13,7,5), flakeM=std(0xffffff,{roughness:1,emissive:0xffffff,emissiveIntensity:.25});
+  for(let i=0;i<70;i++) snow.push(mesh(flakeG,flakeM,wA,0,0,0));
+
+  /* ---------------- WORLD B: the sealed loop ---------------- */
+  wB=new THREE.Group(); wB.position.y=-60; scene.add(wB);
+  lightRig(wB, 0xd8e6ff, 0x5a5478, 0xffffff, 1.55, 20);
+  const bfloor=mesh(new THREE.PlaneGeometry(70,70),std(0x3e4660,{roughness:.95}),wB,0,-9,0);
+  bfloor.rotation.x=-Math.PI/2; bfloor.castShadow=false;
+  const LW=11, LH=6.4, LR=2.6, pts=[];
+  {const cs=[[LW-LR,LH-LR],[-(LW-LR),LH-LR],[-(LW-LR),-(LH-LR)],[LW-LR,-(LH-LR)]];
+   const a0=[0,Math.PI/2,Math.PI,3*Math.PI/2];
+   for(let c=0;c<4;c++)for(let i=0;i<=10;i++){const a=a0[c]+(i/10)*Math.PI/2;
+     pts.push(new THREE.Vector3(cs[c][0]+Math.cos(a)*LR, cs[c][1]+Math.sin(a)*LR, 0));}}
+  loopCurve=new THREE.CatmullRomCurve3(pts,true,'centripetal');
+  const tube=mesh(new THREE.TubeGeometry(loopCurve,320,.30,10,true),
+    std(0xaeb8c8,{roughness:.45,metalness:.3}),wB);
+  tube.receiveShadow=true;
+  // stations, placed ON the curve at four arc-length fractions, in cycle order:
+  // condenser -> valve -> evaporator -> compressor -> back
+  const at=u=>loopCurve.getPointAt(u);
+  const finned=(u,col,flip)=>{const p=at(u),g=new THREE.Group();
+    g.position.copy(p); wB.add(g);
+    mesh(B(1.5,3.6,2.6),std(col,{roughness:.5,metalness:.2}),g,0,0,0);
+    for(let i=0;i<9;i++) mesh(B(.16,3.9,3.1),std(col,{roughness:.55}),g,-.7+i*.175,0,0);
+    g.rotation.y=flip?Math.PI:0; return g;};
+  const CONDENSER=finned(.03,0xd9603f,false);
+  const EVAP=finned(.53,0x5b8fd6,true);
+  compBody=new THREE.Group(); compBody.position.copy(at(.78)); wB.add(compBody);
+  mesh(C(1.5,1.7,2.6,22),std(0xb4c0d0,{roughness:.4,metalness:.5}),compBody,0,0,0);
+  mesh(C(1.7,1.7,.36,22),std(0x4d5665,{roughness:.5}),compBody,0,1.4,0);
+  mesh(C(1.7,1.7,.36,22),std(0x4d5665,{roughness:.5}),compBody,0,-1.4,0);
+  valvePinch=new THREE.Group(); valvePinch.position.copy(at(.28)); wB.add(valvePinch);
+  const vm=std(0xd8b24a,{roughness:.35,metalness:.6});
+  mesh(new THREE.ConeGeometry(1.0,1.5,18),vm,valvePinch,0,.78,0).rotation.z=Math.PI;
+  mesh(new THREE.ConeGeometry(1.0,1.5,18),vm,valvePinch,0,-.78,0);
+  mesh(C(.30,.30,.5,16),vm,valvePinch,0,0,0);
+  // heat arrows: cones that ride a phase, scaled by an amplitude gated per beat
+  const arrowSet=(anchor,dir,col)=>{const g=new THREE.Group();
+    g.position.copy(anchor); wB.add(g);
+    const m=std(col,{roughness:.4,emissive:col,emissiveIntensity:.5});
+    for(let i=0;i<3;i++){const a=new THREE.Group(); g.add(a);
+      mesh(new THREE.ConeGeometry(.38,1.0,12),m,a,0,0,0).rotation.z=dir>0?-Math.PI/2:Math.PI/2;
+      a.position.set(0,(i-1)*1.5,0);}
+    g.userData.dir=dir; return g;};
+  inArrows =arrowSet(at(.53).clone().add(new THREE.Vector3(-2.1,0,0)),  1, 0xffca7e);
+  outArrows=arrowSet(at(.03).clone().add(new THREE.Vector3( 2.9,0,0)),  1, 0xff9a4a);
+  // the refrigerant itself: 22 drops riding the curve, colour restated from
+  // constants every frame (a shared material mutated in place would desync the
+  // HTML loop's second pass)
+  const dg=S(.52,16,12);
+  for(let i=0;i<22;i++){const m=std(COLD,{roughness:.28,emissive:COLD,emissiveIntensity:.35});
+    dropMats.push(m); drops.push(mesh(dg,m,wB,0,0,0));}
+
+  /* ---------------- WORLD C: inside the fluid ---------------- */
+  wC=new THREE.Group(); wC.position.y=-120; scene.add(wC);
+  lightRig(wC, 0xbfd8ff, 0x2a2438, 0xffffff, 1.05, 16);
+  // the metal wall the heat comes through — world C is a cross-section, so the
+  // wall sits at the LEFT edge and everything of interest is proud of it
+  mesh(B(.7,10,9),std(0x9aa6b4,{roughness:.4,metalness:.5}),wC,-6.4,0,0);
+  for(let i=0;i<6;i++) mesh(B(.5,9.4,.34),std(0xb6c2cf,{roughness:.5}),wC,-6.0,0,-3.6+i*1.45);
+  const mg=S(.62,18,14);
+  for(let i=0;i<28;i++){
+    const r=R[i*7+3], q=R[i*7+11], s=R[i*7+19];
+    const bx=-3.4+ (i%7)*1.15 + r*.4, by=-3.6+Math.floor(i/7)*1.0 + q*.3, bz=-1.6+s*3.2;
+    molBase.push([bx,by,bz]);
+    molGas.push([bx+1.6+r*5.2, by+1.2+q*4.6, bz*1.9]);
+    const m=std(0x7fb2e8,{roughness:.3,emissive:0x2a4a7a,emissiveIntensity:.3});
+    mols.push(mesh(mg,m,wC,bx,by,bz));
   }
-  tree.castShadow=trunk.castShadow=true;
-  world.add(tree,treeO,trunk);
-}
-om(new THREE.LatheGeometry(
-  [[0,0],[.62,.06],[.5,.5],[.3,.9],[.34,1.28],[.52,1.5],[.44,1.62]].map(p=>new THREE.Vector2(p[0],p[1])),18),
-  toon(STYLE.trim),world,-6.5,0,-3.5);
-{
-  const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
-    {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
-  pod.position.set(-9,.7,4.2);pod.castShadow=true;world.add(pod);
-}
-{
-  const cv=document.createElement('canvas');cv.width=cv.height=256;
-  const c=cv.getContext('2d');
-  const g=c.createRadialGradient(96,84,18,128,128,132);
-  g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
-  c.fillStyle=g;c.fillRect(0,0,256,256);
-  const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
-  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
-  rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
-}
+  warmGlow=std(0xffb070,{roughness:.4,emissive:0xff8a3c,emissiveIntensity:.6});
+  for(let i=0;i<4;i++){const a=mesh(new THREE.ConeGeometry(.62,1.7,12),warmGlow,wC,-5.2,-3+i*2,0);
+    a.rotation.z=-Math.PI/2; cArrows.push(a);}
 
-// ---- the bot: every joint is a Group, so outlines and IK ride together ----
-const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;
-const bot=new THREE.Group();world.add(bot);
-const torso=new THREE.Group();bot.add(torso);torso.position.y=HIP;
-om(B(2.2,2.5,1.4),toon(STYLE.body),torso,0,1.25,0);
-om(B(2.4,.5,1.55),toon(STYLE.trim),torso,0,.15,0);            // belt
-const head=new THREE.Group();torso.add(head);head.position.y=3.3;   // clear of the torso: the outline shell shows any seam
-om(S(1.05),toon(STYLE.body),head,0,.35,0);
-// eyes: small emissives — the bloom budget lives here and on the orb
-const eyeMat=new THREE.MeshBasicMaterial({color:0xbfe9ff});
-mesh(S(.16,10,8),eyeMat,head,.42,.5,.88).castShadow=false;
-mesh(S(.16,10,8),eyeMat,head,-.42,.5,.88).castShadow=false;
-const ant=new THREE.Group();head.add(ant);ant.position.y=1.35;
-om(C(.05,.05,.9),toon(STYLE.ink),ant,0,.45,0);
-const orbMat=new THREE.MeshStandardMaterial({color:STYLE.trim,emissive:STYLE.trim,emissiveIntensity:.25,roughness:.4});
-const orb=mesh(S(.34,18,12),orbMat,ant,0,1.05,0);orb.castShadow=false;
-
-function arm(side){const a=new THREE.Group();torso.add(a);a.position.set(side*1.35,2.0,0);
-  om(C(.22,.18,1.9),toon(STYLE.body),a,0,-.95,0);
-  om(S(.3),toon(STYLE.accent),a,0,-2.0,0);return a;}
-const armL=arm(1),armR=arm(-1);
-
-// leg: hip Group -> thigh (pivot at top) -> knee Group -> shin -> flat foot.
-// Geometries are pre-translated so each pivot rotates about the JOINT.
-function leg(side){
-  const hip=new THREE.Group();bot.add(hip);hip.position.set(0,HIP,side*.62);
-  const tg=C(.3,.24,L1);tg.translate(0,-L1/2,0);
-  om(tg,toon(STYLE.body),hip,0,0,0);
-  const knee=new THREE.Group();hip.add(knee);knee.position.y=-L1;
-  const sg=C(.22,.18,L2);sg.translate(0,-L2/2,0);
-  om(sg,toon(STYLE.body),knee,0,0,0);
-  const ankle=new THREE.Group();knee.add(ankle);ankle.position.y=-L2;
-  const fg=B(1.15,.38,.7);fg.translate(.22,-.19,0);
-  om(fg,toon(STYLE.accent),ankle,0,0,0);
-  return {hip,knee,ankle};
+  /* ---- the payoff meter, in world A: geometry for the ratio the last caption
+     claims. One blue unit in at the outdoor unit, three warm units off the
+     roof. Built here, scaled from zero until the payoff beat. ---- */
+  elecCube=mesh(B(1.7,1.7,1.7),std(0x63d0ff,{roughness:.3,emissive:0x2a90c8,emissiveIntensity:.9}),wA,15.4,2.0,2.2);
+  for(let i=0;i<3;i++) heatCubes.push(mesh(B(1.7,1.7,1.7),
+    std(0xffa055,{roughness:.35,emissive:0xff7a2a,emissiveIntensity:.9}),wA,-3.6+i*3.0,13.8,1.6));
 }
-const legL=leg(1),legR=leg(-1);
-
-/* Analytic two-bone IK in the sagittal (x-up) plane — closed form, no solver,
-   no state. Given the foot target relative to the hip, law of cosines gives
-   the knee; the foot counter-rotates to stay flat. Pure function of its
-   inputs, so seekTo purity is untouched. */
-function solveLeg(l,dx,dy){
-  const d=clamp(Math.hypot(dx,dy),.2,L1+L2-.01);
-  const phi=Math.atan2(dx,-dy);
-  const a=Math.acos(clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1));
-  const g=Math.acos(clamp((L1*L1+L2*L2-d*d)/(2*L1*L2),-1,1));
-  l.hip.rotation.z=phi+a;
-  l.knee.rotation.z=-(Math.PI-g);
-  l.ankle.rotation.z=-(l.hip.rotation.z+l.knee.rotation.z);
-}
-
-/* Gait: everything derives from DISTANCE TRAVELLED s, never wall time — feet
-   freeze mid-plant when the bot stops (method.md, cyclic motion). Each foot
-   alternates stance/swing over a 2-stride cycle; its plant point is a pure
-   function of the cycle index. */
-const START=-16;                                   // where the walk begins, world x
-function footTarget(s,phase){
-  const cyc=s/(2*STRIDE)+phase;
-  const n=Math.floor(cyc),u=cyc-n;
-  // Plant grid anchored at START — anchored at the origin, dx hit +16 at the
-  // first frame and the IK swung both legs horizontal. Shipped, seen, fixed.
-  const x0=(n-phase)*2*STRIDE+START;
-  if(u<.55)return[x0,0];                           // stance: nailed to the floor
-  const w=ss(u,.55,1);                             // swing to the next plant
-  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
-}
+buildWorlds();
 
 /* ============================================================
-   CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
-   camera keyframes; the solver in the template does the framing.
-   ============================================================ */
-// Travel and hop as named closed forms — the SUBJECTS registry and animate()
-// both derive from THESE, so the camera and the body can never disagree.
-const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
-const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+   CINEMATOGRAPHY — shots as data, solved per frame.
 
+   SUBJECTS names the things a camera can frame. pos is a pure
+   function of t returning the subject's CENTER, so a moving
+   subject is a tracking shot for free. h is the height the
+   framing math uses. Craft note: track a subject's TRAVEL, not
+   its jumps — leave vertical action out of pos so it moves in
+   the frame instead of being cancelled by the camera.
+
+   SHOTS is the film's shot list — the cinematographer's half of
+   the film, the way BEATS is the editor's. Each shot starts at
+   a beat anchor and runs until the next shot starts:
+     subject  what the shot frames (a SUBJECTS key)
+     size     EWS WS FS MS MCU CU ECU — fraction of frame height
+              the subject occupies (see SIZES)
+     angle    degrees around the subject, 0 = from +Z
+     elev     degrees above level (default 6)
+     fov      this shot's lens (vertical degrees, default 42) —
+              long lens flattens, short lens dramatizes
+     size2 / angle2   optional end values: a push/pull or an
+              orbit eased across the shot's duration
+     focus    subject the DoF plane sits on (default: subject).
+              Scenes with a BokehPass read shotFocus each frame;
+              two adjacent shots differing only in focus, joined
+              by cut:'blend', ARE a rack focus.
+     cut      how the shot ENTERS: 'hard' (default), 'whip'
+              (0.16s snap), 'blend' (0.8s dolly-morph)
+     match    true = must enter with the SAME framing vocabulary
+              (size/angle/elev/fov) as the previous shot — the
+              match-cut constraint, checked at load, throws loud.
+   Raw keyframes are gone on purpose: coordinates were never the
+   author's intent, framing was. If a shot the vocabulary cannot
+   say is genuinely needed, extend the vocabulary — do not sneak
+   coordinates back in.
+   ============================================================ */
+const LP=u=>{const p=loopCurve.getPointAt(u);return[p.x,p.y-60,p.z];};
 const SUBJECTS={
-  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
-  // a tracked jump cancels itself on screen.
-  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
-  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
+  house:     {pos:t=>[0,5.4,0],        h:13.5, w:17},
+  homestead: {pos:t=>[3.5,7.6,1],      h:19,   w:26},   // house + the payoff meter
+  unit:      {pos:t=>[9.2,2.1,2.2],    h:4.6},
+  loop:      {pos:t=>[0,-60,0],        h:14.6, w:24},
+  // the station subjects are offset toward their heat arrows: the shot is the
+  // station AND the heat crossing its wall, never the station alone
+  evaporator:{pos:t=>LP(.53), h:6.4, w:13.6},
+  condenser: {pos:t=>LP(.03), h:6.6, w:13.6},
+  compressor:{pos:t=>LP(.78),          h:5.4,  w:6.4},
+  valve:     {pos:t=>LP(.28),          h:5.2,  w:5.2},
+  molecules: {pos:t=>[0.4,-120,0],     h:9.6,  w:13.5},
 };
-// The size ladder, calibrated to the convention a cinematographer means:
-// f = how many frame-heights the subject's full height spans; a = the
-// vertical anchor on the subject the camera aims at. FS is full-body tight;
-// MS is waist-up — the first cut of this table shipped MS at full-shot
-// framing and the rack's second subject fell out of frame.
 const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
+/* Ten shots for ten beats. Four of them are WORLD CUTS — the subject lives in
+   a different Group, 60 or 120 units away — and every one of those MUST be
+   cut:'hard'. A 'blend' or 'whip' into another world interpolates the camera
+   through empty space between the worlds and shows void for its whole
+   duration. Nothing in the template checks this: the match-cut constraint is
+   verified at load, the world-cut constraint is not, because SHOTS has no
+   notion of which world a subject is in. See d5_voidcontrol.html. */
 const SHOTS=[
-  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
-  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
-  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
-  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
-  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
-  // a rack to an off-screen subject explains nothing — both subjects must be
-  // visible at different depths for the focus pull to read.
-  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
-  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
-  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
-  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
+  {at:['title',0],    subject:'house',      size:'EWS', size2:'WS', angle:22, elev:15},
+  {at:['cold',.06],   subject:'unit',       size:'WS',  angle:-14, elev:15, cut:'blend'},
+  {at:['dive',0],     subject:'loop',       size:'WS',  angle:0,  elev:26, cut:'hard'},   // WORLD CUT 1  A->B
+  {at:['evap',.05],   subject:'evaporator', size:'FS',  angle:34, elev:12, cut:'blend'},
+  {at:['micro',0],    subject:'molecules',  size:'WS',  angle:7,  elev:4,  cut:'hard'},   // WORLD CUT 2  B->C
+  {at:['comp',0],     subject:'compressor', size:'FS',  angle:16, elev:13, cut:'hard'},   // WORLD CUT 3  C->B
+  {at:['cond',.04],   subject:'condenser',  size:'FS',  angle:-32, elev:11, cut:'whip'},   // whip pan, same world
+  {at:['valve',.05],  subject:'valve',      size:'FS',  angle:-15, elev:10, cut:'blend'},
+  {at:['loopout',.10],subject:'loop',       size:'FS',  size2:'WS', angle:0, elev:22, cut:'blend'},
+  {at:['payoff',0],   subject:'homestead',  size:'FS',  size2:'WS', angle:26, elev:13, cut:'hard'}, // WORLD CUT 4  B->A
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
+
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
                                 // match check below compares framing with it
@@ -5130,7 +5110,12 @@ function solveShot(sh,t){
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
   const fovd=sh.fov===undefined?LENS:sh.fov;
   const[cx,cy,cz]=S.pos(t);
-    // framing binds on whichever axis is tighter; height-only for an upright subject
+  // The framing solver. `f` is the subject fraction of the frame; a subject may
+  // declare `w` as well as `h`, and framing binds on whichever axis is tighter.
+  // Height-only was the old behaviour and is still what an upright subject gets
+  // (w <= h*aspect), but a WIDE subject -- a timeline, a waveform, an org chart --
+  // was silently cropped by every rung tighter than WS because the ladder only
+  // ever constrained height.
   const dist=Math.max(S.h/f,(S.w||0)/(f*FRAME.aspect))/(2*Math.tan(fovd*Math.PI/360));
   const aimY=cy+(anchor-.5)*S.h;
   return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
@@ -5176,47 +5161,95 @@ function setCamera(t){
 
 /* ============================================================
    ANIMATE — every property a pure function of t.
+   Use ss(t, start, end) ramps per beat; never accumulate.
    ============================================================ */
+/* World-cut instants. These are the ONLY places .visible flips, and each one
+   is exactly a CONFIG.flashes centre, so the frame the world changes on is at
+   full flash opacity — the one documented-safe use of a hard boolean. */
+const T_DIVE=beatAt('dive',0), T_MICRO=beatAt('micro',0),
+      T_COMP=beatAt('comp',0), T_PAY=beatAt('payoff',0);
+const HOTC=new THREE.Color(HOT);
+
 function animate(t){
-  // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
-  const botX=botXAt(t);
-  const s=botX+16;
-  const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
+  wA.visible = t<T_DIVE || t>=T_PAY;
+  wB.visible = (t>=T_DIVE&&t<T_MICRO) || (t>=T_COMP&&t<T_PAY);
+  wC.visible = t>=T_MICRO && t<T_COMP;
 
-  // the spark beat, sequenced so its two events don't fight: anticipation
-  // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
-  // cut ran hop and glow together and the payoff read as neither.
-  const hop=hopAt(t);
-  const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
-              +.06*(backOut(ramp(t,'spark',.58,.78))-1);
-  bot.position.set(botX,hop,0);
-  torso.scale.set(1/Math.sqrt(squash),squash,1/Math.sqrt(squash));
-  torso.position.y=HIP+.14*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  torso.rotation.z=.10*vAmp;                       // lean into the walk
-  head.rotation.z=-.06*vAmp+.08*Math.sin(Math.PI*s/STRIDE)*vAmp;
-
-  // legs: foot targets in WORLD, solved relative to each hip in bot space.
-  // Mid-hop the targets tuck toward the body instead of chasing the floor.
-  for(const[l,ph]of[[legL,0],[legR,.5]]){
-    let[fx,fy]=footTarget(s,ph);
-    fx=lerp(botX+(ph?-.7:.5),fx,clamp(vAmp*2.5,0,1)); // ease to a rest stance when stopped
-    fx+=(ph?-.45:.45)*clamp(hop,0,1);              // stagger the tuck so the feet read as two
-    fy=fy*vAmp+hop*(ph?.85:.62);                   // back leg tucks higher — jump-pose asymmetry
-    solveLeg(l,fx-botX,fy-HIP);
+  /* ---- world A ---- */
+  fanBlades.rotation.z = t*2.6;
+  for(let i=0;i<snow.length;i++){
+    const r=R[i*3+1], q=R[i*3+2], s=R[i*3+5];
+    const fr=((t*.055+r)%1+1)%1;
+    snow[i].position.set(-24+r*48, 17.5-fr*19, -16+q*34+Math.sin(t*.8+s*7)*.7);
+    snow[i].scale.setScalar(Math.max(Math.sin(fr*Math.PI)*(.5+s*.75),1e-4));
   }
-  armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
+  const warm=ramp(t,'payoff',.16,.66);
+  for(const m of winMats) m.emissiveIntensity = .04+2.8*warm;
+  // The payoff caption asserts a ratio, so the ratio gets geometry: one unit of
+  // electricity travels into the outdoor unit, three of heat leave the roof.
+  // An assertion with no geometry is B-roll with a thesis printed over it.
+  elecCube.position.x = lerp(17.5,12.4,ramp(t,'payoff',.22,.58));
+  elecCube.scale.setScalar(Math.max(ramp(t,'payoff',.16,.40),1e-4));
+  for(let i=0;i<heatCubes.length;i++){
+    const u=ramp(t,'payoff',.34+i*.075,.60+i*.075);
+    heatCubes[i].position.set(-3.6+i*3.0,13.4+u*2.6,1.6);
+    heatCubes[i].scale.setScalar(Math.max(u,1e-4));
+  }
 
-  // DoF follows the shot list: shotFocus is solved per frame, and the rack
-  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
-  bokeh.uniforms.focus.value=shotFocus;
+  /* ---- world B ----
+     flow is ONE expression spanning the whole film: a constant rate plus a
+     single acceleration ramp. Summing per-beat ramps (the shape method.md
+     warns about) would decelerate the refrigerant to a dead stop at every beat
+     boundary, in a film whose subject is a loop that never stops. */
+  const flow = t*.052 + .62*ramp(t,'loopout',.10,.95);
+  for(let i=0;i<drops.length;i++){
+    const u=((flow+i/drops.length)%1+1)%1;
+    drops[i].position.copy(loopCurve.getPointAt(u));
+    // temperature around the cycle: hot out of the compressor, dumped across
+    // the condenser, crashed at the valve, picked back up in the evaporator
+    const T=clamp(1-.55*ss(u,.03,.26)-.42*ss(u,.265,.30)+.16*ss(u,.50,.70)+.82*ss(u,.765,.80),0,1);
+    dropMats[i].color.setHex(COLD).lerp(HOTC,T);       // restate, never adjust
+    dropMats[i].emissive.setHex(COLD).lerp(HOTC,T);
+    dropMats[i].emissiveIntensity = .22+.55*T;
+    drops[i].scale.setScalar(.80+.36*T);
+  }
+  // the compressor's stroke and the valve's pinch derive from FLOW, not from t,
+  // so they stop when the fluid stops instead of running on an empty loop
+  const sq=.5+.5*Math.sin(flow*Math.PI*2*drops.length);
+  compBody.scale.set(1+.09*sq, 1-.19*sq, 1+.09*sq);
+  valvePinch.scale.set(1-.10*sq, 1, 1-.10*sq);
+  const ampIn =clamp(ramp(t,'evap',.14,.46)-ramp(t,'payoff',0,.10),0,1);
+  const ampOut=clamp(ramp(t,'cond',.14,.46)-ramp(t,'payoff',0,.10),0,1);
+  [[inArrows,ampIn],[outArrows,ampOut]].forEach(([g,amp])=>{
+    g.children.forEach((a,k)=>{
+      if(!a.isGroup)return;
+      const fr=((flow*7+k/3)%1+1)%1;
+      a.position.set(-1.6+fr*3.3,(k-1)*1.45,0);
+      a.scale.setScalar(Math.max(Math.sin(fr*Math.PI)*amp,1e-4));
+    });
+  });
 
-  // bloom payoff: the orb wakes for the finale (park is deliberate — the film
-  // ends on it), plus a proud little spin. Restated every frame, never +=.
-  orbMat.emissiveIntensity=.25+5.2*ramp(t,'spark',.60,.76);
-  orb.scale.setScalar(1+.18*pulse(t,'spark',.60,.85));
-  head.rotation.y=.6*Math.sin(2*Math.PI*ramp(t,'spark',.78,.98));
+  /* ---- world C: liquid -> gas. The molecules do not gain heat and then move;
+     the movement IS the heat, so both come off the same ramp. ---- */
+  const spread=ramp(t,'micro',.16,.78);
+  for(let i=0;i<mols.length;i++){
+    const b=molBase[i],g=molGas[i];
+    const w1=5+R[i*5+2]*8, ph=R[i*5+9]*Math.PI*2, a=.05+.44*spread;
+    mols[i].position.set(
+      lerp(b[0],g[0],spread)+Math.sin(t*w1+ph)*a,
+      lerp(b[1],g[1],spread)+Math.sin(t*w1*1.17+ph*1.7)*a,
+      lerp(b[2],g[2],spread)+Math.sin(t*w1*.83+ph*2.3)*a);
+    mols[i].scale.setScalar(.9+.25*spread);
+  }
+  const cAmp=ramp(t,'micro',.04,.38);
+  cArrows.forEach((a,k)=>{
+    const fr=((t*.55+k/4)%1+1)%1;
+    a.position.set(-5.7+fr*2.4, -3+k*2, 0);
+    a.scale.setScalar(Math.max(Math.sin(fr*Math.PI)*cAmp,1e-4));
+  });
+  warmGlow.emissiveIntensity=.35+.85*cAmp;
 }
+
 
 /* ---------- overlay (captions, title, flashes) ---------- */
 const capEl=document.getElementById('cap');
@@ -5257,7 +5290,7 @@ window.BEATS=BEATS;
 // FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
 // does not export it renders at the historical 1920x1080 default.
 window.FRAME=FRAME;
-window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);composer.render();};
+window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};

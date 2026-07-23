@@ -23,13 +23,16 @@ and the post chain's bloom/DoF all resolve from the bible.
 
 ## The control pair (the proof, committed)
 
-`toybot-walk.html` carries two bibles, and the committed AVIFs are the same
-film — same beats, same eight shots, zero geometry edits — under each:
+`toybot-walk.html` carries two bibles. Same beats, same eight shots, zero
+geometry edits — one line apart. Only `toybox` ships as a committed AVIF;
+`midnight` is a one-line render, which is the cheaper way to hold the claim
+honest (a committed artifact can go stale against the scene, a re-render
+cannot):
 
 | bible | register | one-line summary |
 |---|---|---|
-| `toybox` (default, `toybot-walk.avif`) | daylight paper-cutout | 42° lens, steadicam, .8s blends, warm keys, bloom only on the orb |
-| `midnight` (`toybot-walk.midnight.avif`) | low-key neon noir | 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom threshold .55 — glow carries the frame |
+| `toybox` (default — the committed `toybot-walk.avif`) | daylight paper-cutout | 42° lens, steadicam, .8s blends, warm keys, bloom only on the orb |
+| `midnight` (flip `BIBLE` and render) | low-key neon noir | 30° lens, locked tripod, 1.3s dollies, magenta rim, bloom threshold .55 — glow carries the frame |
 
 If a bible swap did NOT categorically change the film, the layers would not
 actually be separated — this pair is the standing test that they are. The

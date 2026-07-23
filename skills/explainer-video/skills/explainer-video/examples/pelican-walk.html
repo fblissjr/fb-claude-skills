@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Toybot takes a walk</title>
+<title>Pelican takes a walk</title>
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -4707,46 +4707,33 @@ void main() {
    here, and animate() addresses beats by NAME via ramp()/pulse().
    ============================================================ */
 const BEATS = [
-  {name:'title',  dur:2.4},
-  {name:'arrive', dur:4.2, cap:"Two-bone IK — feet that actually plant"},
-  {name:'rack',   dur:3.6, cap:"Rack focus — a real depth of field"},
-  {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
+  {name:'street',  dur:4.2, cap:"6:47 PM. Two blocks from home."},
+  {name:'flip',    dur:3.0},
+  {name:'deadpan', dur:3.4, cap:"Of course."},
+  {name:'strike',  dur:2.8},
+  {name:'home',    dur:4.4, cap:"Same time tomorrow."},
 ];
-
-/* ============================================================
-   STYLE BIBLES — one object constrains EVERY layer: palette,
-   lights, post, glass (default lens), cut pace, camera energy.
-   BIBLE is the one-line film switch; BEATS, the cast, the world
-   and the SHOT LIST never change. That separation is the whole
-   point of the layered build — this file is its control pair.
-   ============================================================ */
-const BIBLE='toybox';                 // 'toybox' | 'midnight'
+const BIBLE='storm';                  // 'storm'
+/* One register object. A storm at night is almost entirely a LIGHTING problem:
+   the palette is nearly monochrome and everything legible comes from three
+   sources — a sodium streetlamp, cold moon rim, and the lightning itself. The
+   bloom threshold sits low (.40) on purpose: the lamp, the windows and the
+   lit rain are meant to bleed. */
 const BIBLES={
-  toybox:{                            // daylight paper-cutout, gentle and warm
-    bg:0xdfe6ea, floor:0xe7dcc8, exposure:1.0,
-    ink:0x26221c,
-    body:0x2a9d8f, accent:0xe05d3d, trim:0xe9b44c,
-    tree:0x37806b, trunk:0x6b4a32,
-    matcap:['#f6e0c8','#c76b4a','#2a1409'],
+  storm:{
+    bg:0x05070f, floor:0x0a0e1a, exposure:1.18,
+    ink:0x03050a,
+    body:0xefe7d8,                    // pelican: wet cream
+    accent:0xf0a33c,                  // beak + feet: amber
+    trim:0x2f3d58,                    // slate raincoat
+    tree:0x18253c, trunk:0x0d1626,    // building silhouettes
+    matcap:['#c9dcf5','#40587f','#05080f'],
     toonSteps:3,
-    outline:1.055,
-    lens:42, energy:'steadicam',
-    cutDur:{},                        // template pace: blends at .8s
-    lights:{hemi:[0xdfeaf2,0xcbb89a,.45],key:[0xfff2dc,1.45],rim:[0xbfd8ff,.8]},
-    post:{bloomStrength:.55,bloomRadius:.3,bloomThreshold:.82,aperture:.00032,maxblur:.006},
-  },
-  midnight:{                          // low-key noir: long glass, locked camera, glow
-    bg:0x0b0e1a, floor:0x121830, exposure:1.05,
-    ink:0x05060c,
-    body:0x2e4a8a, accent:0xff3d81, trim:0x00e5ff,
-    tree:0x16324a, trunk:0x0e1f30,
-    matcap:['#cfe6ff','#48608f','#0a0d1c'],
-    toonSteps:2,                      // harder banding — noir contrast
-    outline:1.055,
-    lens:30, energy:'locked',         // longer lens flattens; tripod stillness
-    cutDur:{blend:1.3},               // slow, deliberate dollies
-    lights:{hemi:[0x24365e,0x05070f,.3],key:[0x9fc0ff,1.5],rim:[0xff3d81,1.5]},
-    post:{bloomStrength:1.0,bloomRadius:.35,bloomThreshold:.55,aperture:.00045,maxblur:.008},
+    outline:1.045,
+    lens:36, energy:'handheld',       // documentary nerves suit weather
+    cutDur:{blend:.9},
+    lights:{hemi:[0x1b2942,0x04060d,.34],key:[0x8fb4ff,.5],rim:[0x6fa8ff,.85]},
+    post:{bloomStrength:1.3,bloomRadius:.44,bloomThreshold:.40,aperture:.00040,maxblur:.0078},
   },
 };
 const STYLE=BIBLES[BIBLE];
@@ -4754,8 +4741,8 @@ if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
-  title: "Toybot takes a walk",
-  subtitle: "cel shading · analytic IK · rack focus · bloom",
+  title: "",
+  subtitle: "",
   flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
   seed: 20260721,                     // change to reshuffle all seeded randomness
   sway: 0.04,                         // idle camera drift. Set to 0 for `build.js loop`:
@@ -4948,101 +4935,178 @@ scene.add(key);
 const rim=new THREE.DirectionalLight(STYLE.lights.rim[0],STYLE.lights.rim[1]);rim.position.set(-6,7,-8);scene.add(rim);
 
 /* ============================================================
-   WORLD — the bot, its ground, and one prop to rack focus onto.
+   WORLD — a wet street at night. Every light in here is either a
+   named source or the storm; nothing is ambient decoration.
    ============================================================ */
 const world=new THREE.Group();scene.add(world);
-const floor=mesh(new THREE.PlaneGeometry(200,200),toon(STYLE.floor),world);
-floor.rotation.x=-Math.PI/2;floor.castShadow=false;
 
-// the prop: a little signpost near the lens — the OTHER subject of the rack
-const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
-om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
-om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+// Wet asphalt: low roughness + real metalness is what makes it read WET —
+// it is the specular response to the lamp and the lightning, not the colour.
+const roadMat=new THREE.MeshStandardMaterial({color:STYLE.floor,roughness:.16,metalness:.62});
+const floor=mesh(new THREE.PlaneGeometry(300,300),roadMat,world);
+floor.rotation.x=-Math.PI/2;floor.castShadow=false;floor.receiveShadow=true;
 
-/* ---------- world dressing: the three remaining material families ----------
-   Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
-   matching BackSide instanced shell so the outlines are one draw call too.
-   Urn: LatheGeometry, toon — curves without an asset file.
-   Pod: MeshPhysicalMaterial reading scene.environment — the IBL proof.
-   Boulder: MeshMatcapMaterial with a matcap PAINTED at load on a canvas —
-   sculpted-clay shading with zero lights and zero files. ---------- */
-{
-  const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
-  const treeM=toon(STYLE.tree),trunkM=toon(STYLE.trunk);
-  const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
-  const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
-  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
-  for(let i=0;i<N;i++){
-    const x=-60+120*R[i*3],z=-9-40*R[i*3+1],h=2.2+3.4*R[i*3+2];
-    P.set(x,h/2+.7,z);V.set(h*.42,h,h*.42);
-    M.compose(P,Q,V);tree.setMatrixAt(i,M);
-    M.compose(P,Q,V.clone().multiplyScalar(1.06));treeO.setMatrixAt(i,M);
-    M.compose(new THREE.Vector3(x,.35,z),Q,new THREE.Vector3(1,1,1));trunk.setMatrixAt(i,M);
+// Puddles: slightly glossier patches. Placed from the frozen pool, never redrawn.
+const puddleMat=new THREE.MeshStandardMaterial({color:0x121a2c,roughness:.05,metalness:.9});
+for(let i=0;i<9;i++){
+  const p=mesh(new THREE.CircleGeometry(1.1+R[500+i]*1.9,20),puddleMat,world,
+    -18+R[520+i]*34,0.012,-2.5+R[540+i]*7);
+  p.rotation.x=-Math.PI/2;p.scale.set(1,1,.55+R[560+i]*.5);p.castShadow=false;
+}
+
+// Kerb + far pavement give the road an edge to read against.
+const kerb=om(B(70,.34,1.2),toon(STYLE.trim),world,0,.17,5.6);kerb.castShadow=false;
+
+/* Buildings: silhouettes with lit windows. The windows are the SECOND bloom
+   budget after the lamp — a few warm ones read as "someone is already home",
+   which is the whole emotional point of the last beat. */
+const winWarm=new THREE.MeshBasicMaterial({color:0xffc978});
+const winCold=new THREE.MeshBasicMaterial({color:0x2d4a6e});
+function block(x,z,w,h,d,warmSeed){
+  const b=om(B(w,h,d),toon(STYLE.tree),world,x,h/2,z);b.castShadow=false;
+  for(let r=0;r<Math.floor(h/2.4);r++)for(let c=0;c<Math.floor(w/2.2);c++){
+    const k=(warmSeed+r*7+c*13)%23;
+    if(k>13)continue;                                   // most windows dark
+    const lit=mesh(new THREE.PlaneGeometry(.75,1.0),k>10?winWarm:winCold,world,
+      x-w/2+1.1+c*2.2, 1.6+r*2.4, z+d/2+.02);
+    lit.castShadow=false;
   }
-  tree.castShadow=trunk.castShadow=true;
-  world.add(tree,treeO,trunk);
+  return b;
 }
-om(new THREE.LatheGeometry(
-  [[0,0],[.62,.06],[.5,.5],[.3,.9],[.34,1.28],[.52,1.5],[.44,1.62]].map(p=>new THREE.Vector2(p[0],p[1])),18),
-  toon(STYLE.trim),world,-6.5,0,-3.5);
-{
-  const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
-    {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
-  pod.position.set(-9,.7,4.2);pod.castShadow=true;world.add(pod);
+block(-21,-11,13,17,9,3); block(-6,-14,11,23,9,11); block(9,-12,14,15,9,5);
+block(24,-13,12,20,9,17); block(-33,-12,10,13,9,9);
+
+/* The streetlamp — the film's only warm source, and the anchor the whole
+   composition hangs on. Pole, an emissive head that bloom will flare, a real
+   PointLight so the road and the bird actually receive it, and an additive
+   cone standing in for the shaft of light through rain. */
+const LAMP_X=2.2;
+const lampG=new THREE.Group();world.add(lampG);lampG.position.set(LAMP_X,0,3.1);
+om(C(.17,.22,7.6),toon(STYLE.trim),lampG,0,3.8,0);
+om(C(.15,.15,2.0),toon(STYLE.trim),lampG,-.9,7.5,0).rotation.z=Math.PI/2;
+const lampHeadMat=new THREE.MeshBasicMaterial({color:0xffcf8a});
+const lampHead=mesh(S(.44,16,12),lampHeadMat,lampG,-1.8,7.35,0);lampHead.castShadow=false;
+const lampLight=new THREE.PointLight(0xffb257,0,26,2.0);
+lampLight.position.set(LAMP_X-1.8,7.35,3.1);world.add(lampLight);
+const shaftMat=new THREE.MeshBasicMaterial({color:0xffb257,transparent:true,opacity:.018,
+  blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+const shaft=mesh(new THREE.ConeGeometry(2.6,7.0,24,1,true),shaftMat,lampG,-1.8,3.75,0);
+shaft.castShadow=false;
+
+// The doorway he is walking toward: warm, and the last beat's payoff.
+const doorMat=new THREE.MeshBasicMaterial({color:0xffb765});
+const door=mesh(new THREE.PlaneGeometry(2.0,3.4),doorMat,world,13.6,1.7,-7.45);
+door.castShadow=false;
+
+/* RAIN — 1600 streaks in one InstancedMesh. Determinism note: a drop's height
+   is `span - mod(seed*span + t*speed, span)`, a PURE function of t, so there is
+   no particle state anywhere and seekTo stays byte-identical. The streaks are
+   pre-slanted; wind is a constant x-shear, not a simulation. */
+const RAIN_N=1600, RAIN_SPAN=30, RAIN_SPEED=26;
+const dropG=B(.022,1.05,.022);
+const rainMat=new THREE.MeshBasicMaterial({color:0x9fc4ff,transparent:true,opacity:.22});
+const rain=new THREE.InstancedMesh(dropG,rainMat,RAIN_N);
+rain.castShadow=false;rain.frustumCulled=false;world.add(rain);
+const _d=new THREE.Object3D();
+
+// ---- the pelican: same joint discipline as any rigged figure here ----
+const L1=1.25,L2=1.25,HIP=2.55,STRIDE=1.9;
+const bird=new THREE.Group();world.add(bird);
+const torso=new THREE.Group();bird.add(torso);torso.position.y=HIP;
+/* THE BIRD. Rebuilt after the first render came back as a duck.
+   Two things make a pelican read, and neither is colour:
+     1. the body is a LONG horizontal ellipsoid, not a ball;
+     2. the beak is nearly as long as the body, and it is the silhouette.
+   Everything in the beak assembly is built in ONE local frame along +X — the
+   first version rotated the mandible MESH but positioned the pouch in the
+   unrotated group, so the pouch detached and floated beside the head. Rotate
+   the GEOMETRY, then every child shares the same axis. */
+
+// body: elongated along X (the axis of travel), tipped forward into the rain
+const bodyM=om(S(1.15,22,16),toon(STYLE.body),torso,-.12,.66,0);
+bodyM.scale.set(1.66,.96,.84);
+// tail: a short wedge off the back, so the body has a direction
+om(S(.55,12,10),toon(STYLE.body),torso,-1.85,.80,0).scale.set(1.5,.55,.7);
+// the raincoat: a slate band around the middle third
+om(S(1.13,20,14),toon(STYLE.trim),torso,-.18,.50,0).scale.set(1.33,.84,.88);
+
+// wings folded flat along the flanks
+const wingL=new THREE.Group();torso.add(wingL);wingL.position.set(-.15,.78,.78);
+om(S(.80,14,10),toon(STYLE.body),wingL,0,0,0).scale.set(1.45,.72,.22);
+const wingR=new THREE.Group();torso.add(wingR);wingR.position.set(-.15,.78,-.78);
+om(S(.80,14,10),toon(STYLE.body),wingR,0,0,0).scale.set(1.45,.72,.22);
+
+/* neck: thick, short, and hunched FORWARD — the posture is the character.
+   Built as two segments so the S-curve reads instead of a straight pipe. */
+const neck=new THREE.Group();torso.add(neck);neck.position.set(.92,1.05,0);
+neck.rotation.z=-.30;
+om(C(.30,.40,1.05,14),toon(STYLE.body),neck,0,.45,0);
+const neck2=new THREE.Group();neck.add(neck2);neck2.position.set(0,.95,0);
+neck2.rotation.z=.62;
+om(C(.26,.31,.75,14),toon(STYLE.body),neck2,0,.32,0);
+
+const head=new THREE.Group();neck2.add(head);head.position.set(.05,.72,0);
+om(S(.52,18,14),toon(STYLE.body),head,0,0,0).scale.set(1.15,1.0,1.0);
+
+/* THE BEAK — the whole silhouette. Geometry is rotated so the assembly lies
+   along +X and the pouch can hang off it in the same frame. */
+const beak=new THREE.Group();head.add(beak);beak.position.set(.40,-.06,0);
+beak.rotation.z=-.13;
+const upperG=C(.045,.26,2.80,14);
+upperG.rotateZ(-Math.PI/2); upperG.translate(1.40,0,0);
+om(upperG,toon(STYLE.accent),beak,0,0,0);
+const lowerG=C(.035,.20,2.55,12);
+lowerG.rotateZ(-Math.PI/2); lowerG.translate(1.28,0,0);
+om(lowerG,toon(0xd8842c),beak,0,-.20,0);
+// the pouch: the half people actually recognise. Same +X frame as the mandibles.
+const pouch=om(S(.30,16,12),toon(0xcf7a24),beak,1.02,-.30,0);
+pouch.scale.set(2.30,1.05,.92);
+
+const eyeMat=new THREE.MeshBasicMaterial({color:0x0d1219});
+mesh(S(.075,10,8),eyeMat,head,.26,.26,.40).castShadow=false;
+mesh(S(.075,10,8),eyeMat,head,.26,.26,-.40).castShadow=false;
+
+// briefcase, hanging off the near wing — he went to work and he is bringing it home
+const casePivot=new THREE.Group();torso.add(casePivot);casePivot.position.set(-.30,.10,1.02);
+om(B(.88,.66,.26),toon(0x4a3524),casePivot,0,-1.28,0);
+om(C(.035,.035,1.15,8),toon(0x2a1f16),casePivot,0,-.60,0);   // the handle strap
+om(C(.035,.035,.40,8),toon(0xc79a52),casePivot,0,-.95,0).rotation.z=Math.PI/2;
+
+/* The umbrella, held UP over him — not clamped to his side, which is what made
+   the first render look like he was carrying a purple wing. */
+const umbG=new THREE.Group();torso.add(umbG);umbG.position.set(-.55,1.15,.55);
+umbG.rotation.z=.16;
+om(C(.035,.035,2.85,8),toon(0x1b2334),umbG,0,1.35,0);
+const canopy=new THREE.Group();umbG.add(canopy);canopy.position.y=2.78;
+const canM=om(new THREE.ConeGeometry(1.48,.78,20,1,true),toon(0x7d4fa8),canopy,0,0,0);
+canM.material.side=THREE.DoubleSide;
+// ribs: eight spokes running down the canopy. A smooth cone is a hat; the ribs
+// are what say "umbrella" at a glance, and they invert with it for free.
+for(let i=0;i<8;i++){
+  const a=i/8*Math.PI*2;
+  const rib=om(C(.028,.028,1.46,6),toon(0x53306f),canopy,Math.cos(a)*.74,-.30,Math.sin(a)*.74);
+  rib.rotation.z=-Math.cos(a)*.46; rib.rotation.x=Math.sin(a)*.46;
 }
-{
-  const cv=document.createElement('canvas');cv.width=cv.height=256;
-  const c=cv.getContext('2d');
-  const g=c.createRadialGradient(96,84,18,128,128,132);
-  g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
-  c.fillStyle=g;c.fillRect(0,0,256,256);
-  const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
-  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
-  rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
-}
+om(S(.075,10,8),toon(0x53306f),canopy,0,.42,0);          // finial
+// the crook, so the handle reads as held
+const crook=om(new THREE.TorusGeometry(.20,.032,8,14,Math.PI),toon(0x1b2334),umbG,-.20,-.05,0);
+crook.rotation.z=Math.PI;
 
-// ---- the bot: every joint is a Group, so outlines and IK ride together ----
-const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;
-const bot=new THREE.Group();world.add(bot);
-const torso=new THREE.Group();bot.add(torso);torso.position.y=HIP;
-om(B(2.2,2.5,1.4),toon(STYLE.body),torso,0,1.25,0);
-om(B(2.4,.5,1.55),toon(STYLE.trim),torso,0,.15,0);            // belt
-const head=new THREE.Group();torso.add(head);head.position.y=3.3;   // clear of the torso: the outline shell shows any seam
-om(S(1.05),toon(STYLE.body),head,0,.35,0);
-// eyes: small emissives — the bloom budget lives here and on the orb
-const eyeMat=new THREE.MeshBasicMaterial({color:0xbfe9ff});
-mesh(S(.16,10,8),eyeMat,head,.42,.5,.88).castShadow=false;
-mesh(S(.16,10,8),eyeMat,head,-.42,.5,.88).castShadow=false;
-const ant=new THREE.Group();head.add(ant);ant.position.y=1.35;
-om(C(.05,.05,.9),toon(STYLE.ink),ant,0,.45,0);
-const orbMat=new THREE.MeshStandardMaterial({color:STYLE.trim,emissive:STYLE.trim,emissiveIntensity:.25,roughness:.4});
-const orb=mesh(S(.34,18,12),orbMat,ant,0,1.05,0);orb.castShadow=false;
-
-function arm(side){const a=new THREE.Group();torso.add(a);a.position.set(side*1.35,2.0,0);
-  om(C(.22,.18,1.9),toon(STYLE.body),a,0,-.95,0);
-  om(S(.3),toon(STYLE.accent),a,0,-2.0,0);return a;}
-const armL=arm(1),armR=arm(-1);
-
-// leg: hip Group -> thigh (pivot at top) -> knee Group -> shin -> flat foot.
-// Geometries are pre-translated so each pivot rotates about the JOINT.
+// legs — reuse the analytic IK rig; thin amber shanks under a heavy body
 function leg(side){
-  const hip=new THREE.Group();bot.add(hip);hip.position.set(0,HIP,side*.62);
-  const tg=C(.3,.24,L1);tg.translate(0,-L1/2,0);
-  om(tg,toon(STYLE.body),hip,0,0,0);
+  const hip=new THREE.Group();bird.add(hip);hip.position.set(0,HIP,side*.42);
+  const tg=C(.16,.13,L1);tg.translate(0,-L1/2,0);
+  om(tg,toon(STYLE.accent),hip,0,0,0);
   const knee=new THREE.Group();hip.add(knee);knee.position.y=-L1;
-  const sg=C(.22,.18,L2);sg.translate(0,-L2/2,0);
-  om(sg,toon(STYLE.body),knee,0,0,0);
+  const sg=C(.12,.10,L2);sg.translate(0,-L2/2,0);
+  om(sg,toon(STYLE.accent),knee,0,0,0);
   const ankle=new THREE.Group();knee.add(ankle);ankle.position.y=-L2;
-  const fg=B(1.15,.38,.7);fg.translate(.22,-.19,0);
+  const fg=B(.95,.16,.62);fg.translate(.24,-.08,0);
   om(fg,toon(STYLE.accent),ankle,0,0,0);
   return {hip,knee,ankle};
 }
 const legL=leg(1),legR=leg(-1);
 
-/* Analytic two-bone IK in the sagittal (x-up) plane — closed form, no solver,
-   no state. Given the foot target relative to the hip, law of cosines gives
-   the knee; the foot counter-rotates to stay flat. Pure function of its
-   inputs, so seekTo purity is untouched. */
 function solveLeg(l,dx,dy){
   const d=clamp(Math.hypot(dx,dy),.2,L1+L2-.01);
   const phi=Math.atan2(dx,-dy);
@@ -5053,55 +5117,44 @@ function solveLeg(l,dx,dy){
   l.ankle.rotation.z=-(l.hip.rotation.z+l.knee.rotation.z);
 }
 
-/* Gait: everything derives from DISTANCE TRAVELLED s, never wall time — feet
-   freeze mid-plant when the bot stops (method.md, cyclic motion). Each foot
-   alternates stance/swing over a 2-stride cycle; its plant point is a pure
-   function of the cycle index. */
-const START=-16;                                   // where the walk begins, world x
+/* Gait derives from DISTANCE TRAVELLED, never wall time — the documented rule.
+   Stop the bird and the feet stop planted instead of running on the spot. */
+const START=-15;
 function footTarget(s,phase){
   const cyc=s/(2*STRIDE)+phase;
   const n=Math.floor(cyc),u=cyc-n;
-  // Plant grid anchored at START — anchored at the origin, dx hit +16 at the
-  // first frame and the IK swung both legs horizontal. Shipped, seen, fixed.
   const x0=(n-phase)*2*STRIDE+START;
-  if(u<.55)return[x0,0];                           // stance: nailed to the floor
-  const w=ss(u,.55,1);                             // swing to the next plant
-  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
+  if(u<.56)return[x0,0];
+  const w=ss(u,.56,1);
+  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.62];
 }
-
 /* ============================================================
    CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
    camera keyframes; the solver in the template does the framing.
    ============================================================ */
-// Travel and hop as named closed forms — the SUBJECTS registry and animate()
-// both derive from THESE, so the camera and the body can never disagree.
-const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
-const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+// Travel as ONE ramp spanning every beat it covers. Summing per-beat ramps
+// would bring him to a dead stop at each boundary — the documented ss() stall —
+// and a trudge that stops four times is not a trudge.
+const pelXAt=t=>lerp(START,7.4,ss(t,.25,TOTAL-.55));
 
+/* Declared extents are the TRUE silhouette, umbrella included. Declaring the
+   bird's own height (5.4) cropped the umbrella off every shot tighter than WS —
+   the same defect as declaring a robot's height to the top of its head when the
+   antenna is the payoff. And `face` at h:1.5 put an MCU camera 0.96 units from
+   the head, i.e. INSIDE it, so that beat rendered as an empty street. Both are
+   the ladder doing exactly what it promises to a subject that lied about size. */
 const SUBJECTS={
-  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
-  // a tracked jump cancels itself on screen.
-  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
-  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
+  pel:{pos:t=>[pelXAt(t),3.45,0],h:7.0,w:4.4},
+  face:{pos:t=>[pelXAt(t)+1.05,5.05,0],h:2.9,w:3.8},
+  lamp:{pos:t=>[LAMP_X-1.8,7.35,3.1],h:2.2},
 };
-// The size ladder, calibrated to the convention a cinematographer means:
-// f = how many frame-heights the subject's full height spans; a = the
-// vertical anchor on the subject the camera aims at. FS is full-body tight;
-// MS is waist-up — the first cut of this table shipped MS at full-shot
-// framing and the rack's second subject fell out of frame.
 const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
 const SHOTS=[
-  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
-  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
-  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
-  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
-  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
-  // a rack to an off-screen subject explains nothing — both subjects must be
-  // visible at different depths for the focus pull to read.
-  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
-  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
-  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
-  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
+  {at:['street',0],    subject:'pel',  size:'WS',  angle:20,  elev:7},
+  {at:['flip',.06],    subject:'pel',  size:'FS',  angle:-24, elev:9,  cut:'blend'},
+  {at:['deadpan',.10], subject:'pel',  size:'FS',  angle:-72, elev:2,  cut:'hard'},
+  {at:['strike',0],    subject:'pel',  size:'WS',  angle:-32, elev:13, cut:'hard'},
+  {at:['home',.08],    subject:'pel',  size:'WS',  size2:'FS', angle:14, elev:6, cut:'blend'},
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
@@ -5177,47 +5230,92 @@ function setCamera(t){
 /* ============================================================
    ANIMATE — every property a pure function of t.
    ============================================================ */
-function animate(t){
-  // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
-  const botX=botXAt(t);
-  const s=botX+16;
-  const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
+/* ============================================================
+   ANIMATE — every property a pure function of t.
+   ============================================================ */
 
-  // the spark beat, sequenced so its two events don't fight: anticipation
-  // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
-  // cut ran hop and glow together and the payoff read as neither.
-  const hop=hopAt(t);
-  const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
-              +.06*(backOut(ramp(t,'spark',.58,.78))-1);
-  bot.position.set(botX,hop,0);
-  torso.scale.set(1/Math.sqrt(squash),squash,1/Math.sqrt(squash));
-  torso.position.y=HIP+.14*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  torso.rotation.z=.10*vAmp;                       // lean into the walk
-  head.rotation.z=-.06*vAmp+.08*Math.sin(Math.PI*s/STRIDE)*vAmp;
-
-  // legs: foot targets in WORLD, solved relative to each hip in bot space.
-  // Mid-hop the targets tuck toward the body instead of chasing the floor.
-  for(const[l,ph]of[[legL,0],[legR,.5]]){
-    let[fx,fy]=footTarget(s,ph);
-    fx=lerp(botX+(ph?-.7:.5),fx,clamp(vAmp*2.5,0,1)); // ease to a rest stance when stopped
-    fx+=(ph?-.45:.45)*clamp(hop,0,1);              // stagger the tuck so the feet read as two
-    fy=fy*vAmp+hop*(ph?.85:.62);                   // back leg tucks higher — jump-pose asymmetry
-    solveLeg(l,fx-botX,fy-HIP);
-  }
-  armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-
-  // DoF follows the shot list: shotFocus is solved per frame, and the rack
-  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
-  bokeh.uniforms.focus.value=shotFocus;
-
-  // bloom payoff: the orb wakes for the finale (park is deliberate — the film
-  // ends on it), plus a proud little spin. Restated every frame, never +=.
-  orbMat.emissiveIntensity=.25+5.2*ramp(t,'spark',.60,.76);
-  orb.scale.setScalar(1+.18*pulse(t,'spark',.60,.85));
-  head.rotation.y=.6*Math.sin(2*Math.PI*ramp(t,'spark',.78,.98));
+/* LIGHTNING, in closed form. A real strike is not one flash: it is a hard
+   attack followed by two weaker returns. Three exponential decays at fixed
+   offsets give that for free, and because it is evaluated from t there is no
+   state to desync — seekTo lands identically cold or warm. Offsets are in
+   SECONDS (physical durations must not stretch when a beat is retimed). */
+function boltAt(t,t0){
+  const d=t-t0;
+  if(d<0||d>2.2)return 0;
+  const e=(lag,k)=>d<lag?0:Math.exp(-(d-lag)*k);
+  return e(0,7.5)*1.0 + e(.085,9.5)*.62 + e(.235,6.0)*.40;
 }
+// Strike times anchored in seconds from their beat, not fractions.
+const STRIKES=[[()=>secAt('flip',.55),1.0],[()=>secAt('deadpan',2.15),.45],
+               [()=>secAt('strike',.30),1.35],[()=>secAt('strike',1.15),.55]];
+const stormAt=t=>{let v=0;for(const[f,amp]of STRIKES)v=Math.max(v,boltAt(t,f())*amp);return Math.min(v,1.6);};
 
+const bgBase=new THREE.Color(STYLE.bg), bgLit=new THREE.Color(0x9fc0e8);
+
+function animate(t){
+  const L=stormAt(t);                      // 0 .. ~1.6
+
+  // --- storm lighting. Every value is ASSIGNED from a constant, never nudged.
+  key.intensity   = STYLE.lights.key[1] + L*7.0;
+  rim.intensity   = STYLE.lights.rim[1] + L*2.2;
+  key.position.set(-9+L*2, 15, -6);        // the strike comes from behind-left
+  scene.background = bgBase.clone().lerp(bgLit, Math.min(.72, L*.62));
+  renderer.toneMappingExposure = STYLE.exposure + L*.22;
+
+  // lamp: a slow sodium flicker plus a hard dropout while the strike peaks
+  const flick = .82 + noise1(t,2.1,31)*.16;
+  const dip   = 1 - Math.min(.75, L*.55);
+  lampLight.intensity = 34*flick*dip;
+  lampHeadMat.color.setHex(0xffcf8a).multiplyScalar(flick*dip);
+  shaftMat.opacity = .018*flick*dip + L*.008;
+
+  // --- rain. Pure: height is a modulo of t, never an accumulator.
+  const gust = .55 + .35*Math.sin(t*.8) + noise1(t,.7,44)*.5;
+  for(let i=0;i<RAIN_N;i++){
+    const sx=R[i*2]||.5, sz=R[i*2+1]||.5, sp=.75+ (R[(i*3)%3900]||.5)*.5;
+    const y = RAIN_SPAN - ((sx*RAIN_SPAN + t*RAIN_SPEED*sp) % RAIN_SPAN);
+    const x = -26 + sx*54 + y*.16*gust;    // constant shear = wind, not a sim
+    const z = -13 + sz*22;   // keep drops off the lens; a streak at z>9 is a bar
+    _d.position.set(x, y-2.2, z);
+    _d.rotation.set(0,0,-.16*gust);
+    _d.scale.set(1, .8+sp*.7, 1);
+    _d.updateMatrix(); rain.setMatrixAt(i,_d.matrix);
+  }
+  rain.instanceMatrix.needsUpdate = true;
+  rainMat.opacity = .20 + L*.30;           // the storm lights its own rain
+
+  // --- the bird
+  const s = pelXAt(t) - START;             // distance travelled
+  bird.position.x = pelXAt(t);
+  const v = ss(t,.3,1.1) * (1-ramp(t,'home',.72,1));   // settles at the door
+  const fl = footTarget(s,0), fr = footTarget(s,.5);
+  solveLeg(legL, fl[0]-pelXAt(t), fl[1]-HIP);
+  solveLeg(legR, fr[0]-pelXAt(t), fr[1]-HIP);
+  bird.position.y = Math.abs(Math.sin(s/STRIDE*Math.PI))*.07*v;   // gait bob
+
+  // hunch: deepest in the rain, lifting only at the door
+  const hunch = .30 - .22*ramp(t,'home',.45,.95);
+  torso.rotation.x = hunch;
+  neck.rotation.x  = .34 - .30*ramp(t,'home',.45,.95);
+  // the deadpan look-up, and one slow blink-equivalent tilt
+  head.rotation.x  = -.15 - .55*pulse(t,'deadpan',.18,.72) - .25*ramp(t,'home',.5,.95);
+  head.rotation.z  = .07*Math.sin(s*1.1);
+
+  // wings tucked; the briefcase swings from travel, not from t
+  wingR.rotation.x = .18*Math.sin(s/STRIDE*Math.PI + 1.0)*v;
+  wingL.rotation.x = -.10 + .12*Math.sin(s/STRIDE*Math.PI)*v;
+  casePivot.rotation.x = .22*Math.sin(s/STRIDE*Math.PI + .6)*v;
+
+  // THE GAG: the umbrella inverts on the first strike and never recovers.
+  const inv = ramp(t,'flip',.30,.62);
+  canopy.scale.y = lerp(1, -1.15, inv);
+  canopy.scale.x = canopy.scale.z = lerp(1, 1.16, inv);
+  umbG.rotation.z = -.22 + .34*inv + .05*Math.sin(s*.9)*(1-inv);
+  umbG.rotation.x = .10*inv;
+
+  // door warms as he approaches — one ramp, no park
+  doorMat.color.setHex(0xffb765).multiplyScalar(.55 + .45*ramp(t,'home',.1,.9));
+}
 /* ---------- overlay (captions, title, flashes) ---------- */
 const capEl=document.getElementById('cap');
 const titleEl=document.getElementById('title');

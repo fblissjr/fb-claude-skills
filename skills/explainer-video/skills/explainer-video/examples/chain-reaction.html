@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Toybot takes a walk</title>
+<title>One push</title>
 <style>
   /* Overlay text lives in the DOM, not the canvas: it stays crisp in screenshots
      and restyles without touching the scene. Colors/fonts come from CONFIG below. */
@@ -4707,58 +4707,36 @@ void main() {
    here, and animate() addresses beats by NAME via ramp()/pulse().
    ============================================================ */
 const BEATS = [
-  {name:'title',  dur:2.4},
-  {name:'arrive', dur:4.2, cap:"Two-bone IK — feet that actually plant"},
-  {name:'rack',   dur:3.6, cap:"Rack focus — a real depth of field"},
-  {name:'spark',  dur:3.4, cap:"Bloom, budgeted to the payoff"},
+  {name: 'title',  dur: 2.4},
+  {name: 'roll',   dur: 3.0, cap: "A ball is let go at the top of the ramp"},
+  {name: 'tip',    dur: 3.2, cap: "Its weight tips the plank — which lifts the hammer free"},
+  {name: 'topple', dur: 3.4, cap: "The hammer knocks the first block"},
+  {name: 'spin',   dur: 4.0, cap: "The last block kicks the wheel, and the wheel raises the flag"},
 ];
 
-/* ============================================================
-   STYLE BIBLES — one object constrains EVERY layer: palette,
-   lights, post, glass (default lens), cut pace, camera energy.
-   BIBLE is the one-line film switch; BEATS, the cast, the world
-   and the SHOT LIST never change. That separation is the whole
-   point of the layered build — this file is its control pair.
-   ============================================================ */
-const BIBLE='toybox';                 // 'toybox' | 'midnight'
-const BIBLES={
-  toybox:{                            // daylight paper-cutout, gentle and warm
-    bg:0xdfe6ea, floor:0xe7dcc8, exposure:1.0,
-    ink:0x26221c,
-    body:0x2a9d8f, accent:0xe05d3d, trim:0xe9b44c,
-    tree:0x37806b, trunk:0x6b4a32,
-    matcap:['#f6e0c8','#c76b4a','#2a1409'],
-    toonSteps:3,
-    outline:1.055,
-    lens:42, energy:'steadicam',
-    cutDur:{},                        // template pace: blends at .8s
-    lights:{hemi:[0xdfeaf2,0xcbb89a,.45],key:[0xfff2dc,1.45],rim:[0xbfd8ff,.8]},
-    post:{bloomStrength:.55,bloomRadius:.3,bloomThreshold:.82,aperture:.00032,maxblur:.006},
-  },
-  midnight:{                          // low-key noir: long glass, locked camera, glow
-    bg:0x0b0e1a, floor:0x121830, exposure:1.05,
-    ink:0x05060c,
-    body:0x2e4a8a, accent:0xff3d81, trim:0x00e5ff,
-    tree:0x16324a, trunk:0x0e1f30,
-    matcap:['#cfe6ff','#48608f','#0a0d1c'],
-    toonSteps:2,                      // harder banding — noir contrast
-    outline:1.055,
-    lens:30, energy:'locked',         // longer lens flattens; tripod stillness
-    cutDur:{blend:1.3},               // slow, deliberate dollies
-    lights:{hemi:[0x24365e,0x05070f,.3],key:[0x9fc0ff,1.5],rim:[0xff3d81,1.5]},
-    post:{bloomStrength:1.0,bloomRadius:.35,bloomThreshold:.55,aperture:.00045,maxblur:.008},
-  },
+/* ---------- STYLE: everything that is the LOOK. ----------
+   Split from CONFIG so a style pack (references/styles/) swaps this block and
+   nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
+   Materials are still created inline in buildWorlds(); lift shared palette
+   constants up here as the scene grows. */
+const STYLE = {
+  bg: 0x121c26,
+  exposure: 1.05,                     // if the scene looks washed out, LOWER this first
+  bench: 0xb07f56,
+  benchDark: 0x8a5f3c,
+  metal: 0x99a5b3,
+  dom:  [0xe0533d,0xe4713c,0xe8a03c,0xd8c246,0x8fc25a,0x4bb3a0,0x3f86c4],
+  ball: 0xf2f4f8,
+  flag: 0xffd23f,
 };
-const STYLE=BIBLES[BIBLE];
-if(!STYLE)throw new Error('unknown bible: '+BIBLE);
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
-  title: "Toybot takes a walk",
-  subtitle: "cel shading · analytic IK · rack focus · bloom",
+  title: "One Push",
+  subtitle: "a chain reaction, link by link",
   flashes: [],                        // world-cut flashes, as {beat, at} — e.g. [{beat:'two', at:0}]
   seed: 20260721,                     // change to reshuffle all seeded randomness
-  sway: 0.04,                         // idle camera drift. Set to 0 for `build.js loop`:
+  sway: 0.06,                         // idle camera drift. Set to 0 for `build.js loop`:
                                       // sway moves every pixel every frame, which defeats
                                       // WebP/GIF inter-frame compression and can 10x the
                                       // file size. Free in mp4, expensive inline.
@@ -4777,6 +4755,7 @@ const CONFIG = {
    the window, the shot ladder against frame height, smoke's overflow check
    against a hardcoded 1920. They disagreed the moment a window was not 16:9. */
 const FRAME = { aspect: 16/9, px: [1920, 1080] };
+
 /* ==== KERNEL-START ====================================================
    The shared kit. This block is byte-identical in every scene template —
    smoke.js FAILS the run if two checked files carry different kernels.
@@ -4878,36 +4857,8 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=STYLE.exposure;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(STYLE.bg);
-scene.fog=new THREE.Fog(STYLE.bg,26,90);
-const camera=new THREE.PerspectiveCamera(42,16/9,.1,300);
-
-/* ---------- sky + IBL: measured, and deliberately NOT in this film ----------
-   Both were built and bisected here, and both are recorded in style-3d.md:
-   - PMREMGenerator.fromScene left every subsequent frame BLACK on SwiftShader
-     (software GL, the dev-container case), confirmed against a no-PMREM
-     control. Standard recipe, expected to work on hardware GL; unverified
-     there. The chrome pod below reads convincingly from the directional rig
-     alone, which is why the film does not miss it.
-   - The visible Sky dome WORKS but is HDR-bright: on this film's low-horizon
-     composition it put a blinding band across every frame and fought ACES at
-     any exposure. Judged against the flat-background control, the control
-     won. Sky suits open-sky compositions with high camera angles — it stays
-     bundled (THREE.Sky) for films shaped like that. */
-
-/* ---------- post chain: per-frame pure, so seekTo stays byte-deterministic.
-   RenderPass -> Bokeh (DoF) -> Bloom -> OutputPass (tone map + sRGB).
-   NEVER add temporal passes (TAA, accumulation blur): they carry state across
-   frames and break the HTML/MP4 parity this whole architecture exists for.
-   smoke.js's byte-identity check is the enforcement. ---------- */
-const composer=new THREE.EffectComposer(renderer);
-composer.addPass(new THREE.RenderPass(scene,camera));
-const bokeh=new THREE.BokehPass(scene,camera,{focus:12,aperture:STYLE.post.aperture,maxblur:STYLE.post.maxblur});
-composer.addPass(bokeh);
-composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),
-  STYLE.post.bloomStrength,STYLE.post.bloomRadius,STYLE.post.bloomThreshold));
-composer.addPass(new THREE.OutputPass());
-
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
+const camera=new THREE.PerspectiveCamera(42,FRAME.aspect,.1,300);
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();applyFrameVars();}
 addEventListener('resize',resize);resize();
 
 /* ---------- shared helpers ---------- */
@@ -4915,174 +4866,263 @@ const S=(r,w=24,h=16)=>new THREE.SphereGeometry(r,w,h);
 const B=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
 const C=(rt,rb,h,s=20)=>new THREE.CylinderGeometry(rt,rb,h,s);
 function mesh(g,m,parent,px=0,py=0,pz=0){const o=new THREE.Mesh(g,m);o.position.set(px,py,pz);o.castShadow=true;o.receiveShadow=true;if(parent)parent.add(o);return o;}
+function std(color,opts={}){return new THREE.MeshStandardMaterial(Object.assign({color,roughness:.7},opts));}
 
-/* ---------- cel kit: stepped gradient map + inverted-hull outlines ----------
-   MeshToonMaterial + a NearestFilter gradient map gives the banded light;
-   the linework is a BackSide black shell 4.5% larger, ADDED AS A CHILD so it
-   rides every pivot the IK moves. Emissive-driven bloom passes through the
-   toon bands untouched, which is why the threshold sits above the palette. */
-const GRAD=(()=>{const n=STYLE.toonSteps,d=new Uint8Array(n);
-  for(let i=0;i<n;i++)d[i]=Math.round(90+165*i/(n-1));
-  const t=new THREE.DataTexture(d,n,1,THREE.RedFormat);
-  t.minFilter=t.magFilter=THREE.NearestFilter;t.needsUpdate=true;return t;})();
-const toon=(color,opts={})=>new THREE.MeshToonMaterial(Object.assign({color,gradientMap:GRAD},opts));
-const OUTLINE_MAT=new THREE.MeshBasicMaterial({color:STYLE.ink,side:THREE.BackSide});
-function om(g,m,parent,px,py,pz){                 // outlined mesh
-  const o=mesh(g,m,parent,px,py,pz);
-  const s=new THREE.Mesh(g,OUTLINE_MAT);s.scale.setScalar(STYLE.outline);
-  s.castShadow=false;s.receiveShadow=false;o.add(s);
-  return o;
-}
-
-/* ---------- lights (toon reads them as bands) ---------- */
-// Hemisphere stays LOW: toon quantizes directional light into bands, but
-// hemisphere irradiance is smooth and washes the cel look out on top.
-// Hemisphere stays LOW: toon quantizes directional light into bands, but
-// hemisphere irradiance is smooth and washes the cel look out on top.
-scene.add(new THREE.HemisphereLight(STYLE.lights.hemi[0],STYLE.lights.hemi[1],STYLE.lights.hemi[2]));
-const key=new THREE.DirectionalLight(STYLE.lights.key[0],STYLE.lights.key[1]);
-key.position.set(7,11,7);key.castShadow=true;
+/* ---------- lights (a sane default rig; tune per scene) ---------- */
+scene.add(new THREE.HemisphereLight(0xcfe4ff,0x8a6a52,.6));
+const key=new THREE.DirectionalLight(0xfff1dd,1.3);
+key.position.set(6,12,8);key.castShadow=true;
 key.shadow.mapSize.set(2048,2048);
-key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=16;key.shadow.camera.bottom=-16;
+key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
 scene.add(key);
-const rim=new THREE.DirectionalLight(STYLE.lights.rim[0],STYLE.lights.rim[1]);rim.position.set(-6,7,-8);scene.add(rim);
+const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);scene.add(fill);
 
 /* ============================================================
-   WORLD — the bot, its ground, and one prop to rack focus onto.
+   WORLDS — replace this placeholder with your scene.
+   Pattern: one Group per world, offset far apart (e.g. y -60),
+   toggle .visible in animate(t), cut the camera under a flash.
    ============================================================ */
-const world=new THREE.Group();scene.add(world);
-const floor=mesh(new THREE.PlaneGeometry(200,200),toon(STYLE.floor),world);
-floor.rotation.x=-Math.PI/2;floor.castShadow=false;
+/* ============================================================
+   THE MACHINE — every constant below is a LENGTH or an ANGLE.
+   Nothing here is a timestamp; the four physical DURATIONS are
+   grouped separately and go through secAt(), which is what the
+   seconds-variants exist for.
+   ============================================================ */
+const BALL_R=.80;   // squint strip round 2: at .55 the ball had no silhouette at 90px
+/* The ball's CENTRE path: a steep ramp, then two shallower run-out segments.
+   The first cut ran straight ramp -> plank and put a 40 degrees direction change
+   into one frame at the lip, with nothing under the ball on the run-out. The
+   chute below is built FROM this polyline, so the support and the path cannot
+   disagree. */
+const CHUTE=[[-17.2,9.15],[-12.4,3.60],[-11.2,2.95],[-10.2,2.575]];
+const PAN_X=-10.2;                                    // where it settles on the plank
+const PIV=[-6.6,1.6,0], PLK_L=8.0, PLK_T=.35, PLK_D=1.7, TH_P=.30;
+const HPIV=[-0.4,5.0,0], HARM=3.46, HR=.62, HA_STRIKE=.317;
+const NDOM=7, DGAP=1.45, DH=2.2, DTH=.34, DDP=1.3, DX0=1.4;
+const TH_LEAN=.66;          // a block stops here, resting on its neighbour
+/* The last block leans on the WHEEL, and TH_LAST is solved, not chosen: it is
+   the angle at which the block's tip (radius DH about its own base) meets the
+   circle the paddle tips sweep. Before this was solved the block swept THROUGH
+   the wheel between two paddles and the payoff link read as adjacent rather
+   than causal -- visible only in a strip, not in the contact sheet. */
+const _bx=DX0+(NDOM-1)*DGAP-DTH/2;
+const TH_C=.60;             // contact angle: DH*sin(TH_C) == the face-to-face gap
+const WAX=[11.9,2.4,0], WR=1.6, NPAD=6;
+const _d=Math.hypot(WAX[0]-_bx,WAX[1]);
+const _a=(_d*_d+DH*DH-WR*WR)/(2*_d), _h=Math.sqrt(Math.max(0,DH*DH-_a*_a));
+const _ux=(WAX[0]-_bx)/_d,_uy=WAX[1]/_d;
+const HITX=_bx+_a*_ux+_h*_uy, HITY=_a*_uy-_h*_ux;     // block tip meets paddle tip here
+const TH_LAST=Math.asin(clamp((HITX-_bx)/DH,-1,1));   // ...so the block stops there
+const TH_KICK=TH_LAST;
+const W_PHASE=Math.atan2(HITY-WAX[1],HITX-WAX[0]);    // park a paddle on the contact point
+const POLE_X=13.9, POLE_TOP=6.4, FLAG_Y0=.95, TH_FULL=17.0;
+const W_OM0=14.0, W_K=.70;  // rad/s at the kick, and the coast-down rate
 
-// the prop: a little signpost near the lens — the OTHER subject of the rack
-const prop=new THREE.Group();world.add(prop);prop.position.set(4.0,0,3.6);
-om(C(.09,.12,2.6),toon(STYLE.ink),prop,0,1.3,0);
-om(B(1.25,.85,.14),toon(STYLE.accent),prop,.45,2.45,0);
+/* ---------- the four physical durations, in seconds ---------- */
+const ROLL_S=2.10;          // ball: ramp top to the plank
+const PLK_S=3.40;           // plank: loaded to settled
+const REL_U=.94;            // the head slips off at this fraction of the PLANK'S own travel
+const SWING_S=.50;          // hammer: free swing to the strike
+const FALL_T=.30, FALL_P=1.7;   // a block's fall: angle ~ tau^1.7 (accelerating)
 
-/* ---------- world dressing: the three remaining material families ----------
-   Forest: InstancedMesh, seeded from R[] — one draw call per geometry, with a
-   matching BackSide instanced shell so the outlines are one draw call too.
-   Urn: LatheGeometry, toon — curves without an asset file.
-   Pod: MeshPhysicalMaterial reading scene.environment — the IBL proof.
-   Boulder: MeshMatcapMaterial with a matcap PAINTED at load on a canvas —
-   sculpted-clay shading with zero lights and zero files. ---------- */
-{
-  const coneG=new THREE.ConeGeometry(1,1,7),trunkG=new THREE.CylinderGeometry(.16,.2,1,6);
-  const treeM=toon(STYLE.tree),trunkM=toon(STYLE.trunk);
-  const N=46,tree=new THREE.InstancedMesh(coneG,treeM,N),trunk=new THREE.InstancedMesh(trunkG,trunkM,N);
-  const treeO=new THREE.InstancedMesh(coneG,OUTLINE_MAT,N);
-  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3(),P=new THREE.Vector3();
-  for(let i=0;i<N;i++){
-    const x=-60+120*R[i*3],z=-9-40*R[i*3+1],h=2.2+3.4*R[i*3+2];
-    P.set(x,h/2+.7,z);V.set(h*.42,h,h*.42);
-    M.compose(P,Q,V);tree.setMatrixAt(i,M);
-    M.compose(P,Q,V.clone().multiplyScalar(1.06));treeO.setMatrixAt(i,M);
-    M.compose(new THREE.Vector3(x,.35,z),Q,new THREE.Vector3(1,1,1));trunk.setMatrixAt(i,M);
+/* ---------- geometry helpers the chain is derived through ---------- */
+const plkTilt   = u => TH_P*ss(u,0,1);
+// The plank's raised END CORNER — the point the hammer head actually rests on.
+const plkCorner = th => [PIV[0]+(PLK_L/2)*Math.cos(th),
+                         PIV[1]+(PLK_L/2)*Math.sin(th)+(PLK_T/2)/Math.cos(th)];
+/* Where does a head of radius HR, hanging on an arm of length HARM from HPIV,
+   sit when it is resting against that corner? Circle-circle intersection —
+   closed form, and it is the honest statement of "the head is ON the plank".
+   The first cut of this scene set the head's HEIGHT from the plank end and let
+   its X fall wherever the arc put it; the contact sheet showed the head
+   floating clear of the plank by ~0.6 units. Deriving the position instead of
+   one coordinate of it is the difference between coupled and merely correlated. */
+function hamOnCorner(th){
+  const [cx,cy]=plkCorner(th);
+  const dx=cx-HPIV[0],dy=cy-HPIV[1],d=Math.hypot(dx,dy);
+  const a=(d*d+HARM*HARM-HR*HR)/(2*d);
+  const h=Math.sqrt(Math.max(0,HARM*HARM-a*a));
+  const ux=dx/d,uy=dy/d;
+  // Two solutions; take the one further BACK (smaller x) — the head is cocked
+  // against the corner, not sitting in front of it.
+  const px=HPIV[0]+a*ux+h*uy, py=HPIV[1]+a*uy-h*ux;
+  return Math.atan2(px-HPIV[0],HPIV[1]-py);
+}
+const HA_REST   = hamOnCorner(0);                                // parked on the level plank
+const HA_LIFTED = hamOnCorner(plkTilt(REL_U));                   // ...and where the plank leaves it
+const HOM       = Math.acos(clamp(HA_STRIKE/HA_LIFTED,-1,1))/SWING_S;  // pendulum rate
+// LAG is DERIVED, not chosen: the time a block needs to reach the angle at
+// which it touches the next one. Solve tau from TH_C = TH_LEAN*(tau/T)^P.
+const LAG=FALL_T*Math.pow(TH_C/TH_LEAN,1/FALL_P);
+
+/* ---------- THE CHAIN OF LATCHES ----------
+   One expression rooted in a single beat-relative moment. Every later moment
+   is the previous link's OWN curve evaluated at its handover point — no second
+   timestamp is ever written down. This is the shape that makes the chain
+   irreversible: a latch is monotone in t, so a block that has fallen stays
+   fallen even when the thing that pushed it moves back (see b3_spike_geomchain,
+   where deriving the angle straight from the pusher's position let the whole
+   row stand back up during the hammer's rebound). */
+const BALL_T0 = secAt('roll',.30);          // the one authored moment: the ball is let go
+const BALL_T1 = BALL_T0 + ROLL_S;           // ...reaches the plank
+const PLK_T0  = BALL_T1 + .30;              // the plank takes the load
+const REL_T   = PLK_T0 + PLK_S*REL_U;       // the plank's rise lets the head slip
+const STRIKE_T= REL_T + SWING_S;            // the hammer arrives at block 0
+const DOM_T   = i => STRIKE_T + i*LAG;      // each block hands on at its contact angle
+const KICK_T  = DOM_T(NDOM-1) + FALL_T*Math.pow(TH_KICK/TH_LAST,1/FALL_P);
+
+/* ---------- per-link closed forms (pure functions of t) ---------- */
+function ballU(t){return clamp((t-BALL_T0)/ROLL_S,0,1);}
+function plankTilt(t){return plkTilt(clamp((t-PLK_T0)/PLK_S,0,1));}
+function hammerAngle(t){
+  if(t<REL_T)return hamOnCorner(plankTilt(t));         // riding the plank corner: pure geometry
+  const tau=t-REL_T;
+  if(tau<SWING_S)return HA_LIFTED*Math.cos(HOM*tau);   // free pendulum from rest
+  const x=tau-SWING_S;                                  // impact ringdown, 0 at x=0
+  return HA_STRIKE-.15*Math.exp(-5.5*x)*Math.sin(11*x);
+}
+function domU(t,i){return clamp((t-DOM_T(i))/FALL_T,0,1);}
+function domAngle(t,i){return (i===NDOM-1?TH_LAST:TH_LEAN)*Math.pow(domU(t,i),FALL_P);}
+// Coast-down in CLOSED FORM. omega = OM0*exp(-k*tau); theta is its analytic
+// integral, so the wheel is never integrated frame to frame and seekTo stays pure.
+function wheelTau(t){return Math.max(0,t-KICK_T);}
+function wheelTheta(t){const x=wheelTau(t);return W_OM0/W_K*(1-Math.exp(-W_K*x));}
+function flagY(t){return FLAG_Y0+ (POLE_TOP-1.4-FLAG_Y0)*clamp(wheelTheta(t)/TH_FULL,0,1);}
+// Where the wave is, for the camera to track. Sum of progress = smooth, monotone.
+function frontX(t){let f=0;for(let i=0;i<NDOM;i++)f+=domU(t,i);return DX0+clamp(f-.6,0,NDOM-1)*DGAP;}
+// Ball centre: two ramp segments, then it rides the plank it just loaded.
+const CHUTE_D=CHUTE.slice(1).map((p,i)=>Math.hypot(p[0]-CHUTE[i][0],p[1]-CHUTE[i][1]));
+const CHUTE_L=CHUTE_D.reduce((a,b)=>a+b,0);
+function ballPos(t){
+  // Gravity, not a constant crawl: distance ~ tau^1.55 means the ball leaves at
+  // rest and arrives fast, and the hard stop at the far end is the impact with
+  // the plank's lip -- a motivated discontinuity, not a pop.
+  const u=Math.pow(ballU(t),1.55);
+  let L=u*CHUTE_L,x=CHUTE[0][0],y=CHUTE[0][1];
+  for(let i=0;i<CHUTE_D.length;i++){
+    const d=CHUTE_D[i];
+    if(L<=d||i===CHUTE_D.length-1){const f=clamp(L/d,0,1);
+      x=lerp(CHUTE[i][0],CHUTE[i+1][0],f);y=lerp(CHUTE[i][1],CHUTE[i+1][1],f);break;}
+    L-=d;
   }
-  tree.castShadow=trunk.castShadow=true;
-  world.add(tree,treeO,trunk);
-}
-om(new THREE.LatheGeometry(
-  [[0,0],[.62,.06],[.5,.5],[.3,.9],[.34,1.28],[.52,1.5],[.44,1.62]].map(p=>new THREE.Vector2(p[0],p[1])),18),
-  toon(STYLE.trim),world,-6.5,0,-3.5);
-{
-  const pod=new THREE.Mesh(S(.7,28,20),new THREE.MeshPhysicalMaterial(
-    {color:0xf2f4f6,metalness:1,roughness:.12,clearcoat:1}));
-  pod.position.set(-9,.7,4.2);pod.castShadow=true;world.add(pod);
-}
-{
-  const cv=document.createElement('canvas');cv.width=cv.height=256;
-  const c=cv.getContext('2d');
-  const g=c.createRadialGradient(96,84,18,128,128,132);
-  g.addColorStop(0,STYLE.matcap[0]);g.addColorStop(.55,STYLE.matcap[1]);g.addColorStop(1,STYLE.matcap[2]);
-  c.fillStyle=g;c.fillRect(0,0,256,256);
-  const mc=new THREE.CanvasTexture(cv);mc.colorSpace=THREE.SRGBColorSpace;
-  const rock=mesh(S(1.1,18,14),new THREE.MeshMatcapMaterial({matcap:mc}),world,10.5,.62,-4.5);
-  rock.scale.set(1.35,.72,1.05);rock.rotation.y=.7;
+  // Once landed, the ball sits on the plank surface and RIDES it down — so the
+  // ball drives the plank's onset and the plank then carries the ball. Both
+  // halves of the coupling are on screen.
+  const th=plankTilt(t);
+  const onPlank=PIV[1]+(PAN_X-PIV[0])*Math.sin(th)+PLK_T/2+BALL_R;
+  const land=ss(t,BALL_T1-.12,BALL_T1+.10);
+  return[lerp(x,PAN_X,land),lerp(y,onPlank,land),0,CHUTE_L*u];
 }
 
-// ---- the bot: every joint is a Group, so outlines and IK ride together ----
-const L1=1.7,L2=1.7,HIP=3.5,STRIDE=2.6;
-const bot=new THREE.Group();world.add(bot);
-const torso=new THREE.Group();bot.add(torso);torso.position.y=HIP;
-om(B(2.2,2.5,1.4),toon(STYLE.body),torso,0,1.25,0);
-om(B(2.4,.5,1.55),toon(STYLE.trim),torso,0,.15,0);            // belt
-const head=new THREE.Group();torso.add(head);head.position.y=3.3;   // clear of the torso: the outline shell shows any seam
-om(S(1.05),toon(STYLE.body),head,0,.35,0);
-// eyes: small emissives — the bloom budget lives here and on the orb
-const eyeMat=new THREE.MeshBasicMaterial({color:0xbfe9ff});
-mesh(S(.16,10,8),eyeMat,head,.42,.5,.88).castShadow=false;
-mesh(S(.16,10,8),eyeMat,head,-.42,.5,.88).castShadow=false;
-const ant=new THREE.Group();head.add(ant);ant.position.y=1.35;
-om(C(.05,.05,.9),toon(STYLE.ink),ant,0,.45,0);
-const orbMat=new THREE.MeshStandardMaterial({color:STYLE.trim,emissive:STYLE.trim,emissiveIntensity:.25,roughness:.4});
-const orb=mesh(S(.34,18,12),orbMat,ant,0,1.05,0);orb.castShadow=false;
-
-function arm(side){const a=new THREE.Group();torso.add(a);a.position.set(side*1.35,2.0,0);
-  om(C(.22,.18,1.9),toon(STYLE.body),a,0,-.95,0);
-  om(S(.3),toon(STYLE.accent),a,0,-2.0,0);return a;}
-const armL=arm(1),armR=arm(-1);
-
-// leg: hip Group -> thigh (pivot at top) -> knee Group -> shin -> flat foot.
-// Geometries are pre-translated so each pivot rotates about the JOINT.
-function leg(side){
-  const hip=new THREE.Group();bot.add(hip);hip.position.set(0,HIP,side*.62);
-  const tg=C(.3,.24,L1);tg.translate(0,-L1/2,0);
-  om(tg,toon(STYLE.body),hip,0,0,0);
-  const knee=new THREE.Group();hip.add(knee);knee.position.y=-L1;
-  const sg=C(.22,.18,L2);sg.translate(0,-L2/2,0);
-  om(sg,toon(STYLE.body),knee,0,0,0);
-  const ankle=new THREE.Group();knee.add(ankle);ankle.position.y=-L2;
-  const fg=B(1.15,.38,.7);fg.translate(.22,-.19,0);
-  om(fg,toon(STYLE.accent),ankle,0,0,0);
-  return {hip,knee,ankle};
+let dom=[],hamPiv,ballM,plank,wheel,flagM,cordM;
+function buildWorlds(){
+  const world=new THREE.Group();scene.add(world);
+  // A bench, not an infinite plane: the edge gives the frame a horizon that is
+  // part of the object rather than a seam between two flat fields.
+  const bench=mesh(B(38,1.0,11),std(STYLE.bench,{roughness:.92}),world,-2.0,-.5,0);
+  bench.castShadow=false;
+  mesh(B(38,.28,.5),std(STYLE.benchDark,{roughness:.95}),world,-2.0,-.02,5.4);
+  // The chute is built FROM the ball's own path, one slab per segment, so the
+  // support and the trajectory cannot drift apart.
+  CHUTE.slice(1).forEach((p,i)=>{
+    const q=CHUTE[i],L=Math.hypot(p[0]-q[0],p[1]-q[1]);
+    const sl=mesh(B(L+.9,.4,2.9),std(STYLE.benchDark,{roughness:.8}),world,
+      (p[0]+q[0])/2,(p[1]+q[1])/2-BALL_R-.2,0);
+    sl.rotation.z=Math.atan2(p[1]-q[1],p[0]-q[0]);
+  });
+  mesh(B(.5,CHUTE[0][1]-BALL_R,.5),std(STYLE.metal,{roughness:.6}),world,CHUTE[0][0]+.2,(CHUTE[0][1]-BALL_R)/2,0);
+  mesh(B(2.9,.5,2.9),std(STYLE.benchDark,{roughness:.9}),world,CHUTE[0][0]+.2,.25,0);
+  mesh(B(1.0,1.6,2.9),std(STYLE.benchDark,{roughness:.9}),world,-11.6,.8,0);   // run-out support
+  ballM=mesh(S(BALL_R,28,20),std(STYLE.ball,{roughness:.22,metalness:.15}),world);
+  // Seesaw: a wedge fulcrum and a plank pivoted on it.
+  mesh(C(.25,1.5,PIV[1],4),std(STYLE.benchDark,{roughness:.9}),world,PIV[0],PIV[1]/2,0);
+  plank=new THREE.Group();plank.position.set(PIV[0],PIV[1],PIV[2]);world.add(plank);
+  mesh(B(PLK_L,PLK_T,PLK_D),std(0xd9a441,{roughness:.6}),plank,0,0,0);
+  mesh(B(.3,.9,PLK_D),std(0xd9a441,{roughness:.6}),plank,-PLK_L/2+.15,.45,0);   // a lip to catch the ball
+  // Hammer on its post.
+  mesh(C(.22,.28,HPIV[1],14),std(STYLE.metal,{roughness:.6}),world,HPIV[0],HPIV[1]/2,0);
+  hamPiv=new THREE.Group();hamPiv.position.set(HPIV[0],HPIV[1],HPIV[2]);world.add(hamPiv);
+  mesh(C(.1,.1,HARM,12),std(STYLE.metal,{roughness:.4,metalness:.5}),hamPiv,0,-HARM/2,0);
+  mesh(S(HR),std(0xdfe5ee,{roughness:.28,metalness:.6}),hamPiv,0,-HARM,0);
+  // The row.
+  for(let i=0;i<NDOM;i++){
+    const g=new THREE.Group();
+    g.position.set(DX0+i*DGAP-DTH/2,0,0);
+    mesh(B(DTH,DH,DDP),std(STYLE.dom[i],{roughness:.45}),g,DTH/2,DH/2,0);
+    world.add(g);dom.push(g);
+  }
+  // Winch wheel + paddles.
+  // Two legs, clear of z=0: the last block's tip sweeps through this x, and a
+  // centred post would be speared by it.
+  [-1.05,1.05].forEach(z=>mesh(C(.16,.2,WAX[1],10),std(STYLE.metal,{roughness:.6}),world,WAX[0],WAX[1]/2,z));
+  wheel=new THREE.Group();wheel.position.set(WAX[0],WAX[1],WAX[2]);world.add(wheel);
+  const hub=mesh(C(.42,.42,.7,20),std(STYLE.metal,{roughness:.35,metalness:.5}),wheel,0,0,0);
+  hub.rotation.x=Math.PI/2;
+  for(let i=0;i<NPAD;i++){
+    const a=i*Math.PI*2/NPAD;
+    const p=mesh(B(WR,.30,1.0),std(i%2?0x4bb3a0:0xe8a03c,{roughness:.45}),wheel,
+      Math.cos(a)*WR/2,Math.sin(a)*WR/2,0);
+    p.rotation.z=a;
+  }
+  // Flag pole, pulley, cord, flag.
+  mesh(C(.14,.14,POLE_TOP,12),std(STYLE.metal,{roughness:.6}),world,POLE_X,POLE_TOP/2,0);
+  mesh(S(.24,16,12),std(STYLE.metal,{roughness:.4,metalness:.5}),world,POLE_X,POLE_TOP,0);
+  cordM=mesh(C(.05,.05,1,8),std(0x22262c,{roughness:.9}),world,POLE_X,0,0);
+  // The drive cord: wheel hub -> pulley. Without a visible line between them a
+  // flag rising next to a spinning wheel is co-occurrence, not causation.
+  {const dx=POLE_X-WAX[0],dy=POLE_TOP-WAX[1],L=Math.hypot(dx,dy);
+   const c=mesh(C(.05,.05,L,8),std(0x22262c,{roughness:.9}),world,
+     (POLE_X+WAX[0])/2,(POLE_TOP+WAX[1])/2,0);
+   c.rotation.z=Math.atan2(-dx,dy);}
+  flagM=new THREE.Group();world.add(flagM);
+  mesh(B(2.3,1.3,.12),std(STYLE.flag,{roughness:.5}),flagM,1.25,0,0);
+  mesh(S(.16,12,10),std(STYLE.metal,{roughness:.5}),flagM,0,0,0);
 }
-const legL=leg(1),legR=leg(-1);
-
-/* Analytic two-bone IK in the sagittal (x-up) plane — closed form, no solver,
-   no state. Given the foot target relative to the hip, law of cosines gives
-   the knee; the foot counter-rotates to stay flat. Pure function of its
-   inputs, so seekTo purity is untouched. */
-function solveLeg(l,dx,dy){
-  const d=clamp(Math.hypot(dx,dy),.2,L1+L2-.01);
-  const phi=Math.atan2(dx,-dy);
-  const a=Math.acos(clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1));
-  const g=Math.acos(clamp((L1*L1+L2*L2-d*d)/(2*L1*L2),-1,1));
-  l.hip.rotation.z=phi+a;
-  l.knee.rotation.z=-(Math.PI-g);
-  l.ankle.rotation.z=-(l.hip.rotation.z+l.knee.rotation.z);
-}
-
-/* Gait: everything derives from DISTANCE TRAVELLED s, never wall time — feet
-   freeze mid-plant when the bot stops (method.md, cyclic motion). Each foot
-   alternates stance/swing over a 2-stride cycle; its plant point is a pure
-   function of the cycle index. */
-const START=-16;                                   // where the walk begins, world x
-function footTarget(s,phase){
-  const cyc=s/(2*STRIDE)+phase;
-  const n=Math.floor(cyc),u=cyc-n;
-  // Plant grid anchored at START — anchored at the origin, dx hit +16 at the
-  // first frame and the IK swung both legs horizontal. Shipped, seen, fixed.
-  const x0=(n-phase)*2*STRIDE+START;
-  if(u<.55)return[x0,0];                           // stance: nailed to the floor
-  const w=ss(u,.55,1);                             // swing to the next plant
-  return[x0+2*STRIDE*w,Math.sin(w*Math.PI)*.95];
-}
+buildWorlds();
 
 /* ============================================================
-   CINEMATOGRAPHY — the film re-authored as a shot list. Zero raw
-   camera keyframes; the solver in the template does the framing.
-   ============================================================ */
-// Travel and hop as named closed forms — the SUBJECTS registry and animate()
-// both derive from THESE, so the camera and the body can never disagree.
-const botXAt=t=>lerp(-16,0,ramp(t,'arrive',.05,.95));
-const hopAt=t=>{const u=ramp(t,'spark',.24,.52);return 1.7*Math.sin(u*Math.PI)*(u>0&&u<1?1:0);};
+   CINEMATOGRAPHY — shots as data, solved per frame.
 
+   SUBJECTS names the things a camera can frame. pos is a pure
+   function of t returning the subject's CENTER, so a moving
+   subject is a tracking shot for free. h is the height the
+   framing math uses. Craft note: track a subject's TRAVEL, not
+   its jumps — leave vertical action out of pos so it moves in
+   the frame instead of being cancelled by the camera.
+
+   SHOTS is the film's shot list — the cinematographer's half of
+   the film, the way BEATS is the editor's. Each shot starts at
+   a beat anchor and runs until the next shot starts:
+     subject  what the shot frames (a SUBJECTS key)
+     size     EWS WS FS MS MCU CU ECU — fraction of frame height
+              the subject occupies (see SIZES)
+     angle    degrees around the subject, 0 = from +Z
+     elev     degrees above level (default 6)
+     fov      this shot's lens (vertical degrees, default 42) —
+              long lens flattens, short lens dramatizes
+     size2 / angle2   optional end values: a push/pull or an
+              orbit eased across the shot's duration
+     focus    subject the DoF plane sits on (default: subject).
+              Scenes with a BokehPass read shotFocus each frame;
+              two adjacent shots differing only in focus, joined
+              by cut:'blend', ARE a rack focus.
+     cut      how the shot ENTERS: 'hard' (default), 'whip'
+              (0.16s snap), 'blend' (0.8s dolly-morph)
+     match    true = must enter with the SAME framing vocabulary
+              (size/angle/elev/fov) as the previous shot — the
+              match-cut constraint, checked at load, throws loud.
+   Raw keyframes are gone on purpose: coordinates were never the
+   author's intent, framing was. If a shot the vocabulary cannot
+   say is genuinely needed, extend the vocabulary — do not sneak
+   coordinates back in.
+   ============================================================ */
 const SUBJECTS={
-  // bot center EXCLUDES the hop: the camera tracks his travel, not his jump —
-  // a tracked jump cancels itself on screen.
-  bot:{pos:t=>[botXAt(t),3.9,0],h:7.8},
-  sign:{pos:t=>[4.0,1.6,3.6],h:3.4},
+  // Wide subjects declare w, so the ladder binds on whichever axis is tighter.
+  all:  {pos:t=>[-1.4,3.7,0],h:8.8,w:37},
+  ball: {pos:t=>{const b=ballPos(t);return[b[0]-.4,b[1]-1.8,0];},h:7.6,w:12.0},
+  plank:{pos:t=>[-5.3,2.9,0],h:6.4,w:13.5},
+  front:{pos:t=>[frontX(t),1.2,0],h:5.4},
+  wheel:{pos:t=>[WAX[0]+1.4,3.2,0],h:7.0,w:8.0},
 };
 // The size ladder, calibrated to the convention a cinematographer means:
 // f = how many frame-heights the subject's full height spans; a = the
@@ -5091,17 +5131,11 @@ const SUBJECTS={
 // framing and the rack's second subject fell out of frame.
 const SIZES={EWS:{f:.20,a:.5},WS:{f:.50,a:.5},FS:{f:.95,a:.5},MS:{f:1.6,a:.68},MCU:{f:2.4,a:.78},CU:{f:3.6,a:.84},ECU:{f:6,a:.88}};
 const SHOTS=[
-  {at:['title',0],    subject:'sign', size:'MS',  angle:-12},                            // open on the sign
-  {at:['arrive',.02], subject:'bot',  size:'MS',  angle:-12, match:true},                // MATCH CUT: same framing, new subject
-  {at:['arrive',.22], subject:'bot',  size:'WS',  angle:14,  cut:'blend'},               // widen into the tracking walk
-  {at:['arrive',.85], subject:'bot',  size:'MS',  angle:14,  cut:'blend'},               // settle as he stops
-  // The rack triplet is MS, not MCU: an MCU crops the sign out of frame, and
-  // a rack to an off-screen subject explains nothing — both subjects must be
-  // visible at different depths for the focus pull to read.
-  {at:['rack',.08],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // bot sharp, sign near-field...
-  {at:['rack',.42],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, focus:'sign', cut:'blend'}, // ...rack to the sign...
-  {at:['rack',.78],   subject:'bot',  size:'FS', anchor:.48, elev:0, angle:21, cut:'blend'},               // ...and back
-  {at:['spark',.05],  subject:'bot',  size:'WS',  angle:0, elev:12, cut:'whip'},         // WHIP wide for the payoff
+  {at:['title',0],   subject:'all',   size:'FS', angle:1,  elev:15, angle2:11},       // slow orbit across the machine
+  {at:['roll',.02],  subject:'ball',  size:'WS', angle:22, elev:11, cut:'blend'},    // rides the ball down
+  {at:['tip',.02],   subject:'plank', size:'WS', angle:15, elev:9,  cut:'blend'},
+  {at:['topple',.02],subject:'front', size:'WS', angle:12, elev:12, cut:'whip'},     // snap to the row
+  {at:['spin',.02],  subject:'wheel', size:'WS', angle:20, elev:10, size2:'FS', cut:'blend'},
 ].map(sh=>({...sh,t:beatAt(sh.at[0],sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 const LENS=STYLE.lens||42;      // the bible's default glass — defined before the
@@ -5130,7 +5164,12 @@ function solveShot(sh,t){
   const elev=(sh.elev===undefined?6:sh.elev)*Math.PI/180;
   const fovd=sh.fov===undefined?LENS:sh.fov;
   const[cx,cy,cz]=S.pos(t);
-    // framing binds on whichever axis is tighter; height-only for an upright subject
+  // The framing solver. `f` is the subject fraction of the frame; a subject may
+  // declare `w` as well as `h`, and framing binds on whichever axis is tighter.
+  // Height-only was the old behaviour and is still what an upright subject gets
+  // (w <= h*aspect), but a WIDE subject -- a timeline, a waveform, an org chart --
+  // was silently cropped by every rung tighter than WS because the ladder only
+  // ever constrained height.
   const dist=Math.max(S.h/f,(S.w||0)/(f*FRAME.aspect))/(2*Math.tan(fovd*Math.PI/360));
   const aimY=cy+(anchor-.5)*S.h;
   return{p:[cx+Math.sin(ang)*Math.cos(elev)*dist,aimY+Math.sin(elev)*dist,cz+Math.cos(ang)*Math.cos(elev)*dist],
@@ -5176,46 +5215,20 @@ function setCamera(t){
 
 /* ============================================================
    ANIMATE — every property a pure function of t.
+   Use ss(t, start, end) ramps per beat; never accumulate.
    ============================================================ */
 function animate(t){
-  // travel: world x from -16 to 0 across 'arrive'; s = distance for the gait
-  const botX=botXAt(t);
-  const s=botX+16;
-  const vAmp=pulse(t,'arrive',.05,.95);            // motion envelope: settles at both ends
-
-  // the spark beat, sequenced so its two events don't fight: anticipation
-  // squash -> hop -> landing squash + settle -> THEN the orb wakes. The first
-  // cut ran hop and glow together and the payoff read as neither.
-  const hop=hopAt(t);
-  const squash=1-.13*pulse(t,'spark',.08,.24)-.10*pulse(t,'spark',.50,.66)
-              +.06*(backOut(ramp(t,'spark',.58,.78))-1);
-  bot.position.set(botX,hop,0);
-  torso.scale.set(1/Math.sqrt(squash),squash,1/Math.sqrt(squash));
-  torso.position.y=HIP+.14*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  torso.rotation.z=.10*vAmp;                       // lean into the walk
-  head.rotation.z=-.06*vAmp+.08*Math.sin(Math.PI*s/STRIDE)*vAmp;
-
-  // legs: foot targets in WORLD, solved relative to each hip in bot space.
-  // Mid-hop the targets tuck toward the body instead of chasing the floor.
-  for(const[l,ph]of[[legL,0],[legR,.5]]){
-    let[fx,fy]=footTarget(s,ph);
-    fx=lerp(botX+(ph?-.7:.5),fx,clamp(vAmp*2.5,0,1)); // ease to a rest stance when stopped
-    fx+=(ph?-.45:.45)*clamp(hop,0,1);              // stagger the tuck so the feet read as two
-    fy=fy*vAmp+hop*(ph?.85:.62);                   // back leg tucks higher — jump-pose asymmetry
-    solveLeg(l,fx-botX,fy-HIP);
-  }
-  armL.rotation.z=.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-  armR.rotation.z=-.55*Math.sin(Math.PI*s/STRIDE)*vAmp;
-
-  // DoF follows the shot list: shotFocus is solved per frame, and the rack
-  // IS shots 5-7 — two framings differing only in `focus`, joined by blends.
-  bokeh.uniforms.focus.value=shotFocus;
-
-  // bloom payoff: the orb wakes for the finale (park is deliberate — the film
-  // ends on it), plus a proud little spin. Restated every frame, never +=.
-  orbMat.emissiveIntensity=.25+5.2*ramp(t,'spark',.60,.76);
-  orb.scale.setScalar(1+.18*pulse(t,'spark',.60,.85));
-  head.rotation.y=.6*Math.sin(2*Math.PI*ramp(t,'spark',.78,.98));
+  const b=ballPos(t);
+  ballM.position.set(b[0],b[1],0);
+  ballM.rotation.z=-b[3]/BALL_R;                     // rolling comes from DISTANCE, not from t
+  plank.rotation.z=plankTilt(t);                     // +z drops the LEFT end (the loaded one)
+  hamPiv.rotation.z=hammerAngle(t);                  // arm hangs -Y, so +z swings the head toward +x
+  for(let i=0;i<NDOM;i++)dom[i].rotation.z=-domAngle(t,i);
+  wheel.rotation.z=W_PHASE+wheelTheta(t);   // the strike is on the lower-right: counter-clockwise
+  const fy=flagY(t);
+  flagM.position.set(POLE_X,fy,0);
+  const cl=Math.max(.02,POLE_TOP-fy);
+  cordM.position.set(POLE_X,fy+cl/2,0);cordM.scale.y=cl;
 }
 
 /* ---------- overlay (captions, title, flashes) ---------- */
@@ -5257,7 +5270,7 @@ window.BEATS=BEATS;
 // FRAME.px and smoke.js measures overlay fit against FRAME.aspect. A scene that
 // does not export it renders at the historical 1920x1080 default.
 window.FRAME=FRAME;
-window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);composer.render();};
+window.seekTo=function(t){t=clamp(t,0,TOTAL);setCamera(t);animate(t);setOverlay(t);renderer.render(scene,camera);};
 let playing=true,t0=null;
 function loop(now){if(!playing)return;if(t0===null)t0=now;window.seekTo(((now-t0)/1000)%TOTAL);requestAnimationFrame(loop);}
 window.stopPlayback=function(){playing=false;};

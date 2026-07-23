@@ -1,6 +1,6 @@
 {
   "name": "explainer-video",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Deterministic animated explainer films for any domain, on two backends — three.js 3D (cel shading, analytic IK, a per-frame-pure post chain, shots as data with a match-cut constraint) and Canvas2D flat vector — styled by swappable packs and bibles, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF that plays inline in a README",
   "author": {
     "name": "Fred Bliss"
