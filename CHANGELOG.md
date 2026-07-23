@@ -1,5 +1,18 @@
 # changelog
 
+## 0.70.1
+
+### changed
+- **`screenwright` 0.2.1 — four subagent reports folded in: two review passes fixed, two investigations closed.**
+
+  The independent film review found what the author's own review missed, with measured evidence: the mesh-beat highlight ring was parked 0.17 world units off the interlock midpoint (~45% of its radius framing blank face); the ratio beat's trails swept EQUAL arcs while caption and in-source comment promised 3:1 (the comment described code that did not exist); and the HTML loop seam was a naked triple discontinuity (camera FSA→WS jump + both markers mid-arc). All fixed in the example: ring centered on the measured interlock midpoint with a pulsed fill light (the meshing teeth sat in the key's shadow), trails rewritten as a TIME HISTORY (dot i sits where the marker was at t−(i+1)·DT, so arc lengths show the true 3:1 sweep), a motor block with a breathing lamp gives "input" actual geometry, and the loop is now seamless BY CONSTRUCTION — `SPIN = 12π/TOTAL` puts both gears at whole revolutions per film and the final shot matches the opening shot. Two LOW findings (marker passes near the caption zone; title mass sits left) accepted as register choices.
+
+  The minimal-repro agent CONFIRMED the sortObjects defect outside the pipeline (3 meshes, no shadows, both backends; 39/40 wrong with sorting, 40/40 clean without; stale object's shadow correct while its beauty pass lags) and refined the story: the trigger is a REVISITED state after a depth-order change — object motion suffices, camera cuts are just the common case — and it is 100% deterministic on revisit; the "~12% flaky" was sampling structure. Rule #5 and the template comment now state the confirmed mechanism. New caution recorded: a one-time WebGPU first-render warmup difference exists even with sorting off; the boot's pre-`sceneReady` render absorbs it.
+
+  The framing-delta agent MEASURED AWAY the "~3% zoom" between stacks: at equal viewport, rendered geometry is sub-pixel identical (±0.7 px / 14 silhouette probes) across all three renderer configurations — the original A/B had a ~33 px effective-viewport mismatch. The SIZES ladder calibration is safe; the real cross-stack difference is tone/shading (~9% of pixels), which the eye reads as zoom.
+
+  The doc audit caught three drifts, all fixed: SKILL.md's scaffold step invoked argument-less `build.js vendor` (builds and discards — inert; now names the scene), the shared-contract paragraph claimed `SHOTS[]` and `window.BACKEND` for the 2D template (scoped to 3D), and webgpu-stack.md named a nonexistent `mx_perlin_noise_float` (the export is `mx_noise_float`). Plus: smoke now prints which backend each scene verified (`ok scene.html [source, webgl2]`), making `window.BACKEND` consumed rather than decorative.
+
 ## 0.70.0
 
 ### added

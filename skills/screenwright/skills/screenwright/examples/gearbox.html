@@ -649,7 +649,7 @@ const BEATS = [
   {name: 'input',  dur: 3.2, cap: "1 \u00b7 A small gear spins fast on the input shaft"},
   {name: 'mesh',   dur: 3.6, cap: "2 \u00b7 Meshing teeth carry the force across"},
   {name: 'output', dur: 3.4, cap: "3 \u00b7 The large gear turns slower \u2014 with more torque"},
-  {name: 'ratio',  dur: 3.8, cap: "4 \u00b7 Three turns in, one turn out: the 3:1 ratio"},
+  {name: 'ratio',  dur: 3.8, cap: "4 \u00b7 Three times the turns \u2014 speed traded for force"},
 ];
 
 /* ---------- STYLE: everything that is the LOOK. ----------
@@ -897,9 +897,13 @@ const fill=new THREE.DirectionalLight(0xbfd4ff,.4);fill.position.set(-6,6,-4);sc
    Pattern: one Group per world, offset far apart (e.g. y -60),
    toggle .visible in animate(t), cut the camera under a flash.
    ============================================================ */
-let gearIn, gearOut, dotIn, dotOut, meshRing, trailIn, trailOut;
+let gearIn, gearOut, dotIn, dotOut, meshRing, trailIn, trailOut, motorLamp, meshLight;
 const AXLE_Y = 3.1, X_OUT = 0, X_IN = -3.94;   // tip-into-valley: (r1 + toothTip .39) + r2 body, 0.05 penetration
-const RATIO = 3, SPIN = 2.4;                   // rad/s at the input, constant — the machine runs
+const RATIO = 3;
+// SPIN is derived, not chosen: 6 input turns (= 2 output turns) per film, so
+// at the loop seam both gears sit at their t=0 pose and the HTML loop is
+// seamless BY CONSTRUCTION; retiming beats preserves that automatically.
+const SPIN = 12 * Math.PI / TOTAL;
 /* One gear = ONE extruded mesh, rotated directly; markers are TOP-LEVEL
    meshes positioned in animate(). No animated group has children. This shape
    is deliberate: nested animated transforms plus dozens of small meshes hit a
@@ -948,16 +952,25 @@ function buildWorlds() {
   function trail(color, x) {
     const g = { dots: [], x };
     for (let i = 0; i < 9; i++) {
-      const d = mesh(S(.10, 12, 8), new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0}), world, x, AXLE_Y, .34);
+      const d = mesh(S(.085, 12, 8), new THREE.MeshBasicMaterial({color, transparent: true, opacity: 0}), world, x, AXLE_Y, .34);
       d.castShadow = d.receiveShadow = false;
       g.dots.push(d);
     }
     return g;
   }
   trailIn = trail(0x54e0e8, X_IN); trailOut = trail(0xf2a05a, X_OUT);
+  // the drive cue: a motor block on the input axle \u2014 "input" needs geometry,
+  // not just a caption. Its lamp pulses during the input beat (animate()).
+  mesh(B(1.0, .8, .9), std(0x232d3a, {roughness: .7}), world, X_IN, AXLE_Y, -1.15);
+  motorLamp = mesh(S(.09, 12, 8), std(0x9fd8a0, {emissive: 0x9fd8a0, emissiveIntensity: .3}), world, X_IN + .38, AXLE_Y + .28, -.68);
+  motorLamp.castShadow = false;
+  // the meshing teeth sit in the key light's shadow; this fill exists only
+  // while the mesh beat needs them visible (intensity is a pure pulse of t)
+  meshLight = new THREE.PointLight(0xdfefff, 0, 7);
+  meshLight.position.set(X_IN + 1.07, AXLE_Y, 1.5); scene.add(meshLight);
   meshRing = mesh(new THREE.TorusGeometry(.38, .035, 10, 32),
                   new THREE.MeshBasicMaterial({color: 0xe8f2f8, transparent: true, opacity: 0}),
-                  world, X_IN + 1.24, AXLE_Y, .32);
+                  world, X_IN + 1.07, AXLE_Y, .32);   // interlock midpoint: between gearIn tip reach and gearOut tip reach
   meshRing.castShadow = meshRing.receiveShadow = false;
 }
 buildWorlds();
@@ -1001,14 +1014,14 @@ buildWorlds();
 const SUBJECTS = {
   gearIn:  {pos: t => [X_IN, AXLE_Y, 0],           h: 2.6, w: 2.6, d: .6},
   gearOut: {pos: t => [X_OUT, AXLE_Y, 0],          h: 6.3, w: 6.3, d: .6},
-  meshPt:  {pos: t => [X_IN + 1.24, AXLE_Y, 0],    h: 2.6, w: 2.6, d: .6},
+  meshPt:  {pos: t => [X_IN + 1.07, AXLE_Y, 0],    h: 2.4, w: 2.4, d: .6},
 };
 const SHOTS = [
   {at: ['title', 0],  subject: ['gearIn', 'gearOut'], size: 'WS',  angle: 18, elev: 9},
   {at: ['input', .08], subject: 'gearIn',  size: 'FS', angle: 32, cut: 'blend'},
-  {at: ['mesh', .08],  subject: 'meshPt',  size: 'FS', angle: 8,  anchor: .5, anchorX: .22, cut: 'blend'},
+  {at: ['mesh', .08],  subject: 'meshPt',  size: 'FS', angle: 8,  anchor: .5, cut: 'blend'},
   {at: ['output', .08], subject: 'gearOut', size: 'FS', angle: -24, cut: 'blend'},
-  {at: ['ratio', 0],  subject: ['gearIn', 'gearOut'], size: 'WS', angle: 18, elev: 9, size2: 'FSA', cut: 'blend'},
+  {at: ['ratio', 0],  subject: ['gearIn', 'gearOut'], size: 'WS', angle: 18, elev: 9, cut: 'blend'},
 ].map(sh => ({...sh, t: beatAt(sh.at[0], sh.at[1])}));
 SHOTS.forEach((sh,i)=>{sh.t1=i<SHOTS.length-1?SHOTS[i+1].t:TOTAL;});
 /* ==== SOLVER-START ====================================================
@@ -1129,29 +1142,38 @@ function setCamera(t){
    Use ss(t, start, end) ramps per beat; never accumulate.
    ============================================================ */
 function animate(t) {
-  // One shared angle drives both gears — meshing is exact by construction.
+  // One shared angle drives both gears \u2014 meshing is exact by construction.
   // External gears counter-rotate; half-tooth phase offset interleaves teeth.
   const phi = SPIN * t;
   gearIn.rotation.z  = -phi;
   gearOut.rotation.z =  phi / RATIO + Math.PI / 24;
   // markers ride the rims as top-level meshes: world pos = f(t), no hierarchy
   const RIN = .63, ROUT = 2.4;
-  const aIn = Math.PI / 2 - phi, aOut = Math.PI / 2 + phi / RATIO + Math.PI / 24;
-  dotIn.position.set(X_IN + Math.cos(aIn) * RIN,  AXLE_Y + Math.sin(aIn) * RIN,  .34);
-  dotOut.position.set(X_OUT + Math.cos(aOut) * ROUT, AXLE_Y + Math.sin(aOut) * ROUT, .34);
-  // contact pulse, twice during 'mesh' — rhythm reads better than one long swell
+  const aIn = tt => Math.PI / 2 - SPIN * tt;
+  const aOut = tt => Math.PI / 2 + SPIN * tt / RATIO + Math.PI / 24;
+  dotIn.position.set(X_IN + Math.cos(aIn(t)) * RIN,  AXLE_Y + Math.sin(aIn(t)) * RIN,  .34);
+  dotOut.position.set(X_OUT + Math.cos(aOut(t)) * ROUT, AXLE_Y + Math.sin(aOut(t)) * ROUT, .34);
+  // motor lamp breathes during the input beat: power enters HERE
+  motorLamp.material.emissiveIntensity = .3 + 2.2 * pulse(t, 'input', .05, .95);
+  // contact pulse, twice during 'mesh'; the fill light lifts the meshing
+  // teeth out of the key's shadow exactly while the beat is about them
   const p = Math.max(pulse(t, 'mesh', .1, .5), pulse(t, 'mesh', .5, .9));
   meshRing.material.opacity = .6 * p;
   meshRing.scale.setScalar(1 + .35 * p);
-  // ghost trails during 'ratio': input dot laps three arcs while output laps one
+  meshLight.intensity = 3.5 * ramp(t, 'mesh', 0, .25) * (1 - ramp(t, 'mesh', .85, 1));
+  // ghost trails during 'ratio' are a TIME HISTORY: dot i sits where the
+  // marker WAS at t - (i+1)*DT. Arc lengths therefore show the true 3:1
+  // sweep \u2014 the input trail spans three times the angle of the output's.
   const tr = ramp(t, 'ratio', 0, .35) * (1 - ramp(t, 'ratio', .92, 1));
-  for (const [grp, base, rr] of [[trailIn, aIn, RIN], [trailOut, aOut, ROUT]]) {
-    const sgn = grp === trailIn ? -1 : 1;
-    for (let i = 0; i < grp.dots.length; i++) {
-      const a = base - sgn * (i + 1) * .30;
-      grp.dots[i].position.set(grp.x + Math.cos(a) * rr, AXLE_Y + Math.sin(a) * rr, .34);
-      grp.dots[i].material.opacity = tr * (1 - i / grp.dots.length) * .8;
-    }
+  const DT = .12;
+  for (let i = 0; i < trailIn.dots.length; i++) {
+    const tp = t - (i + 1) * DT;
+    const ai = aIn(tp), ao = aOut(tp);
+    trailIn.dots[i].position.set(X_IN + Math.cos(ai) * RIN, AXLE_Y + Math.sin(ai) * RIN, .34);
+    trailOut.dots[i].position.set(X_OUT + Math.cos(ao) * ROUT, AXLE_Y + Math.sin(ao) * ROUT, .34);
+    const fade = tr * (1 - i / trailIn.dots.length) * .8;
+    trailIn.dots[i].material.opacity = fade;
+    trailOut.dots[i].material.opacity = fade;
   }
 }
 

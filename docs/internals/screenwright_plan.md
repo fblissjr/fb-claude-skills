@@ -288,15 +288,36 @@ variable.
    strategy paid immediately — gearbox exposed the sortObjects draw-order
    uniform corruption (now determinism rule #5, template default) and the
    stale frustum-cull decision (rule #6), both invisible to the 4-mesh
-   template. Twin judged no worse; one parked residual (a ~3% constant
-   framing delta between stacks at identical t, A/B-only, unexplained).
+   template. Twin judged no worse. Both follow-up investigations closed
+   same-day by subagents: the "~3% framing delta" was a capture-viewport
+   artifact in the original A/B — at equal viewport, rendered geometry is
+   sub-pixel identical across all three renderer configurations, so the
+   inherited SIZES ladder is calibrated correctly (the real cross-stack
+   difference is tone/shading only); and the sortObjects defect was
+   confirmed by minimal reproduction (3 meshes, both backends, 40/40 vs
+   39/40) with two refinements — the trigger is a REVISITED state after a
+   depth-order change (object motion suffices; camera cuts are the common
+   case), and it is 100% deterministic on revisit, not flaky. An
+   independent film review then found two HIGH semantic defects in gearbox
+   (ring parked off the interlock; ratio trails asserting 1:1 against a
+   3:1 caption) plus an uncovered loop seam — all fixed in 0.2.1, with the
+   loop made seamless BY CONSTRUCTION (SPIN derived from TOTAL so both
+   gears complete whole turns; final shot matches the opening shot). A doc
+   audit caught three doc-vs-code drifts (inert vendor invocation, 2D
+   contract overclaim, a nonexistent MaterialX export name), all fixed.
 3. *Post plumbing active by default.* The template runs a pass-through
    `RenderPipeline` (neutral look; bloom behind a `STYLE` flag) so smoke's
    determinism and shipped-frame checks ride the post path on every scene —
    Phase 0's lesson is that the untested path is the broken path.
 4. *Material packs, trimmed:* toon, SSS skin, glass/dispersion — each
    verified on a small showcase subject. Fur and fabric move to Phase 2,
-   where characters exist to test them on.
+   where characters exist to test them on. **The glass pack pays the
+   sortObjects bill:** unsorted drawing (determinism rule #5) composites
+   transparency in creation order, and glass is nothing but overlapping
+   transparency. The pack must ship an explicit ordering discipline
+   (create/order farther-first; renderOrder where creation order cannot
+   express it) and a test scene where transparent objects genuinely overlap
+   and pass both determinism and a visual correctness look.
 5. *Brackets re-measured, not imported.* The old bloom rule (threshold above
    sky-lit luminance, 3.2/8.0/14.0) was measured against `UnrealBloomPass`,
    which reads pre-tone-mapped values; the TSL bloom node is a different

@@ -267,14 +267,16 @@ const canvas=document.getElementById('c');
 const renderer=new THREE.WebGPURenderer({canvas,antialias:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(1);                            // fixed DPR = identical pixels everywhere
 /* sortObjects=false is LOAD-BEARING for determinism on r185's node renderer.
-   With depth sorting on, a camera CUT reorders the draw list and per-object
-   uniform state goes stale: objects rendered at a previous seek's pose,
-   sticky across re-renders, on BOTH backends — measured on a 25-mesh scene
-   as a ~12%-per-check byte-determinism failure that vanished (16/16) the
-   moment sorting was disabled. Isolated by ascending bisection: the same
-   world under ONE static shot was clean; multiple shots (hard cuts or
-   blends) broke it. Cost: transparent objects now draw in CREATION order —
-   when transparent things overlap on screen, create the farther one first. */
+   Confirmed by a minimal out-of-pipeline reproduction (3 meshes, no shadows,
+   both backends): with depth sorting on, REVISITING a state after the sort
+   order changed renders objects at the previous render's pose — first visit
+   correct, every revisit wrong, 100% deterministic-wrong, sticky across
+   re-renders; the stale object's SHADOW draws at the correct pose while its
+   beauty pass lags. Object motion through depth order is a sufficient
+   trigger; camera cuts are just the common cause. sortObjects=false: 40/40
+   clean in the repro, 16/16 on the real scene. Cost: transparent objects
+   draw in CREATION order — when they overlap on screen, create the farther
+   one first. */
 renderer.sortObjects=false;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFShadowMap;   // PCFSoft deprecated in r185

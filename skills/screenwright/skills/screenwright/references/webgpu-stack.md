@@ -45,6 +45,11 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
 
 `renderAsync()` is deprecated in r185; after boot, the synchronous
 `renderer.render()` inside `seekTo` is the verified path on both backends.
+One WebGPU-backend caution from the minimal-repro work: the very FIRST
+render of a scene can differ one-time from every later render of the same
+state even with sorting off (a warmup signature, distinct from the revisit
+bug). The boot's `seekTo(0)` before `sceneReady` absorbs it — never
+byte-compare against a frame captured before that first render completes.
 
 ## The six determinism rules the node stack adds
 
@@ -68,16 +73,20 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
 4. **No `ComputeNode` / storage buffers.** Stateful across dispatches, and the
    WebGL2 fallback cannot run them at all.
 5. **`renderer.sortObjects = false` stays off.** Found by the gearbox
-   regression film: with depth sorting on, a camera CUT reorders the draw
-   list and per-object uniform state goes stale — objects render at a
-   previous seek's pose, sticky across re-renders and settle time, on BOTH
-   backends (~12% of determinism checks on a 25-mesh multi-shot scene).
-   Isolated by ascending bisection: the same world under one static shot was
-   clean; multiple shots broke it; sorting off fixed it 16/16. Not settle
-   length (0.5s changed nothing), not culling, not transparency, not the
-   internal animation loop, not nesting — each refuted in isolation.
-   Consequence: transparent objects draw in CREATION order, so when
-   transparent things overlap on screen, create the farther one first.
+   regression film, then CONFIRMED by a minimal out-of-pipeline
+   reproduction (3 meshes, no shadows, no fog, both backends — repro
+   scripts preserved in the session scratchpad, candidate for an upstream
+   issue): with depth sorting on, REVISITING a state after the sort order
+   changed renders objects at the previous render's pose. First visit
+   correct; every revisit wrong; 100% deterministic-wrong on revisit (the
+   in-pipeline "~12% flaky" was sampling structure, not a race); sticky
+   across re-renders and settle time; and the stale object's SHADOW draws
+   at the CORRECT pose while its beauty pass lags. Object motion through
+   the depth order is a sufficient trigger — camera cuts are just the
+   common cause. Control: sortObjects=false was 40/40 clean in the repro
+   and 16/16 on the real scene. Consequence: transparent objects draw in
+   CREATION order, so when transparent things overlap on screen, create
+   the farther one first.
 6. **`frustumCulled = false` on every mesh** (the template's `mesh()` helper
    does it). The per-mesh cull decision was measured consuming a stale pose:
    a mesh near the frustum edge rendered or vanished depending on which t the
@@ -111,12 +120,19 @@ window.sceneReady = true;                    // ONLY now may the recorder captur
 The same scene body (beats, worlds, shots, animate) injected into this
 skill's template and frozen explainer-video's renders near-identically:
 composition, lighting, and read match cell for cell on the contact sheets;
-both pass their own smoke. Two honest residuals: a small constant framing
-delta (~3% zoom) between the stacks at identical `t` — visible only in
-direct A/B, unexplained, parked; and shadow acne on extruded faces at
-closeup in BOTH stacks until `key.shadow.normalBias = .035` (a scene-rig
-setting, not a stack difference). The shipped example is
-`examples/gearbox.html` / `examples/gearbox.avif`.
+both pass their own smoke. The once-reported "~3% framing delta" between
+stacks was MEASURED AWAY: at equal viewport and equal t, rendered geometry
+is sub-pixel identical (±0.7 px over 14 silhouette probes) across classic
+WebGL, the WebGL2 fallback, and WebGPU-Metal — the observed delta was a
+capture-viewport mismatch in the original A/B (one screenshot's effective
+viewport was ~33 px short; on-screen size is proportional to innerHeight
+because the scene fixes vertical fov). Lesson: pin the viewport before
+byte- or crop-comparing captures. What genuinely differs across stacks is
+SHADING — the node renderer's highlights are brighter and shadows tighter
+(~9% of pixels differ by >8/255) — which the eye reads as zoom. Also
+learned here: `key.shadow.normalBias = .035` kills shadow acne on extruded
+faces at closeup (a scene-rig setting; both stacks needed it). The shipped
+example is `examples/gearbox.html` / `examples/gearbox.avif`.
 
 ## Node materials in scene code
 
@@ -131,8 +147,10 @@ const veins = THREE.mx_fractal_noise_float(
 mat.colorNode = THREE.mix(THREE.color(0x2a9d8f), THREE.color(0x8ad5c9), veins.smoothstep(.35, .8));
 ```
 
-Zero assets: MaterialX noise (`mx_perlin_noise_float`, `mx_worley_noise_float`,
-`mx_fractal_noise_float`, `mx_aastep`) computes on the GPU. Available and not
+Zero assets: MaterialX noise (`mx_noise_float` — the Perlin-style one; there
+is NO `mx_perlin_noise_float` export and a typo'd node name propagates as
+`undefined` silently — plus `mx_worley_noise_float`, `mx_fractal_noise_float`,
+`mx_aastep`) computes on the GPU. Available and not
 yet exercised here: `MeshPhysicalNodeMaterial` (transmission, `dispersion`,
 sheen, iridescence — dispersion verified rendering in the founding spike),
 `MeshSSSNodeMaterial`, `MeshToonNodeMaterial`. Post chains compose through

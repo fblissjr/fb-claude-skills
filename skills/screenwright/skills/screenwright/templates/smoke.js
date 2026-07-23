@@ -273,6 +273,7 @@ async function checkScene(browser, file) {
   const fails = [];
   const warnings = [];
   const noise = [];
+  let backend = null;
   const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
   page.on('pageerror', e => noise.push('page error: ' + e.message));
   // Driver performance chatter from the software GL path (our own readPixels
@@ -365,6 +366,9 @@ async function checkScene(browser, file) {
 
     const missing = await page.evaluate(
       `(${JSON.stringify(CONTRACT)}).filter(k => window[k] === undefined)`);
+    // Which backend actually rendered (3D scenes export it; 2D scenes have none).
+    // Printed on the result line: a green run should say what it verified.
+    backend = await page.evaluate('window.BACKEND || null');
     if (missing.length) fails.push('missing contract: ' + missing.join(', '));
     // Deliberately NOT asserting window.THREE. The contract is the product here;
     // three.js is one backend. Any scene exposing these four globals — a 2D
@@ -625,7 +629,7 @@ async function checkScene(browser, file) {
     fails.push(e.message.split('\n')[0]);
   }
   await page.close();
-  return { fails: fails.concat(noise), warnings };
+  return { fails: fails.concat(noise), warnings, backend };
 }
 
 (async () => {
@@ -800,13 +804,14 @@ async function checkScene(browser, file) {
         console.log(`FAIL ${scene} [self-contained] — ${e.message.split('\n')[0]}`);
         failed++;
       }
-      const { fails, warnings } = await checkScene(browser, target);
+      const { fails, warnings, backend } = await checkScene(browser, target);
+      const tag = backend ? `[source, ${backend}]` : '[source]';
       if (fails.length) {
         failed++;
-        console.log(`FAIL ${scene} [source]`);
+        console.log(`FAIL ${scene} ${tag}`);
         for (const f of fails) console.log('       ' + f);
       } else {
-        console.log(`ok   ${scene} [source]`);
+        console.log(`ok   ${scene} ${tag}`);
       }
       // Advisory: printed after the ok/FAIL line, never counted toward `failed`
       // or the exit code — a scene with only warnings still prints `ok` and

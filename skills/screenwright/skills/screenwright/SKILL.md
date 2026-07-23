@@ -61,16 +61,22 @@ Two templates, one window contract, every tool works on both:
 cp "${CLAUDE_SKILL_DIR}"/templates/{scene.template.html,shoot.js,build.js,smoke.js} .
 mv scene.template.html <name>.html
 bun add three@0.185.1 playwright-core@1.61.1
-bun run build.js vendor            # EMBEDS three into the scene; leaves no .js
+bun run build.js vendor <name>.html   # EMBEDS three into the scene; leaves no .js
+# (the scene name is required — argument-less `vendor` builds and discards.
+#  Skipping this is recoverable: every command that opens a scene embeds
+#  automatically via ensureVendor.)
 ```
 
-Both scenes run as-is (placeholder, 12s) and carry the full contract: `BEATS`,
-`CONFIG`/`STYLE`, `FRAME`, the deterministic kit (seeded `R[]` pool, `ss`,
-`bump`, easing personalities, `ramp`/`pulse`/`rampS`/`latch`/`warp` — see
-method.md), `SHOTS[]` with the match-cut constraint, DOM caption/title
-overlays, and the driver: `window.seekTo(t)`, `window.DURATION`,
-`window.stopPlayback()`, `window.sceneReady`, `window.BEATS`, `window.FRAME`,
-`window.FLASHES`, `window.BACKEND`. Do not rename any of these.
+Both scenes run as-is (placeholder, 12s) and carry the shared contract:
+`BEATS`, `CONFIG`/`STYLE`, `FRAME`, the deterministic kit (seeded `R[]` pool,
+`ss`, `bump`, easing personalities, `ramp`/`pulse`/`rampS`/`latch`/`warp` —
+see method.md), DOM caption/title overlays, and the driver: `window.seekTo(t)`,
+`window.DURATION`, `window.stopPlayback()`, `window.sceneReady`,
+`window.BEATS`, `window.FRAME`, `window.FLASHES`. Do not rename any of these.
+The 3D template additionally carries `SHOTS[]` with the match-cut constraint
+(the 2D template keeps its simpler `KEYS[]` camera rail) and exports
+`window.BACKEND` (`'webgpu' | 'webgl2'` — which backend actually rendered;
+smoke prints it per run).
 
 Replace the two marked sections: `buildWorlds()` (geometry) and `animate(t)`
 (per-beat motion, every property a function of `t`).
