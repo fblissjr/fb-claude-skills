@@ -1,5 +1,10 @@
 # changelog
 
+## 0.73.0
+
+### added
+- **`screenwright` 0.5.0 — Phase 1 step 6: style bibles v2. PHASE 1 COMPLETE.** A bible is the STYLE object itself — the solver and template already consume `exposure`/`bloom`/`dof`/`lens`/`cutDur`/`energy`, so the v2 mechanism landed with zero new machinery; palette keys are the scene's contract with the bible (a hex literal in a material is a look decision hiding from the switch). `examples/gearbox.html` now ships the committed control pair: `workshop` (lit machine-shop, steel and brass, steadicam) vs `neon` (dark stage, machines as silhouettes, the light as subject — bloomed markers, glowing trails, locked long lens, slow blends), one line apart, verified categorically different and byte-deterministic on both backends. New `references/bibles.md` carries the shape and register rules; `docs/media/gearbox-neon.avif` is the second preview. Phase 1 gate met: regression comparison (0.2.x), material packs (0.4.0), control pair (0.5.0). Carried forward: full bloom bracket, template-palette exposure pass, `WEBGPU=vulkan` verification, upstream sortObjects repro filing.
+
 ## 0.72.0
 
 ### added

@@ -345,10 +345,21 @@ variable.
    leans on bloom; the crushed-exposure advisory on the template palette
    remains open.
 6. Style bibles v2 on the new stack.
+   **DONE 2026-07-23** (screenwright 0.5.0, `references/bibles.md`): a
+   bible IS the STYLE object — the solver and template already consume
+   exposure/bloom/dof/lens/cutDur/energy, so the mechanism landed with no
+   new machinery. gearbox ships the committed control pair
+   (`workshop`/`neon`, one line apart): verified categorically different
+   films, both byte-deterministic on both backends.
 
 *Gate:* `gearbox` passes the comparison in (2); a committed control pair (two
 bibles, one line apart, same beats) produces categorically different films;
 the three material packs each demonstrated under byte-determinism.
+**GATE MET 2026-07-23 — PHASE 1 COMPLETE** (screenwright 0.5.0): gearbox
+comparison closed in 0.2.x, packs in 0.4.0, control pair in 0.5.0. Open
+carry-forwards into later phases: full bloom bracket (first film that leans
+on bloom), template-palette crushed-exposure advisory, `WEBGPU=vulkan`
+unverified, upstream repro for the sortObjects defect unfiled.
 
 **Phase 2 — Character scaffold.** Skeleton family + proportion vectors +
 shells; IK ported and extended; gait on the new rig; fur-shell and fabric

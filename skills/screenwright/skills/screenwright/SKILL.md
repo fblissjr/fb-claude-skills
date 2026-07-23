@@ -185,6 +185,10 @@ Two constraints that dictate the setup — do not "simplify" them away:
   subsurface (thin/thick split), glass (transmissionNode, ordering
   discipline), bloom observations — read before authoring any surface
   beyond flat color
+- `references/bibles.md` — style bibles v2: the whole look as ONE object
+  (palette, exposure, post, lens, cut pace, camera energy), switched by one
+  line; `examples/gearbox.html` ships the committed control pair
+  (`workshop` / `neon`) — read at art-direction time
 - `examples/gearbox.html` — the regression film against frozen
   explainer-video: same scene body on both stacks, judged side-by-side
 - `examples/materials.html` — the pack showcase: cel, SSS, glass in one

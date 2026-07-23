@@ -19,6 +19,12 @@ construction.
 
 ![gearbox](../../../../docs/media/gearbox.avif)
 
+The same file carries the committed style-bible control pair: switch
+`const STYLE = BIBLES.workshop` to `BIBLES.neon` — one line — and the same
+beats render as a dark stage where the light is the subject:
+
+![gearbox neon](../../../../docs/media/gearbox-neon.avif)
+
 ## materials
 
 The pack showcase: one film, three beats, three surfaces — TSL-native cel

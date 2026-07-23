@@ -657,10 +657,27 @@ const BEATS = [
    nothing else. Timing lives in BEATS; camera energy and cuts in CONFIG.
    Materials are still created inline in buildWorlds(); lift shared palette
    constants up here as the scene grows. */
-const STYLE = {
-  bg: 0x182430,                       // steel-blue technical register
-  exposure: 1.15,                     // dark palette: raised on review, per the crush rule
+/* ---------- STYLE BIBLES: the whole look is ONE object ----------
+   Switch the film's entire register by changing the ONE line that selects
+   the bible. Fields the template/solver consume directly: exposure, bloom,
+   dof, lens, cutDur, energy. Palette keys below are read by buildWorlds().
+   The pair is a committed CONTROL: same beats, same geometry, one line \u2014
+   two categorically different films. */
+const BIBLES = {
+  workshop: {          // lit machine-shop: steel and brass under a key light
+    bg: 0x182430, floor: 0x36465a, exposure: 1.15, energy: 'steadicam',
+    gearIn: 0xc9a35c, gearOut: 0x8fa3b8, dotIn: 0x54e0e8, dotOut: 0xf2a05a,
+    markerGlow: .9, fogFar: 60,
+  },
+  neon: {              // dark stage: machines as silhouettes, light as subject
+    bg: 0x0a0e16, floor: 0x10161f, exposure: 1.0, energy: 'locked',
+    lens: 24, cutDur: {blend: 1.2},
+    bloom: {threshold: .7, strength: .85, radius: .35},
+    gearIn: 0x232b3a, gearOut: 0x1b222e, dotIn: 0x2ff5ff, dotOut: 0xff4fd8,
+    markerGlow: 3.2, fogFar: 40,
+  },
 };
+const STYLE = BIBLES.workshop;        // <-- the one line
 
 /* ---------- CONFIG: everything that is neither timing nor look. ---------- */
 const CONFIG = {
@@ -960,8 +977,8 @@ function buildWorlds() {
   key.shadow.normalBias = .035;
   // rim from behind-left separates the dark steel from the dark floor (dark-palette rule)
   const rim = new THREE.DirectionalLight(0xbfd8ff, .7); rim.position.set(-6, 8, -7); scene.add(rim);
-  scene.fog = new THREE.Fog(STYLE.bg, 20, 60);
-  const floor = mesh(new THREE.PlaneGeometry(90, 90), std(0x36465a, {roughness: .9}), world);
+  scene.fog = new THREE.Fog(STYLE.bg, 20, STYLE.fogFar);
+  const floor = mesh(new THREE.PlaneGeometry(90, 90), std(STYLE.floor, {roughness: .9}), world);
   floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
   for (const x of [X_IN, X_OUT]) {             // pedestals; axles along z; hubs are static (rotationally symmetric)
     mesh(B(.7, .25, 1.6), std(0x2c3745, {roughness: .8}), world, x, .125, 0);
@@ -971,10 +988,10 @@ function buildWorlds() {
     const hub = mesh(C(.32, .32, .7, 24), std(0x3a4756, {roughness: .6}), world, x, AXLE_Y, 0);
     hub.rotation.x = Math.PI / 2;
   }
-  gearIn  = mesh(gearGeo(0.9, 8),  std(0xc9a35c, {roughness: .45, metalness: .25}), world, X_IN,  AXLE_Y, 0);
-  gearOut = mesh(gearGeo(2.7, 24), std(0x8fa3b8, {roughness: .45, metalness: .25}), world, X_OUT, AXLE_Y, 0);
-  dotIn  = mesh(S(.16, 16, 12), std(0x54e0e8, {emissive: 0x54e0e8, emissiveIntensity: .9}), world, X_IN,  AXLE_Y, .34);
-  dotOut = mesh(S(.16, 16, 12), std(0xf2a05a, {emissive: 0xf2a05a, emissiveIntensity: .9}), world, X_OUT, AXLE_Y, .34);
+  gearIn  = mesh(gearGeo(0.9, 8),  std(STYLE.gearIn, {roughness: .45, metalness: .25}), world, X_IN,  AXLE_Y, 0);
+  gearOut = mesh(gearGeo(2.7, 24), std(STYLE.gearOut, {roughness: .45, metalness: .25}), world, X_OUT, AXLE_Y, 0);
+  dotIn  = mesh(S(.16, 16, 12), std(STYLE.dotIn, {emissive: STYLE.dotIn, emissiveIntensity: STYLE.markerGlow}), world, X_IN,  AXLE_Y, .34);
+  dotOut = mesh(S(.16, 16, 12), std(STYLE.dotOut, {emissive: STYLE.dotOut, emissiveIntensity: STYLE.markerGlow}), world, X_OUT, AXLE_Y, .34);
   function trail(color, x) {
     const g = { dots: [], x };
     for (let i = 0; i < 9; i++) {
@@ -984,7 +1001,7 @@ function buildWorlds() {
     }
     return g;
   }
-  trailIn = trail(0x54e0e8, X_IN); trailOut = trail(0xf2a05a, X_OUT);
+  trailIn = trail(STYLE.dotIn, X_IN); trailOut = trail(STYLE.dotOut, X_OUT);
   // the drive cue: a motor block on the input axle \u2014 "input" needs geometry,
   // not just a caption. Its lamp pulses during the input beat (animate()).
   mesh(B(1.0, .8, .9), std(0x232d3a, {roughness: .7}), world, X_IN, AXLE_Y, -1.15);
