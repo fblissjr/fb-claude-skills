@@ -266,17 +266,47 @@ in the tools — the shadow `frameId` guard, the presentation settle, the
 shipped-frame check with its spread bracket, the arm64 Chromium resolution
 fix — recorded in CHANGELOG 0.69.0 and `references/webgpu-stack.md`.
 
-**Phase 1 — Shading and post.** TSL material packs (toon, SSS skin, glass/
-dispersion, metal, fabric, fur shell), node post chain (bloom, dof, film
-grain, GTAO evaluated), style bibles v2 on the new stack. *Gate:* a committed
-control pair (two bibles, one line apart, same beats) produces categorically
-different films; `gearbox` matches or beats its explainer-video twin on every
-instrument.
+**Phase 1 — Regression, post, shading.** Reshaped after Phase 0 (2026-07-23):
+the gate work runs in this order, each step isolating one class of new
+variable.
+
+1. *Structural chores first:* a shared same-task render-and-read sampling
+   helper in smoke.js — three checks independently hit the buffer-clears-
+   after-composite trap in Phase 0; the rule becomes construction, not
+   convention.
+2. *`gearbox` before any new capability.* The regression case has zero new
+   variables, so it separates porting gaps from feature bugs, and it is the
+   first real film through the instruments smoke does not cover (`motion`'s
+   frame-difference metric, `strip`, the delivery encoders) on node-stack
+   output. Judged against its explainer-video twin by the honest comparison:
+   same beats spec on both skills, instruments green on screenwright, and a
+   side-by-side visual review (sheets, squint strips, watched loops) judged
+   no worse. NOT "every instrument matches" — the two skills' instruments
+   now differ, and frames are not byte-comparable across renderers.
+3. *Post plumbing active by default.* The template runs a pass-through
+   `RenderPipeline` (neutral look; bloom behind a `STYLE` flag) so smoke's
+   determinism and shipped-frame checks ride the post path on every scene —
+   Phase 0's lesson is that the untested path is the broken path.
+4. *Material packs, trimmed:* toon, SSS skin, glass/dispersion — each
+   verified on a small showcase subject. Fur and fabric move to Phase 2,
+   where characters exist to test them on.
+5. *Brackets re-measured, not imported.* The old bloom rule (threshold above
+   sky-lit luminance, 3.2/8.0/14.0) was measured against `UnrealBloomPass`,
+   which reads pre-tone-mapped values; the TSL bloom node is a different
+   implementation and the numbers are presumptively stale. Same pass settles
+   the template palette's standing crushed-exposure advisory.
+6. Style bibles v2 on the new stack.
+
+*Gate:* `gearbox` passes the comparison in (2); a committed control pair (two
+bibles, one line apart, same beats) produces categorically different films;
+the three material packs each demonstrated under byte-determinism.
 
 **Phase 2 — Character scaffold.** Skeleton family + proportion vectors +
-shells; IK ported and extended; gait on the new rig. *Gate:* `bear-and-bees`
-plus a human plus a text-invented creature, all from one scaffold; each
-squint-distinct; walk cycles plant (no sliding feet on the strip check).
+shells; IK ported and extended; gait on the new rig; fur-shell and fabric
+packs land here, tested on the characters they exist for. *Gate:*
+`bear-and-bees` plus a human plus a text-invented creature, all from one
+scaffold; each squint-distinct; walk cycles plant (no sliding feet on the
+strip check).
 
 **Phase 3 — The human.** Face morph basis, expression library, hands, hair
 shells; `the-briefing`. *Gate:* the two-shot survives all three review axes;
@@ -329,6 +359,13 @@ creature exists to keep that test honest.
   screenwright ships films; interactivity is one spike behind a gate, and
   engine-shaped features (input handling, game state, audio mixing) are
   non-goals until Phase 6 reopens the question.
+- **The three pin is now load-bearing beyond the API surface.** `seekTo`
+  ticks `renderer._nodes.nodeFrame.update()` (private API) to defeat the
+  shadow frameId guard. The upgrade ritual for any pin bump, in order: grep
+  the new build for `nodeFrame`; run the full smoke matrix (fallback, metal,
+  swiftshader-must-fail); re-run the bloom/exposure brackets if the post
+  implementation changed. An upgrade that skips the ritual inherits Phase
+  0's bugs with none of its instruments proven against the new build.
 
 ## Non-goals
 
