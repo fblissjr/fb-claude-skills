@@ -2,7 +2,7 @@ last updated: 2026-07-21
 
 # skill-maintainer
 
-Maintenance tools for any Claude Code skills repo. Validates skills against the Agent Skills spec, checks token budgets, tracks freshness against each skill's own `metadata.review_interval_days` window, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks plugin.json/marketplace.json version alignment repo-wide, reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
+Maintenance tools for any Claude Code skills repo. Validates skills against the Claude Code skill schema (a superset of the Agent Skills spec, so Claude Code frontmatter fields are accepted), checks token budgets, tracks freshness against each skill's own `metadata.review_interval_days` window, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks plugin.json/marketplace.json version alignment repo-wide, reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
 
 ## installation
 

@@ -6,13 +6,18 @@ Agent Skills spec (agentskills.io). The base spec's six-field allowlist rejects
 Claude Code's own fields (`disable-model-invocation`, `argument-hint`, `model`,
 `context`, ...), which is why we no longer use it as the gate.
 
-`ALLOWED_FIELDS` is the union. `BASE_SPEC_FIELDS` alone drives the optional
-`--strict` portability check: fields outside it are Claude Code extensions that
-would not validate on a strict cross-vendor host.
+`ALLOWED_FIELDS` (base union CC extensions) is what the default gate accepts, via
+`validate_cc`. The optional `--strict` portability check is `portability_warnings`,
+which flags any field in `CLAUDE_CODE_FIELDS` as non-portable to a strict
+cross-vendor host. (`validate_frontmatter`'s `allowed` parameter is a generic
+building block that defaults to `ALLOWED_FIELDS`; passing `BASE_SPEC_FIELDS` gives
+an equivalent field-allowlist check, but the CLI's `--strict` path uses
+`portability_warnings` for its clearer per-field message.)
 
-Field set current as of 2026-07 per code.claude.com/docs/en/skills.md. Update it
-when Claude Code's skill schema changes; there is no official JSON schema to
-track, so this list is the source of truth.
+Field set current as of 2026-07 per code.claude.com/docs/en/skills.md. There is
+no official JSON schema, so this list is the source of truth. This repo already
+tracks that page for upstream drift via `skill-maintain upstream`; when it flags
+a change to the skills doc, re-derive `CLAUDE_CODE_FIELDS` from it.
 
 Parsing is delegated to skills_ref; only the field allowlist and value rules
 live here.

@@ -1,5 +1,10 @@
 # changelog
 
+## 0.85.0
+
+### changed
+- **`skill-maintainer` 0.15.1 — quality-pass follow-ups to the 0.15.0 validator work.** A `/simplify` and documentation pass surfaced three fixes, none behavioral. The `cc_schema` module docstring claimed `--strict` runs via `validate_frontmatter(BASE_SPEC_FIELDS)`, but the CLI actually wires it to `portability_warnings` — corrected so a reader is not sent to the wrong function. The hand-maintained `CLAUDE_CODE_FIELDS` set is now tied in the docstring to the existing `skill-maintain upstream` drift tracking of `code.claude.com/docs/en/skills`, so a change to that page triages toward this file rather than a generic "doc changed" flag. The skill-maintainer plugin README's summary now says it validates against the Claude Code skill schema (a superset of the Agent Skills spec), not "the Agent Skills spec". 60 tests still pass. Deliberately not applied: the reviewed triple-parse in `validate_single` (validation is not a hot path, all three call sites are correct and tested, and parse-once would make `check_best_practices` dual-mode), and importing `skills_ref`'s private value-validators (would re-couple to an early external library's internals, the opposite of owning the gate).
+
 ## 0.84.0
 
 ### changed
