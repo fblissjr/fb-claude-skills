@@ -1,5 +1,10 @@
 # changelog
 
+## 0.80.1
+
+### changed
+- **`screenwright` 0.12.1 — every tracked example now ships its preview set, and the READMEs catch up.** Examples policy clarified (recorded in the plan): owner approval gates what enters `examples/`; once tracked, the preview set is mandatory — an AVIF in repo-level `docs/media/`, embedded in the examples README with a link to the `.html` and a description of what the example showcases. Rendered the three missing previews (menagerie, bear-and-bees, noise-chart — 720px/12fps via the Metal recorder path) and restructured the examples README: every entry now links its HTML, embeds its AVIF, and says what it demonstrates, under a standing callout that the AVIF is to the film what a thumbnail is to a full image — the HTML is the artifact. Also: the plugin README's Status section notes the chart tier, and the repo hub README's explainer-video section now points readers at screenwright as the in-development replacement (frozen predecessor, successor on the node stack, supersedes when verifiably better on the same test cases).
+
 ## 0.80.0
 
 ### added

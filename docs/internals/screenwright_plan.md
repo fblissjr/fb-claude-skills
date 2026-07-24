@@ -552,12 +552,18 @@ cautionary case). Related measured note: always-loaded SKILL.md size is the
 real ambient cost (the frozen skill's is ~6.8K tokens, over the spec's <5K
 guidance) — screenwright's SKILL.md stays lean by policy.
 
-Amended 2026-07-23 (owner directive): **do NOT render an AVIF/MP4 per shipped
-scene by default.** The HTML file IS the artifact — it plays from disk at
-full quality; an AVIF is lower-quality and costs an encode plus review time.
-Render deliverables (loop/avif/mp4, docs/media previews) only when asked.
-Test and interim renders live under gitignored `internal/` until explicitly
-promoted.
+Amended 2026-07-23 (owner directive, clarified same day): the gate is
+**owner approval, not rendering**. Nothing enters `examples/` until the
+owner has seen it and approved it; test and interim scenes (and any interim
+renders) live under gitignored `internal/` until promoted. But **once a
+scene IS tracked in `examples/`, the preview set is mandatory and
+consistent**: an AVIF in repo-level `docs/media/`, embedded in the examples
+README so it renders on GitHub, alongside a link to the `.html` and a
+description of what the example is and showcases. The examples README also
+carries a standing callout above the listing: the AVIF is to the film what
+a thumbnail is to a full image (720px/12fps/inline budget) — the HTML is
+the artifact. The HTML remains the full-quality deliverable; the AVIF
+exists so a browser of the repo can see the films without cloning.
 
 ## Anti-template principle
 

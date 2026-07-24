@@ -1,4 +1,4 @@
-last updated: 2026-07-22
+last updated: 2026-07-23
 
 # fb-claude-skills
 
@@ -9,6 +9,15 @@ A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plug
 ## explainer-video
 
 The most developed plugin here, and the best place to start.
+
+> **A better replacement is in active development:** [screenwright](skills/screenwright/)
+> rebuilds this on the three.js WebGPU/TSL node stack — same contract, same
+> review method, much higher material ceiling (characters with fur and fabric,
+> subsurface skin, glass, node post) — and will supersede explainer-video once
+> its explainer register is verifiably better on the same test cases.
+> explainer-video is frozen (bugfix-only) but fully working; browse
+> [screenwright's examples](skills/screenwright/skills/screenwright/examples/)
+> to see where this is headed.
 
 Describe any scene — a mechanism, a process, a document, a character, a
 storm — and it produces a deterministic animated film. The whole film is a pure

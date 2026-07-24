@@ -57,7 +57,10 @@ chains, and fur/fabric packs — `examples/menagerie.html` walks a bear, a
 human, and an invented creature from one `buildCharacter`, squint-distinct
 and strip-checked — and its film deliverable shipped:
 `examples/bear-and-bees.html`, a comedy short whose pause-then-fast timing
-carries the register half of the gate. **Phase 2 is complete.** Next up by
+carries the register half of the gate. **Phase 2 is complete.** A chart
+tier now sits below the films: `examples/noise-chart.html` isolates shader
+primitives one cell at a time (with a deliberate drift control), and new
+primitives land there before any film uses them. Next up by
 owner priority: Phase 4, the physics bake (bake-time simulation, runtime
 determinism intact — see the proposal in the repo's internals docs). Later
 phases (the human face rig, registers, the interactive spike) land as they
