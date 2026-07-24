@@ -59,5 +59,5 @@ These bite on the first edit if you don't know them.
 
 ## Cross-repo
 
-- `coderef/agentskills/` — symlink to a local clone of the Agent Skills spec + `skills-ref` validator
+- `coderef/agentskills/` — symlink to a local clone of the Agent Skills spec + the `skills-ref` library (used here as the SKILL.md frontmatter parser; the validation gate is `skill-maintain validate` against the Claude Code schema, a superset)
 - Sibling repos: `star-schema-llm-context` (storage engine / kernel), `ccutils` (client applications). The three together form a database-like component stack — see [VISION.md](VISION.md) for the design.
