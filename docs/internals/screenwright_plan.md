@@ -508,6 +508,16 @@ at build time, shipped as data, playback pure). Recorded in the same
 proposal doc, including the finding that reflections themselves need NO bake
 (SSR node, planar reflector, GTAO, environment lighting are pure functions
 of scene state — available at runtime today at zero determinism cost).
+*NEXT SESSION ENTRY POINT (recorded 2026-07-23, end of session):* start with
+the proposal's spike list, measured before any pipeline code — (1) Rapier
+version pin + WASM re-bake identity on this machine, (2) sample-rate bracket
+(12/30/60Hz, size vs smoothness), (3) embedding format (JSON floats vs
+base64 Float32Array) on a real bake. Then the light-bake spike under the
+same red lines. Everything through 0.12.1 (chart tier, previews, policy
+clarification) is shipped and pushed; no loose ends carry over except the
+standing ones already listed in this plan (bloom bracket, crushed-exposure
+advisory, `WEBGPU=vulkan`, the unreproduced metal 1-in-6, per-shot camera
+energy).
 
 **Phase 5 — Registers.** Cutscene and meme film-language extensions (dialogue
 staging, comedic timing, title cards); `boss-intro` and `meme-remix`.
