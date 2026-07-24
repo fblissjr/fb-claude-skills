@@ -1,15 +1,11 @@
-[project]
-name = "fb-claude-skills"
-version = "0.50.0"
-description = "Plugin marketplace and extension system for Claude Code"
-license = "MIT"
-requires-python = ">=3.11"
-dependencies = [
-    "skill-maintainer",
-]
-
-[tool.uv]
-package = false
+# Virtual workspace root: not a package, so it carries no version.
+#
+# This repo is a collection of independently-versioned plugins (each versions
+# itself in its plugin.json) and CLIs (each versions itself in tools/*/pyproject.toml).
+# There is no single "repo version", so the root does not pretend to be one --
+# it exists only to declare the uv workspace and shared dev tooling. The
+# CHANGELOG's top heading is a standalone narrative marker, not a shadow of a
+# package version. See docs/internals/plugin-versioning.md.
 
 [tool.uv.workspace]
 members = ["tools/skill-maintainer", "tools/agent-state", "apps/agent-state-mcp", "apps/mece-decomposer", "research/schema-processing"]
@@ -19,4 +15,4 @@ exclude = ["apps/readwise-reader"]
 skill-maintainer = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=7.0", "ruff>=0.8.0"]
+dev = ["pytest>=7.0", "ruff>=0.8.0", "skill-maintainer"]

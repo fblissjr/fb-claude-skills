@@ -38,7 +38,7 @@ If you reset settings or clone fresh, re-disable. Trade-off: this repo gives up 
 
 ## Pre-commit hook is not tracked by git
 
-`.git/hooks/pre-commit` validates staged SKILL.md files (via `agentskills validate`), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** (git refuses to track `.git/`) — must be re-applied on fresh clones.
+`.git/hooks/pre-commit` validates staged SKILL.md files (via `skill-maintain validate`, the Claude Code schema gate), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** (git refuses to track `.git/`) — must be re-applied on fresh clones.
 
 To install on a fresh clone:
 

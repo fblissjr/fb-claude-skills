@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
-from skills_ref.validator import validate
+from skill_maintainer.cc_schema import validate_cc as validate
 
 from skill_maintainer.config import append_event
 from skill_maintainer.shared import (

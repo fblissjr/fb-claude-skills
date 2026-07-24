@@ -28,15 +28,15 @@ claude_md_size_check() {
 
 failed=0
 
-# --- 1. Validate staged SKILL.md files with agentskills ---
+# --- 1. Validate staged SKILL.md files against the Claude Code skill schema ---
 staged_skills=$(echo "$staged" | grep 'SKILL\.md$' || true)
 
 if [ -n "$staged_skills" ]; then
     for skill_md in $staged_skills; do
         skill_dir=$(dirname "$skill_md")
         echo "Validating $skill_md..."
-        if ! uv run agentskills validate "$skill_dir" 2>&1; then
-            echo "FAIL: $skill_md did not pass skills-ref validation"
+        if ! uv run skill-maintain validate "$skill_dir" 2>&1; then
+            echo "FAIL: $skill_md did not pass Claude Code skill validation"
             failed=1
         fi
     done

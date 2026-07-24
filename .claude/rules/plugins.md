@@ -10,7 +10,7 @@ These rules load when working with plugin manifests and .claude-plugin/ director
 
 ## After creating a new plugin -- required checklist
 
-1. `uv run agentskills validate <plugin>/skills/<skill>/SKILL.md`
+1. `uv run skill-maintain validate <plugin>/skills/<skill>/SKILL.md`
 2. Add plugin entry to root `.claude-plugin/marketplace.json`
 3. Add repo to `tracked_repos` in `.skill-maintainer/config.json` if watching upstream
 4. Bump root `pyproject.toml` + add a `CHANGELOG.md` entry

@@ -43,7 +43,7 @@ skill-maintain validate --all                    # validate all skills
 skill-maintain measure                           # token budget report
 skill-maintain freshness                         # SKILL.md staleness check (uses metadata.last_verified + metadata.review_interval_days)
 skill-maintain init                              # initialize .skill-maintainer/ in a new repo
-uv run agentskills validate path/to/SKILL.md     # validate a single skill (low-level, called by pre-commit)
+uv run skill-maintain validate path/to/SKILL.md  # validate a single skill against the Claude Code schema (called by pre-commit; add --strict for portability)
 ```
 
 All commands accept `--dir <path>` to target a different repo.

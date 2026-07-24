@@ -113,3 +113,44 @@ def test_keep_a_changelog_heading_is_accepted(tmp_path):
     r = _repo(tmp_path, '[project]\nversion = "1.2.3"\n',
               "# changelog\n\n## [1.2.3] - 2024-01-01\n")
     assert not _failed(check_changelog_version(r))
+
+
+# --- virtual workspace root (no [project], hence no version) -----------------
+# A plugin collection has no single package version; the root is a virtual
+# workspace anchor. The heading is still validated, but there is nothing to
+# compare it against, so a well-formed changelog passes.
+
+VIRTUAL_ROOT = '[tool.uv.workspace]\nmembers = ["tools/x"]\n'
+
+
+def test_virtual_root_validates_format_and_passes(tmp_path):
+    r = _repo(tmp_path, VIRTUAL_ROOT, "# changelog\n\n## 0.84.0\n\n- thing\n")
+    results = check_changelog_version(r)
+    assert results and all(x.passed for x in results), results
+
+
+def test_virtual_root_still_catches_malformed_insert(tmp_path):
+    """No version to compare, but an entry above the first heading is still a bug."""
+    r = _repo(tmp_path, VIRTUAL_ROOT, "# changelog\n\n### fixed\n- orphaned\n\n## 0.84.0\n")
+    assert _failed(check_changelog_version(r))
+
+
+def test_virtual_root_still_requires_a_heading(tmp_path):
+    r = _repo(tmp_path, VIRTUAL_ROOT, "# changelog\n\nnothing here\n")
+    assert _failed(check_changelog_version(r))
+
+
+def test_dynamic_version_validates_format_and_passes(tmp_path):
+    """A [project] with dynamic version has nothing static to compare; the
+    heading is still validated and, when well-formed, passes."""
+    r = _repo(tmp_path, '[project]\nname = "x"\ndynamic = ["version"]\n',
+              "# changelog\n\n## 0.1.0\n\n- thing\n")
+    results = check_changelog_version(r)
+    assert results and all(x.passed for x in results), results
+
+
+def test_malformed_toml_project_scalar_does_not_crash(tmp_path):
+    """`project` as a scalar is unusual but valid TOML; must not raise."""
+    r = _repo(tmp_path, 'project = "x"\n', "# changelog\n\n## 0.1.0\n")
+    results = check_changelog_version(r)  # must not raise AttributeError
+    assert results and all(x.passed for x in results)

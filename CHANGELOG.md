@@ -1,5 +1,16 @@
 # changelog
 
+## 0.84.0
+
+### changed
+- **`skill-maintainer` 0.15.0 — validate against Claude Code's skill schema instead of the lagging cross-vendor allowlist; and make the repo root a virtual workspace with no version.** Two coupled changes.
+
+  **Validator.** The hard gate was `skills_ref.validator.validate` (the vendored agentskills.io reference validator), whose six-field allowlist rejects every Claude Code frontmatter extension — `disable-model-invocation`, `argument-hint`, `model`, `context`, `paths`, and the rest — so a skill using any of them could not be committed. This repo's skills run in Claude Code, so the gate should be Claude Code's schema, which is a superset. New module `cc_schema.py` encodes that superset (base spec plus the CC extensions) and the name/description/compatibility rules; `validate.py`, `quality.py`, and `tests.py` all route through it, so there is one source of truth. Unknown fields are still rejected (a typo like `disable-model-invokation` fails with the allowed list printed). `skill-maintain validate --strict` runs the cross-vendor check as an opt-in portability lint that flags CC-only fields. `skills_ref` is kept only as a parser. The pre-commit hook, `.claude/rules/{general,plugins,skills}.md`, `best_practices.md` (working copy plus the bundled mirror), and the maintenance/gotchas/README/init docs are re-pointed off `uv run agentskills validate` onto `uv run skill-maintain validate`; the agentskills.io *spec* references stay, since it remains the base. 8 new tests in `test_cc_schema.py`. A metadata-values-are-strings check was deliberately not added: `skills_ref` parses with `strictyaml` and force-stringifies the metadata map, so through the tooling metadata is always string-valued and a machine check could never fire — the convention is documented in `.claude/rules/skills.md` instead.
+
+  **Virtual root.** The root `pyproject.toml` dropped its `[project]` table and version. A plugin collection has no single package version — every plugin versions itself in `plugin.json`, every CLI in its own `tools/*/pyproject.toml` — so the root `version` was a fiction that nothing installed, existing only for `check_changelog_version` to compare the CHANGELOG against. That comparison had drifted red for a long time (CHANGELOG `0.83.0` vs root `0.50.0`) and was never a commit gate. The root is now a virtual uv workspace (workspace plus dev-group only; `uv sync --all-packages` and `uv run` unchanged), and `check_changelog_version` is repointed to always validate the changelog heading and insert-integrity while comparing to a version only when the root declares one — turning that row green honestly rather than by feeding it a matched number. 3 new tests pin the virtual-root behavior; `docs/internals/plugin-versioning.md` and CLAUDE.md invariant 1 updated to drop the root version bump from the cascade.
+
+  Cascade: `skill-maintainer` plugin.json + marketplace + `tools/skill-maintainer/pyproject.toml` 0.14.x → 0.15.0, `uv lock` refreshed.
+
 ## 0.83.0
 
 ### added

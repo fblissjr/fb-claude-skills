@@ -83,7 +83,7 @@ Check if `.gitignore` exists. If it does, check if `.skill-maintainer/state/` is
 
 ### 5. Pre-commit hook
 
-The bundled pre-commit hook validates staged SKILL.md files via `agentskills`, checks plugin version alignment, warns on unbumped plugin content changes, and warns on CLAUDE.md size creep. The hook degrades gracefully in non-plugin repos (skips the version checks if no `plugin.json` is found).
+The bundled pre-commit hook validates staged SKILL.md files via `skill-maintain validate` (the Claude Code schema gate), checks plugin version alignment, warns on unbumped plugin content changes, and warns on CLAUDE.md size creep. The hook degrades gracefully in non-plugin repos (skips the version checks if no `plugin.json` is found).
 
 If `skill-maintain init` is unavailable, copy the sample manually:
 

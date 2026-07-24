@@ -31,7 +31,12 @@ work that produces no information. `plugin.json` is now the sole source.
 Plus, only when they exist:
 
 - `tools/<plugin>/pyproject.toml` (CLI counterpart) → `[project] version`
-- Root `pyproject.toml` + `uv lock` when the repo version moves
+- `uv lock` when a `tools/*` package version changed, so the lock matches
+
+The root `pyproject.toml` is a **virtual workspace root with no version** — a
+plugin collection has no single repo version, so there is nothing to bump. The
+CHANGELOG's top `## X.Y.Z` is a standalone narrative marker, not a shadow of a
+package version.
 
 ### What is NOT in the cascade
 
@@ -52,11 +57,11 @@ Files touched in one commit:
 - `skills/skill-maintainer/.claude-plugin/plugin.json` → `0.6.4`
 - `.claude-plugin/marketplace.json` → `skill-maintainer` entry version `0.6.4`
 - `tools/skill-maintainer/pyproject.toml` → `0.6.4`
-- `pyproject.toml` (root) → bumped
-- `CHANGELOG.md` — matching new `## X.Y.Z` entry at the top
+- `CHANGELOG.md` — a new `## X.Y.Z` entry at the top (its own narrative number)
 - `uv.lock` — refreshed via `uv lock`
 
-Seven files. **No SKILL.md is touched** — `metadata.version` was removed from
+Six files. The root `pyproject.toml` is not touched: it is a virtual workspace
+root with no version. **No SKILL.md is touched** — `metadata.version` was removed from
 every SKILL.md on 2026-07-21 and must not be re-added; see above. An earlier
 version of this example listed six SKILL.md edits and a `last_verified` bump,
 which is now exactly the wrong thing to copy.
@@ -65,7 +70,7 @@ which is now exactly the wrong thing to copy.
 
 - **Forgetting `uv lock`.** Local commit succeeds (the hook doesn't run lock check); CI later fails on `uv lock --check`.
 - **Re-adding `metadata.version` to a SKILL.md.** Pre-commit still validates the field *if present*, so a stray re-addition is caught rather than drifting silently. It should not be there at all.
-- **Changelog heading out of step with the root version.** `check_changelog_version` compares the top `## X.Y.Z` against `pyproject.toml` and gates on it.
+- **Malformed changelog insert.** `check_changelog_version` validates that the top `## X.Y.Z` heading is well-formed and that no entry landed above it. It compares against a root version only when the root declares one; the virtual root does not, so here the check is format and insert-integrity only.
 - **Editing `tools/<plugin>/` source without bumping plugin version.** The hook only warns (no version-bearing file is staged inside the plugin directory), so it's easy to miss. Treat `tools/<plugin>/` source as plugin content.
 - **Major bump without a CHANGELOG entry.** No mechanical block; reviewer catches it. Always pair the version bump with the changelog narrative.
 

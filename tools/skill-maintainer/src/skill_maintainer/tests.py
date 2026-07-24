@@ -14,7 +14,7 @@ from pathlib import Path
 import orjson
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
-from skills_ref.validator import validate
+from skill_maintainer.cc_schema import validate_cc as validate
 
 from skill_maintainer.config import best_practices_file
 from skill_maintainer.shared import (
@@ -397,7 +397,13 @@ def check_path_privacy(root: Path) -> list[Result]:
 
 
 def check_changelog_version(root: Path) -> list[Result]:
-    """The top `## X.Y.Z` in CHANGELOG.md must equal the root pyproject version.
+    """The top `## X.Y.Z` in CHANGELOG.md must be well-formed, and must equal the
+    root pyproject version when the root declares one.
+
+    A virtual workspace root (no `[project]`, hence no version) is a legitimate
+    shape for a plugin collection: there is no single package version to track.
+    In that case the heading and insert-integrity are still validated; only the
+    equality comparison is skipped.
 
     Proposed during cross-review after a changelog insert matched `# changelog`
     instead of the version heading below it: the entry landed with no version
@@ -427,17 +433,23 @@ def check_changelog_version(root: Path) -> list[Result]:
     except Exception as e:
         return [Result("repo", "", "changelog version", False,
                        f"unreadable pyproject.toml: {e}")]
-    pyver = data.get("project", {}).get("version")
+    project = data.get("project")
+    pyver = project.get("version") if isinstance(project, dict) else None
     if not isinstance(pyver, str):
         # Poetry and other non-PEP-621 layouts keep the version elsewhere. The
         # regex this replaced found them by accident; hard-failing them turned a
         # correct changelog into a permanent red row, which is precisely the
-        # cry-wolf failure this file argues against two functions above.
-        pyver = data.get("tool", {}).get("poetry", {}).get("version")
+        # cry-wolf failure this file argues against two functions above. Guard
+        # each hop: malformed TOML can make `project`/`tool`/`poetry` a scalar.
+        tool = data.get("tool")
+        poetry = tool.get("poetry") if isinstance(tool, dict) else None
+        pyver = poetry.get("version") if isinstance(poetry, dict) else None
     if not isinstance(pyver, str):
-        if "version" in data.get("project", {}).get("dynamic", []):
-            return []          # dynamic versioning is a legitimate shape
-        return []              # no declared version anywhere: nothing to compare
+        # No declared version: a virtual workspace root (no [project]) or a
+        # dynamic version. There is nothing to compare against, but the changelog
+        # format and insert-integrity are still worth validating, so fall through
+        # with pyver = None rather than skipping the check entirely.
+        pyver = None
 
     text = changelog.read_text(encoding="utf-8")
     # Accept keep-a-changelog `## [1.2.3] - 2024-01-01` and prerelease suffixes
@@ -466,6 +478,12 @@ def check_changelog_version(root: Path) -> list[Result]:
     if stray:
         return [Result("repo", "", "changelog version", False,
                        f"content above the first version heading: {stray[0][:60]!r}")]
+
+    if pyver is None:
+        # Format and insert-integrity validated above; the root declares no
+        # version, so there is nothing to compare the heading against.
+        return [Result("repo", "", "changelog version", True,
+                       "changelog heading well-formed; root declares no version")]
 
     ok = heading.group(1) == pyver
     return [Result("repo", "", "changelog version", ok,

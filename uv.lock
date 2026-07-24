@@ -6,10 +6,16 @@ requires-python = ">=3.11"
 members = [
     "agent-state",
     "agent-state-mcp",
-    "fb-claude-skills",
     "mece-decomposer",
     "schema-bench",
     "skill-maintainer",
+]
+
+[manifest.dependency-groups]
+dev = [
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "ruff", specifier = ">=0.8.0" },
+    { name = "skill-maintainer", editable = "tools/skill-maintainer" },
 ]
 
 [[package]]
@@ -370,29 +376,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/15/1b/5abf0c7f38febb3b4a231c784223fceccfd3f2bfd957699d786f46e41ce6/duckdb-1.5.0-cp314-cp314-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f8e42aaf3cd217417c5dc9ff522dc3939d18b25a6fe5f846348277e831e6f59c", size = 21351583, upload-time = "2026-03-09T12:50:16.701Z" },
     { url = "https://files.pythonhosted.org/packages/93/a4/a90f2901cc0a1ce7ca4f0564b8492b9dbfe048a6395b27933d46ae9be473/duckdb-1.5.0-cp314-cp314-win_amd64.whl", hash = "sha256:11ae50aaeda2145b50294ee0247e4f11fb9448b3cc3d2aea1cfc456637dfb977", size = 13575130, upload-time = "2026-03-09T12:50:19.716Z" },
     { url = "https://files.pythonhosted.org/packages/64/aa/f14dd5e241ec80d9f9d82196ca65e0c53badfc8a7a619d5497c5626657ad/duckdb-1.5.0-cp314-cp314-win_arm64.whl", hash = "sha256:d6d2858c734d1a7e7a1b6e9b8403b3fce26dfefb4e0a2479c420fba6cd36db36", size = 14341879, upload-time = "2026-03-09T12:50:22.347Z" },
-]
-
-[[package]]
-name = "fb-claude-skills"
-version = "0.50.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "skill-maintainer" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "skill-maintainer", editable = "tools/skill-maintainer" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=7.0" },
-    { name = "ruff", specifier = ">=0.8.0" },
 ]
 
 [[package]]
@@ -1454,7 +1437,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.14.0"
+version = "0.15.0"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },
@@ -1466,7 +1449,7 @@ dependencies = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "orjson", specifier = ">=3.10" },
-    { name = "skills-ref" },
+    { name = "skills-ref", specifier = ">=0.1.1" },
 ]
 
 [[package]]

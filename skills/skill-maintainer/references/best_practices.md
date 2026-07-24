@@ -200,7 +200,7 @@ Subagents are a separate surface from skills, with their own frontmatter. Only
 
 <!-- source: https://agentskills.io | last_verified: 2026-04-19 -->
 
-Source: Agent Skills spec (agentskills.io). Enforced by `agentskills validate`.
+Source: Claude Code skill schema, a superset of the Agent Skills spec (agentskills.io). Enforced by `skill-maintain validate`; `--strict` flags fields that are not portable to strict cross-vendor hosts.
 
 - [ ] name: required, non-empty string
 - [ ] name: lowercase only (Unicode letters + hyphens allowed)

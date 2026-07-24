@@ -24,7 +24,7 @@ Use `orjson` for all Python JSON serialization and deserialization.
 
 ## Skills standard
 
-All skills follow the [Agent Skills](https://agentskills.io) spec. Validate with `uv run agentskills validate`.
+Skills here run in Claude Code, so they follow Claude Code's skill schema -- a superset of the cross-vendor [Agent Skills](https://agentskills.io) spec. Validate with `uv run skill-maintain validate` (accepts Claude Code frontmatter fields such as `disable-model-invocation`, `argument-hint`, `model`). Add `--strict` to check cross-vendor portability (flags Claude Code-only fields).
 
 ## State in repo
 

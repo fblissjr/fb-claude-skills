@@ -58,11 +58,11 @@ Skill and plugin discovery skip `_deprecated` directories along with the usual `
 
 **What it does:**
 1. `git diff --cached --name-only --diff-filter=ACM` lists staged files
-2. For each staged SKILL.md, runs `uv run agentskills validate <skill-dir>`; blocks the commit on any failure
+2. For each staged SKILL.md, runs `uv run skill-maintain validate <skill-dir>`; blocks the commit on any failure
 3. If `.claude-plugin/marketplace.json` is staged and the `claude` CLI is installed, runs `claude plugin validate . --strict` and blocks the commit if it fails. Skipped entirely when `claude` isn't on PATH, so the hook still works on a machine without Claude Code installed.
 4. Checks version consistency across `plugin.json`, `marketplace.json`, and `pyproject.toml` for every plugin root touched by the commit, and warns (without blocking) if plugin content changed but no version-bearing file was staged
 
-**What it checks:** the [Agent Skills spec](https://agentskills.io) -- required frontmatter fields (name, description), naming conventions (kebab-case, no consecutive hyphens), allowed fields only, etc. -- plus marketplace-manifest strictness and plugin version alignment.
+**What it checks:** the Claude Code skill schema (a superset of the [Agent Skills spec](https://agentskills.io)) -- required frontmatter fields (name, description), naming conventions (kebab-case, no consecutive hyphens), and an allowlist that accepts Claude Code fields (`disable-model-invocation`, `argument-hint`, `model`, ...) while still rejecting unknown ones -- plus marketplace-manifest strictness and plugin version alignment. `skill-maintain validate --strict` additionally flags Claude Code-only fields for cross-vendor portability.
 
 **Where:** `tools/skill-maintainer/src/skill_maintainer/templates/pre-commit.sample`, installed as `.git/hooks/pre-commit`.
 

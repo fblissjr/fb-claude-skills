@@ -1,26 +1,31 @@
-"""Validate skills against the Agent Skills spec and best practices."""
+"""Validate skills against the Claude Code skill schema and best practices.
+
+The hard gate is `validate_cc` (skill_maintainer.cc_schema): Claude Code's actual
+skill frontmatter schema, a superset of the cross-vendor Agent Skills spec. Pass
+`--strict` to additionally run the cross-vendor portability check.
+"""
 
 import sys
 from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
-from skills_ref.validator import validate
 
-from skill_maintainer.shared import check_description_quality, discover_skills
+from skill_maintainer.cc_schema import portability_warnings, validate_cc
+from skill_maintainer.shared import check_description_quality
 
 SKILL_MD_MAX_LINES = 500
 SKILL_MD_MAX_WORDS = 5000
 
 
 def check_best_practices(skill_path: Path) -> list[str]:
-    """Run additional best-practice checks beyond skills-ref validation."""
+    """Run additional best-practice checks beyond schema validation."""
     warnings = []
     skill_md = find_skill_md(skill_path)
 
     if skill_md is None:
         return ["SKILL.md not found"]
 
-    content = skill_md.read_text()
+    content = skill_md.read_text(encoding="utf-8")
     lines = content.splitlines()
     words = content.split()
 
@@ -69,10 +74,25 @@ def check_best_practices(skill_path: Path) -> list[str]:
     return warnings
 
 
-def validate_single(skill_path: Path, verbose: bool = False) -> tuple[bool, list[str], list[str]]:
-    """Validate a single skill. Returns (is_valid, errors, warnings)."""
-    errors = validate(skill_path)
+def validate_single(
+    skill_path: Path, verbose: bool = False, strict: bool = False
+) -> tuple[bool, list[str], list[str]]:
+    """Validate a single skill. Returns (is_valid, errors, warnings).
+
+    With `strict`, Claude Code extension fields (valid by default) are reported
+    as errors, so the skill must also pass the cross-vendor portability check.
+    """
+    errors = validate_cc(skill_path)
     warnings = check_best_practices(skill_path)
+
+    if strict:
+        skill_md = find_skill_md(skill_path)
+        if skill_md is not None:
+            try:
+                metadata, _ = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
+                errors.extend(portability_warnings(metadata))
+            except Exception:
+                pass
 
     if verbose:
         if errors:
@@ -90,8 +110,10 @@ def validate_single(skill_path: Path, verbose: bool = False) -> tuple[bool, list
 def main(args=None):
     import argparse
 
+    from skill_maintainer.shared import discover_skills
+
     parser = argparse.ArgumentParser(
-        description="Validate skills against spec and best practices."
+        description="Validate skills against the Claude Code schema and best practices."
     )
     parser.add_argument(
         "skill_path", nargs="?", type=Path, default=None,
@@ -99,6 +121,10 @@ def main(args=None):
     )
     parser.add_argument("--all", action="store_true", help="Validate all skills")
     parser.add_argument("--dir", type=Path, default=Path("."), help="Root directory to search")
+    parser.add_argument(
+        "--strict", action="store_true",
+        help="Also require cross-vendor Agent Skills portability (flag CC extensions)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     parsed = parser.parse_args(args)
 
@@ -109,7 +135,9 @@ def main(args=None):
         for skill_dir in skills:
             name = skill_dir.name
             print(f"Validating {name} ({skill_dir})...", file=sys.stderr)
-            is_valid, errors, warnings = validate_single(skill_dir, parsed.verbose)
+            is_valid, errors, warnings = validate_single(
+                skill_dir, parsed.verbose, parsed.strict
+            )
 
             if is_valid:
                 status = "PASS"
@@ -129,7 +157,7 @@ def main(args=None):
         sys.exit(0 if all_valid else 1)
 
     elif parsed.skill_path:
-        is_valid, errors, warnings = validate_single(parsed.skill_path, True)
+        is_valid, errors, warnings = validate_single(parsed.skill_path, True, parsed.strict)
 
         if is_valid:
             print(f"Valid skill: {parsed.skill_path}")
