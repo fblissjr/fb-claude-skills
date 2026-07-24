@@ -6,8 +6,7 @@ description: >-
   "check deps", "are my packages safe", "CVE check", "dependency security", "vulnerability scan".
   Invoke with /dev-conventions:dep-audit.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
+  last_verified: "2026-07-05"
 ---
 
 # Dependency Security Audit

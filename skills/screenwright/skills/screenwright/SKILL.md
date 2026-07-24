@@ -15,9 +15,8 @@ description: >
   new renderer and material ceiling. Do NOT use for editing existing video
   files, screen recordings, or slide decks.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-23
-  review_interval_days: 90
+  last_verified: "2026-07-23"
+  review_interval_days: "90"
 ---
 
 # screenwright

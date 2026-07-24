@@ -16,9 +16,8 @@ description: >
   recordings, or slide decks. Audio narration is designed but not wired
   (references/audio.md).
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 90
+  last_verified: "2026-07-21"
+  review_interval_days: "90"
 ---
 
 # explainer-video

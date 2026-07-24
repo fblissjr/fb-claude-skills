@@ -7,9 +7,8 @@ description: >-
   or after editing `.skill-maintainer/best_practices.md`. Invoke with
   /skill-maintainer:sync-bundled-ref.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Sync Bundled Reference

@@ -8,9 +8,8 @@ description: >-
   "redact home paths", "PII scan", "strip my username from transcripts", "scan logs before publishing",
   "check before sharing", "audit before commit", "find leaked API keys", "scan agent transcript".
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
-  review_interval_days: 365
+  last_verified: "2026-07-05"
+  review_interval_days: "365"
 allowed-tools: "Bash,Read"
 ---
 

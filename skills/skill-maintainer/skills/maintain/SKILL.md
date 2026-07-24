@@ -6,9 +6,8 @@ description: >-
   "check upstream", "pull sources", "review best practices", "run maintenance".
   Invoke with /skill-maintainer:maintain.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Full Maintenance Pass

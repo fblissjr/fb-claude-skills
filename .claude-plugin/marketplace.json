@@ -11,97 +11,97 @@
       "name": "mcp-apps",
       "source": "./skills/mcp-apps",
       "description": "Skills for building and migrating MCP Apps with interactive UIs",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
       "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "cogapp-markdown",
       "source": "./skills/cogapp-markdown",
       "description": "Auto-generate markdown sections using cogapp",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "tui-design",
       "source": "./skills/tui-design",
       "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "skill-dashboard",
       "source": "./apps/skill-dashboard",
       "description": "Interactive MCP App dashboard: quality checks, token budgets, freshness, and repo hygiene",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.7.0"
+      "version": "0.8.0"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "1.0.0"
+      "version": "1.0.1"
     },
     {
       "name": "agent-state-mcp",
       "source": "./apps/agent-state-mcp",
       "description": "Read-only MCP server over ~/.claude/agent_state.duckdb -- query run history, watermarks, skill versions, and flywheel metrics instead of shelling out to the agent-state CLI.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.14.0"
+      "version": "0.14.1"
     },
     {
       "name": "json-query",
       "source": "./skills/json-query",
       "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
-      "version": "0.1.1"
+      "version": "0.1.2"
     },
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.6.1"
+      "version": "0.6.2"
     },
     {
       "name": "writing",
       "source": "./skills/writing",
-      "description": "Writing skills for clear, accessible prose — starting with GOV.UK / GDS house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis).",
-      "version": "0.1.0"
+      "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
+      "version": "0.3.0"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
       "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "pyright-autoconfig",
@@ -113,13 +113,19 @@
       "name": "explainer-video",
       "source": "./skills/explainer-video",
       "description": "Deterministic animated explainer films for any domain, on two backends — three.js 3D (cel shading, analytic IK, a per-frame-pure post chain, shots as data with a match-cut constraint) and Canvas2D flat vector — styled by swappable packs and bibles, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF that plays inline in a README",
-      "version": "0.25.9"
+      "version": "0.25.10"
     },
     {
       "name": "screenwright",
       "source": "./skills/screenwright",
       "description": "Deterministic animated films of any register — explainer, game cutscene, meme, character short — on the three.js node stack (WebGPURenderer with WebGL2 fallback, TSL node materials, MaterialX procedural noise) plus a Canvas2D backend, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF. Successor to explainer-video: same beats/shots/instruments method, new renderer and material ceiling.",
-      "version": "0.12.1"
+      "version": "0.12.2"
+    },
+    {
+      "name": "postmortem",
+      "source": "./skills/postmortem",
+      "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
+      "version": "0.1.0"
     }
   ],
   "renames": {

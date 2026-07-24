@@ -7,9 +7,8 @@ description: >-
   session cleanup", "close out this session", or before committing a substantive
   work session. Invoke with /skill-maintainer:finish-session.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Finish Session

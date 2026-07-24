@@ -6,9 +6,8 @@ description: >-
   agent-state mcp", "turn on agent-state", "wire up the DuckDB MCP", "enable
   agent state", or "activate agent-state-mcp". Invoke with /agent-state-mcp:enable.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-04-19
-  review_interval_days: 365
+  last_verified: "2026-04-19"
+  review_interval_days: "365"
 ---
 
 # Enable agent-state MCP

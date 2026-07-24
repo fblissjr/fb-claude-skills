@@ -6,8 +6,7 @@ description: >-
   instead". Includes conversion tables and lock file migration. Core conventions auto-loaded via
   SessionStart hook; invoke /dev-conventions:bun-tooling for full reference.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
+  last_verified: "2026-07-05"
 ---
 
 # Bun Tooling Conventions

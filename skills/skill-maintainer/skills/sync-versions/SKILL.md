@@ -7,9 +7,8 @@ description: >-
   "bump version", "align versions", or "/sync-versions <plugin> <version>".
   Pass plugin name and target version as arguments.
 metadata:
-  author: fblissjr
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Sync Versions

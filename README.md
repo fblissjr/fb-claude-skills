@@ -1,4 +1,4 @@
-last updated: 2026-07-23
+last updated: 2026-07-24
 
 # fb-claude-skills
 
@@ -51,6 +51,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved global or per-project profile. |
+| [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
 | [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF. **Frozen** -- bugfix-only; superseded over time by screenwright |
@@ -127,6 +128,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
 /plugin install model-routing@fb-claude-skills
+/plugin install postmortem@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -222,6 +224,8 @@ Once installed, invoke as namespaced slash commands:
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
+/postmortem:postmortem           # Evidence-grounded retrospective of a session, feature, or span
+/postmortem:test-audit           # Audit the test suite: claims, oracles, envelope, verdicts
 
 
 /skill-maintainer:quality              # Quick quality check for all skills

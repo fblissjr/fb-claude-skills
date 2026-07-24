@@ -5,8 +5,7 @@ description: >-
   implementing features test-first, or when user says "TDD", "test first", "red green refactor",
   "write a test", "test-driven". Invoke with /dev-conventions:tdd-workflow.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
+  last_verified: "2026-07-05"
 ---
 
 # Test-Driven Development Workflow
@@ -26,6 +25,7 @@ Follow red/green/refactor for every change.
 - **Group related tests.** Put tests for the same module/feature in the same test file.
 - **Never write implementation before the test.** The test defines the contract.
 - **Never skip the red step.** If you can't make the test fail first, you don't understand the requirement.
+- **Record the claim.** Every new test carries a one-line note of what breaks if it is deleted -- the motivating requirement, bug, or incident. A test whose claim nobody can recover later becomes unauditable scar tissue.
 
 ## Scope
 

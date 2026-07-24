@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-24
 
 # best practices checklist
 
@@ -109,7 +109,8 @@ Source: Anthropic skills guide (PDF, Jan 2026)
 - [ ] `description` field: no XML angle brackets (< >)
 - [ ] `license` field: present if open source (MIT, Apache-2.0)
 - [ ] `compatibility` field: under 500 characters, lists env requirements
-- [ ] `metadata` field: key-value pairs only (author, version, mcp-server)
+- [ ] `metadata` field: key-value pairs only (last_verified, review_interval_days, mcp-server)
+- [ ] No `metadata.author` in SKILL.md: the whole file, frontmatter included, loads into context on activation, so a name there is standing context cost with no runtime use. Attribution lives in `plugin.json` and the plugin README, which are never context-loaded
 - [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable, when_to_use, disallowed-tools, arguments
 - [ ] `when_to_use` field (optional) is appended to `description` in the skill listing and counts toward the 1,536-character truncation cap
 

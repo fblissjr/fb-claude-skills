@@ -2,9 +2,8 @@
 name: model-routing
 description: Opt the current project into down-tier model delegation by installing a standalone .claude/rules/model-delegation.md rule, optionally with pre-shaped .claude/agents/ definitions (fast-executor, task-coder) and an optional agent-state feedback layer. The rule tells Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Use when the user says "set up model routing", "set up model delegation", "use cheaper models for subagents", "delegate to a lower-power model", or wants to remove or update that rule.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
-  review_interval_days: 365
+  last_verified: "2026-07-05"
+  review_interval_days: "365"
 ---
 
 Install, update, or remove a per-project model-delegation rule. The rule is a plain `.claude/rules/` file: it loads at session start in that project only, needs no plugin installed to keep working, and is removed by deleting the file.

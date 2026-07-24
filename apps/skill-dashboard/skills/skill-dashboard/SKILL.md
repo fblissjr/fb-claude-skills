@@ -7,9 +7,8 @@ description: >
   or "run quality checks". Renders an interactive MCP App with pass/fail indicators for spec
   compliance, description quality, token budgets, freshness, plugin checks, and repo hygiene.
 metadata:
-  author: fblissjr
-  last_verified: 2026-04-02
-  review_interval_days: 365
+  last_verified: "2026-04-02"
+  review_interval_days: "365"
 ---
 
 # skill-dashboard

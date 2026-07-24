@@ -5,9 +5,8 @@ description: >-
   and description quality. Use when user says "check quality", "quality report", "check my skills",
   "validate skills", "skill health", "are my skills ok". Invoke with /skill-maintainer:quality.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Quality Check

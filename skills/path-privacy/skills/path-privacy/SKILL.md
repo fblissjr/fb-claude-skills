@@ -9,9 +9,8 @@ description: >-
   "scrub external paths", "install path-privacy hooks", "find absolute paths in this repo",
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 allowed-tools: "Bash,Read,Edit"
 ---
 

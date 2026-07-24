@@ -5,8 +5,7 @@ description: >-
   invoke /dev-conventions:python-tooling for full conversion tables.
   Use when you need the complete uv command mapping, version pinning strategy, or lock file workflow.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
+  last_verified: "2026-07-05"
 ---
 
 # Python Tooling Conventions

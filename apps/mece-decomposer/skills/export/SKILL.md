@@ -2,9 +2,8 @@
 name: export
 description: Generate Claude Agent SDK Python code scaffolding from a validated MECE decomposition. Use when user says "export to Agent SDK", "generate agent code", "create SDK scaffolding", or wants to turn a decomposition tree into runnable Python code.
 metadata:
-  author: Fred Bliss
   last_verified: "2026-04-02"
-  review_interval_days: 365
+  review_interval_days: "365"
 ---
 
 # /export

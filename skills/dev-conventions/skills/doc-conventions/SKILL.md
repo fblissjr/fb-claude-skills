@@ -6,8 +6,7 @@ description: >-
   design docs. Invoke with /dev-conventions:doc-conventions. Triggers on "write docs", "update README",
   "document this", "add a design doc", "session log".
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-05
+  last_verified: "2026-07-05"
 ---
 
 # Documentation Conventions

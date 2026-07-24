@@ -6,9 +6,8 @@ description: >-
   "init maintenance", "set up maintenance", "initialize skill-maintainer", "configure maintenance",
   "add maintenance to this repo". Invoke with /skill-maintainer:init-maintenance.
 metadata:
-  author: Fred Bliss
-  last_verified: 2026-07-21
-  review_interval_days: 365
+  last_verified: "2026-07-21"
+  review_interval_days: "365"
 ---
 
 # Initialize Maintenance
