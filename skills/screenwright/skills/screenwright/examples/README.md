@@ -50,6 +50,18 @@ pass). Every contact is probe-measured in all three axes: the boop solves
 to a surface graze (normalized 1.02), and the flee passes UNDER the hive
 with measured clearance. Open the HTML — no rendered preview by policy.
 
+## noise-chart
+
+The first chart-tier scene — charts isolate primitives the way films
+integrate them (one primitive per cell, judged before anything downstream
+uses it). Eight cells: the top row is the MaterialX baseline (fbm, worley,
+aastep, palette-mapped fbm); the bottom row is hash-lattice primitives
+(value noise, re-hashed cells, domain-warped fbm) plus the classic sin-hash
+as a deliberate drift CONTROL — cells 6 and 8 are byte-identical
+constructions except for the hash function. Verified 20/20 smoke-green
+across 15 WebGPU-Metal and 5 WebGL2-fallback runs, control included.
+Open the HTML — no rendered preview by policy.
+
 ## materials
 
 The pack showcase: one film, three beats, three surfaces — TSL-native cel

@@ -213,6 +213,10 @@ Two constraints that dictate the setup — do not "simplify" them away:
 - `examples/bear-and-bees.html` — the comedy short: pause-then-fast timing
   (a 2.6s hush against a 1.1s eruption), probe-measured contacts, locked
   tableau camera — the register where the gag must read with no words
+- `examples/noise-chart.html` — the chart tier: 8 noise/hash primitives in
+  a grid, one per cell — MaterialX baseline row, hash-lattice row, and a
+  sin-hash drift control; new shader primitives land HERE before any
+  showcase or film uses them
 - `examples/materials.html` — the pack showcase: cel, SSS, glass in one
   film, including the overlapping-transparency ordering case
   (rendered previews live in the repository outside the plugin subtree —

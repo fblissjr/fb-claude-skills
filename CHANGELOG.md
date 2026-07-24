@@ -1,5 +1,10 @@
 # changelog
 
+## 0.80.0
+
+### added
+- **`screenwright` 0.12.0 — `examples/noise-chart.html`, the first chart-tier scene, plus two plan-level directions.** The chart tier (recorded in the plan) sits below the films: static grids, one primitive per cell, smoke-gated and byte-compared per backend — charts isolate what films integrate, and new shader primitives land chart-first before any showcase or film uses them. The chart: 12s, one locked head-on shot (a chart is a document), eight unlit tiles — a MaterialX baseline row (fbm, worley, scrolling aastep, palette-mapped fbm) and a hash-lattice row (value noise, re-hashed cells, domain-warped fbm) plus the classic `fract(sin(dot))` hash as a deliberate drift CONTROL, structurally identical to the hash-cells cell except for the hash function. Measured: 20/20 smoke green including the control — 15 consecutive `WEBGPU=metal` runs and 5 WebGL2-fallback runs. The honest negative: the 0.11.0 carry-forward metal 1-in-6 determinism FAIL did **not** reproduce under dense noise coverage (no shadows, no characters, one shot), which narrows the suspect space toward the machinery bear-and-bees has and the chart deliberately lacks; the sin-hash control also stayed clean at this sample size, so it stays in place — re-runs are free. Also recorded in the plan: the Phase 4 bake direction gains a **light-bake sibling** (iterative illumination — GI, radiosity, probe solves — baked at build time, playback pure, same red lines against tier drift), including the finding that reflections need no bake at all: SSR, planar reflector, GTAO, and environment lighting are pure functions of scene state, available at runtime today. Cross-directory fence parity green with the new example in the set.
+
 ## 0.79.0
 
 ### added

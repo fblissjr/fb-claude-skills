@@ -247,6 +247,32 @@ films; build them as they gate.
 Formats (vertical 9:16, square) are exercised inside these via `FRAME`, not as
 separate cases — that contract carries over and already works.
 
+**Chart tier (decided 2026-07-23).** Below the films sits a second class of
+test scene: charts — static grids of patches, one primitive per cell,
+smoke-gated and byte-compared per backend. Films integrate; charts isolate.
+The portfolio above is sufficient at the film tier (it already reserves a
+film for every place a borrowed technique lands: `the-briefing` for skin,
+`crowd-cross` for LOD shading, `rube-goldberg` for the bake); what it lacked
+was anywhere to land a borrowed *primitive* alone — the Phase 1 lesson
+(isolate one class of new variable) says a new hash or noise function must
+not debut inside a film. Pipeline: chart proves the primitive, showcase
+(materials.html's tier) proves the pack, film proves the register. Every
+ported primitive lands chart-first (source map: appendix at the end of this
+doc). First chart SHIPPED
+same day (screenwright 0.12.0, `examples/noise-chart.html`): 8 cells —
+MaterialX baseline row (fbm, worley, aastep, palette-fbm), ported row (HWS
+value noise, HWS cells, domain warp) plus the classic sin-hash as a
+deliberate drift control, structurally identical to the HWS-cells cell
+except the hash. Measured: 20/20 smoke green (15 WebGPU-Metal, 5 WebGL2
+fallback), control included. **Negative finding on the metal 1-in-6 FAIL:**
+dense noise/hash coverage alone — no shadows, no characters, single locked
+shot — did NOT reproduce it in 15 metal runs, which narrows the suspect
+space toward the machinery bear-and-bees has and the chart lacks (shadowed
+fur shells, multi-shot solver traffic, the character rig). The sin-hash
+control also stayed clean at this sample size; the classic drift claim
+remains unconfirmed on this stack — keep the control in place, it costs
+nothing and the chart re-runs free.
+
 ## Phases and gates
 
 Each phase ends at a gate a reviewer can check. No phase starts until the
@@ -476,6 +502,12 @@ determinism stays; the sim happens once at build time. Constraints, red
 lines against tier drift, eval criteria and the spike list:
 [physics_bake_proposal.md](physics_bake_proposal.md) — read it before
 writing any Phase 4 code.
+*Sibling direction (owner-agreed 2026-07-23):* the same tier-1 shape applied
+to illumination — a **light bake** (path-traced GI / radiosity / probe solve
+at build time, shipped as data, playback pure). Recorded in the same
+proposal doc, including the finding that reflections themselves need NO bake
+(SSR node, planar reflector, GTAO, environment lighting are pure functions
+of scene state — available at runtime today at zero determinism cost).
 
 **Phase 5 — Registers.** Cutscene and meme film-language extensions (dialogue
 staging, comedic timing, title cards); `boss-intro` and `meme-remix`.
@@ -571,3 +603,53 @@ creature exists to keep that test honest.
 - Editing existing video files, screen recordings, slide decks (unchanged
   from explainer-video).
 - Audio: inherits the designed-but-unwired status; revisit after Phase 5.
+
+## Appendix: external shader sources — portability and license reality
+
+Internal reference only — deliberately NOT shipped with the plugin, and
+shipped files carry no source annotations; the ledger below is the record.
+The TSL third-party ecosystem is thin by design, so most looks get
+hand-ported from published work; this map is where a port starts, and the
+license check happens before the port.
+
+**Classification rule.** Transliterated code inherits the source license —
+record it in the ledger below.
+Re-implementing an algorithm from a paper or article is not a license
+event; a citation is traceability courtesy, nothing more. Runtime vs bake:
+a noise function belongs in the node graph (runtime determinism rules do
+not bend); anything iterative or stochastic — integrators, verlet,
+relaxation, GI solves — belongs in the Phase 4 bake, seeded and pinned,
+because its output ships as data.
+
+**Port freely (permissive):**
+- iquilezles.org (Inigo Quilez) — MIT article snippets. Cosine palettes,
+  fbm/domain warping, smooth-min, the 2D SDF zoo.
+- three.js source + `webgpu_*` examples — MIT. The TSL idiom cookbook.
+- "Hash Without Sine" (Dave Hoskins, shadertoy 4djSRW) — MIT. The hash for
+  custom lattices; no trig, no large intermediates.
+- Google Filament PBR docs — Apache 2.0. Charlie sheen, cloth BRDF, skin
+  SSS survey. Penner "Pre-Integrated Skin Shading" (SIGGRAPH 2011),
+  Kajiya-Kay, GPU Gems fur — papers, cite on re-implementation.
+- tsl-textures (boytchev) — MIT. Vendor per-generator, pin the commit.
+- pmndrs/postprocessing — zlib. WebGL-bound code; pass-merging and
+  dithering ideas transfer.
+
+**Ideas only (no code copying):**
+- lygia — Prosperity license (non-commercial). Use as an index; follow its
+  headers to the permissive original and port from there.
+- Shadertoy — default CC BY-NC-SA; check each shader's own header.
+- Theatre.js — never embed (stateful runtime editor vs pure-f(t) and
+  self-containment); its authoring ideas are free.
+- Aggregator directories (threejsresources.com etc.) — index only;
+  evaluate license and quality at each linked item's own source.
+
+**Ledger of ports in shipped scenes:**
+
+| Where | What | Source | License |
+|---|---|---|---|
+| 3D template + packs | MaterialX noise nodes (via `three/tsl`) | MaterialX, shipped in three | Apache 2.0 |
+| `CHARACTER` fence (`addFur`) | Shell fur | GPU Gems "Fur — Fins and Shells" (idea) | citation |
+| fabric recipe | Sheen via `sheenNode` | three.js / Filament lineage | MIT / Apache 2.0 |
+| `examples/noise-chart.html` | `hws12` hash + value noise | Dave Hoskins, Hash Without Sine | MIT |
+| `examples/noise-chart.html` | Cosine gradient palette | iquilezles.org/articles/palettes | MIT |
+| `examples/noise-chart.html` | Domain-warped fbm (algorithm) | iquilezles.org/articles/warp (idea) | citation |

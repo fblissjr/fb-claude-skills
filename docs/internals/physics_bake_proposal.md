@@ -95,6 +95,42 @@ not asked for it.
 - Embedding format (JSON floats vs base64 Float32Array) — measure both on
   a real bake.
 
+## Sibling: the light bake (owner-agreed 2026-07-23)
+
+The same tier-1 shape applied to illumination. The owner's underlying want
+("reflect light off objects/characters... same rough scene when you run it
+twice") decomposes into two halves with very different costs, and the
+decomposition is recorded here so it is not re-litigated:
+
+**Reflections need NO bake.** SSR (the TSL addon node), planar
+`ReflectorNode`, GTAO, and environment lighting are pure functions of scene
+state — deterministic, seek-pure, available at runtime today at zero
+determinism cost. Any session that reaches for a relaxation to get
+"reflections" has misdiagnosed the problem.
+
+**Iterative illumination is what bakes.** Real bounce lighting — path-traced
+GI, radiosity, probe solves — runs once at build time (seeded, version-
+pinned), ships as lightmap/probe data in the scene file, and plays back
+pure. Same invariant, same four red lines as the physics bake. This is the
+lightmap pattern shipped games have used for decades, not an invention.
+
+What stays OUT (tier-2 territory, separate proposal, not asked for):
+temporal/stateful runtime techniques — TRAA, temporal denoising, any
+accumulation across frames. Their cost is red line #2 (state across frames
+kills seek purity), and no bake shape rescues them.
+
+Variety without relaxation: bake N seeds, review the contact sheets, ship
+the one that reads best — the instruments become a curation tool at
+authoring time while keeping their teeth as shipping gates. This is the
+"simulated creativity without an LLM" want, satisfied inside tier 1.
+
+Eval criteria mirror the physics bake's five, with one substitution: the
+size bracket matters MORE here (lightmaps/probe grids are bulkier than
+trajectory tracks — measure against the 1.09MB vendor-bundle yardstick
+before committing to a resolution), and the gate film is assigned when
+Phase 4 is scoped (`boss-intro`'s dramatic lighting and `the-briefing`'s
+closeup are the candidates that would actually lean on GI).
+
 ## Tracking
 
 - Decision + session-start reminder: memory
