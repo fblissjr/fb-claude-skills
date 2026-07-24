@@ -11,6 +11,8 @@ update-coderef.sh
 .claude/worktrees/
 .claude/settings.local.json
 .claude/agent-memory/
+# Per-user local profiles (e.g. voice-match's .claude/voice-profile.local.md)
+.claude/*.local.md
 
 # C extensions
 *.so

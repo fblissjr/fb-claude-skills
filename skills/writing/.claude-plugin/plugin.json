@@ -1,7 +1,7 @@
 {
   "name": "writing",
-  "version": "0.1.0",
-  "description": "Writing skills for clear, accessible prose — starting with GOV.UK / GDS house style",
+  "version": "0.3.0",
+  "description": "Writing skills for clear, accessible prose — an American plain-language house style plus voice matching",
   "author": {
     "name": "Fred Bliss"
   },
