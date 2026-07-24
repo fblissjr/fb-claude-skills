@@ -6,38 +6,6 @@ last updated: 2026-07-24
 
 A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plugin marketplace in Claude Code, Cowork, and Claude Desktop.
 
-## explainer-video
-
-The most developed plugin here, and the best place to start.
-
-> **A better replacement is in active development:** [screenwright](skills/screenwright/)
-> rebuilds this on the three.js WebGPU/TSL node stack — same contract, same
-> review method, much higher material ceiling (characters with fur and fabric,
-> subsurface skin, glass, node post) — and will supersede explainer-video once
-> its explainer register is verifiably better on the same test cases.
-> explainer-video is frozen (bugfix-only) but fully working; browse
-> [screenwright's examples](skills/screenwright/skills/screenwright/examples/)
-> to see where this is headed.
-
-Describe any scene — a mechanism, a process, a document, a character, a
-storm — and it produces a deterministic animated film. The whole film is a pure
-function of time `t`, so a single scene file drives both the live HTML loop and
-a frame-exact render; there is never a second copy to keep in sync. Two backends
-share one contract: three.js 3D (cel shading, analytic IK, a per-frame-pure post
-chain, and cinematography declared as shots rather than camera coordinates) and
-Canvas2D flat vector.
-
-**[Browse the examples →](skills/explainer-video/skills/explainer-video/examples/)**
-Six films — a three-world heat pump walkthrough, a Rube Goldberg chain, a
-pelican walking home in a thunderstorm, an uncaptioned dance, a cel-shaded
-character short, and a flat-vector diagram. Each is a single self-contained
-`.html` you can open straight from disk; open those rather than the `.avif`
-previews, which are heavily compressed to fit inline on GitHub.
-
-```
-/plugin install explainer-video@fb-claude-skills
-```
-
 ## plugins
 
 Grouped by purpose: development conventions & authoring, decomposition & model routing, plugin & skill maintenance, MCP servers & apps, privacy & pre-share safety.
