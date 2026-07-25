@@ -1,7 +1,5 @@
 # Usage examples
 
-<!-- path-privacy: skip-file -->
-
 *Last updated: 2026-04-21*
 
 Concrete invocations for common situations.
@@ -51,11 +49,11 @@ If the literal pass finds anything in committed files, **do not redact and push*
 Quickest possible invocation:
 
 ```bash
-uvx scan-for-secrets -c ~/.scan-for-secrets.conf.sh -f ./output.log
+uvx scan-for-secrets -c ~/.scan-for-secrets.conf.sh -f ./output.log  # path-privacy: ignore
 bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh -f ./output.log --api-keys
 ```
 
-(Assumes you've copied `privacy-tokens.sh` to `~/.scan-for-secrets.conf.sh` as a one-time setup.)
+(Assumes you've copied `privacy-tokens.sh` to `~/.scan-for-secrets.conf.sh` as a one-time setup.)  <!-- path-privacy: ignore -->
 
 ## CI check on build artifacts
 
@@ -75,8 +73,8 @@ For CI use, ship a `ci-privacy-tokens.sh` that emits only CI-appropriate literal
 
 ```bash
 cp skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh \
-   ~/.scan-for-secrets.conf.sh
-chmod +x ~/.scan-for-secrets.conf.sh
+   ~/.scan-for-secrets.conf.sh  # path-privacy: ignore
+chmod +x ~/.scan-for-secrets.conf.sh  # path-privacy: ignore
 ```
 
 Now bare `scan-for-secrets` (with no args, no pipes) reads that config by default in any directory.

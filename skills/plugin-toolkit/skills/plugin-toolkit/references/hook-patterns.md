@@ -1,7 +1,5 @@
 # Hook Patterns
 
-<!-- path-privacy: skip-file -->
-
 Common patterns for Claude Code plugin hooks.
 
 ---
@@ -119,7 +117,7 @@ echo "Context to inject"
 #!/bin/bash
 set -e
 
-MARKER_FILE="$HOME/.cache/plugin-name/disabled"
+MARKER_FILE="$HOME/.cache/plugin-name/disabled"  # path-privacy: ignore
 if [ -f "$MARKER_FILE" ]; then
   exit 0
 fi
@@ -134,7 +132,7 @@ fi
 #!/bin/bash
 set -e
 
-MARKER_DIR="$HOME/.cache/plugin-name"
+MARKER_DIR="$HOME/.cache/plugin-name"  # path-privacy: ignore
 mkdir -p "$MARKER_DIR"
 touch "$MARKER_DIR/disabled"
 ```
@@ -144,7 +142,7 @@ touch "$MARKER_DIR/disabled"
 #!/bin/bash
 set -e
 
-MARKER_FILE="$HOME/.cache/plugin-name/disabled"
+MARKER_FILE="$HOME/.cache/plugin-name/disabled"  # path-privacy: ignore
 [ -f "$MARKER_FILE" ] && rm "$MARKER_FILE"
 exit 0
 ```
@@ -195,7 +193,7 @@ Put specific matchers before catch-all:
 #!/bin/bash
 set -e
 
-if [ -f "$HOME/.cache/plugin-name/disabled" ]; then
+if [ -f "$HOME/.cache/plugin-name/disabled" ]; then  # path-privacy: ignore
   exit 0
 fi
 
@@ -234,7 +232,7 @@ fi
 #!/bin/bash
 set -e
 
-CONFIG_FILE="$HOME/.config/plugin/config.json"
+CONFIG_FILE="$HOME/.config/plugin/config.json"  # path-privacy: ignore
 if [ -f "$CONFIG_FILE" ]; then
   # Use config
   SETTING=$(jq -r '.setting' "$CONFIG_FILE")

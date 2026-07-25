@@ -452,7 +452,7 @@ The hooks capture events automatically (no user action needed). The MCP tools al
 /plugin install agent-state@fblissjr/agent-state
 
 # Or manual MCP config
-# <HOME>/.claude/mcp.json:
+# ~/.claude/mcp.json:  # path-privacy: ignore
 {
   "servers": {
     "agent-state": {
@@ -465,6 +465,12 @@ The hooks capture events automatically (no user action needed). The MCP tools al
   }
 }
 ```
+
+`<HOME>` above is a placeholder — substitute your home directory. The server
+calls `Path(raw).expanduser()` on `AGENT_STATE_DB`, so a tilde-prefixed literal
+works there too; `<HOME>` does not expand and would resolve relative to the
+server's working directory. The override is optional: unset, the server already
+uses the default location.
 
 ### 6.5 hook integration for automatic capture
 

@@ -1,6 +1,6 @@
 # pyright-autoconfig
 
-Last updated: 2026-07-12
+Last updated: 2026-07-25
 
 A one-hook plugin that makes the Claude Code **Pyright LSP** quiet and useful in
 every Python project, on every machine, without per-repo setup.
@@ -81,7 +81,7 @@ configured the next time you open a session in them (lazy retrofit). Requires
 
 ```sh
 printf '{"cwd":"%s"}' "$PWD" | \
-  <HOME>/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh
+  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh  # path-privacy: ignore
 ```
 
 (or just start a fresh session in that repo.)

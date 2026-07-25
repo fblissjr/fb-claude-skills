@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-07-25
 
 # plugin-toolkit
 

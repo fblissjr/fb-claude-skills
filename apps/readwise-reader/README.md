@@ -1,6 +1,6 @@
 # readwise-reader
 
-last updated: 2026-02-06
+last updated: 2026-07-25
 
 MCP server + Cowork plugin for Readwise Reader. Search, save, triage, and surface your reading library from Claude.
 

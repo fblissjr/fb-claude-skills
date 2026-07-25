@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-25
 
 # skill-maintainer (CLI package)
 

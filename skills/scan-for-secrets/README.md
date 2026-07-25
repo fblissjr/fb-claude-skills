@@ -1,7 +1,6 @@
 # scan-for-secrets
 
 
-<!-- path-privacy: skip-file -->
 *Last updated: 2026-04-21*
 
 > **Built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets)** by Simon Willison, Apache 2.0. This plugin wraps that tool and composes a ripgrep regex pass on top. All literal-matching and escape-variant logic is Simon's work; credit and upstream fixes belong there.
@@ -55,12 +54,12 @@ Or trigger automatically by asking about leaked secrets, pre-share audits, or pr
 
 Literal pass (via `privacy-tokens.sh`):
 
-- `$HOME`, `$USER`, `whoami`, `id -un`
+- `$HOME`, `$USER`, `whoami`, `id -un`  <!-- path-privacy: ignore -->
 - Hostname variants (short, FQDN, macOS ComputerName / LocalHostName / HostName)
 - Git `user.email`, `user.name`, `github.user`
 - macOS full name (`dscl`), Linux GECOS full name, macOS Apple ID
 - `gh` / `npm` / `pnpm` / `yarn` / `aws` / `gcloud` identities (if logged in)
-- SSH public keys from `~/.ssh/id_*.pub`
+- SSH public keys from `~/.ssh/id_*.pub`  <!-- path-privacy: ignore -->
 - Opt-in: hardware serial, machine-id, IOPlatformUUID (commented out)
 
 Regex pass (via `regex-scan.sh`):

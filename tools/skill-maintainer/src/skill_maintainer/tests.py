@@ -4,8 +4,6 @@ Encodes the measurable checks from best practices as pass/fail assertions.
 No pytest dependency. No network calls. No file writes. Pure read-only.
 """
 
-# path-privacy: skip-file
-
 import re
 import subprocess
 import sys
@@ -313,7 +311,7 @@ _PLACEHOLDER = re.compile(
 # Trailing slash optional: a bare `cd /Users/<name>` at end of line carries a
 # username just as much as one with a path after it.
 #
-# Deliberately NOT matching ~/, $HOME/ or ${HOME}/. Those carry no username --
+# Deliberately NOT matching ~/, $HOME/ or ${HOME}/. Those carry no username --  # path-privacy: ignore
 # they are the repo's own sanctioned generic form (`<HOME>/.claude/...`), used
 # 143 times in tracked content. The scanner flags them because it RESOLVES them
 # and checks where they land; this check is about username exposure, and the two
@@ -341,8 +339,8 @@ def check_path_privacy(root: Path) -> list[Result]:
     passed them by design -- not, as an earlier version of this docstring
     claimed, because the hook only sees added lines. It scans whole staged files.
 
-    Two rules, two checks. They will disagree in both directions (`/Users/Shared`
-    and documentation examples like `/Users/alice/...` are blocked by the scanner
+    Two rules, two checks. They will disagree in both directions (`/Users/Shared`  # path-privacy: ignore
+    and documentation examples like `/Users/alice/...` are blocked by the scanner  # path-privacy: ignore
     and allowed here), and that is correct, not drift. Do not "reconcile" them
     without deciding which rule you actually want.
     """

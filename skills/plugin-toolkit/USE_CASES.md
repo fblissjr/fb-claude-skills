@@ -169,25 +169,25 @@ uv run /path/to/codebase-analyzer/scripts/compare.py \
 
 ```bash
 # 1. List all plugins
-ls <HOME>/.claude/plugins/
+ls ~/.claude/plugins/  # path-privacy: ignore
 
 # 2. Analyze each (run in parallel if many)
-for plugin in <HOME>/.claude/plugins/*/; do
+for plugin in ~/.claude/plugins/*/; do  # path-privacy: ignore
   /plugin-toolkit:analyze "$plugin"
 done
 
 # 3. Review all recommendations
-cat <HOME>/.claude/plugins/*/analysis/RECOMMENDATIONS.md
+cat ~/.claude/plugins/*/analysis/RECOMMENDATIONS.md  # path-privacy: ignore
 
 # 4. Polish plugins that need it
-/plugin-toolkit:polish <HOME>/.claude/plugins/plugin-needing-work
+/plugin-toolkit:polish ~/.claude/plugins/plugin-needing-work  # path-privacy: ignore
 ```
 
 ### Automation Pattern
 
 ```bash
 # Find plugins without help commands
-for plugin in <HOME>/.claude/plugins/*/; do
+for plugin in ~/.claude/plugins/*/; do  # path-privacy: ignore
   if [ ! -f "$plugin/commands/help.md" ]; then
     echo "Missing help: $plugin"
   fi

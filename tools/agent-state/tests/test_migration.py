@@ -26,7 +26,6 @@ def _create_state_dir(repo_dir: Path) -> Path:
 def test_migrate_empty_dir(db: AgentStateDB, tmp_path: Path) -> None:
     """Migration on a directory with no state files is a no-op."""
 
-# path-privacy: skip-file
     counts = migrate_from_jsonl(db, tmp_path)
     assert counts == {"runs": 0, "watermarks": 0, "skipped": 0}
 
@@ -63,8 +62,8 @@ def test_migrate_upstream_hashes(db: AgentStateDB, tmp_path: Path) -> None:
         "https://code.claude.com/docs/en/skills": "abc123",
         "https://code.claude.com/docs/en/plugins": "def456",
         "local_repos": {
-            "/Users/test/repo1": "sha_aaa",
-            "/Users/test/repo2": "sha_bbb",
+            "/Users/test/repo1": "sha_aaa",  # path-privacy: ignore
+            "/Users/test/repo2": "sha_bbb",  # path-privacy: ignore
         },
     }
     (state_dir / "upstream_hashes.json").write_bytes(

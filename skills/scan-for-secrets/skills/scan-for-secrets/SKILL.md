@@ -13,8 +13,6 @@ metadata:
 allowed-tools: "Bash,Read"
 ---
 
-<!-- path-privacy: skip-file -->
-
 # scan-for-secrets
 
 Scan files and directories before sharing. Catches literal secrets you name, privacy-sensitive identity literals pulled from your environment, and shape-based patterns a literal scan can't express.
@@ -78,7 +76,7 @@ If you want `scan-for-secrets` to pick up the privacy config without `-c` on eve
 
 ```bash
 cp skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh \
-   ~/.scan-for-secrets.conf.sh
+   ~/.scan-for-secrets.conf.sh  # path-privacy: ignore
 ```
 
 Then bare `scan-for-secrets` uses it by default.
@@ -99,7 +97,7 @@ bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh -d <t
 
 ## Privacy token bundle
 
-`scripts/privacy-tokens.sh` emits one literal per line. Defensive: missing tools fall through silently. Covers: `$HOME`, `$USER`, `whoami`, `id -un`, hostnames (short/FQDN/ComputerName/LocalHostName on macOS), git `user.email`/`user.name`/`github.user`, macOS `dscl` RealName, Linux GECOS full name, macOS Apple ID, `gh`/`npm`/`pnpm`/`yarn`/`aws`/`gcloud` identities if logged in, SSH public keys from `~/.ssh/id_*.pub`.
+`scripts/privacy-tokens.sh` emits one literal per line. Defensive: missing tools fall through silently. Covers: `$HOME`, `$USER`, `whoami`, `id -un`, hostnames (short/FQDN/ComputerName/LocalHostName on macOS), git `user.email`/`user.name`/`github.user`, macOS `dscl` RealName, Linux GECOS full name, macOS Apple ID, `gh`/`npm`/`pnpm`/`yarn`/`aws`/`gcloud` identities if logged in, SSH public keys from `~/.ssh/id_*.pub`.  <!-- path-privacy: ignore -->
 
 Opt-in lines (commented) for hardware serial, machine-id, and IOPlatformUUID are in the script; uncomment only if you share raw system logs.
 
