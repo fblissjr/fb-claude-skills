@@ -1,5 +1,14 @@
 # changelog
 
+## 0.88.0
+
+### fixed
+- **`path-privacy` 0.7.1 → 0.7.2 — the stale-wrapper notice could not tell "older" from "newer", and its remedy downgraded a working gate.** The comparison at the heart of the notice was `[ "$have" != "$CURRENT_VERSION" ]`: a string inequality, which fires in both directions and labels both "older". A wrapper can legitimately be *newer* than the running plugin — install the hooks from a source checkout, then open a session whose installed copy is several releases behind, and that is exactly the state. The notice then told you to re-run `install-git-hooks.sh`, which regenerates the wrapper from the *older* plugin: the advertised fix silently reverts the gate to superseded logic, discarding fixes it already had. The remedy for each direction is the opposite one, so direction has to be established before advice is given. Now compared with `sort -V`, with a separate notice for the ahead case that says the gate is fine, names the plugin as the thing that is behind, and explicitly warns against re-running the installer. Verified against a constructed wrapper/plugin matrix — older, equal, newer, and unstamped pre-0.6.0 — each producing its own outcome, with the equal case silent.
+- **`path-privacy` — the notice printed a literal `—` where an em dash was intended.** `$'—'` relies on `\uXXXX` expansion, which needs bash 4.2+; macOS ships bash 3.2, so the escape passed through untouched and every stale-hook notice read `... of the plugin — pre-commit (0.6.2)`. Since nothing downstream needs the dash, both notices use plain ASCII punctuation rather than carrying a bash-version dependency for a typographic nicety.
+
+### changed
+- **`dev-conventions` 0.8.0 → 0.8.1 — the Pydantic `str` enum rule re-tiered out of unconditional global config.** The rule (assign `SkillStatus.ACTIVE`, not `"active"`) is a narrow Python/Pydantic detail that lived only in global instructions, so it loaded into every session regardless of language — including pure JS and TS ones with no Python anywhere in them. That tier already names this plugin as where detailed conventions live, which made the rule a textbook case of specific guidance occupying the always-loaded tier while a pull-based one existed to hold it. It now sits at the two tiers that fit: a one-line form in the `python.md` SessionStart directive, gated on Python-project detection so it reaches only sessions it applies to, and the full statement in the `python-tooling` skill, which has room for the rationale the one-liner does not — Pydantic coerces the bare string at runtime, so both spellings pass every test and only static analysis can tell them apart, which is the entire reason the rule exists.
+
 ## 0.87.0
 
 ### fixed
@@ -543,7 +552,7 @@
 ## 0.49.1
 
 ### added
-- **skill-maintainer**: 14 regression tests pinning behaviors fixed earlier today that had **no test at all** — Poetry-layout pyproject, `[tool.*]` tables above `[project]`, populated `## [Unreleased]` sections, keep-a-changelog headings, non-dict marketplace entries, object-form sources, sources escaping the repo root, nameless plugin manifests, bare home paths without a trailing slash, the sanctioned `~/.claude/...` form, the `skip-file` marker quoted deep in a file, and system account names.
+- **skill-maintainer**: 14 regression tests pinning behaviors fixed earlier today that had **no test at all** — Poetry-layout pyproject, `[tool.*]` tables above `[project]`, populated `## [Unreleased]` sections, keep-a-changelog headings, non-dict marketplace entries, object-form sources, sources escaping the repo root, nameless plugin manifests, bare home paths without a trailing slash, the sanctioned `<HOME>/.claude/...` form, the `skip-file` marker quoted deep in a file, and system account names.
 
   Six behaviors were changed and none were pinned, so every one could have silently regressed — the exact failure this suite exists to prevent, in the commit that fixed six instances of it elsewhere. Suite goes 29 -> 43 tests. Mutation-checked: reverting the Poetry fallback turns one red, so the new tests are load-bearing rather than decorative.
 
@@ -571,9 +580,9 @@
 A nine-angle max-effort review of the previous seven commits returned 26 verified findings, all in code written that day and most of them inside *fixes*. They collapsed to six root causes; fixing the roots rather than the symptoms is what this release does.
 
 ### fixed
-- **path-privacy 0.5.0 -> 0.6.0**: the installer no longer assembles the hooks path by hand. One `git rev-parse --git-path hooks` call replaces four separate defects: installing into a repo *subdirectory* fabricated a dead `.git/hooks` and reported success; worktrees and submodules crashed with `mkdir: Not a directory` while the changelog claimed they were supported; and a `core.hooksPath` of `~/hooks` created a directory literally named `~` inside the work tree. It now also **refuses** when `core.hooksPath` comes from global config (a per-repo install would have gated every repo on the machine, and `--uninstall` anywhere would have removed it everywhere) and when the hooks directory is tracked (the wrapper embeds a machine-specific absolute path, so committing it would plant the leak class this plugin polices and hand teammates a path that fails closed).
+- **path-privacy 0.5.0 -> 0.6.0**: the installer no longer assembles the hooks path by hand. One `git rev-parse --git-path hooks` call replaces four separate defects: installing into a repo *subdirectory* fabricated a dead `.git/hooks` and reported success; worktrees and submodules crashed with `mkdir: Not a directory` while the changelog claimed they were supported; and a `core.hooksPath` of `<HOME>/hooks` created a directory literally named `~` inside the work tree. It now also **refuses** when `core.hooksPath` comes from global config (a per-repo install would have gated every repo on the machine, and `--uninstall` anywhere would have removed it everywhere) and when the hooks directory is tracked (the wrapper embeds a machine-specific absolute path, so committing it would plant the leak class this plugin polices and hand teammates a path that fails closed).
 - **path-privacy**: the fail-closed guarantee was defeated one delegation level down. The wrapper carefully selects an *executable* entry script; that script then found its own scanner missing and exited 0 — `# fail open by design` — so a leak committed with rc=0. Both entry scripts now fail closed, matching the wrapper.
-- **path-privacy**: the recovery search reached every neighbouring project on disk. A broken checkout at `~/dev/plugin-a` silently ran `~/dev/plugin-zzz`'s scanner — arbitrary sibling code, or on a shared machine another user's, executed as a commit gate. It also matched `<plugin>.backup` snapshots, which sort *above* the real directory. Group 1 is now the frozen tree itself, and the cache group sorts by the version component alone rather than by whole path (where the marketplace directory outranked the version, so `mp-z/0.0.1` beat `mp-a/9.9.9`).
+- **path-privacy**: the recovery search reached every neighbouring project on disk. A broken checkout at a checkout in one sibling project directory silently ran another sibling project's scanner — arbitrary sibling code, or on a shared machine another user's, executed as a commit gate. It also matched `<plugin>.backup` snapshots, which sort *above* the real directory. Group 1 is now the frozen tree itself, and the cache group sorts by the version component alone rather than by whole path (where the marketplace directory outranked the version, so `mp-z/0.0.1` beat `mp-a/9.9.9`).
 - **explainer-video 0.5.0 -> 0.5.1**: `shoot.js full` recursively deleted its output directory, and that directory comes from `FRAMES_DIR` — so `FRAMES_DIR=. shoot.js scene.html full` erased the scene file and everything beside it. Reproduced independently by three reviewers. It now deletes only `f#####.png`, which is all the stale-tail bug ever required; verified the stale tail is still cleared and a non-frame file in the same directory survives.
 - **explainer-video**: `range 0 60` — re-shooting the opening beat, the documented purpose of the mode — threw `invalid start frame: "0"`, because the new validator conflated "not a number" with "zero" on a 0-based index. And `sample` was left out of that validation entirely, still writing `sample_NaN.png` with exit 0 on the exact typo cited as the validator's motivation.
 - **explainer-video**: `video()` read `frames/` while `shoot.js` honoured `FRAMES_DIR`, so a hand-run reshoot wrote one place and the encoder read another — silently shipping the previous film.
@@ -937,7 +946,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
 ## 0.30.2
 
 ### changed
-- **pyright-autoconfig 0.1.1 -> 0.1.2**: code-review fix for a config-overwrite regression. 0.1.1's "is this config ours?" test was a loose `grep reportMissingModuleSource`, so a user's OWN hand-written `pyrightconfig.json` that set that key would be misclassified as ours and silently overwritten (losing their other settings). Ownership is now **exact**: the hook only ever recognizes/rewrites its own byte-for-byte template output (venv or venv-less), and self-heals only its exact venv-less template once `.venv` appears. Any other config is left completely untouched. Verified: a user config containing `reportMissingModuleSource` is now preserved; self-heal + idempotency still pass. (Unrelated but same session: hardened the user-scope `block-network-exfil.sh` PreToolUse hook against full-path curl and `<(curl)`/`$(curl)`/`| xargs sh` bypasses -- that hook is a personal `~/.claude/hooks/` file, not part of this repo.)
+- **pyright-autoconfig 0.1.1 -> 0.1.2**: code-review fix for a config-overwrite regression. 0.1.1's "is this config ours?" test was a loose `grep reportMissingModuleSource`, so a user's OWN hand-written `pyrightconfig.json` that set that key would be misclassified as ours and silently overwritten (losing their other settings). Ownership is now **exact**: the hook only ever recognizes/rewrites its own byte-for-byte template output (venv or venv-less), and self-heals only its exact venv-less template once `.venv` appears. Any other config is left completely untouched. Verified: a user config containing `reportMissingModuleSource` is now preserved; self-heal + idempotency still pass. (Unrelated but same session: hardened the user-scope `block-network-exfil.sh` PreToolUse hook against full-path curl and `<(curl)`/`$(curl)`/`| xargs sh` bypasses -- that hook is a personal `<HOME>/.claude/hooks/` file, not part of this repo.)
 
 ## 0.30.1
 
@@ -1013,7 +1022,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
   - `lint.py`: added `_safe_read(path)` helper that returns `None` on `OSError` / `UnicodeDecodeError`. `find_count_drift` and `find_broken_links` use it instead of bare `path.read_text()`. Honors the documented "exit 0 always" contract -- a dangling symlink or non-UTF-8 file in the doc tree no longer crashes the pass.
   - `lint.py`: `find_count_drift` memoizes counter results per call (`actual_cache: dict[int, int]` keyed by `id(counter)`). A file with multiple lines matching the same pattern now triggers one filesystem glob, not N. Real concern only on duplicated prose in long files; cheap fix.
   - `pre-commit.sample` (and the live `.git/hooks/pre-commit`): inline comment in `claude_md_size_check` documenting that the `4000`-token threshold mirrors `shared.TOKEN_BUDGET_WARN`. The shell can't import Python; the comment is the only available drift signal.
-- **README.md**: skill-maintainer plugin row gains the new `lint` capability and the tracked pre-commit hook scaffolding (both shipped today). agent-state-mcp row scrubbed of `~/.claude/...` path leak (now `<HOME>/.claude/...`). The `docs/internals/` line in the documentation highlights was wrong -- said "API reference, DuckDB schema, troubleshooting"; replaced with the actual contents (versioning cascade, plugin patterns, maintenance commands, gotchas) plus a new pointer to `docs/analysis/index.md` since that's now a real wiki-style index. The skill-maintainer CLI section gains the new `init` hook-scaffolding behavior and `lint` in the example commands.
+- **README.md**: skill-maintainer plugin row gains the new `lint` capability and the tracked pre-commit hook scaffolding (both shipped today). agent-state-mcp row scrubbed of `<HOME>/.claude/...` path leak (now `<HOME>/.claude/...`). The `docs/internals/` line in the documentation highlights was wrong -- said "API reference, DuckDB schema, troubleshooting"; replaced with the actual contents (versioning cascade, plugin patterns, maintenance commands, gotchas) plus a new pointer to `docs/analysis/index.md` since that's now a real wiki-style index. The skill-maintainer CLI section gains the new `init` hook-scaffolding behavior and `lint` in the example commands.
 - **CLAUDE.md**: added missing `last updated:` line at top. Caught by the docs-staleness sweep -- root CLAUDE.md was the only file in the active doc tree without one.
 
 ### notes
@@ -1050,7 +1059,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
   - `docs/internals/plugin-patterns.md` — required structure, hooks-vs-skills, composable directives, agents, catalog-as-exemplar, bash 3.2 portability, greenfield-vs-production schema evolution.
   - `docs/internals/maintenance.md` — full keep-fresh table, on-demand commands, state files, workspace member table.
   - `docs/internals/gotchas.md` — best_practices.md duality, security-guidance hook disable, pre-commit hook re-installation, path-privacy interaction, CLAUDE.md size creep rule, count-drift rule.
-- The new CLAUDE.md is a hub: identity + working agreements + 5 repo invariants (the rules that bite on first edit) + a "Where to find what" index pointing at the spokes + state + cross-repo. Path leaks scrubbed (`~/.claude/...` → `<HOME>/.claude/...`; `~/claude/agentskills` description genericized).
+- The new CLAUDE.md is a hub: identity + working agreements + 5 repo invariants (the rules that bite on first edit) + a "Where to find what" index pointing at the spokes + state + cross-repo. Path leaks scrubbed (`<HOME>/.claude/...` → `<HOME>/.claude/...`; a local clone of the Agent Skills spec description genericized).
 - Companion fix: the `last updated` date on `docs/README.md` refreshed and the "15 reports covering..." count claim dropped (the filesystem is the source of truth; counts in prose are drift surfaces). Same fix on root README's "16 domain reports" claim — was the wrong number anyway.
 
 ### added
@@ -1161,7 +1170,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
 ## 0.22.8
 
 ### added
-- **agent-state-mcp** (new plugin, v0.1.0): stdio MCP server at `apps/agent-state-mcp/` that exposes `~/.claude/agent_state.duckdb` to Claude Code as 18 read-only tools (`list_recent_runs`, `get_run_tree`, `find_failed_runs`, `get_watermark_status`, `list_skills_by_domain`, `get_flywheel_metrics`, etc.). Thin wrapper over the existing `agent-state` Python package; designed so Claude reaches for MCP tools instead of shelling out to the `agent-state` CLI. Structured return envelopes (`{rows, _meta}` with row_count, duration_ms, schema_version), parameterized queries, graceful fallback when the DB is missing. Includes a single `agent-state-mcp` skill teaching Claude the question-to-tool mapping.
+- **agent-state-mcp** (new plugin, v0.1.0): stdio MCP server at `apps/agent-state-mcp/` that exposes `<HOME>/.claude/agent_state.duckdb` to Claude Code as 18 read-only tools (`list_recent_runs`, `get_run_tree`, `find_failed_runs`, `get_watermark_status`, `list_skills_by_domain`, `get_flywheel_metrics`, etc.). Thin wrapper over the existing `agent-state` Python package; designed so Claude reaches for MCP tools instead of shelling out to the `agent-state` CLI. Structured return envelopes (`{rows, _meta}` with row_count, duration_ms, schema_version), parameterized queries, graceful fallback when the DB is missing. Includes a single `agent-state-mcp` skill teaching Claude the question-to-tool mapping.
 - Root `.mcp.json` now documents an opt-in `agent-state` server entry under `_available_servers` (commented out by default; copy into `mcpServers` to enable).
 
 ### changed
@@ -1347,7 +1356,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
   - views: `v_run_tree` (recursive hierarchy), `v_flywheel` (producer->skill->consumer), `v_restartable_failures`
   - migration from `changes.jsonl` and `upstream_hashes.json`
   - CLI: `agent-state init|status|runs|tree|watermarks|flywheel|migrate`
-  - storage: single global DuckDB at `~/.claude/agent_state.duckdb`
+  - storage: single global DuckDB at `<HOME>/.claude/agent_state.duckdb`
 
 ## 0.18.0
 
@@ -1356,7 +1365,7 @@ All four verified by control, per the rule added in 0.3.4: `frames/` confirmed i
   - `skills/`: pure markdown skill bundles (tui-design, dimensional-modeling, cogapp-markdown, dev-conventions, mcp-apps, plugin-toolkit)
   - `apps/`: MCP server applications (mece-decomposer, env-forge, skill-dashboard, heylook-monitor, readwise-reader)
   - `tools/`: CLI packages (skill-maintainer)
-- **readwise-reader**: migrated from `~/claude/cowork-plugins/readwise-reader` into `apps/readwise-reader/`
+- **readwise-reader**: migrated from another project into `apps/readwise-reader/`
   - flattened `plugin/readwise-reader/` contents to top level
   - converted build system from setuptools to hatchling
   - skill-maintainer dep changed from git URL to workspace reference

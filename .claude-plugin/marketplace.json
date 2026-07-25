@@ -53,7 +53,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.8.0"
+      "version": "0.8.1"
     },
     {
       "name": "readwise-reader",
@@ -89,7 +89,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.7.1"
+      "version": "0.7.2"
     },
     {
       "name": "writing",

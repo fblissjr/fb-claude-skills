@@ -37,4 +37,14 @@ When in doubt, pin exact. After adding any dependency, run `uv lock --check` to 
 
 `uv.lock` is machine-generated. Never hand-edit it. Update it only through `uv lock` or `uv sync`, and commit it alongside `pyproject.toml`. Use `pyproject.toml` + `uv.lock`, not `requirements.txt`.
 
+## Pydantic `str` enums
+
+Assign enum members, never the bare string they coerce from:
+
+```python
+status = SkillStatus.ACTIVE   # not status = "active"
+```
+
+Pydantic accepts `"active"` at runtime and coerces it, so both spellings work and the difference never shows up in tests. But the coercion is invisible to Pyright, which sees `str` where the field is typed `SkillStatus`. Using the member is what puts the value under static analysis, so a typo like `"actve"` fails at check time instead of becoming a validation error in whatever code path happens to run first.
+
 > JSON library choice (stdlib `json` vs `orjson`, etc.) is a per-project preference, not a universal convention — set it in the project's own `CLAUDE.md` or `.claude/rules/` rather than assuming it here.
