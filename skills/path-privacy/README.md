@@ -47,6 +47,12 @@ Three things narrow that window:
   and are reported as `pre-0.6.0`.
 - Since 0.7.0 the wrapper also says so itself, on stderr at commit time. That
   reaches you when you commit from a plain terminal with no session open.
+- Since 0.7.2 both notices establish which side is behind before advising
+  anything. A wrapper can be *newer* than the plugin — install the hooks from a
+  source checkout, then run against a lagging installed copy — and in that state
+  re-running the installer regenerates the wrapper from the older plugin and
+  downgrades a working gate. The ahead case gets its own message saying the gate
+  is fine, the plugin is behind, and not to re-run the installer.
 - Since 0.7.0 a marketplace-installed wrapper re-resolves to the **newest**
   cached version of the plugin on every run, rather than only when its frozen
   path has been deleted. Before that it kept running the superseded scanner
