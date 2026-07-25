@@ -66,6 +66,8 @@ The privacy guarantee fails the moment the activity is advertised.
 | Scrub (write) | `... --apply` | Apply the substitutions in place. |
 | Install git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh` | Adds pre-commit + commit-msg into the current repo, preserving existing hooks |
 | Uninstall git hooks | `bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --uninstall` | Restores any preserved `.local` hook |
+| Check this repo's gate | `... install-git-hooks.sh --doctor` | Read-only. Reports version, fail-open/fail-closed, and whether the gate is installed at all |
+| Check many repos | `... install-git-hooks.sh --doctor <root>` | Same, for every git repo under `<root>`. Requires an explicit root — it never sweeps your home directory on its own |
 
 `<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}` when the plugin is installed via the marketplace, or `skills/path-privacy` when running from a checkout of fb-claude-skills.
 
@@ -77,9 +79,33 @@ Each finding is one line: `<file>:<lineno>: <matched-token>`. After all findings
 
 A line containing the literal token `path-privacy: ignore` is skipped by the scanner. Use sparingly — only on lines that are themselves examples or placeholders that legitimately need to mention an external-looking path (e.g., the regex source, a doc snippet showing what the rule catches).
 
+## File-level opt-out
+
+A file whose **first 30 lines** contain the literal token `path-privacy: skip-file` is skipped entirely — by the scanner, the scrub, and the PreToolUse write blocker. Any comment syntax works; `<!-- path-privacy: skip-file -->` is just the markdown form. This is for files that are *about* the rule: the scanner's own regex source, this skill, the suggestion template.
+
+Two limits worth knowing:
+
+- **Commit messages and branch names cannot use it.** They are scanned as a string with the marker check off, so quoting one token cannot exempt a message from the gate. Use `path-privacy: ignore` on the offending line instead.
+- **The marker must already be on disk to cover an Edit.** An Edit sends only the replacement fragment, so a marker at the top of the file is not in the payload; the write blocker reads it from the target file instead. A brand-new file has no disk copy, so there the marker is read from the content being written — which means it has to be in that content's first 30 lines.
+
+## Checking that the gate is actually there
+
+Hooks live in `.git/`, so they are per-repo, uncommittable, and installed by hand. Nothing tracks which repos have them. `--doctor` is that inventory:
+
+```bash
+bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --doctor
+bash <plugin-root>/skills/path-privacy/scripts/install-git-hooks.sh --doctor <root>
+```
+
+It reports, per repo and per hook: the version stamp (`<unstamped, pre-0.6.0>` if absent), `fail-closed` vs `FAILS OPEN`, whether the frozen scanner path still resolves, and `not installed` when the hook is missing. Exit 1 if anything needs attention, so it is scriptable.
+
+Read `FAILS OPEN` as urgent: those wrappers exit 0 when the scanner is missing, so the gate reports success on every commit while doing nothing. Re-run the installer in that repo to replace it.
+
+**A wrapper is never updated by a plugin update.** It is the thing that *locates* the plugin, so the plugin cannot rewrite it. A plugin update refreshes the scanner the wrapper calls; the wrapper's own logic stays frozen at install time until you re-run `install-git-hooks.sh`. Both the SessionStart hook and the wrapper itself say so when they notice a mismatch.
+
 ## Per-repo suggestions (optional)
 
-Drop a `.path-privacy.local.json` at the repo root (gitignore it!) to enrich
+Drop a `.path-privacy.local.json` at the repo root to enrich
 each finding with an actionable replacement specific to your machine. With it,
 a finding line is followed by `→ use: <substituted form>` instead of the
 generic "use a relative path" message. The same config drives the
@@ -96,10 +122,26 @@ file when present; absent, behavior is unchanged.
 }
 ```
 
+**Gitignore it first, then create it.** In that order. The file is by
+definition a list of your absolute paths, so until it is ignored the PreToolUse
+hook blocks every write to it — including the first one. Append the filename to
+`.gitignore`, then copy the template.
+
 Each entry's `match` is a literal substring (not a regex); `suggest` is the
 text that replaces it. Entries are auto-sorted longest-match-first so the
 most specific entry wins regardless of how you order them. Requires `jq`;
 silently no-ops if `jq` is missing or the file is malformed.
+
+**Start with an empty `suggest` mapped to your repo's own absolute prefix.** An
+empty `suggest` deletes the matched text outright, rewriting an absolute in-repo
+path into a genuinely repo-relative one — which is exactly what the rule asks
+for, and the single highest-value entry in most configs. It is supported
+deliberately; only an empty `match` is skipped.
+
+That entry affects `scrub-paths.sh` only, never the scanner: a path inside the
+repo is not a leak and never appears as a finding in the first place. The two
+consumers share one config but match different sets — the scanner uses it to
+annotate leaks, the scrub uses it to rewrite text.
 
 To use a config file at a non-default path, pass `--config <path>` to the
 scanner.
@@ -134,6 +176,12 @@ longest-first so a more-specific entry wins over a less-specific one.
 This is a literal substring substitution; it does not rewrite quoted strings,
 escape paths in code, or do any AST-aware transformation. Always review the
 diff before `--apply`.
+
+**Do not configure a match for the shell HOME variable in a repo containing
+shell scripts.** Substring replacement has no idea it is inside code: a live
+variable reference becomes a literal placeholder and the script breaks. The
+scanner still flags those; fix them by hand. The shipped template omits these
+forms on purpose.
 
 ## Workflow when a leak is found
 

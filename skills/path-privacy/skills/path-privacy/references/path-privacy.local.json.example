@@ -1,11 +1,19 @@
 {
-  "_comment": "path-privacy: skip-file — Starter template. Copy to <your-repo>/.path-privacy.local.json (gitignore it!), then edit the entries below for your machine. The scanner auto-loads the file and emits '→ use: <substituted form>' lines after each leak finding. Each `match` is a literal substring (not a regex). Entries are auto-sorted longest-first, so list them in any order — the most specific one wins.",
+  "_comment": "path-privacy: skip-file — Starter template. Each `match` is a literal substring (not a regex). Entries are auto-sorted longest-first, so list them in any order; the most specific one wins. Absolute forms and tilde-prefixed home-relative forms both work — write whichever form actually appears in your files.",
+
+  "_step_1_gitignore_FIRST": "Add .path-privacy.local.json to .gitignore BEFORE creating the file, not after. The file is by definition a list of your absolute paths, so while it is untracked the PreToolUse hook will block every write to it. Order matters: append the filename to .gitignore first, then copy this template.",
+
+  "_step_2_lead_entry": "The first entry below is the one to start with. An empty `suggest` deletes the matched prefix outright, which turns an absolute in-repo path into a genuinely repo-relative one — exactly what the rule asks for. Empty `suggest` is supported deliberately; only an empty `match` is skipped. Note this entry never changes scanner output: a path inside the repo is not a leak and never appears as a finding, so it affects `scrub-paths.sh` only. One config, two consumers, different match sets.",
+
+  "_footgun_shell_variables": "Do NOT add entries matching the shell HOME variable (in either its bare or braced form) in a repo that contains shell scripts. The scrub is a blunt substring replace with no awareness of syntax, so it will rewrite working code: a variable reference inside a live script becomes a literal placeholder and the script breaks. Those forms are omitted below on purpose. The scanner still flags them; fix those by hand.",
+
   "suggestions": [
-    {"match": "/Users/USERNAME/code/PROJECT/", "suggest": "<repo>/"},
-    {"match": "/Users/USERNAME/",              "suggest": "<home>/"},
-    {"match": "/home/USERNAME/CODE/PROJECT/",  "suggest": "<repo>/"},
-    {"match": "/home/USERNAME/",               "suggest": "<home>/"},
-    {"match": "~/Library/Caches/",             "suggest": "<cache>/"},
-    {"match": "~/.claude/",                    "suggest": "<claude-config>/"}
+    {"match": "/Users/USERNAME/code/PROJECT/",     "suggest": ""},
+    {"match": "/Users/USERNAME/code/OTHERREPO/",   "suggest": "<other-repo>/"},
+    {"match": "/Users/USERNAME/.claude/",          "suggest": "<claude-config>/"},
+    {"match": "/Users/USERNAME/Library/Caches/",   "suggest": "<cache>/"},
+    {"match": "/Users/USERNAME/",                  "suggest": "<home>/"},
+    {"match": "/home/USERNAME/CODE/PROJECT/",      "suggest": ""},
+    {"match": "/home/USERNAME/",                   "suggest": "<home>/"}
   ]
 }

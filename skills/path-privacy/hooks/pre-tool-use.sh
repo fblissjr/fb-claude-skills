@@ -23,6 +23,8 @@
 # Skipped contexts:
 #   - file_path outside the repo (nothing to enforce against)
 #   - file_path that's gitignored (can't reach a commit anyway)
+#   - file carrying the `path-privacy: skip-file` marker, on disk or in the
+#     content being written
 #   - missing/empty content (nothing to scan)
 
 set -u
@@ -61,6 +63,16 @@ if git -C "$ROOT_REAL" check-ignore -q "$FILE_PATH" 2>/dev/null; then
   exit 0
 fi
 
+# File-level opt-out, read from the TARGET as it exists on disk. An Edit sends
+# only `new_string` — a fragment from the middle of the file — so a marker at the
+# top is never in the payload and scanning the payload alone can never honour it.
+# Write of a brand-new file has no disk copy; that case is covered by passing
+# --allow-skip-file below, which reads the marker out of the content itself.
+if [ -f "$FILE_PATH" ] \
+   && head -30 "$FILE_PATH" 2>/dev/null | grep -qF 'path-privacy: skip-file'; then
+  exit 0
+fi
+
 # Concatenate Write content + Edit new_string (one of them is set per call).
 CONTENT=$(jq -r '[.tool_input.content // empty, .tool_input.new_string // empty] | join("\n")' <<<"$PAYLOAD" 2>/dev/null)
 [ -z "$CONTENT" ] && exit 0
@@ -69,7 +81,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SCANNER="$SCRIPT_DIR/../skills/path-privacy/scripts/find-external-paths.sh"
 [ -x "$SCANNER" ] || exit 0
 
-SCANNER_OUT=$("$SCANNER" --against-root "$ROOT_REAL" --text "$CONTENT" 2>&1)
+# --allow-skip-file: the string being scanned is a FILE's contents, so the
+# file-level marker has to mean here what it means on disk. Without it this hook
+# blocked writes to files carrying the marker while advertising that very marker
+# as the way out -- including the plugin's own files, every one of which uses it.
+SCANNER_OUT=$("$SCANNER" --against-root "$ROOT_REAL" --allow-skip-file --text "$CONTENT" 2>&1)
 SCANNER_EXIT=$?
 
 # Exit 1 = leak, anything else = clean or scanner internal error (fail open).

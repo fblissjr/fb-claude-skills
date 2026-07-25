@@ -9,7 +9,7 @@
 # Usage:
 #   find-external-paths.sh [-d <dir>]... [-f <file>]... [--staged] [--text <string>]
 #                          [--lax-boundary] [--against-root <path>] [--config <path>]
-#                          [--quiet]
+#                          [--allow-skip-file] [--quiet]
 #
 # Exit 0 = clean, 1 = at least one leak, 2 = bad usage.
 #
@@ -25,6 +25,11 @@
 # are auto-sorted longest-match-first so specific entries win over general
 # ones; the user does not need to order them by hand. Requires jq;
 # silently no-ops if jq is missing or the config is malformed.
+#
+# `--allow-skip-file` lets `--text` honour a `path-privacy: skip-file` marker in
+# its first 30 lines, the same way a file on disk is treated. Off by default so
+# a commit message cannot exempt itself; the PreToolUse hook passes it because
+# there the string IS a file's contents.
 #
 # `set -u` only (not `set -eu`): per-file errors (unreadable file, malformed
 # content) should not abort the rest of the scan.
@@ -44,6 +49,7 @@ ROOT=""
 QUIET=0
 LAX=0
 CONFIG_PATH=""
+ALLOW_SKIP_FILE=0
 
 usage() { sed -n '2,21p' "$0"; }
 
@@ -56,6 +62,7 @@ while [ $# -gt 0 ]; do
     --lax-boundary)    LAX=1; shift ;;
     --against-root)    ROOT="$2"; shift 2 ;;
     --config)          CONFIG_PATH="$2"; shift 2 ;;
+    --allow-skip-file) ALLOW_SKIP_FILE=1; shift ;;
     --quiet)           QUIET=1; shift ;;
     -h|--help)         usage; exit 0 ;;
     *) echo "find-external-paths: unknown arg: $1" >&2; usage; exit 2 ;;
@@ -299,6 +306,15 @@ scan_dir() {
 # Defaults to lax boundary so embeddings like `fix/Users/jamie` are caught.
 scan_text() {
   local label="$1" content="$2"
+  # File-level skip is OFF by default here. `--text` serves two callers with
+  # opposite needs: the PreToolUse hook, where the string is a file's future
+  # contents and the marker means what it means for a file on disk, and the
+  # commit-msg hook, where honouring it would let any commit message exempt
+  # ITSELF from the gate by quoting one token. Only the first passes the flag.
+  if [ $ALLOW_SKIP_FILE -eq 1 ] \
+     && printf '%s\n' "$content" | head -30 | grep -qF "$FILE_SKIP_MARKER"; then
+    return 0
+  fi
   local pat="$PATTERN_STRICT"
   [ $LAX -eq 1 ] && pat="$PATTERN_LAX"
   local lineno=0 line cand
