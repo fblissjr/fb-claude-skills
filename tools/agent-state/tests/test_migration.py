@@ -25,6 +25,8 @@ def _create_state_dir(repo_dir: Path) -> Path:
 
 def test_migrate_empty_dir(db: AgentStateDB, tmp_path: Path) -> None:
     """Migration on a directory with no state files is a no-op."""
+
+# path-privacy: skip-file
     counts = migrate_from_jsonl(db, tmp_path)
     assert counts == {"runs": 0, "watermarks": 0, "skipped": 0}
 

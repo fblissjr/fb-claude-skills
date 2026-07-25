@@ -4,6 +4,8 @@ Encodes the measurable checks from best practices as pass/fail assertions.
 No pytest dependency. No network calls. No file writes. Pure read-only.
 """
 
+# path-privacy: skip-file
+
 import re
 import subprocess
 import sys

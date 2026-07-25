@@ -240,7 +240,7 @@ rather than solved it.
 - **Blocking on a non-blockable event.** Exit 2 from `PostToolUse`,
   `SessionStart`, `SessionEnd` or `PreCompact` blocks nothing — the action has
   already happened. The stderr is shown; the action proceeds.
-- **Shell profile pollution.** An unconditional `echo` in `~/.zshrc` prepends to
+- **Shell profile pollution.** An unconditional `echo` in `<HOME>/.zshrc` prepends to
   hook stdout and breaks JSON parsing. Guard with `if [[ $- == *i* ]]`.
 - **Unquoted variable expansions.** `$FILE_PATH` word-splits on paths containing
   spaces. This is the same defect class as shell-form hook commands and as

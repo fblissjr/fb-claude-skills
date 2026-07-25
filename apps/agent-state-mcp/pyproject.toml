@@ -1,7 +1,7 @@
 [project]
 name = "agent-state-mcp"
-version = "0.2.1"
-description = "MCP server exposing ~/.claude/agent_state.duckdb to Claude Code as ergonomic tools"
+version = "0.2.2"
+description = "MCP server exposing <HOME>/.claude/agent_state.duckdb to Claude Code as ergonomic tools"
 requires-python = ">=3.11"
 dependencies = [
     "mcp[cli]>=1.26.0",

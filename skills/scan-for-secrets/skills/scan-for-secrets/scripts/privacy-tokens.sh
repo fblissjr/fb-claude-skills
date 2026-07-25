@@ -1,4 +1,5 @@
 #!/bin/sh
+# path-privacy: skip-file
 # privacy-tokens.sh - emit privacy-sensitive identity literals for scan-for-secrets
 #
 # Use as: scan-for-secrets -c <this-script> [-d <dir>]

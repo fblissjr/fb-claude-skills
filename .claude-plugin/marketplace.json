@@ -17,7 +17,7 @@
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
       "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
-      "version": "0.2.1"
+      "version": "0.2.2"
     },
     {
       "name": "cogapp-markdown",
@@ -59,19 +59,19 @@
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "1.0.1"
+      "version": "1.0.2"
     },
     {
       "name": "agent-state-mcp",
       "source": "./apps/agent-state-mcp",
-      "description": "Read-only MCP server over ~/.claude/agent_state.duckdb -- query run history, watermarks, skill versions, and flywheel metrics instead of shelling out to the agent-state CLI.",
-      "version": "0.2.1"
+      "description": "Read-only MCP server over <HOME>/.claude/agent_state.duckdb -- query run history, watermarks, skill versions, and flywheel metrics instead of shelling out to the agent-state CLI.",
+      "version": "0.2.2"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.15.1"
+      "version": "0.15.2"
     },
     {
       "name": "json-query",
@@ -83,13 +83,13 @@
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
-      "version": "0.1.2"
+      "version": "0.1.3"
     },
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.7.0"
+      "version": "0.7.1"
     },
     {
       "name": "writing",
@@ -107,7 +107,7 @@
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
-      "version": "0.2.1"
+      "version": "0.2.2"
     },
     {
       "name": "explainer-video",

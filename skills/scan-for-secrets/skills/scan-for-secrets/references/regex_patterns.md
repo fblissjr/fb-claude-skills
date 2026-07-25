@@ -1,5 +1,7 @@
 # Regex patterns — catalog and tuning
 
+<!-- path-privacy: skip-file -->
+
 *Last updated: 2026-04-21*
 
 `scripts/regex-scan.sh` runs ripgrep with a curated pattern set. This doc catalogs each pattern, its intent, known false positives, and tuning hints.

@@ -98,7 +98,18 @@ if [ $STAGED -eq 0 ] && [ ${#DIRS[@]} -eq 0 ] && [ ${#FILES[@]} -eq 0 ] && [ -z 
 fi
 
 # Skip globs (mirror scan-for-secrets/scripts/regex-scan.sh)
+#
+# --hidden because rg skips dotfiles and dot-directories by DEFAULT, which made
+# the whole-tree audit (`-d .`) silently blind to exactly the files most likely
+# to carry a machine-specific path: .claude-plugin/, .github/, dotfiles at the
+# root. The gap was invisible because the per-file and --staged modes pass
+# explicit paths, which rg does not filter -- so the pre-commit hook caught
+# leaks the audit had just declared clean. An audit that under-reports is worse
+# than no audit; it is read as a clean bill of health.
+# .git is still excluded below, and rg's .gitignore handling is left on --
+# ignored files cannot reach a commit, so the rule does not bind on them.
 SKIPS=(
+  --hidden
   --glob '!.git/**'
   --glob '!.hg/**'
   --glob '!.svn/**'

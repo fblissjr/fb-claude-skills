@@ -13,6 +13,8 @@ metadata:
 allowed-tools: "Bash,Read"
 ---
 
+<!-- path-privacy: skip-file -->
+
 # scan-for-secrets
 
 Scan files and directories before sharing. Catches literal secrets you name, privacy-sensitive identity literals pulled from your environment, and shape-based patterns a literal scan can't express.

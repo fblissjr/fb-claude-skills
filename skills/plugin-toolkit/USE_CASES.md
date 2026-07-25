@@ -12,14 +12,14 @@ Practical workflows combining plugin-toolkit with other plugins and skills.
 
 ```bash
 # 1. Find all entry points in the plugin
-cd ~/path/to/plugin
-uv run ~/utils/codebase-analyzer/scripts/find_entries.py .
+cd /path/to/plugin
+uv run /path/to/codebase-analyzer/scripts/find_entries.py .
 
 # 2. Trace imports from main scripts (hook scripts, etc.)
-uv run ~/utils/codebase-analyzer/scripts/trace.py hooks/inject.py
+uv run /path/to/codebase-analyzer/scripts/trace.py hooks/inject.py
 
 # 3. Analyze structure
-uv run ~/utils/codebase-analyzer/scripts/analyze.py . --structure
+uv run /path/to/codebase-analyzer/scripts/analyze.py . --structure
 
 # 4. Now run plugin-toolkit analysis with this context
 /plugin-toolkit:analyze .
@@ -48,10 +48,10 @@ uv run ~/utils/codebase-analyzer/scripts/analyze.py . --structure
 
 ```bash
 # 1. Run plugin-toolkit analysis to check quality
-/plugin-toolkit:analyze ~/my-plugin
+/plugin-toolkit:analyze /path/to/my-plugin
 
 # 2. Review the recommendations
-cat ~/my-plugin/analysis/RECOMMENDATIONS.md
+cat /path/to/my-plugin/analysis/RECOMMENDATIONS.md
 
 # 3. Use pr-review-toolkit for code review
 /pr-review-toolkit:code-reviewer
@@ -78,12 +78,12 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 
 ```bash
 # 1. Analyze current state
-/plugin-toolkit:analyze ~/downloaded-plugin
+/plugin-toolkit:analyze /path/to/downloaded-plugin
 
 # Review what's missing in analysis/RECOMMENDATIONS.md
 
 # 2. Apply standard polish
-/plugin-toolkit:polish ~/downloaded-plugin
+/plugin-toolkit:polish /path/to/downloaded-plugin
 
 # This adds:
 # - /help command (auto-generated from existing commands)
@@ -93,7 +93,7 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 # - Error handling to hook scripts
 
 # 3. Add custom features if needed
-/plugin-toolkit:feature add ~/downloaded-plugin command "debug" "Show debug info"
+/plugin-toolkit:feature add /path/to/downloaded-plugin command "debug" "Show debug info"
 ```
 
 ---
@@ -141,22 +141,22 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 
 ```bash
 # 1. Analyze the reference plugin
-/plugin-toolkit:analyze ~/reference-plugin
+/plugin-toolkit:analyze /path/to/reference-plugin
 
 # Save the structure for comparison
-cat ~/reference-plugin/analysis/ANALYSIS.md > reference-structure.md
+cat /path/to/reference-plugin/analysis/ANALYSIS.md > reference-structure.md
 
 # 2. Start your implementation
-/plugin-toolkit:feature add ~/my-plugin command "feature1" "First feature"
-/plugin-toolkit:feature add ~/my-plugin command "feature2" "Second feature"
+/plugin-toolkit:feature add /path/to/my-plugin command "feature1" "First feature"
+/plugin-toolkit:feature add /path/to/my-plugin command "feature2" "Second feature"
 
 # 3. Use codebase-analyzer to compare (if Python)
-uv run ~/utils/codebase-analyzer/scripts/compare.py \
-  --entry ~/reference-plugin/hooks/main.py \
-  --entry ~/my-plugin/hooks/main.py
+uv run /path/to/codebase-analyzer/scripts/compare.py \
+  --entry /path/to/reference-plugin/hooks/main.py \
+  --entry /path/to/my-plugin/hooks/main.py
 
 # 4. Re-analyze to verify parity
-/plugin-toolkit:analyze ~/my-plugin
+/plugin-toolkit:analyze /path/to/my-plugin
 ```
 
 ---
@@ -169,25 +169,25 @@ uv run ~/utils/codebase-analyzer/scripts/compare.py \
 
 ```bash
 # 1. List all plugins
-ls ~/.claude/plugins/
+ls <HOME>/.claude/plugins/
 
 # 2. Analyze each (run in parallel if many)
-for plugin in ~/.claude/plugins/*/; do
+for plugin in <HOME>/.claude/plugins/*/; do
   /plugin-toolkit:analyze "$plugin"
 done
 
 # 3. Review all recommendations
-cat ~/.claude/plugins/*/analysis/RECOMMENDATIONS.md
+cat <HOME>/.claude/plugins/*/analysis/RECOMMENDATIONS.md
 
 # 4. Polish plugins that need it
-/plugin-toolkit:polish ~/.claude/plugins/plugin-needing-work
+/plugin-toolkit:polish <HOME>/.claude/plugins/plugin-needing-work
 ```
 
 ### Automation Pattern
 
 ```bash
 # Find plugins without help commands
-for plugin in ~/.claude/plugins/*/; do
+for plugin in <HOME>/.claude/plugins/*/; do
   if [ ! -f "$plugin/commands/help.md" ]; then
     echo "Missing help: $plugin"
   fi
@@ -228,15 +228,15 @@ done
 
 ```bash
 # 1. Get high-level structure
-/plugin-toolkit:analyze ~/complex-plugin
+/plugin-toolkit:analyze /path/to/complex-plugin
 
 # 2. Deep dive into Python components
-cd ~/complex-plugin
-uv run ~/utils/codebase-analyzer/scripts/find_entries.py .
-uv run ~/utils/codebase-analyzer/scripts/analyze.py . --structure --parallel 4
+cd /path/to/complex-plugin
+uv run /path/to/codebase-analyzer/scripts/find_entries.py .
+uv run /path/to/codebase-analyzer/scripts/analyze.py . --structure --parallel 4
 
 # 3. Trace specific execution paths
-uv run ~/utils/codebase-analyzer/scripts/trace.py hooks/main-hook.py
+uv run /path/to/codebase-analyzer/scripts/trace.py hooks/main-hook.py
 
 # 4. Apply context-fields for thorough review
 /context-fields:adversarial
@@ -256,20 +256,20 @@ uv run ~/utils/codebase-analyzer/scripts/trace.py hooks/main-hook.py
 
 ```bash
 # 1. Analyze current state
-/plugin-toolkit:analyze ~/old-plugin
+/plugin-toolkit:analyze /path/to/old-plugin
 
 # 2. Create new plugin structure
-mkdir ~/new-plugin
-cp ~/old-plugin/plugin.json ~/new-plugin/
+mkdir /path/to/new-plugin
+cp /path/to/old-plugin/plugin.json /path/to/new-plugin/
 
 # 3. Migrate features one by one
-/plugin-toolkit:feature add ~/new-plugin command "feature1" "Migrated feature"
+/plugin-toolkit:feature add /path/to/new-plugin command "feature1" "Migrated feature"
 
 # 4. Compare structures
-diff -r ~/old-plugin/commands ~/new-plugin/commands
+diff -r /path/to/old-plugin/commands /path/to/new-plugin/commands
 
 # 5. Validate new plugin
-/plugin-toolkit:analyze ~/new-plugin
+/plugin-toolkit:analyze /path/to/new-plugin
 ```
 
 ---
@@ -286,7 +286,7 @@ diff -r ~/old-plugin/commands ~/new-plugin/commands
 "When I'm working on plugin development, auto-activate /code + /critic"
 
 # 2. Now plugin-toolkit commands trigger context fields
-/plugin-toolkit:analyze ~/my-plugin
+/plugin-toolkit:analyze /path/to/my-plugin
 # → Automatically has /code + /critic constraints active
 
 # 3. Create more specific rules
@@ -333,8 +333,8 @@ diff -r ~/old-plugin/commands ~/new-plugin/commands
 /plugin-toolkit:feature change <path> command <name> --description "<new>"
 
 # Codebase analyzer (for Python plugins)
-uv run ~/utils/codebase-analyzer/scripts/find_entries.py <path>
-uv run ~/utils/codebase-analyzer/scripts/trace.py <entry>
-uv run ~/utils/codebase-analyzer/scripts/analyze.py <path> --structure
-uv run ~/utils/codebase-analyzer/scripts/compare.py <trace1> <trace2>
+uv run /path/to/codebase-analyzer/scripts/find_entries.py <path>
+uv run /path/to/codebase-analyzer/scripts/trace.py <entry>
+uv run /path/to/codebase-analyzer/scripts/analyze.py <path> --structure
+uv run /path/to/codebase-analyzer/scripts/compare.py <trace1> <trace2>
 ```

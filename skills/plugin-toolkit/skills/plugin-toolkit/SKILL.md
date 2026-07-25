@@ -28,7 +28,7 @@ Produce comprehensive analysis of any Claude Code plugin.
 ### Usage
 
 ```
-/plugin-toolkit:analyze ~/path/to/plugin
+/plugin-toolkit:analyze /path/to/plugin
 /plugin-toolkit:analyze .  # Current directory
 ```
 
@@ -71,7 +71,7 @@ Add standard utility infrastructure to any plugin.
 ### Usage
 
 ```
-/plugin-toolkit:polish ~/path/to/plugin
+/plugin-toolkit:polish /path/to/plugin
 /plugin-toolkit:polish . --skip-changelog  # Skip CHANGELOG creation
 ```
 
@@ -125,22 +125,22 @@ Add, remove, or modify plugin features.
 
 **Add a new command:**
 ```
-/plugin-toolkit:feature add ~/my-plugin command "review" "Review code for issues"
+/plugin-toolkit:feature add /path/to/my-plugin command "review" "Review code for issues"
 ```
 
 **Add a hook:**
 ```
-/plugin-toolkit:feature add ~/my-plugin hook "UserPromptSubmit" "inject-context.sh"
+/plugin-toolkit:feature add /path/to/my-plugin hook "UserPromptSubmit" "inject-context.sh"
 ```
 
 **Remove a command:**
 ```
-/plugin-toolkit:feature remove ~/my-plugin command "deprecated-cmd"
+/plugin-toolkit:feature remove /path/to/my-plugin command "deprecated-cmd"
 ```
 
 **Modify a command:**
 ```
-/plugin-toolkit:feature change ~/my-plugin command "help" --description "Updated help text"
+/plugin-toolkit:feature change /path/to/my-plugin command "help" --description "Updated help text"
 ```
 
 ### What It Handles
@@ -187,23 +187,23 @@ This skill uses shared components:
 
 ```
 # 1. Analyze the plugin
-/plugin-toolkit:analyze ~/claude/my-plugin
+/plugin-toolkit:analyze /path/to/my-plugin
 
 # 2. Review the analysis
-cat ~/claude/my-plugin/analysis/RECOMMENDATIONS.md
+cat /path/to/my-plugin/analysis/RECOMMENDATIONS.md
 
 # 3. Apply standard polish
-/plugin-toolkit:polish ~/claude/my-plugin
+/plugin-toolkit:polish /path/to/my-plugin
 
 # 4. Add any custom features
-/plugin-toolkit:feature add ~/claude/my-plugin command "custom" "My custom command"
+/plugin-toolkit:feature add /path/to/my-plugin command "custom" "My custom command"
 ```
 
 ### Quick Polish for New Plugin
 
 ```
 # Just add utilities, skip analysis
-/plugin-toolkit:polish ~/claude/my-plugin
+/plugin-toolkit:polish /path/to/my-plugin
 ```
 
 ### Feature Management

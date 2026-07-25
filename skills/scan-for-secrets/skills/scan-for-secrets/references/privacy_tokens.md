@@ -1,5 +1,7 @@
 # Privacy tokens — catalog and rationale
 
+<!-- path-privacy: skip-file -->
+
 *Last updated: 2026-04-21*
 
 Every line in `scripts/privacy-tokens.sh` emits one literal string (or nothing, if the command is absent or unauthenticated). `scan-for-secrets` consumes those literals and finds each one — plus its escape variants — in the scanned target.

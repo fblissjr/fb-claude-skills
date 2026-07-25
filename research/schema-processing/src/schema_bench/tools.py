@@ -8,8 +8,8 @@ import subprocess
 
 # Ensure cargo and go binaries are on PATH
 _extra_paths = [
-    os.path.expanduser("~/.cargo/bin"),
-    os.path.expanduser("~/go/bin"),
+    os.path.expanduser("~/.cargo/bin"),  # path-privacy: ignore
+    os.path.expanduser("~/go/bin"),  # path-privacy: ignore
 ]
 for p in _extra_paths:
     if p not in os.environ.get("PATH", ""):

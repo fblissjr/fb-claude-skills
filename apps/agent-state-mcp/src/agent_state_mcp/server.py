@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 SERVER_INSTRUCTIONS = """\
-agent-state MCP server -- read-only access to ~/.claude/agent_state.duckdb.
+agent-state MCP server -- read-only access to <HOME>/.claude/agent_state.duckdb.
 
 Use these tools instead of `agent-state <subcommand>` via Bash. They are
 structured, faster, and permission-managed. The CLI is for interactive
@@ -338,7 +338,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="agent-state-mcp",
         description=(
-            "MCP server (stdio transport) over ~/.claude/agent_state.duckdb. "
+            "MCP server (stdio transport) over <HOME>/.claude/agent_state.duckdb. "
             "Intended to be launched by Claude Code via .mcp.json."
         ),
     )

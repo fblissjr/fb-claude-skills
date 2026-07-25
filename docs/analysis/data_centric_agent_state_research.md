@@ -439,10 +439,10 @@ Claude Code Session
     |   MCP Server (Python, stdio or HTTP transport)
     |       |
     |       v
-    |   DuckDB (local file: ~/.claude/agent_state.duckdb)
+    |   DuckDB (local file: <HOME>/.claude/agent_state.duckdb)
 ```
 
-The hooks capture events automatically (no user action needed). The MCP tools allow Claude (or the user) to query the data. The DuckDB file lives in `~/.claude/` so it persists across sessions and projects.
+The hooks capture events automatically (no user action needed). The MCP tools allow Claude (or the user) to query the data. The DuckDB file lives in `<HOME>/.claude/` so it persists across sessions and projects.
 
 ### 6.4 installation experience
 
@@ -452,14 +452,14 @@ The hooks capture events automatically (no user action needed). The MCP tools al
 /plugin install agent-state@fblissjr/agent-state
 
 # Or manual MCP config
-# ~/.claude/mcp.json:
+# <HOME>/.claude/mcp.json:
 {
   "servers": {
     "agent-state": {
       "command": "uvx",
       "args": ["agent-state-mcp"],
       "env": {
-        "AGENT_STATE_DB": "~/.claude/agent_state.duckdb"
+        "AGENT_STATE_DB": "<HOME>/.claude/agent_state.duckdb"
       }
     }
   }
@@ -644,7 +644,7 @@ Strategy for v1: Don't solve this. Each machine has its own state. For v2: Consi
 
 Agent state contains sensitive data: file paths, code snippets, prompts, API keys (if accidentally included). The DuckDB file must be protected.
 
-Strategy: Store in `~/.claude/` (same permissions as Claude Code config). Provide a `scrub` command that removes sensitive fields. Never include the DB file in git repos.
+Strategy: Store in `<HOME>/.claude/` (same permissions as Claude Code config). Provide a `scrub` command that removes sensitive fields. Never include the DB file in git repos.
 
 ## 10. actionable conclusions
 

@@ -127,7 +127,7 @@ This agent is called by:
 
 ## Example
 
-**Input:** `~/claude/context-field/plugins/context-fields`
+**Input:** `/path/to/plugin-repo/plugins/context-fields`
 
 **Output:**
 ```markdown

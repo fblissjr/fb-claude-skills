@@ -1,6 +1,6 @@
 {
   "name": "plugin-toolkit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
   "author": {
     "name": "Fred Bliss"

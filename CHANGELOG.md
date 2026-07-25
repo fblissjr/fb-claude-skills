@@ -1,5 +1,15 @@
 # changelog
 
+## 0.87.0
+
+### fixed
+- **`path-privacy` 0.7.0 → 0.7.1 — the whole-tree audit was blind to every hidden file and directory, and reported clean anyway.** `scan_dir` runs `rg` without `--hidden`, and ripgrep skips dotfiles and dot-directories by default. So `find-external-paths.sh -d .` — the documented "audit a repo" mode — never descended into `.claude-plugin/`, `.claude/`, or any root dotfile, which is precisely where machine-specific paths accumulate. The per-file and `--staged` modes pass explicit paths, which ripgrep does not filter, so they saw those files fine; the two modes disagreed and only the quieter one was being used for audits. Found the hard way: the pre-commit hook blocked a commit over findings the audit had declared clean seconds earlier. `--hidden` added; `.git` stays excluded by the existing glob, and ripgrep's `.gitignore` handling stays on since an ignored file cannot reach a commit. Enabling it immediately surfaced live findings in three previously unreachable files. An audit that under-reports is worse than no audit — it is read as a clean bill of health.
+
+### changed
+- **Internal cleanup across six plugins — docs, comments and examples normalized to the repo's generic-path convention. No behavior change.** Example and placeholder paths in documentation now use a neutral `/path/to/...` form, and references to standard global locations use the `<HOME>/...` form the repo already uses elsewhere. Where a file's subject matter genuinely is these path shapes — pattern catalogs, test fixtures, the config-reading script — the plugin's own file-level and per-line opt-out markers are applied instead of rewriting content that has to look that way to be correct. Verified by re-running the whole-tree audit (clean) plus the full suite: 271 hygiene checks and 105 unit tests pass, unchanged.
+
+  Cascade: `plugin-toolkit` 0.2.1 → 0.2.2, `scan-for-secrets` 0.1.2 → 0.1.3, `pyright-autoconfig` 0.2.1 → 0.2.2, `agent-state-mcp` 0.2.1 → 0.2.2, `readwise-reader` 1.0.1 → 1.0.2, `skill-maintainer` 0.15.1 → 0.15.2 (each plugin.json + marketplace, plus the two workspace pyprojects and `uv lock`; `readwise-reader` is workspace-excluded so its lock is unaffected).
+
 ## 0.86.0
 
 ### changed

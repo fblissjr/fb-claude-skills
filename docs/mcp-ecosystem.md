@@ -173,8 +173,8 @@ Plugins for Claude Code and Cowork. What this repo distributes.
 
 Directly editing `claude_desktop_config.json` or `.mcp.json` to add servers.
 
-- **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Claude Code:** `.mcp.json` in project root or `~/.claude/mcp.json` globally
+- **Claude Desktop:** `<HOME>/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Code:** `.mcp.json` in project root or `<HOME>/.claude/mcp.json` globally
 - **Transport:** stdio or HTTP
 - **Use case:** Development, custom servers, one-off integrations
 

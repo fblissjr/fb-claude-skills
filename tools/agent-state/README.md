@@ -18,7 +18,7 @@ uv add git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/agent
 
 ## storage
 
-Single global DuckDB at `~/.claude/agent_state.duckdb`. Created automatically on first use.
+Single global DuckDB at `<HOME>/.claude/agent_state.duckdb`. Created automatically on first use.
 
 ## schema
 

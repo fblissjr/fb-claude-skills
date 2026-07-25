@@ -1,5 +1,7 @@
 # scan-for-secrets
 
+
+<!-- path-privacy: skip-file -->
 *Last updated: 2026-04-21*
 
 > **Built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets)** by Simon Willison, Apache 2.0. This plugin wraps that tool and composes a ripgrep regex pass on top. All literal-matching and escape-variant logic is Simon's work; credit and upstream fixes belong there.

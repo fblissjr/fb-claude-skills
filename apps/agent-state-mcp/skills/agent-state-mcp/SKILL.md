@@ -1,6 +1,6 @@
 ---
 name: agent-state-mcp
-description: Query the agent-state DuckDB (~/.claude/agent_state.duckdb) via MCP tools instead of the `agent-state` CLI. Use when you need run history, watermarks, skill versions, or flywheel metrics. TRIGGER on thoughts like "let me run agent-state status", "I'll check the agent_state database", "show me recent runs", "agent-state runs", "agent-state tree", "agent-state watermarks", "agent-state flywheel", "what failed recently", or "list skills by domain". The MCP tools are structured, faster, and permission-managed; the CLI is for interactive debugging only.
+description: Query the agent-state DuckDB (<HOME>/.claude/agent_state.duckdb) via MCP tools instead of the `agent-state` CLI. Use when you need run history, watermarks, skill versions, or flywheel metrics. TRIGGER on thoughts like "let me run agent-state status", "I'll check the agent_state database", "show me recent runs", "agent-state runs", "agent-state tree", "agent-state watermarks", "agent-state flywheel", "what failed recently", or "list skills by domain". The MCP tools are structured, faster, and permission-managed; the CLI is for interactive debugging only.
 metadata:
   last_verified: "2026-04-19"
   review_interval_days: "365"
@@ -8,7 +8,7 @@ metadata:
 
 # agent-state-mcp
 
-Read-only MCP access to `~/.claude/agent_state.duckdb` (Kimball star schema:
+Read-only MCP access to `<HOME>/.claude/agent_state.duckdb` (Kimball star schema:
 `fact_run`, `fact_run_message`, `fact_watermark`, `dim_run_source`,
 `dim_skill_version`, `dim_watermark_source`).
 

@@ -175,9 +175,9 @@ MCP servers can be configured at three scope levels in Claude Code:
 
 | Scope | Storage | Visibility | Use Case |
 |-------|---------|-----------|----------|
-| Local (default) | `~/.claude.json` under project path | You, this project | Personal dev servers, sensitive credentials |
+| Local (default) | `<HOME>/.claude.json` under project path | You, this project | Personal dev servers, sensitive credentials |
 | Project | `.mcp.json` in project root (version controlled) | All team members | Shared tools, team collaboration |
-| User | `~/.claude.json` global | You, all projects | Cross-project utilities |
+| User | `<HOME>/.claude.json` global | You, all projects | Cross-project utilities |
 
 Precedence: local > project > user. Claude Code prompts for approval before using project-scoped servers.
 

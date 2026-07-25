@@ -57,7 +57,7 @@ bun run serve
 
 ### run (stdio transport for Claude Desktop)
 
-Add to Claude Desktop settings (`~/.claude/settings.json` or via UI):
+Add to Claude Desktop settings (`<HOME>/.claude/settings.json` or via UI):
 
 ```json
 {

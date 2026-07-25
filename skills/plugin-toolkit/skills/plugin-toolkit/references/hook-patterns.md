@@ -1,5 +1,7 @@
 # Hook Patterns
 
+<!-- path-privacy: skip-file -->
+
 Common patterns for Claude Code plugin hooks.
 
 ---

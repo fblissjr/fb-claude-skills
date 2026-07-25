@@ -56,7 +56,7 @@ Claude Desktop runs on Electron, whose Node.js runtime has its own CA bundle sep
 launchctl setenv NODE_EXTRA_CA_CERTS "$(mkcert -CAROOT)/rootCA.pem"
 ```
 
-**Linux** (add to `~/.profile`):
+**Linux** (add to `<HOME>/.profile`):
 ```bash
 export NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"
 ```
@@ -161,7 +161,7 @@ Tests cover storage, API client, auth (including token refresh lifecycle), webho
 
 ## data storage
 
-DuckDB database at `~/.readwise-reader/reader.duckdb`. Encrypted token store at `~/.readwise-reader/tokens.enc` (Fernet symmetric encryption, key at `~/.readwise-reader/.key`).
+DuckDB database at `<HOME>/.readwise-reader/reader.duckdb`. Encrypted token store at `<HOME>/.readwise-reader/tokens.enc` (Fernet symmetric encryption, key at `<HOME>/.readwise-reader/.key`).
 
 ## highlight reconciliation
 

@@ -2,7 +2,7 @@ last updated: 2026-04-19
 
 # agent-state-mcp
 
-MCP server (stdio) exposing `~/.claude/agent_state.duckdb` to Claude Code as
+MCP server (stdio) exposing `<HOME>/.claude/agent_state.duckdb` to Claude Code as
 read-only, ergonomic tools. Claude should reach for these instead of shelling
 out to the `agent-state` CLI.
 
@@ -62,7 +62,7 @@ Reload the session (`/mcp` in Claude Code) to pick it up.
 
 | Variable | Purpose |
 |----------|---------|
-| `AGENT_STATE_DB` | Override the DuckDB path (default: `~/.claude/agent_state.duckdb`). |
+| `AGENT_STATE_DB` | Override the DuckDB path (default: `<HOME>/.claude/agent_state.duckdb`). |
 
 ### smoke test
 
@@ -110,7 +110,7 @@ agent-state-mcp server  <-- apps/agent-state-mcp/
 agent-state package     <-- tools/agent-state/
    |
    v  (DuckDB file open)
-~/.claude/agent_state.duckdb  (schema v2)
+<HOME>/.claude/agent_state.duckdb  (schema v2)
 ```
 
 This app does not touch the schema. It re-exports query helpers from

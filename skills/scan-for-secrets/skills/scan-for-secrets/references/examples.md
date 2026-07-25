@@ -1,5 +1,7 @@
 # Usage examples
 
+<!-- path-privacy: skip-file -->
+
 *Last updated: 2026-04-21*
 
 Concrete invocations for common situations.

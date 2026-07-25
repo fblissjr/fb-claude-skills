@@ -81,7 +81,7 @@ configured the next time you open a session in them (lazy retrofit). Requires
 
 ```sh
 printf '{"cwd":"%s"}' "$PWD" | \
-  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh
+  <HOME>/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh
 ```
 
 (or just start a fresh session in that repo.)

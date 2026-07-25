@@ -101,7 +101,7 @@ skill-maintain upstream
 skill-maintain quality
 
 # target a different repo
-skill-maintain quality --dir ~/path/to/other-skill-repo
+skill-maintain quality --dir /path/to/other-skill-repo
 
 # check a single skill's token budget
 skill-maintain measure --skill tui-design
@@ -160,13 +160,13 @@ Run from within fb-claude-skills, targeting the other repo:
 
 ```bash
 # initialize config in the target repo
-skill-maintain init --dir ~/claude/mlx-skills
+skill-maintain init --dir /path/to/other-skill-repo
 
 # validate and check quality
-skill-maintain validate --all --dir ~/claude/mlx-skills
-skill-maintain quality --dir ~/claude/mlx-skills
-skill-maintain freshness --dir ~/claude/mlx-skills
-skill-maintain measure --dir ~/claude/mlx-skills
+skill-maintain validate --all --dir /path/to/other-skill-repo
+skill-maintain quality --dir /path/to/other-skill-repo
+skill-maintain freshness --dir /path/to/other-skill-repo
+skill-maintain measure --dir /path/to/other-skill-repo
 ```
 
 **Option B: git-install (standalone)**
@@ -174,7 +174,7 @@ skill-maintain measure --dir ~/claude/mlx-skills
 Add skill-maintainer as a dependency in the target repo:
 
 ```bash
-cd ~/path/to/other-repo
+cd /path/to/other-repo
 uv add "skill-maintainer @ git+https://github.com/fblissjr/fb-claude-skills#subdirectory=tools/skill-maintainer"
 skill-maintain init
 skill-maintain validate --all
@@ -194,8 +194,8 @@ skill-maintain upstream      # check Anthropic docs for changes
 skill-maintain quality       # see your own repo's health
 
 # 3. apply to target repo (option A shown)
-skill-maintain init --dir ~/claude/other-repo
-skill-maintain quality --dir ~/claude/other-repo
+skill-maintain init --dir /path/to/other-repo
+skill-maintain quality --dir /path/to/other-repo
 
 # 4. fix what the report flags
 #    - add metadata.last_verified to SKILL.md frontmatter

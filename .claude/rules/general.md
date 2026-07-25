@@ -28,7 +28,7 @@ Skills here run in Claude Code, so they follow Claude Code's skill schema -- a s
 
 ## State in repo
 
-`.skill-maintainer/state/` holds per-repo maintenance state (gitignored). Do not use `~/.claude/` for project state.
+`.skill-maintainer/state/` holds per-repo maintenance state (gitignored). Do not use `<HOME>/.claude/` for project state.
 
 ## Non-destructive
 

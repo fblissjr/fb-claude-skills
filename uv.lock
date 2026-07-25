@@ -35,7 +35,7 @@ requires-dist = [
 
 [[package]]
 name = "agent-state-mcp"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "apps/agent-state-mcp" }
 dependencies = [
     { name = "agent-state" },
@@ -1437,7 +1437,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.15.1"
+version = "0.15.2"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

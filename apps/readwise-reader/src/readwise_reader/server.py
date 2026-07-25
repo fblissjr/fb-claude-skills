@@ -36,7 +36,7 @@ USE_TLS = os.environ.get("READWISE_NO_TLS", "").lower() not in ("1", "true", "ye
 PROTOCOL = "https" if USE_TLS else "http"
 SERVER_URL = f"{PROTOCOL}://{HOST}:{PORT}"
 
-# TLS cert paths (mkcert): check project certs/ first, then ~/.readwise-reader/certs/
+# TLS cert paths (mkcert): check project certs/ first, then <HOME>/.readwise-reader/certs/
 _PROJECT_CERTS = Path(__file__).resolve().parent.parent.parent / "certs"
 _HOME_CERTS = Path.home() / ".readwise-reader" / "certs"
 

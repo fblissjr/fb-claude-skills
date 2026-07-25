@@ -29,9 +29,9 @@ claude --plugin-dir /path/to/fb-claude-skills/plugin-toolkit
 ## invocation
 
 ```
-/plugin-toolkit:analyze ~/path/to/plugin
-/plugin-toolkit:polish ~/path/to/plugin
-/plugin-toolkit:feature add ~/my-plugin command "review" "Review code for issues"
+/plugin-toolkit:analyze /path/to/plugin
+/plugin-toolkit:polish /path/to/plugin
+/plugin-toolkit:feature add /path/to/my-plugin command "review" "Review code for issues"
 ```
 
 ## commands

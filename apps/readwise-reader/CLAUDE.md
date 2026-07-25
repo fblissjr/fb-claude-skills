@@ -136,7 +136,7 @@ brew install mkcert && mkcert -install   # one-time
 mkdir -p certs && cd certs && mkcert localhost 127.0.0.1 ::1 && cd ..
 ```
 
-Cert lookup order: `certs/` (project root) then `~/.readwise-reader/certs/`. The server fails with a clear error if no certs are found.
+Cert lookup order: `certs/` (project root) then `<HOME>/.readwise-reader/certs/`. The server fails with a clear error if no certs are found.
 
 ### Claude Desktop setup (one-time)
 
@@ -148,7 +148,7 @@ launchctl setenv NODE_EXTRA_CA_CERTS "$(mkcert -CAROOT)/rootCA.pem"
 # Restart Claude Desktop after running this
 ```
 
-**Linux** (add to ~/.profile or equivalent):
+**Linux** (add to <HOME>/.profile or equivalent):
 ```bash
 export NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"
 ```
@@ -166,10 +166,10 @@ export NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"
 
 ## data locations
 
-- DuckDB database: `~/.readwise-reader/reader.duckdb`
-- Encrypted token store: `~/.readwise-reader/tokens.enc`
-- Encryption key: `~/.readwise-reader/.key` (mode 0600)
-- TLS certs: `certs/` (gitignored) or `~/.readwise-reader/certs/`
+- DuckDB database: `<HOME>/.readwise-reader/reader.duckdb`
+- Encrypted token store: `<HOME>/.readwise-reader/tokens.enc`
+- Encryption key: `<HOME>/.readwise-reader/.key` (mode 0600)
+- TLS certs: `certs/` (gitignored) or `<HOME>/.readwise-reader/certs/`
 
 ## what's not yet implemented
 
