@@ -1,5 +1,21 @@
 # changelog
 
+## 0.91.0
+
+### changed
+- **`postmortem` 0.2.1 → 0.3.0 — postmortems are filed, not buried.** The filing half of [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) is implemented; rendering is deliberately still not started. New `references/filing.md` carries the whole procedure and `references/report-format.md`'s location section shrinks to a pointer, since it held an abbreviated copy of the same ladder.
+
+  **The directory is resolved, never hardcoded, and the run says which rung it landed on.** `--out=<dir>` or a location named in the request, then a root-level `.postmortem.json`, then inference from where the repo already keeps prose about itself, then propose-and-remember. Only the last rung blocks. Inference picks the *parent* and the leaf is always `postmortems/`, so a repo with `internal/log/` gets `internal/postmortems/` and inherits that parent's tracked-ness — gitignored parent means the postmortems are local scratch, which is an answer rather than an oversight. Config is the plugin's own `.postmortem.json`, following the "Per-repo plugin config" convention in `plugin-patterns.md`; the design doc's open question leaned toward a shared per-repo config and that was rejected. One shared file would couple plugins that release independently, and there is exactly one consumer.
+
+  **`artifacts` is a projection of the citations, not free metadata.** Every entry in the frontmatter list must be cited in the body and every artifact cited in the body must appear in the list, which makes the field checkable rather than decorative — the two sets disagreeing means one of them is wrong. It also gives the no-citation-no-finding rule a mechanical consequence at file level: a findings-bearing postmortem with an empty `artifacts` list is a contradiction. That field is the reason the whole scheme needs no index file: "has anything been written about this plugin" is one grep, and an index would be a copy whose only consumer is the check that it matches the directory.
+
+  Frontmatter also carries `mode` / `scope` / `date`, `range` for spans, and an optional single-valued `supersedes`. A span's *filename* date is the start of its range, not the day it was written, so lexical sort stays chronological by subject; the write date lives in `date:`. Annotate-versus-supersede got the test it lacked: if the old document's verdicts still stand and one is now wrong, annotate it; if its whole framing has been overtaken, write a new file that supersedes it. Cross-linking is one direction only — a plan doc gets a pointer to the postmortem, and nothing links back, because `artifacts` already records everything the run examined.
+
+  Tested by running the ladder against two repo shapes. A repo with a session-log directory resolved at rung 3 and wrote beside it; a repo with no prose anywhere blocked at rung 4 and created nothing, which is the correct output. The second fixture found a gap in the first draft: rung 4 now has to state whether the proposed location would be tracked or gitignored, because rung 3 reads that off a sibling directory and rung 4 has no sibling to read.
+
+  `argument-hint` gains `[--out=<dir>]` and keeps its positional mode and scope; the design doc's full switch to flags belongs with the format work, since `--format` is what positional arguments actually cannot carry.
+
+
 ## 0.90.0
 
 ### changed

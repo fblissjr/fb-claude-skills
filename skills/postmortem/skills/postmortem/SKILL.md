@@ -1,6 +1,6 @@
 ---
 name: postmortem
-argument-hint: "[session|span|feature] [scope]"
+argument-hint: "[session|span|feature] [scope] [--out=<dir>]"
 arguments:
   - mode
   - scope
@@ -31,8 +31,9 @@ Chosen by the argument:
   current conversation — decisions made, errors hit, detours taken, bugs found
   and fixed, commands that failed, assumptions that turned out wrong.
 - **Span mode** (an argument naming a feature, git range, plan doc, or "the
-  last N sessions"): the evidence base is the repository record. Gather, in
-  order of value:
+  last N sessions"): the evidence base is the repository record. A span scoped
+  to a named feature rather than a date range files as mode `feature`; the
+  method is identical. Gather, in order of value:
   1. The plan doc, if one exists (needed for the deviations table).
   2. `git log` over the range — commits, messages, what was reverted or
      re-fixed.
@@ -59,6 +60,15 @@ record first; do not reconstruct the span from memory of it.
 
 ## Writing the report
 
-The section-by-section format, the file-naming rule, and the table for routing
-each kind of finding afterwards are in `references/report-format.md`. Read it
-when you start writing, not when deciding whether to run one.
+The section-by-section format and the table for routing each kind of finding
+afterwards are in `references/report-format.md`. Read it when you start
+writing, not when deciding whether to run one.
+
+**A postmortem is always a standalone file**, never a section appended to a
+plan doc. Where it goes is resolved per repo — an `--out=<dir>` flag, a
+root-level `.postmortem.json`, or inference from where that repo already keeps
+prose about itself — and with no signal at all you propose a location rather
+than creating one. The naming rule `YYYY-MM-DD_<mode>_<slug>.md` and the
+required frontmatter (including the `artifacts` list, which must match the
+body's citations exactly) are in `references/filing.md`. Read it before
+writing the file.

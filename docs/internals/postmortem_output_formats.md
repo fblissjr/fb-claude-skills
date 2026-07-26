@@ -1,7 +1,11 @@
 # Postmortem output formats — design for a future pass
 
 last updated: 2026-07-26
-status: **not started.** Design only. Nothing below is implemented.
+status: **filing implemented in `postmortem` 0.3.0; rendering not started.**
+Everything under "Where postmortems live" now ships in
+`skills/postmortem/skills/postmortem/references/filing.md`, which is the
+authority — this doc records why, not what. Everything above it is still design
+only.
 
 Two separable problems, deliverable independently: **rendering** a postmortem in
 more than one format from a single analysis, and **filing** postmortems so a
@@ -223,16 +227,26 @@ duplicate rule when a later postmortem revisits the same scope.
 - Derived renderings sit beside the markdown with the same stem, wherever that
   resolved to, so the location logic runs once rather than per format.
 
-### Open questions (location)
+### Open questions (location) — resolved in 0.3.0
 
-- Does postmortem read `.dev-conventions.json`, ship its own config file, or
-  should there be one shared per-repo config that any of these plugins can read?
-  A third file per plugin does not scale; a shared one couples them. Leaning
-  shared, with namespaced keys.
-- Should the session log link the postmortem, the postmortem link the session
-  log, or both? One direction is enough; two will drift.
-- Is `supersedes` sufficient, or does a long-running scope need a chain the way
-  `marketplace.json` `renames` does?
+- **Config: its own `.postmortem.json`.** The shared-config lean was rejected.
+  One file coupling plugins that release independently forces a schema versioned
+  across all of them, and there is exactly one consumer. The convention that
+  stops the third plugin inventing a third format is written in
+  `plugin-patterns.md`, and three files agreeing on structure migrate
+  mechanically if they ever become painful.
+- **Cross-link direction: plan doc → postmortem, nothing back.** The plan doc is
+  where a reader already knows to look. The session log gets no inbound link
+  because the postmortem's `artifacts` list already records it.
+- **`supersedes` stays a single value.** A chain is recovered by following the
+  pointers; storing it would be a copy whose only consumer is the check that it
+  matches them — the same reasoning that removed the index file.
+
+Two things the implementation added that this design did not have: the
+`artifacts` list is specified as a *projection of the body's citations* rather
+than free metadata, which makes it checkable; and rung 4 must state whether the
+proposed directory would be tracked or gitignored, because rungs 1–3 inherit
+that answer and rung 4 has nothing to inherit it from.
 
 ## Prior art in this repo
 

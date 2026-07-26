@@ -33,6 +33,7 @@ the same run's verification lessons.
 ```
 /postmortem:postmortem                # this session
 /postmortem:postmortem <feature|range|plan doc|"last N sessions">
+/postmortem:postmortem span auth-migration --out=docs/postmortems
 /postmortem:test-audit                # audit the current repo's suite
 ```
 
@@ -49,6 +50,25 @@ tests are dead weight".
   bridge between the two skills: repeated green-but-blind escapes in
   postmortems are the trigger for a full test-audit.
 - Test deletions are recommended with evidence, never applied unasked.
+- A postmortem is a standalone file, never a section appended to a plan doc.
+  The directory is resolved per repo rather than hardcoded — `--out=<dir>`, a
+  root-level `.postmortem.json`, inference from where the repo already keeps
+  prose about itself, else a proposal — and the run reports which rung it landed
+  on. Named `YYYY-MM-DD_<mode>_<slug>.md`, date first so lexical sort is
+  chronological. Frontmatter carries an `artifacts` list that must match the
+  body's citations exactly, which is what makes "has anything been written about
+  this file" a one-line grep and why there is deliberately no index file. Full
+  procedure: `skills/postmortem/references/filing.md`.
+
+## Configuration
+
+Optional, root-level, tracked. Only ever states exceptions:
+
+```json
+{ "dir": "docs/postmortems" }
+```
+
+Without it, the location is inferred or proposed. Most repos never need it.
 
 ## Planned, not built
 
@@ -57,3 +77,4 @@ style of the user's choosing, from a single analysis pass. Styling is meant to
 be pluggable and optional; no styler is a hard dependency. Design, constraints
 that must survive a rewrite, and open questions:
 [docs/internals/postmortem_output_formats.md](../../docs/internals/postmortem_output_formats.md).
+The filing half of that document ships as of 0.3.0; rendering does not.
