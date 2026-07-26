@@ -1,4 +1,4 @@
-last updated: 2026-07-24
+last updated: 2026-07-26
 
 # dev-conventions
 
@@ -39,7 +39,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 
 All injected content lives in `hooks/directives/` as standalone `.md` files. The hook concatenates whichever directives match and returns them as a single `additionalContext` block.
 
-To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/dev-conventions-session-start.sh`.
 
 ## skills
 

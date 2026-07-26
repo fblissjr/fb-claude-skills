@@ -1,6 +1,6 @@
 # postmortem
 
-*Last updated: 2026-07-24*
+*Last updated: 2026-07-26*
 
 Evidence-grounded retrospectives. One skill runs a postmortem of finished work
 — a session, a feature, or a span of sessions mined from git history, session

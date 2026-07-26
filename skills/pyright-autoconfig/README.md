@@ -1,6 +1,6 @@
 # pyright-autoconfig
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 A one-hook plugin that makes the Claude Code **Pyright LSP** quiet and useful in
 every Python project, on every machine, without per-repo setup.
@@ -66,6 +66,7 @@ replicate by hand on another machine.
 - **Silent** — emits no stdout, so it injects nothing into context. Two
   exceptions: a missing `jq` (one stderr line, then it skips), and the one-time
   handoff notice.
+- **Scoped** — a fast no-op outside Python projects (a few `stat`s, then exit).
 
 ### Taking your config back
 
@@ -94,7 +95,6 @@ venvPath = "."
 venv = ".venv"
 reportMissingImports = "none"
 ```
-- **Scoped** — a fast no-op outside Python projects (a few `stat`s, then exit).
 
 ## Install
 
@@ -111,7 +111,7 @@ configured the next time you open a session in them (lazy retrofit). Requires
 
 ```sh
 printf '{"cwd":"%s"}' "$PWD" | \
-  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh  # path-privacy: ignore
+  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/pyright-autoconfig-session-start.sh  # path-privacy: ignore
 ```
 
 (or just start a fresh session in that repo.)
@@ -120,7 +120,7 @@ printf '{"cwd":"%s"}' "$PWD" | \
 
 The default `reportMissingImports: "none"` trades away the "you typo'd an import
 name" catch for silence. If you'd rather keep that signal, edit
-`hooks/session-start.sh` to write `"warning"` instead — but note Claude Code
+`hooks/pyright-autoconfig-session-start.sh` to write `"warning"` instead — but note Claude Code
 surfaces warnings too, so that will **not** reduce what the model sees; `"none"`
 is the only value that actually removes the diagnostic. To also silence unused
 variable/import hints (the `DiagnosticTag.Unnecessary` spam, upstream issue

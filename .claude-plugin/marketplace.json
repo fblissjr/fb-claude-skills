@@ -17,7 +17,7 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Dimensional modeling for analytical schemas: grain-first design, append-only facts, SCD Type 2 dimensions, conformed dimensions instead of fact-to-fact joins. A skill you invoke when designing a schema -- it ships no SessionStart hook, because the principles are needed at a decision point the model can recognise, not before the first action of every session.",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "mece-decomposer",
@@ -35,7 +35,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions in three tiers: a PreToolUse hook blocks pip in uv projects, npm/yarn/pnpm in bun projects, and hand-edited lockfiles; a small SessionStart directive carries only the preferences no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides live in a tracked .dev-conventions.json -- disable a block or add house rules with /dev-conventions:configure.",
-      "version": "0.12.3"
+      "version": "0.12.4"
     },
     {
       "name": "readwise-reader",
@@ -53,7 +53,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.16.3"
+      "version": "0.16.4"
     },
     {
       "name": "json-query",
@@ -71,13 +71,13 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
-      "version": "0.10.1"
+      "version": "0.10.2"
     },
     {
       "name": "writing",
       "source": "./skills/writing",
       "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "model-routing",
@@ -89,19 +89,19 @@
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     },
     {
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.2.0"
+      "version": "0.2.1"
     },
     {
       "name": "ruff-diagnostics",
       "source": "./skills/ruff-diagnostics",
       "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
-      "version": "0.1.3"
+      "version": "0.1.4"
     }
   ],
   "renames": {

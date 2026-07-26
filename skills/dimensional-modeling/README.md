@@ -1,4 +1,4 @@
-last updated: 2026-03-31
+last updated: 2026-07-26
 
 # dimensional-modeling
 
@@ -34,7 +34,7 @@ The hook looks for: `duckdb` imports in `.py` files, `.duckdb` files in the proj
 
 All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
 
-To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
+This plugin ships no hook. The SessionStart directive was removed on 2026-07-26: dimensional modelling is a technique you reach for when designing a schema, not a convention needed before the first action of a session, so the methodology lives in the skill and loads on demand.
 
 ## skills
 

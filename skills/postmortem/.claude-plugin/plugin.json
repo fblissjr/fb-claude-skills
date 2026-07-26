@@ -1,6 +1,6 @@
 {
   "name": "postmortem",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Evidence-grounded retrospectives: session and span postmortems of finished work, plus a test-suite audit that checks whether green tests still mean anything",
   "author": {
     "name": "Fred Bliss"

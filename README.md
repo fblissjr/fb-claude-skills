@@ -1,4 +1,4 @@
-last updated: 2026-07-24
+last updated: 2026-07-26
 
 # fb-claude-skills
 
@@ -14,12 +14,13 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
-| [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
-| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved global or per-project profile. |
+| [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; a small SessionStart directive carries only what no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides in a tracked `.dev-conventions.json`. |
+| [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas. A skill you invoke when designing a schema -- the SessionStart hook was removed, since the principles are needed at a decision point rather than before every session. |
+| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. Both split into a short body plus `references/`. |
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
-| [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
+| [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, self-heals once `.venv` appears, and retracts its config when the project declares its own `[tool.pyright]` |
+| [ruff-diagnostics](skills/ruff-diagnostics/) | Hook | Runs Ruff on each edited Python file and reports findings. A hook rather than an LSP because Claude Code starts only one language server per file extension, so `ruff server` cannot run alongside pyright. Silent on clean files. |
 
 ### decomposition & model routing
 
@@ -81,6 +82,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
+/plugin install ruff-diagnostics@fb-claude-skills
 /plugin install skill-dashboard@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills

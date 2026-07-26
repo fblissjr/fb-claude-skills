@@ -42,10 +42,15 @@ Ordered to prefer the project's pinned Ruff, and to never change your environmen
 
 | Order | Form | When |
 |---|---|---|
-| 1 | `uv run --no-sync ruff` | Ruff is installed in the project env. Matches what CI runs. |
-| 2 | `ruff` | A global install is on `PATH`. |
-| 3 | `uvx ruff@latest` | Nothing else available. Output says so — results may not match the project's CI. |
-| 4 | *(skip)* | No `uv` and no `ruff`. Silent no-op. |
+| 1 | `.venv/bin/ruff` | The project's own Ruff, found by a `stat`. No subprocess at all. |
+| 2 | `uv run --no-sync ruff` | Ruff is in the project env but not at that path. Matches what CI runs. |
+| 3 | `ruff` | A global install is on `PATH`. |
+| 4 | `uvx ruff@latest` | Nothing else available. Output says so — results may not match the project's CI. |
+| 5 | *(skip)* | No `uv` and no `ruff`. Silent no-op. |
+
+Rung 1 exists because this fires on every Python edit and rung 2 costs a full
+`uv run` environment resolution just to answer a question the filesystem already
+answers.
 
 `uv run` **without** `--no-sync` syncs the project environment before running — observed installing 24 packages into a project that merely lacked Ruff. A diagnostic hook must not do that, so every probe uses `--no-sync`.
 
@@ -84,7 +89,7 @@ Edit any Python file with a lint issue and watch for the Ruff summary. To exerci
 
 ```bash
 echo '{"session_id":"test","tool_input":{"file_path":"'"$PWD"'/some_file.py"}}' \
-  | bash skills/ruff-diagnostics/hooks/post-edit-ruff.sh
+  | bash skills/ruff-diagnostics/hooks/ruff-diagnostics-post-edit-ruff.sh
 ```
 
 A clean file in a project without a `select` list prints nothing. That is correct.
