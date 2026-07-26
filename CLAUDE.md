@@ -49,7 +49,6 @@ These bite on the first edit if you don't know them.
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
 | MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |
 | MCP protocol | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md) (verified current) |
-| MCP Apps / UI | `skills/mcp-apps/references/` — the official spec, shipped as a plugin |
 | Current upstream Claude Code docs | `skill-maintain upstream`, then `.skill-maintainer/state/pages/` (gitignored). Nothing upstream is copied into this repo |
 | DuckDB schema (agent-state, readwise-reader) | `tools/agent-state/README.md`, `apps/readwise-reader/CLAUDE.md` |
 | Repo layout, plugins table, install commands | [README.md](README.md) |

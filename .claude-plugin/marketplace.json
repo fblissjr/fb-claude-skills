@@ -8,12 +8,6 @@
   },
   "plugins": [
     {
-      "name": "mcp-apps",
-      "source": "./skills/mcp-apps",
-      "description": "Skills for building and migrating MCP Apps with interactive UIs",
-      "version": "0.1.1"
-    },
-    {
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
       "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
@@ -130,6 +124,7 @@
   ],
   "renames": {
     "env-forge": null,
-    "tui-design": null
+    "tui-design": null,
+    "mcp-apps": null
   }
 }

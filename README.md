@@ -43,7 +43,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [mcp-apps](skills/mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 | [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 
@@ -77,7 +76,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 # Install individual plugins
 /plugin install mece-decomposer@fb-claude-skills
-/plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
@@ -170,8 +168,6 @@ Once installed, invoke as namespaced slash commands:
 /mece-decomposer:validate     # Check MECE compliance and scores
 /mece-decomposer:export       # Generate Agent SDK Python scaffolding
 
-/mcp-apps:create-mcp-app      # Build an MCP App from scratch
-/mcp-apps:migrate-oai-app     # Migrate from OpenAI Apps SDK
 
 /plugin-toolkit                # Analyze and manage plugins
 /cogapp-markdown               # Auto-generate markdown docs
