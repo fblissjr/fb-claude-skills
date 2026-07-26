@@ -71,7 +71,7 @@
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
-      "version": "0.1.3"
+      "version": "0.1.4"
     },
     {
       "name": "path-privacy",
@@ -83,13 +83,13 @@
       "name": "writing",
       "source": "./skills/writing",
       "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
-      "version": "0.3.0"
+      "version": "0.4.0"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
       "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     },
     {
       "name": "pyright-autoconfig",
@@ -101,7 +101,7 @@
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.1.1"
+      "version": "0.1.2"
     },
     {
       "name": "ruff-diagnostics",

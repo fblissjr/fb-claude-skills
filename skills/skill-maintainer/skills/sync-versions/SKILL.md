@@ -1,6 +1,6 @@
 ---
 name: sync-versions
-argument-hint: "<plugin> <version>"
+argument-hint: "[plugin] [version]"
 arguments:
   - plugin
   - version
@@ -8,7 +8,7 @@ description: >-
   Bump a plugin's version across all sources (plugin.json, marketplace.json,
   CHANGELOG.md, pyproject.toml) atomically. SKILL.md is deliberately NOT one of
   them. Use when the user says "sync versions",
-  "bump version", "align versions", or "/sync-versions <plugin> <version>".
+  "bump version", "align versions", or "/sync-versions path-privacy 0.9.0".
   Pass plugin name and target version as arguments.
 metadata:
   last_verified: "2026-07-21"

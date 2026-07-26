@@ -1,5 +1,9 @@
 ---
 name: postmortem
+argument-hint: "[session|span|feature] [scope]"
+arguments:
+  - mode
+  - scope
 description: "Evidence-grounded postmortem of finished work — a session, a feature, or a span of sessions. Recovers what went well, what did not, deviations from plan, and test escapes; every finding must cite a concrete artifact, and empty sections are valid output. Use when the user says 'postmortem', 'run a postmortem', 'retrospective', 'what went well', 'what would you do differently', or wants a look back at a completed plan, task, bugfix, feature, or run of sessions. Span mode mines git history, session logs, and changelogs. Do NOT use for auditing a test suite (use test-audit) or for drafting a session log."
 metadata:
   last_verified: "2026-07-24"
