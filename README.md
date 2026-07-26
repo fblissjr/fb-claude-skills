@@ -15,7 +15,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
-| [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved global or per-project profile. |
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
@@ -75,7 +74,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 # Install individual plugins
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
-/plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
@@ -166,7 +164,6 @@ Once installed, invoke as namespaced slash commands:
 
 
 /plugin-toolkit                # Analyze and manage plugins
-/cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
 
 /dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
@@ -284,8 +281,6 @@ Highlights:
 ## credits
 
 - Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
-- cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 - scan-for-secrets built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets) (Apache 2.0) — all literal-matching and escape-variant logic is his work
-- MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
-- env-forge (deprecated 2026-07-21, kept in `apps/_deprecated/`) built on the synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
+- env-forge (removed 2026-07-26; in git history) built on the synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs

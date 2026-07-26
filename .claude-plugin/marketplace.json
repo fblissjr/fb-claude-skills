@@ -14,12 +14,6 @@
       "version": "0.2.2"
     },
     {
-      "name": "cogapp-markdown",
-      "source": "./skills/cogapp-markdown",
-      "description": "Auto-generate markdown sections using cogapp",
-      "version": "0.1.1"
-    },
-    {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Dimensional modeling for analytical schemas: grain-first design, append-only facts, SCD Type 2 dimensions, conformed dimensions instead of fact-to-fact joins. A skill you invoke when designing a schema -- it ships no SessionStart hook, because the principles are needed at a decision point the model can recognise, not before the first action of every session.",
@@ -59,7 +53,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.16.0"
+      "version": "0.16.1"
     },
     {
       "name": "json-query",
@@ -101,7 +95,7 @@
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.1.2"
+      "version": "0.1.3"
     },
     {
       "name": "ruff-diagnostics",
@@ -115,6 +109,7 @@
     "tui-design": null,
     "mcp-apps": null,
     "explainer-video": null,
-    "screenwright": null
+    "screenwright": null,
+    "cogapp-markdown": null
   }
 }
