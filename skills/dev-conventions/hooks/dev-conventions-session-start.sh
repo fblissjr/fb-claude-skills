@@ -95,10 +95,11 @@ done
 
 [ -z "$CONTEXT" ] && exit 0
 
-JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
+# Attribution marker. hook_additional_context records name only the EVENT,
+# so without this an injected block cannot be traced back to its plugin.
+JSON_CONTEXT=$(printf '[plugin:dev-conventions]\n%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
-<!-- plugin: dev-conventions -->
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",

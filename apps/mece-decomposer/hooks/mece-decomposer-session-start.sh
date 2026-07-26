@@ -47,10 +47,11 @@ done
 
 [ -z "$CONTEXT" ] && exit 0
 
-JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
+# Attribution marker. hook_additional_context records name only the EVENT,
+# so without this an injected block cannot be traced back to its plugin.
+JSON_CONTEXT=$(printf '[plugin:mece-decomposer]\n%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
-<!-- plugin: mece-decomposer -->
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",

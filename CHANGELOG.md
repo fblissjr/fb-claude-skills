@@ -18,6 +18,12 @@
 
 - **SessionStart emissions now carry a `<!-- plugin: NAME -->` first line.** The other half of the same problem: `hook_additional_context` records carry only the *event* name, so an injected block could not be traced to the plugin that produced it — 201,144 bytes of it in one project, filed under `context via SessionStart`. Roughly 24 characters buys exact attribution. `path-privacy` already did this by accident with its `skip-file` marker; it is now a convention rather than a coincidence.
 
+- **`dimensional-modeling` 0.4.2 → 0.5.0 — SessionStart hook removed; it is a skill you invoke, not a convention you need before acting.** It fired on any `.duckdb` file within three levels, `CREATE TABLE ... fact_/dim_` in SQL, **or `import duckdb` in any `.py`** — which is true of this repo's own `agent-state` and of `readwise-reader`, neither of which is designing a star schema. 906 bytes per session, in any project that touches duckdb, and the payload's own last line was "For full methodology... invoke /dimensional-modeling:dimensional-modeling": an always-loaded advertisement for a skill that already exists.
+
+  **This corrects the tier test recorded earlier in this release.** Detection-gating makes a hook *cheaper*, not *justified*; the question is whether the content must arrive **unprompted**. "Always use uv" must — you would run `pip` before thinking to check. "Grain first, facts are append-only" must not — the model can recognise that it is designing a schema, which is exactly what a skill description is for. The skill is unchanged and keeps the full methodology.
+
+- **The SessionStart attribution marker briefly broke three hooks, caught by testing the output rather than the diff.** The marker was first emitted as an HTML comment *before* the JSON envelope, which made stdout unparseable — silently killing the entire injection for `dev-conventions`, `dimensional-modeling`, and `mece-decomposer` rather than failing loudly. It now rides inside the `additionalContext` value as `[plugin:NAME]`, applied where the content is assembled rather than by pattern-matching the emit site, and all three are verified to parse.
+
 ### removed
 - **`tui-design` deleted.** Old, unused, and its skills were never invoked once across 200 transcripts. Dropped from `marketplace.json` with a `renames` entry to `null`, and swept out of the README, four skill-maintainer docs that used it as their worked example, and the drift backlog.
 
