@@ -97,6 +97,19 @@ done
 
 # Attribution marker. hook_additional_context records name only the EVENT,
 # so without this an injected block cannot be traced back to its plugin.
+# Per-repo house rules, appended to the shipped defaults. Always-loaded text,
+# so the configure skill pushes back on anything enforceable or already known.
+CFG="$CWD/.dev-conventions.json"
+if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
+  EXTRA=$(jq -r '.rules[]? | "- " + .' "$CFG" 2>/dev/null)
+  if [ -n "$EXTRA" ]; then
+    CONTEXT="${CONTEXT}
+## This repo's own conventions
+${EXTRA}
+"
+  fi
+fi
+
 JSON_CONTEXT=$(printf '[plugin:dev-conventions]\n%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF

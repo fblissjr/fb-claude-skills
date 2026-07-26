@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-26
 
 # Upstream drift backlog
 
@@ -11,6 +11,56 @@ quietly lost.
 
 Re-derive with: `skill-maintain upstream`, then diff
 `.skill-maintainer/state/pages/*.md` against the previous snapshot.
+
+## Identified 2026-07-26, not yet absorbed
+
+From a three-agent read of `skills`, `sub-agents`, `plugins-reference`, `hooks`,
+`hooks-guide`, `debug-your-config`, `best-practices`, `large-codebases`,
+`memory`, and the Claude 5 context-engineering post. Everything that changed a
+decision was applied at the time; this is the remainder, recorded so it is not
+rediscovered expensively.
+
+**Hook capabilities we do not use**
+
+- `PreToolUse` can return `updatedInput`, rewriting a tool's arguments before it
+  runs rather than only allowing or denying. Directly relevant to `path-privacy`:
+  a leaking path could be *corrected* instead of blocked, turning a failed call
+  into a silent fix. Weigh against surprise — silently rewriting what the model
+  asked for is its own hazard.
+- Hook `type` is not only `command`: `prompt` (LLM-evaluated, Haiku by default),
+  `agent` (experimental), and `http` (POSTs to an endpoint) exist. An entire
+  category we have never considered; a `prompt` hook could judge things a shell
+  script cannot pattern-match.
+- Hook output — `additionalContext`, `systemMessage`, plain stdout, exit-2
+  stderr — is capped at **10,000 characters**, then spilled to a file and
+  replaced with a preview plus path. Our `ruff-diagnostics` caps its own output
+  at 12 findings, which keeps it clear of this, but nothing enforces that.
+- `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` and an 8-consecutive-block cap on `Stop`.
+
+**Skill frontmatter we do not use**
+
+- `paths`: glob patterns limiting a skill's auto-activation to matching files.
+  This is the targeted alternative to a detection-gated SessionStart hook, and
+  would have been the right shape for `dimensional-modeling` had we kept a
+  trigger at all.
+- `context: fork` runs a skill in a forked subagent, defaulting to background
+  since v2.1.218 — relevant to anything long-running we currently do inline.
+- `disable-model-invocation` also blocks subagent preloading and scheduled-task
+  auto-run, not just the `/` menu.
+
+**Plugin mechanics**
+
+- `${CLAUDE_PLUGIN_DATA}` is a persistent per-plugin directory that survives
+  updates, unlike `${CLAUDE_PLUGIN_ROOT}` which changes on every update. The
+  documented pattern is diffing a bundled manifest against a copy there to
+  detect dependency changes across versions.
+- Plugins can ship `bin/`, added to the Bash tool's PATH as bare commands.
+
+**Practice, not mechanics**
+
+- Re-audit rules written for older models. Now invariant 1c, but see the note in
+  `.skill-maintainer/best_practices.md` — stating a practice is not the same as
+  triggering it, and this one still has no recurring prompt beyond that entry.
 
 ## Already applied (do not redo)
 

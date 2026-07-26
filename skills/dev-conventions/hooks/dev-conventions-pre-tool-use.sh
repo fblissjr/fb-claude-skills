@@ -53,9 +53,27 @@ done
 
 block() { printf '%s\n' "$1" >&2; exit 2; }
 
+# Per-repo overrides. The plugin ships the defaults -- uv for Python, bun for
+# JS -- and a repo that genuinely differs says so in a tracked file rather than
+# reaching for DEV_CONVENTIONS_ALLOW=1, which disables everything everywhere for
+# one call. Omitted keys stay enabled, so the file only ever states exceptions.
+CFG="$root/.dev-conventions.json"
+enforced() {
+  [ -f "$CFG" ] || return 0
+  # NOT `.enforce[$k] // empty`: jq's `//` treats `false` as absent, so the
+  # alternative fires on exactly the value this check exists to read, and every
+  # override silently did nothing. Ask whether the key is present, then read it.
+  v=$(jq -r --arg k "$1" \
+      'if (.enforce? | type) == "object" and (.enforce | has($k))
+       then (.enforce[$k] | tostring) else "" end' "$CFG" 2>/dev/null)
+  [ "$v" = "false" ] && return 1
+  return 0
+}
+
 # --- Lockfile edits -----------------------------------------------------------
 if [ "$TOOL" = "Edit" ] || [ "$TOOL" = "Write" ] || [ "$TOOL" = "NotebookEdit" ]; then
   FILE=$(printf '%s' "$IN" | jq -r '.tool_input.file_path // ""' 2>/dev/null)
+  enforced lockfile-edits || exit 0
   case "$(basename "${FILE:-}")" in
     uv.lock)
       block "Blocked: uv.lock is generated, not edited.
@@ -79,7 +97,7 @@ NORM=$(printf '%s' "$CMD" | tr '\n\t' '  ' | tr -s ' ')
 # --- Python: pip in a uv project ----------------------------------------------
 # Requires uv.lock. A pyproject.toml alone is not evidence -- plenty of pip
 # projects have one.
-if [ -f "$root/uv.lock" ]; then
+if [ -f "$root/uv.lock" ] && enforced python-package-manager; then
   case " $NORM " in
     *" pip install "*|*" pip3 install "*|*"-m pip install "*|\
     *" pip uninstall "*|*" pip3 uninstall "*|*"-m pip uninstall "*)
@@ -97,7 +115,7 @@ fi
 # --- JS: npm/yarn/pnpm in a bun project ---------------------------------------
 # Requires bun.lock AND the absence of a competing lockfile, so a repo that
 # genuinely uses both is left alone.
-if [ -f "$root/bun.lock" ] || [ -f "$root/bun.lockb" ]; then
+if { [ -f "$root/bun.lock" ] || [ -f "$root/bun.lockb" ]; } && enforced js-package-manager; then
   if [ ! -f "$root/package-lock.json" ] && [ ! -f "$root/yarn.lock" ] && [ ! -f "$root/pnpm-lock.yaml" ]; then
     case " $NORM " in
       *" npm install "*|*" npm i "*|*" npm add "*|*" npm ci "*|*" npm uninstall "*|\
