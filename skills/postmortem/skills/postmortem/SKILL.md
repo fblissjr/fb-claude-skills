@@ -1,6 +1,6 @@
 ---
 name: postmortem
-argument-hint: "[session|span|feature] [scope] [--out=<dir>]"
+argument-hint: "[session|span|feature] [scope] [--html] [--out=<dir>]"
 arguments:
   - mode
   - scope
@@ -72,3 +72,8 @@ than creating one. The naming rule `YYYY-MM-DD_<mode>_<slug>.md` and the
 required frontmatter (including the `artifacts` list, which must match the
 body's citations exactly) are in `references/filing.md`. Read it before
 writing the file.
+
+Markdown is the postmortem and is always written. `--html` additionally renders
+a self-contained HTML file beside it with the same stem — a transform of the
+markdown just written, never a second analysis. Read
+`references/html-render.md` only when that flag is passed.

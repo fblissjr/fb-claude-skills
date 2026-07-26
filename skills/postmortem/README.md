@@ -34,6 +34,7 @@ the same run's verification lessons.
 /postmortem:postmortem                # this session
 /postmortem:postmortem <feature|range|plan doc|"last N sessions">
 /postmortem:postmortem span auth-migration --out=docs/postmortems
+/postmortem:postmortem --html         # markdown plus a readable HTML file
 /postmortem:test-audit                # audit the current repo's suite
 ```
 
@@ -70,11 +71,26 @@ Optional, root-level, tracked. Only ever states exceptions:
 
 Without it, the location is inferred or proposed. Most repos never need it.
 
-## Planned, not built
+## HTML output
 
-Multi-format output — markdown by default, HTML or HTML/JS on request, in a
-style of the user's choosing, from a single analysis pass. Styling is meant to
-be pluggable and optional; no styler is a hard dependency. Design, constraints
-that must survive a rewrite, and open questions:
+Markdown is the postmortem and is always written. `--html` adds a second file
+beside it with the same stem — a transform of the markdown just written, not a
+second analysis, so the two cannot disagree.
+
+The HTML is self-contained: embedded CSS, light and dark, no external requests
+of any kind and no JavaScript. It reads offline and survives being sent to
+someone who will never clone the repo. There is no `--style` flag and no styler
+integration; one built-in stylesheet is the whole design.
+
+Empty sections render visibly rather than collapsed, citations are never trimmed,
+and annotations render distinctly from the findings they correct.
+
+Rendering a postmortem from an earlier run is not a designed capability — the
+report format is a house style, not a parse contract. Run a new postmortem
+instead.
+
+`test-audit` is markdown only.
+
+Why it is shaped this way, and which of the original design's recommendations
+were rejected on contact with the implementation:
 [docs/internals/postmortem_output_formats.md](../../docs/internals/postmortem_output_formats.md).
-The filing half of that document ships as of 0.3.0; rendering does not.

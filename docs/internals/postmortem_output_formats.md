@@ -1,11 +1,22 @@
 # Postmortem output formats — design for a future pass
 
 last updated: 2026-07-26
-status: **filing implemented in `postmortem` 0.3.0; rendering not started.**
-Everything under "Where postmortems live" now ships in
-`skills/postmortem/skills/postmortem/references/filing.md`, which is the
-authority — this doc records why, not what. Everything above it is still design
-only.
+status: **both halves implemented.** Filing in `postmortem` 0.3.0, rendering in
+0.4.0. The skill's own references are the authority —
+`references/filing.md` and `references/html-render.md`. This doc now records
+only *why*, and several of its recommendations were rejected on contact with the
+implementation; each is marked below. Read it for the reasoning, not the spec.
+
+**The largest correction.** This document's central claim — that the analysis/
+render split "is the whole design decision. Everything else follows from it" —
+was wrong, and it was wrong because the doc reasoned about renderers as if they
+were separate processes. They are not. There is one model in one turn, and HTML
+is only ever produced in the run that writes the markdown, so "two renderings
+can disagree" is prevented by a rule (render what you just wrote, never
+re-analyse) rather than by a data structure. The structured intermediate, the
+sidecar-versus-frontmatter question, and the styler-composition ladder were all
+answers to a question the shipped feature does not ask. What survived is the
+constraint list, which was the genuinely load-bearing part.
 
 Two separable problems, deliverable independently: **rendering** a postmortem in
 more than one format from a single analysis, and **filing** postmortems so a
@@ -119,16 +130,33 @@ These are load-bearing in the current skill and easy to lose in a rewrite:
 - **Finding routing survives.** The "what should outlive this document" step is
   independent of format and must run once, not per renderer.
 
-## Open questions (formats)
+## Open questions (formats) — resolved in 0.4.0
 
-- Should `--format=html` alone (without `md`) be allowed, or is markdown always
-  written because it is the machine-readable record? Leaning: always write
-  markdown, treat other formats as additional.
-- Does `test-audit`, the sibling skill, want the same treatment? Its output is
-  more tabular and may benefit more from HTML than the narrative postmortem does.
-- Where do multi-format outputs live? Same directory as the markdown, or a
-  subdirectory once there are three of them?
-- Is there a case for a terminal-friendly format distinct from markdown?
+- **Markdown is always written; there is no HTML-only mode.** The lean was
+  right, but for a firmer reason than "it is the machine-readable record":
+  filing made the markdown the addressable artifact, so `supersedes` names a
+  `.md`, the `artifacts` grep hits the `.md`, and annotate-don't-rewrite edits
+  the `.md`. HTML-only would fork all three.
+- **`--html`, not `--format=md,html`.** With markdown mandatory the list has
+  exactly one optional member, and a comma list advertises a choice that does not
+  exist. This also retires the "positional arguments do not extend to a third
+  dimension" argument above: `--html` and `--out=<dir>` compose with positional
+  mode and scope, so the interface never had to break.
+- **`test-audit` stays markdown for now.** One consumer is enough to learn from,
+  and its tabular verdicts may want different treatment than narrative prose.
+- **Same directory, same stem.** Never a subdirectory. Filing resolves the
+  location once, and a derived rendering that moves breaks that.
+- **No terminal-specific format.** Markdown is the terminal format.
+- **No styler integration, no `--style`, no availability ladder.** The section
+  above on composing with a styler was not implemented. One built-in stylesheet
+  is the whole design; the hook can be added if a different look is ever actually
+  wanted. A soft dependency nobody exercises is still instructions to maintain.
+  The rule it was protecting — a complete readable HTML file with no styler
+  installed — is now simply the only behaviour there is.
+- **Re-rendering an older postmortem is not a designed capability.**
+  `report-format.md` is a house style, not a parse contract. Asked anyway,
+  transform what the file says, including annotations added since, and never
+  re-derive from fresh evidence.
 
 ## Where postmortems live, and how a model finds them later
 

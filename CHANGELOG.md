@@ -1,5 +1,23 @@
 # changelog
 
+## 0.92.0
+
+### added
+- **`postmortem` 0.3.0 → 0.4.0 — `--html` renders a self-contained human-readable file beside the markdown.** New `references/html-render.md`, read only when the flag is passed, so a markdown-only run pays nothing for it.
+
+  **The design collapsed once the owner answered one question.** [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) built its whole argument on a fear that N renderers would each re-derive the findings and then disagree, and concluded that a structured intermediate was "the whole design decision. Everything else follows from it." That premise does not hold here: there are no separate renderers, there is one model in one turn, and HTML is only ever produced in the run that writes the markdown. So the guarantee comes from a *rule* — render the markdown you just wrote, never re-analyse — and a rule is sufficient when there is one implementer. No intermediate, no sidecar, no parse contract. The doc's two heaviest sections were answering a question the shipped feature does not ask.
+
+  **A flag, not a format list.** The doc proposed `--format=md,html` and argued positional arguments could not carry a third dimension. Markdown is always written — filing made it load-bearing, since `supersedes` names a `.md`, the `artifacts` grep hits the `.md`, and annotate-don't-rewrite edits the `.md` — so the "list" has exactly one optional member, and a list implies a choice that does not exist. `--html` and `--out=<dir>` compose with positional mode and scope, so the argument interface never had to break.
+
+  **No styler, no `--style`, no availability ladder.** The doc spent a section on composing with `impeccable` without depending on it; the answer is that one built-in stylesheet is the whole design, and the hook gets added if a different look is ever actually wanted. A soft dependency that no one exercises is still a section of instructions to maintain.
+
+  Self-contained by constraint: no external requests of any kind, no JavaScript, embedded CSS, light and dark. Both stated uses — reading your own in a browser, sending one to someone who will not clone the repo — need portability and neither needs interactivity. Empty sections render visibly rather than being collapsed or dropped, citations are never trimmed for tidiness, and annotations render distinctly from the findings they correct, since an append-correction that reads like original text defeats append-correcting.
+
+  Rendering a postmortem from an *earlier* run is explicitly not a designed capability: `report-format.md` is a house style, not a parse contract, so nothing guarantees an old file is machine-readable. Asked anyway, transform what the file says including later annotations, and never re-derive from fresh evidence.
+
+  Verified on the filing fixture: no `http(s)://`, `@import`, `<script>`, `<link>` or `src=`; all five sections present including the empty one; citation counts identical between the markdown and the HTML; same stem, same directory. `test-audit` deliberately unchanged — its tabular verdicts may want different treatment than narrative prose, and one consumer is enough to learn from.
+
+
 ## 0.91.0
 
 ### changed
