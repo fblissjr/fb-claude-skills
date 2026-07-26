@@ -187,7 +187,6 @@ Once installed, invoke as namespaced slash commands:
 /skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:init-maintenance     # Set up maintenance in a new repo
 /skill-maintainer:sync-versions path-privacy 0.7.4  # Bump version across all sources
-/skill-maintainer:sync-bundled-ref     # Mirror working-copy best_practices.md to bundled ref
 /skill-maintainer:finish-session       # Orchestrate end-of-session: log -> sync -> bumps -> quality
 ```
 

@@ -1,5 +1,9 @@
 ---
 name: sync-versions
+argument-hint: "<plugin> <version>"
+arguments:
+  - plugin
+  - version
 description: >-
   Bump a plugin's version across all sources (plugin.json, marketplace.json,
   CHANGELOG.md, pyproject.toml) atomically. SKILL.md is deliberately NOT one of

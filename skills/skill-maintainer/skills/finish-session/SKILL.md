@@ -1,5 +1,6 @@
 ---
 name: finish-session
+argument-hint: "[skip-log]"
 description: >-
   Orchestrate end-of-session cleanup: draft a session log entry, sync bundled
   references, and flag any plugin-content changes that need a version bump
