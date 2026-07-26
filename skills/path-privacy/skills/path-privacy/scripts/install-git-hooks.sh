@@ -50,9 +50,22 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # this an old wrapper is indistinguishable from a current one by inspection, so
 # nothing -- not the user, not a hook, not a reviewer -- can tell that a repo is
 # carrying logic fixed several releases ago.
+# WRAPPER_TEMPLATE_VERSION is hand-incremented ONLY when the generated wrapper
+# below actually changes. It is deliberately NOT the plugin version.
+#
+# Stamping the plugin version meant every unrelated bump -- a renamed script, a
+# doc fix -- marked every installed wrapper in every repo "stale" and told the
+# user to re-run this installer, for a change that could not affect them.
+# History: 22 version bumps against 10 template changes, so more than half of
+# every staleness notice ever shown was false. A gate that cries wolf on every
+# release is a gate people stop reading, and then it misses the one release
+# where the logic really did change.
+WRAPPER_TEMPLATE_VERSION=1
+
 PLUGIN_JSON="$SELF_DIR/../../../.claude-plugin/plugin.json"
-WRAPPER_VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN_JSON" 2>/dev/null | head -1)
-[ -z "$WRAPPER_VERSION" ] && WRAPPER_VERSION="unknown"
+WRAPPER_VERSION="t${WRAPPER_TEMPLATE_VERSION}"
+PLUGIN_VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN_JSON" 2>/dev/null | head -1)
+[ -z "$PLUGIN_VERSION" ] && PLUGIN_VERSION="unknown"
 
 # One authored copy of the wrapper-vs-plugin comparison, shared by --doctor
 # below and injected verbatim into every generated wrapper. If it is missing,

@@ -1,7 +1,7 @@
 {
   "name": "mece-decomposer",
-  "version": "0.5.2",
-  "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
+  "version": "0.6.0",
+  "description": "MECE decomposition for breaking work into mutually exclusive, collectively exhaustive parts. A skill you invoke when decomposing something -- it ships no SessionStart hook, because the method is needed at a decision point the model can recognise, not before the first action of every session.",
   "author": {
     "name": "Fred Bliss"
   },

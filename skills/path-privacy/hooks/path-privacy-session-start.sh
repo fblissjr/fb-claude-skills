@@ -39,11 +39,15 @@ fi
 # session start is exactly the kind of surprise a privacy gate should never
 # spring, and the same install path had four repo-damaging bugs before 0.6.0.
 HOOKS_DIR=$(git -C "$CWD" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
-CURRENT_VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-                  "$SCRIPT_DIR/../.claude-plugin/plugin.json" 2>/dev/null | head -1)
+# Compare against the WRAPPER TEMPLATE version the installer stamps ("t1"), not
+# the plugin version. They were the same value until unrelated plugin bumps
+# started marking every installed wrapper stale; see install-git-hooks.sh.
+INSTALLER="$SCRIPT_DIR/../skills/path-privacy/scripts/install-git-hooks.sh"
+CURRENT_VERSION=$(sed -n 's/^WRAPPER_TEMPLATE_VERSION=\(.*\)$/t\1/p' "$INSTALLER" 2>/dev/null | head -1)
 STALE_HOOKS=""
 AHEAD_HOOKS=""
 MISSING_HOOKS=""
+REFRESHED_HOOKS=""
 if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
   for h in pre-commit commit-msg; do
     f="$HOOKS_DIR/$h"
@@ -64,8 +68,32 @@ if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
     # written when plugin.json was unreadable at install time) are not newer,
     # so they land in the stale branch and get the harmless advice.
     if [ "$have" != "$CURRENT_VERSION" ]; then
-      if pp_version_is_newer "$have" "$CURRENT_VERSION"; then
+      # A stale wrapper is REFRESHED, not reported. Telling a user to go run a
+      # shell script is asking them to do work a hook already standing in the
+      # right place can do, and every repo would need it on every template
+      # change. The installer is re-run in place; only if that fails does this
+      # fall back to telling anyone.
+      #
+      # Safe because ownership is exact: we reached this branch only after
+      # confirming the file carries our own `path-privacy:wrapper` stamp, so a
+      # hand-written or foreign hook is never touched. `pp_version_is_newer`
+      # still guards the other direction -- a wrapper AHEAD of the plugin is
+      # left alone, because regenerating it would install OLDER logic.
+      # Template stamps are "tN". pp_version_is_newer only understands plainly
+      # numeric versions, so it answers "not newer" for BOTH t9 and t1 -- which
+      # sent an ahead wrapper into the refresh branch and downgraded it. Compare
+      # tN forms as integers here; anything not matching tN is a legacy stamp
+      # (a plugin version, or "unknown") and is by definition not ahead.
+      pp_template_is_newer() {
+        case "$1" in t[0-9]*) ;; *) return 1 ;; esac
+        case "$2" in t[0-9]*) ;; *) return 1 ;; esac
+        [ "${1#t}" -gt "${2#t}" ] 2>/dev/null
+      }
+      if pp_template_is_newer "$have" "$CURRENT_VERSION"; then
         AHEAD_HOOKS="${AHEAD_HOOKS:+$AHEAD_HOOKS, }$h ($have)"
+      elif [ -x "$INSTALLER" ] && "$INSTALLER" -C "$CWD" >/dev/null 2>&1 \
+           && grep -q "^# path-privacy:wrapper-version $CURRENT_VERSION\$" "$f" 2>/dev/null; then
+        REFRESHED_HOOKS="${REFRESHED_HOOKS:+$REFRESHED_HOOKS, }$h ($have -> $CURRENT_VERSION)"
       else
         STALE_HOOKS="${STALE_HOOKS:+$STALE_HOOKS, }$h ($have)"
       fi
@@ -86,9 +114,13 @@ if [ -n "$STALE_HOOKS" ]; then
   # pre-commit (0.6.2)". Nothing downstream needs a dash, so the encoding
   # question is removed rather than answered.
   CONTEXT+=": $STALE_HOOKS; current is $CURRENT_VERSION."$'\n'
-  CONTEXT+="Their logic is frozen at install time, so a plugin update does not refresh it."$'\n'
-  CONTEXT+="Re-run install-git-hooks.sh in this repo (or /path-privacy:path-privacy) to update them."$'\n'
-  CONTEXT+="Mention this to the user once, then carry on; do not rewrite the hooks yourself."$'\n'
+  CONTEXT+="Their logic is frozen at install time, and an automatic refresh was attempted and FAILED."$'\n'
+  CONTEXT+="Something is blocking the rewrite -- a read-only .git, a core.hooksPath pointing elsewhere,"$'\n'
+  CONTEXT+="or a missing installer. Mention it to the user once; do not rewrite the hooks yourself."$'\n'
+fi
+if [ -n "$REFRESHED_HOOKS" ]; then
+  CONTEXT+="path-privacy: refreshed this repo's frozen git hooks to the current wrapper template"
+  CONTEXT+=" ($REFRESHED_HOOKS). No action needed."$'\n'
 fi
 if [ -n "$AHEAD_HOOKS" ]; then
   CONTEXT+="path-privacy: this repo's git hooks are NEWER than the running plugin"

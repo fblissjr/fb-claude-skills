@@ -742,7 +742,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.5.2"
+version = "0.6.0"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
