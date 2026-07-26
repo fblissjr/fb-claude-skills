@@ -4,9 +4,18 @@ path-privacy: skip-file -- this file is fixtures for the leak check itself, so i
 contains deliberately leak-shaped paths. Without this marker the plugin's own
 scanner hard-blocks any commit that stages it.
 
-The pre-commit hook scans the diff, so a leak introduced before it existed --
-or in a file since touched only elsewhere -- survives indefinitely. Five
-absolute paths carrying a username sat in a tracked doc for 157 days that way.
+The pre-commit hook only sees files in the staged set: `--staged` collects names
+via `git diff --cached --name-only` and scans each of those files' full content.
+So a leak in a file you never touch is never scanned, and five absolute paths
+carrying a username sat in a tracked doc for 157 days that way. This audit
+covers the whole tree instead, which is the gap the hook cannot reach.
+
+(An earlier version of this docstring said the hook "scans the diff, so it only
+ever sees added lines". That was never true -- `--staged` has passed whole files
+to the scanner since 0.1.0. The distinction matters: whole-content scanning of
+staged files is why editing a long-lived file can block a commit over lines you
+did not write, which reads as a surprise if you expect a diff scan.)
+
 These tests pin both directions: it must fire on a real leak, and stay silent
 on the placeholder and system paths that legitimately appear in this repo.
 """
