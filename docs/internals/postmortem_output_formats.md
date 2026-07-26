@@ -138,14 +138,36 @@ conclude last time we touched X" is unanswerable without reading everything.
 **Make each postmortem a standalone file in one known place, and cross-link from
 the plan doc rather than living inside it.**
 
+### Where: resolved, never hardcoded
+
+`internal/postmortems/` is *this* repo's answer, not the design. `internal/` is
+a convention here and is gitignored here; a plugin that ships to other repos has
+no business assuming either. Whether postmortems are local scratch or a tracked,
+shared record is the repo owner's call, and it changes the answer completely.
+
+Resolve in this order, stopping at the first hit:
+
+1. **Explicit** — a `--out=<dir>` flag on the invocation, or a per-repo config
+   key. `dev-conventions` established the per-repo override pattern with a
+   tracked `.dev-conventions.json`; whether postmortem reads that same file, its
+   own, or a shared one is an open question below.
+2. **Inferred from the repo's existing conventions** — if there is a session-log
+   directory, put postmortems beside it; if the repo keeps working notes under
+   `docs/`, use that. The repo has already answered "where does prose about this
+   project live" and the skill should read that answer rather than impose one.
+3. **Propose, then remember.** With no signal, suggest a location, get
+   agreement, and write it to the per-repo config so it is asked exactly once.
+
+Never silently create a directory in a layout the repo did not choose.
+
 ### Naming
 
 ```
-internal/postmortems/YYYY-MM-DD_<mode>_<slug>.md
+<resolved-dir>/YYYY-MM-DD_<mode>_<slug>.md
 ```
 
-- **Date first** so lexical sort is chronological sort — the same reason the
-  session logs are `log_YYYY-MM-DD.md`. Recency is the most common filter.
+- **Date first** so lexical sort is chronological sort — the same reason session
+  logs are `log_YYYY-MM-DD.md`. Recency is the most common filter.
 - **Mode** (`session` / `span` / `feature`) because the three answer different
   questions, and a reader usually knows which kind they want.
 - **Slug** derived from the scope, not the date: `ruff-diagnostics`,
@@ -155,21 +177,24 @@ A span postmortem covering a range should carry the range, not the write date:
 `2026-07-01_span_lint-tooling.md` reads better than the day someone got round to
 writing it. Put the exact range in frontmatter either way.
 
+The *naming* is the portable part and should hold in any repo. Only the
+directory is negotiable.
+
 ### Organisation: by scope, not by session
 
 A session is *when* the work happened; the scope is *what it was about*, and
-that is what someone searches for months later. Sessions are already indexed by
-`internal/log/log_YYYY-MM-DD.md`; duplicating that axis adds nothing. Keep the
-directory flat and let the filename carry both — a flat dated directory greps
-and globs cleanly, and subdirectories by topic require guessing the taxonomy up
-front, which is exactly the guess that ages badly.
+that is what someone searches for months later. Where a repo already indexes
+sessions by date, duplicating that axis adds nothing. Keep the directory flat
+and let the filename carry both — a flat dated directory greps and globs
+cleanly, and subdirectories by topic require guessing the taxonomy up front,
+which is exactly the guess that ages badly.
 
 ### Discovery without an index file
 
 Do not add an index. A `postmortems/README.md` listing every file is a copy
 whose only consumer is the check that it matches the directory, and this repo
 has already removed two things on that reasoning. The naming convention *is* the
-index: `ls internal/postmortems/` sorts by date, and a slug grep finds a topic.
+index: listing the resolved directory sorts by date, and a slug grep finds a topic.
 
 What each file should carry so a model can triage it without opening it fully:
 
@@ -195,14 +220,15 @@ duplicate rule when a later postmortem revisits the same scope.
 - The frontmatter above is a superset of what the intermediate needs, which
   argues further for option (1) — markdown-with-frontmatter as the source of
   truth rather than a sidecar.
-- `internal/` is gitignored in this repo, so postmortems here are local. A repo
-  that wants them shared should point the skill somewhere tracked; the location
-  needs to be a convention the skill reads, not a hardcoded path.
+- Derived renderings sit beside the markdown with the same stem, wherever that
+  resolved to, so the location logic runs once rather than per format.
 
 ### Open questions (location)
 
-- Does the skill create `internal/postmortems/` unasked, or propose it first?
-  Leaning propose-once, then remember.
+- Does postmortem read `.dev-conventions.json`, ship its own config file, or
+  should there be one shared per-repo config that any of these plugins can read?
+  A third file per plugin does not scale; a shared one couples them. Leaning
+  shared, with namespaced keys.
 - Should the session log link the postmortem, the postmortem link the session
   log, or both? One direction is enough; two will drift.
 - Is `supersedes` sufficient, or does a long-running scope need a chain the way
