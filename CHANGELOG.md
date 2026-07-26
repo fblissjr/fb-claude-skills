@@ -52,6 +52,10 @@
 
 - **The SessionStart attribution marker briefly broke three hooks, caught by testing the output rather than the diff.** The marker was first emitted as an HTML comment *before* the JSON envelope, which made stdout unparseable — silently killing the entire injection for `dev-conventions`, `dimensional-modeling`, and `mece-decomposer` rather than failing loudly. It now rides inside the `additionalContext` value as `[plugin:NAME]`, applied where the content is assembled rather than by pattern-matching the emit site, and all three are verified to parse.
 
+- **`explainer-video` and `screenwright` retired from this repo.** Both were superseded — explainer-video frozen in favour of its successor, which was then renamed and migrated to its own repo — and neither had been invoked once across 200 transcripts. Together they were ~75,000 characters of skill body and references, including this repo's only token-budget failure (6,760 against a 4,000 limit).
+
+  **Archived rather than deleted**, at the owner's request: both plugin trees and their five planning documents were copied into the successor repo's own archive area and byte-compared before removal here, so nothing depends on git history alone. Dropped from `marketplace.json` with `renames` entries to `null`, and swept from the README, CLAUDE.md's index, and `docs/README.md`. The `film-reviewer` agent went with them — it existed only to review explainer-video scenes and referenced files that no longer exist. `physics_bake_proposal.md` moved too, being entirely successor-Phase-4 work.
+
 ### removed
 - **`mcp-apps` deleted.** Both skills (`create-mcp-app` 11,873 chars, `migrate-oai-app` 8,633) were 117 days stale and never invoked once across 200 transcripts. Dropped from `marketplace.json` with a `renames` entry to `null`, and swept from the README and CLAUDE.md. The README's generic "MCP Apps" section stays: `mece-decomposer` and `skill-dashboard` still ship MCP Apps, and that section describes theirs, not the deleted plugin's.
 

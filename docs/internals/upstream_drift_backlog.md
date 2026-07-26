@@ -134,11 +134,7 @@ rediscovered expensively.
 `review_interval_days` and `check_version_alignment` both detect drift over
 time. Nothing detects a document that was wrong on the day it was written.
 
-Concrete instance: `explainer-video`'s `method.md` states 3-4 seconds per beat
-as the pacing that reads, and the example shipped alongside it ran 2.4 / 2.4 /
-3.2 — under its own floor on two of three beats. Nothing was stale. The doc and
-the artifact disagreed from the start and it surfaced only when a human watched
-the video.
+Concrete instance was in a plugin since retired from this repo; the general point stands.
 
 Where a doc in this repo states a numeric threshold governing an artifact, the
 two should be compared. See "Designing a new check" in

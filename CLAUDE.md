@@ -41,10 +41,6 @@ These bite on the first edit if you don't know them.
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
 | Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
-| The explainer-video generalization plan (phases, gates, execution status) and per-item roadmap | [docs/internals/explainer_video_generalization_plan.md](docs/internals/explainer_video_generalization_plan.md), [docs/internals/explainer_video_roadmap.md](docs/internals/explainer_video_roadmap.md) |
-| What the explainer-video test suite covers, and every case's outcome | [docs/internals/explainer_video_test_cases.md](docs/internals/explainer_video_test_cases.md) |
-| The explainer-video hardening plan — the run's findings grouped by root cause, structural fixes vs deliberate bandaids | [docs/internals/explainer_video_hardening_plan.md](docs/internals/explainer_video_hardening_plan.md) |
-| The screenwright founding plan (WebGPU/TSL successor: architecture, character scaffold, phases; explainer-video is frozen) | [docs/internals/screenwright_plan.md](docs/internals/screenwright_plan.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
 | MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |

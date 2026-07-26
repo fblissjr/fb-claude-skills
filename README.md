@@ -21,8 +21,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
 | [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
-| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF. **Frozen** -- bugfix-only; superseded over time by screenwright |
-| [screenwright](skills/screenwright/) | Skill | The explainer-video successor on the three.js node stack: deterministic films of any register (explainer, cutscene, meme, character short) on WebGPURenderer with WebGL2 fallback + TSL node materials, plus Canvas2D -- same contract and instruments, higher material ceiling. Plan: `docs/internals/screenwright_plan.md` |
 
 ### decomposition & model routing
 
@@ -85,8 +83,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
-/plugin install explainer-video@fb-claude-skills
-/plugin install screenwright@fb-claude-skills
 /plugin install skill-dashboard@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills
@@ -178,8 +174,6 @@ Once installed, invoke as namespaced slash commands:
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax
-/explainer-video                 # Build an animated explainer film (2D or 3D; HTML / MP4 / WebP / AVIF)
-/screenwright                    # Deterministic film of any register on the node stack (explainer / cutscene / meme)
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
