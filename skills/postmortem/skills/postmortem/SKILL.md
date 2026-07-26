@@ -36,7 +36,7 @@ Chosen by the argument:
   1. The plan doc, if one exists (needed for the deviations table).
   2. `git log` over the range — commits, messages, what was reverted or
      re-fixed.
-  3. Session logs (`internal/log/log_*.md` or the repo's equivalent).
+  3. Session logs, wherever this repo keeps them.
   4. `CHANGELOG.md` entries in the range.
 
 Do the evidence pass **before** writing any finding. In span mode, read the

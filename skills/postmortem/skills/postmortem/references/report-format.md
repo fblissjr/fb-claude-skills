@@ -50,10 +50,24 @@ wrong" passes it. An item that cannot be refuted is an opinion — cut it.
 A postmortem's value depends on being durable and annotatable, so chat-only
 output is not a postmortem. Where to write it:
 
-- Repo work with a plan doc: append a `## Postmortem` section to that doc.
-- Repo work without one: the session log (`internal/log/`) or a doc the repo's
-  conventions point to.
-- Outside a repo: propose a location and write there.
+Resolve the location, do not assume one. `internal/` is one repo's convention,
+not a universal layout, and whether a postmortem is local scratch or a tracked
+shared record is the repo owner's call:
+
+1. If the user named a location, use it.
+2. If the repo already keeps prose about itself somewhere -- a session-log
+   directory, a working-notes directory, a docs tree -- write beside it. The
+   repo has answered this question already; read its answer.
+3. If a plan doc for this exact scope exists, cross-link from it rather than
+   burying the postmortem inside it. A postmortem filed inside a plan doc is
+   findable only by someone who already knows which plan doc to open.
+4. Otherwise propose a location and get agreement before writing.
+
+Never silently create a directory in a layout the repo did not choose.
+
+Name it `YYYY-MM-DD_<mode>_<slug>.md` -- date first so lexical sort is
+chronological, slug from the scope, because that is what a search months later
+will actually match.
 
 If a postmortem for the same scope already exists, annotate it (rule 3) rather
 than writing a second one.

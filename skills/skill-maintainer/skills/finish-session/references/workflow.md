@@ -19,7 +19,7 @@ Otherwise, note the top-level directories touched (e.g., `skills/skill-maintaine
 
 ### Step 2 -- Draft session log
 
-Delegate to the `session-log-drafter` subagent. It reads the conversation + git diff and returns a house-style draft for `internal/log/log_YYYY-MM-DD.md`.
+Delegate to the `session-log-drafter` subagent. It reads the conversation + git diff and returns a house-style draft for the repo's session log.
 
 ```
 (invoke session-log-drafter agent)
@@ -27,7 +27,11 @@ Delegate to the `session-log-drafter` subagent. It reads the conversation + git 
 
 Show the draft to the user. Two paths:
 
-- **New session, no existing log**: write the draft directly to `internal/log/log_YYYY-MM-DD.md`.
+- **New session, no existing log**: resolve where this repo keeps session logs
+  before writing. Look for an existing log directory and match its layout and
+  filename pattern; if there is none, propose a location rather than creating
+  one. `internal/log/log_YYYY-MM-DD.md` is one repo's convention, not a default
+  to impose on every repo this plugin is installed in.
 - **Extending today's existing log**: append under a new `## part N: <topic>` heading. Edit in place.
 
 Do not commit -- this is a draft for review.
@@ -80,7 +84,7 @@ Final output to user:
 Session wrap complete. Summary:
 
   Files changed: <N>  (across <X> plugins, <Y> tools)
-  Session log:   internal/log/log_YYYY-MM-DD.md (part <N>)
+  Session log:   <resolved log path> (part <N>)
   Bundled refs:  in sync  (or: synced via hook / via sync-bundled-ref)
   Version bumps: <plugin>@<v>  <plugin>@<v>  (or: none needed)
   Quality:       30/30 valid, 0 over budget, 0 stale

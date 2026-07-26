@@ -25,6 +25,16 @@
   Records the constraints that are load-bearing today and easy to lose in a rewrite: no citation no finding, empty sections are valid output, a file always, annotate rather than duplicate, and finding-routing runs once rather than per renderer.
 
 ### changed
+- **Hardcoded repo layouts removed from the live skills, not just documented as a future fix.** The design doc written moments earlier said the location must be resolved rather than assumed — while every skill that actually writes a file went on hardcoding `internal/log/`. A README pointer and a plan change nothing: the model reads `SKILL.md` and `references/`, and that is where the behaviour lives.
+
+  Audited every skill and reference in the repo. Three categories came out. Legitimate: `skill-maintainer` naming `.skill-maintainer/`, which is its own directory that it creates rather than a layout it assumes. A preference, now labelled as one: `dev-conventions:doc-conventions` prescribing `./internal/` — prescribing is a conventions plugin's job, but it now says outright that a repo with its own arrangement keeps it. And two genuine defects.
+
+  **`postmortem` 0.1.4 → 0.2.0** now resolves where to write: an explicitly named location, else beside wherever the repo already keeps prose about itself, else propose and get agreement. It also stops burying reports inside plan docs — cross-link instead, because a postmortem filed inside a plan doc is findable only by someone who already knows which plan doc to open — and adopts the `YYYY-MM-DD_<mode>_<slug>.md` name so a search months later matches on scope.
+
+  **`skill-maintainer` 0.16.1 → 0.16.2** was the worse one: `finish-session` *writes* a session log, and did so to a hardcoded `internal/log/log_YYYY-MM-DD.md` in whatever repo it ran in. It now matches an existing log directory's layout and filename pattern, and proposes rather than creates when there is none.
+
+  `path-privacy` 0.9.1 for one example line that read as a requirement.
+
 - **Every hook script renamed to `hooks/<plugin>-<purpose>.sh`, because a shared filename made hooks unattributable.** Transcripts store the plugin-root variable unexpanded, so five of our plugins shipping `hooks/session-start.sh` — and two shipping `hooks/pre-tool-use.sh`, a collision introduced hours earlier in this same release — were indistinguishable to any tool reading them back. `skill-maintain tune` reported them as one `ambiguous(...)` bucket, which was honest and useless. Eleven scripts renamed; zero collisions remain. This also improves `/hooks` and `claude --debug hooks`, which show the same command strings.
 
 - **SessionStart emissions now carry a `<!-- plugin: NAME -->` first line.** The other half of the same problem: `hook_additional_context` records carry only the *event* name, so an injected block could not be traced to the plugin that produced it — 201,144 bytes of it in one project, filed under `context via SessionStart`. Roughly 24 characters buys exact attribution. `path-privacy` already did this by accident with its `skip-file` marker; it is now a convention rather than a coincidence.
