@@ -95,6 +95,7 @@ mode: span
 scope: lint-and-type-tooling
 date: 2026-07-26
 range: 2026-07-01..2026-07-26
+summary: Ruff and Pyright diagnostics did not overlap; the LSP registration collision was the real constraint.
 artifacts:
   - CHANGELOG.md
   - skills/ruff-diagnostics/
@@ -108,9 +109,28 @@ supersedes: 2026-06-14_feature_ruff-trial.md
 | `mode` | yes | Matches the filename token. |
 | `scope` | yes | Matches the filename slug. |
 | `date` | yes | When it was written. For a span this differs from the filename date; that is the point. |
+| `summary` | yes | One sentence: what this postmortem *concluded*, not what it examined. See below. |
 | `range` | span only | Exact git range or date range examined. |
 | `artifacts` | yes | Repo-relative paths, commits, or command names. May be empty only if the body has no findings. |
 | `supersedes` | no | Bare filename of an earlier postmortem this one revisits. |
+
+### `summary`
+
+One sentence, and it must carry a **finding**, not a topic. "Looked at the lint
+tooling" is a subject line; "Ruff and Pyright diagnostics did not overlap, so the
+LSP registration collision was the real constraint" is a summary. A reader
+scanning a directory decides what to open from this field alone, so a summary
+that only restates the slug wastes the slot the slug already fills.
+
+A postmortem whose sections are all "Nothing." says so here too. That is a
+finding — the work was clean — and it saves the next reader opening the file.
+
+**This is the one field an annotation may change.** Annotate-don't-rewrite
+protects findings, because a silently edited conclusion is worse than a wrong
+one left standing. It does not protect metadata. If a later annotation
+contradicts the summary, update the summary and leave the annotated finding
+intact; a stale summary sends readers to the wrong file, which is the failure
+the field exists to prevent.
 
 **`artifacts` is a projection of the citations, not free metadata.** Every entry
 must appear as a citation somewhere in the body, and every artifact cited in the

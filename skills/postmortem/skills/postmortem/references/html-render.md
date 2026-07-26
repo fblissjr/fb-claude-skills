@@ -57,7 +57,7 @@ Report both paths, repo-relative.
 
 | Markdown | HTML |
 |---|---|
-| Frontmatter | `<header class="meta">` — a definition list of mode, scope, date, range, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers. |
+| Frontmatter | `<header class="meta">` — the `summary` as a lead paragraph, then a definition list of mode, scope, date, range, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers and what it found. |
 | `# Postmortem: ...` | `<h1>` |
 | `## 1. What went well` … | `<section>` with `<h2>` |
 | Finding paragraphs | `<p>`; the citation stays inline in the sentence where it sits |
@@ -114,6 +114,10 @@ code {
   padding: 1rem 1.25rem; margin: 0 0 2.5rem;
   font: 0.86rem/1.6 ui-sans-serif, system-ui, sans-serif;
 }
+.meta .summary {
+  font: 1rem/1.55 ui-serif, Georgia, serif; margin: 0 0 0.9rem;
+  padding-bottom: 0.85rem; border-bottom: 1px solid var(--rule);
+}
 .meta dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0; }
 .meta dt { color: var(--muted); }
 .meta dd { margin: 0; }
@@ -144,6 +148,7 @@ li { margin: 0.3rem 0; }
 <h1>Postmortem: SCOPE</h1>
 
 <header class="meta">
+  <p class="summary">SUMMARY SENTENCE</p>
   <dl>
     <dt>Mode</dt><dd>span</dd>
     <dt>Scope</dt><dd>SCOPE</dd>

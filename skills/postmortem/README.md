@@ -26,6 +26,7 @@ the same run's verification lessons.
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently" | Verdicted retrospective of finished work; session mode (the conversation) or span mode (git history, session logs, changelogs, plan docs). Output is always a durable file. |
+| `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
 
 ## Invocation
@@ -35,6 +36,7 @@ the same run's verification lessons.
 /postmortem:postmortem <feature|range|plan doc|"last N sessions">
 /postmortem:postmortem span auth-migration --out=docs/postmortems
 /postmortem:postmortem --html         # markdown plus a readable HTML file
+/postmortem:postmortem-index          # browsable index over all of them
 /postmortem:test-audit                # audit the current repo's suite
 ```
 
@@ -90,6 +92,30 @@ report format is a house style, not a parse contract. Run a new postmortem
 instead.
 
 `test-audit` is markdown only.
+
+## The index
+
+`postmortem-index` generates a browsable page over every postmortem in the
+resolved directory: chronological with each one's `summary` and artifacts, plus
+a by-artifact view answering "has anything been written about this file".
+
+It is a **view, not a record.** The directory is the index; this page is rebuilt
+from the files each time and deleting it loses nothing. That is why there is no
+checked-in listing — a committed one becomes a copy that drifts. If the
+postmortem directory is tracked, the skill offers to gitignore the generated
+file, since a generated artifact that cannot be committed cannot be mistaken for
+truth.
+
+Reads frontmatter only, never prose. Superseded postmortems are dimmed and
+labelled rather than hidden, and files predating the frontmatter convention
+still appear with what the filename yields plus a "partially indexed" badge —
+an index that quietly omits is worse than no index.
+
+This page carries a small inline filter script, unlike the postmortem document,
+which has none. A record that needs JavaScript to be readable is less durable
+than the markdown it came from; an index is a tool that gets rebuilt. Nothing
+starts hidden, so with scripting off the page loses filtering and keeps
+everything else.
 
 Why it is shaped this way, and which of the original design's recommendations
 were rejected on contact with the implementation:

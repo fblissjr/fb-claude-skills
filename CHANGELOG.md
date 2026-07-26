@@ -1,5 +1,26 @@
 # changelog
 
+## 0.93.0
+
+### added
+- **`postmortem` 0.4.0 → 0.5.0 — `postmortem-index`, a generated browsable view over a repo's postmortems.** Third skill in the plugin, because its trigger surface is genuinely different: "what have we written about X" has nothing to do with running a postmortem, and burying those phrases in an analysis skill's description would cost the trigger.
+
+  **This is not the index file that filing rejected, and the distinction is the whole justification.** What 0.3.0 rejected was a committed `postmortems/README.md`: a copy whose only consumer is the check that it matches the directory, drifting the moment someone adds a file. This page is rebuilt from the files on every invocation and deleting it loses nothing. That is the test — if deleting a file loses information it was truth, and if not it is a view. The one thing that turns a view back into a copy is committing it, so the skill offers to gitignore the generated file when the postmortem directory is tracked. A generated artifact that cannot be committed cannot be mistaken for truth.
+
+  **Frontmatter only, never the body.** This is the payoff of two earlier decisions landing where they should: filing specified frontmatter strictly and rendering deliberately declined to make the *body* a parse contract. The index reads `mode`, `scope`, `date`, `summary`, `artifacts` and `supersedes` without ever touching prose, so a section written differently cannot break it.
+
+  **Nothing is hidden.** Superseded postmortems dim and carry a badge rather than disappearing — a stale conclusion a reader can see is stale is useful, and one that has been hidden is a trap. Files predating 0.3.0 have no frontmatter at all; they still appear, with date, mode and scope recovered from the filename (the portable half of the naming rule) and a "partially indexed" badge. Silently dropping them is what makes an index untrustworthy, because a reader cannot distinguish "nothing was written" from "the tool did not understand it". An empty directory renders the page with a zero count and says where it looked.
+
+  **JavaScript, in this one place.** The document rules it out because a record that needs a script to be readable is less durable than the markdown it came from; an index is a tool that gets rebuilt, so the rule does not carry. The script is inline, dependency-free, and strictly an accelerator: nothing starts hidden, so with scripting off the page loses filtering and keeps everything else. Terms AND together, matching runs against one `data-search` attribute rather than rendered text so behaviour cannot drift from styling, clicking an artifact filters to it, and the superseded toggle exists because it is the one filter a reader cannot type.
+
+  Verified in a real browser rather than by inspection, since the interactive half is the part that inspection cannot check: initial 4 of 4, single term 2, two terms narrowing to 1, artifact click populating the filter, superseded toggle 3 of 4, a no-match state reporting 0 of 4 honestly, and a full restore on clear. A first pass shipped a dangling `.empty` class that no code path emitted — caught on screenshot, now wired to the no-match state.
+
+### changed
+- **`postmortem` frontmatter gains a required `summary`.** One sentence carrying a *finding*, not a topic: "looked at the lint tooling" is a subject line, "Ruff and Pyright diagnostics did not overlap, so the LSP collision was the real constraint" is a summary. A reader scanning a directory decides what to open from this field alone, so restating the slug wastes the slot the slug already fills. A postmortem whose sections are all "Nothing." says that here too — the work was clean is a finding, and it saves opening the file.
+
+  It is also **the one field an annotation may change.** Annotate-don't-rewrite protects findings, because a silently edited conclusion is worse than a wrong one left standing; it does not protect metadata. A stale summary sends readers to the wrong file, which is the failure the field exists to prevent.
+
+
 ## 0.92.0
 
 ### added
