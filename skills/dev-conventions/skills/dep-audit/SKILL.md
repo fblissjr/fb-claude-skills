@@ -1,10 +1,13 @@
 ---
 name: dep-audit
 description: >-
-  Audit project dependencies for known vulnerabilities using uv audit (Python) and bun audit (JS/TS).
-  Use when user says "audit dependencies", "check for vulnerabilities", "security audit",
-  "check deps", "are my packages safe", "CVE check", "dependency security", "vulnerability scan".
-  Invoke with /dev-conventions:dep-audit.
+  Report known CVEs in a project's installed dependencies — by package, severity,
+  and fixed version — running `uv audit` against OSV for Python and `bun audit`
+  against the npm advisory database for JS/TS, including the transitive
+  dependencies that reading a manifest by hand will miss. Use when the user asks
+  whether packages are safe, whether anything has a published advisory against it,
+  for a CVE check, a vulnerability scan, or a dependency security audit, and before
+  any release, publish, or handoff. Covers Python and JS/TS in a single pass.
 metadata:
   last_verified: "2026-07-05"
 ---

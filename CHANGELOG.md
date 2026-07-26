@@ -1,5 +1,18 @@
 # changelog
 
+## 0.94.0
+
+### changed
+- **`writing` 0.4.1 → 0.5.0 and `dev-conventions` 0.12.4 → 0.13.0 — four descriptions rewritten against measured trigger rates rather than intuition.** Each skill was run against 16 held-out prompts (10 should-trigger, 6 near-miss should-not-trigger), three runs per prompt, detecting whether the installed skill actually fired. The rewrites target the specific prompts that measured dead.
+
+  **The theory the measurement killed.** The prior round of rewrites assumed that leading with "the words a request would actually contain" raises the trigger rate. `voice-match` was the clean test: its description enumerated "in my voice", "sound like me", and "in my style", and prompts containing those exact strings triggered it 0 times out of 3, each. Listing the phrase does not buy the trigger. What separates the descriptions that fire from the ones that do not is whether they name a concrete artifact, symptom, or output the model cannot produce unaided — `reportCallIssue` and a wall of "Arguments missing for parameters" fire at 100%, "write in the user's voice" reads as an ordinary instruction the model simply follows. Descriptions now lead with the thing that cannot be guessed.
+
+  `plain-language-us` (40%) fired on the remedy's vocabulary and went dark on the complaint's: "apply house style" triggered 3 of 3 while "make this summary readable" and "clean up the prose, it has that AI-ish bolded-phrase thing" triggered 0 of 3. It now leads with the symptoms a request actually describes. `voice-match` (10%) now leads with the saved profile it reads and the reason generic drafting fails. `dep-audit` (43%, and five prompts stuck at exactly 1 of 3 — matching, then losing to "I will just run `uv audit` myself") now leads with the report it produces, severity and fixed version and transitive coverage included. `python-tooling` (73%) drops its dependency-pinning clause: the pinning prompts measured 0 of 3 with the SessionStart hook active and 3 of 3 with it silent, because `directives/python.md` already answers them in context. A description should not advertise a trigger the plugin's own hook pre-empts.
+
+  **Precision was never the constraint.** Across 198 runs against deliberate near-misses — "configure pyright for this repo" against `configure`, "run a maintenance pass" against `init-maintenance`, "scan this repo for hardcoded api keys" against `dep-audit` — there was not one false trigger. The descriptions were tuned narrow and were paying for it in recall, which inverts the priority the vision document states.
+
+  **Two harness corrections worth recording.** Measuring an installed skill with a synthetic stand-in scores a miss whenever the real twin wins the trigger, which reads as a broken description and is not one. And a detector that early-exits on the first non-Skill tool call scores a natural Read → Skill → Edit sequence as a miss. Both bias results downward; both were corrected before any number here was believed.
+
 ## 0.93.0
 
 ### added

@@ -1,10 +1,16 @@
 ---
 name: voice-match
 description: >-
-  Write in the user's own voice, learned from this conversation and from a saved
-  voice profile. Use when the user says "write this in my voice", "match my tone",
-  "sound like me", "in my style", or wants a draft, reply, or doc to read as if they
-  wrote it.
+  Reproduce this specific user's writing voice from evidence: their phrasing in the
+  current conversation, supplemented by a saved voice profile stored in their
+  Claude config directory. Use when drafting anything that will go out
+  under the user's name — an email or reply, a GitHub issue comment, a Slack
+  message, a release announcement, a README intro, a standup note — and when they
+  say "in my voice", "sound like me", "in my style", "match my tone", "the way I'd
+  write it", or "don't make it sound AI-generated". Drafting from generic instinct
+  produces exactly the flat register they are trying to avoid; the conversation and
+  the profile carry the specific rhythm, vocabulary, and habits that make a draft
+  read as theirs.
 argument-hint: "[draft|reply|edit]"
 metadata:
   last_verified: "2026-07-26"

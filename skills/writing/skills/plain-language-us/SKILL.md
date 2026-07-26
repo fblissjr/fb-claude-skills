@@ -1,11 +1,14 @@
 ---
 name: plain-language-us
 description: >-
-  Write and edit in this owner's plain-language house style: plain English, active
-  voice, front-loaded content, sentence case, no bold or italics for emphasis, and
-  no em dashes. Use when writing or editing reports, research write-ups, guidance,
-  documentation, summaries, or any prose where clarity matters, or when the user
-  says "plain language", "plain English", "tighten this", or "house style".
+  Rewrite bloated, hedged, or AI-sounding prose into this owner's plain-language
+  house style. Use when a draft is wordy or padded, leans on passive voice and
+  nominalizations, hedges, uses Title Case headings, or scatters bold and italics
+  through paragraphs for emphasis, and when the user says "tighten this", "make it
+  readable", "clean up the prose", "too wordy", "plain English", "plain language",
+  or "house style". Applies the house rules: active voice, front-loaded content,
+  sentence case, no bold or italics for emphasis, no em dashes. For reports,
+  research write-ups, guidance, documentation, and summaries.
 argument-hint: "[draft|edit|check]"
 metadata:
   last_verified: "2026-07-26"

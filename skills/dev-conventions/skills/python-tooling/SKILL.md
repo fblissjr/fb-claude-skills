@@ -2,10 +2,10 @@
 name: python-tooling
 description: >-
   Python type-checking failures that look like unfixable Pydantic/Pyright noise but
-  are two mechanical mistakes, plus this repo's dependency-pinning policy. Use when
-  pyright reports a wall of "Arguments missing for parameters" or reportCallIssue,
-  when a [tool.pyright] block seems to have no effect, when deciding how to pin a
-  dependency, or when asked to suppress type errors in a Python project.
+  are two mechanical mistakes. Use when pyright reports a wall of "Arguments missing
+  for parameters" or reportCallIssue, when a [tool.pyright] block seems to have no
+  effect, when type errors appear on BaseModel subclasses whose fields have
+  defaults, or when asked to suppress type errors in a Python project.
 metadata:
   last_verified: "2026-07-26"
 ---

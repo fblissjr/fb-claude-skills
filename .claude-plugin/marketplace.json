@@ -35,7 +35,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions in three tiers: a PreToolUse hook blocks pip in uv projects, npm/yarn/pnpm in bun projects, and hand-edited lockfiles; a small SessionStart directive carries only the preferences no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides live in a tracked .dev-conventions.json -- disable a block or add house rules with /dev-conventions:configure.",
-      "version": "0.12.4"
+      "version": "0.13.0"
     },
     {
       "name": "readwise-reader",
@@ -77,7 +77,7 @@
       "name": "writing",
       "source": "./skills/writing",
       "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
-      "version": "0.4.1"
+      "version": "0.5.0"
     },
     {
       "name": "model-routing",
