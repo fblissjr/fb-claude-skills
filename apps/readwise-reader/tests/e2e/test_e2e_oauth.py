@@ -213,3 +213,70 @@ class TestAuthRejection:
                 },
             )
             assert resp.status_code == 401
+
+
+class TestMalformedRequestBodies:
+    """Pins the narrowed exception handling on the two OAuth body parsers.
+
+    Both handlers used to catch bare `Exception`. They now catch only what the
+    parsers actually raise, so these tests exist to prove the caller-facing
+    behaviour did not change when the catch was tightened -- and to fail loudly
+    if a future starlette raises something outside the narrowed set.
+    """
+
+    async def test_register_with_malformed_json_returns_400(
+        self, e2e_http_client: httpx.AsyncClient
+    ) -> None:
+        """Unparseable JSON is the client's error, and answers in JSON."""
+        async with e2e_http_client as client:
+            resp = await client.post(
+                "/oauth/register",
+                content=b"this is not json",
+                headers={"content-type": "application/json"},
+            )
+            assert resp.status_code == 400
+            assert resp.json() == {"error": "invalid_request"}
+
+    async def test_register_with_invalid_utf8_returns_400(
+        self, e2e_http_client: httpx.AsyncClient
+    ) -> None:
+        """A bad encoding raises UnicodeDecodeError, not JSONDecodeError."""
+        async with e2e_http_client as client:
+            resp = await client.post(
+                "/oauth/register",
+                content=b"\xff\xfe\x00invalid",
+                headers={"content-type": "application/json"},
+            )
+            assert resp.status_code == 400
+            assert resp.json() == {"error": "invalid_request"}
+
+    async def test_token_with_unparseable_form_returns_json_error(
+        self, e2e_http_client: httpx.AsyncClient
+    ) -> None:
+        """A broken form body must still get an RFC 6749 JSON error.
+
+        Starlette turns form-parser failures into HTTPException(400), whose
+        default handler returns plain text. The handler catches it so this
+        endpoint keeps answering in JSON.
+        """
+        async with e2e_http_client as client:
+            resp = await client.post(
+                "/oauth/token",
+                content=b"--boundary\r\nmalformed multipart",
+                headers={"content-type": "multipart/form-data; boundary=boundary"},
+            )
+            assert resp.status_code == 400
+            assert "error" in resp.json()
+
+    async def test_token_with_empty_body_returns_json_error(
+        self, e2e_http_client: httpx.AsyncClient
+    ) -> None:
+        """An empty body parses to empty form data and falls through to dispatch."""
+        async with e2e_http_client as client:
+            resp = await client.post(
+                "/oauth/token",
+                content=b"",
+                headers={"content-type": "application/x-www-form-urlencoded"},
+            )
+            assert resp.status_code == 400
+            assert "error" in resp.json()

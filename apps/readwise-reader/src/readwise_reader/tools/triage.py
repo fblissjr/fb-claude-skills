@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import duckdb
+import httpx
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 
@@ -111,7 +113,15 @@ def register_triage_tools(mcp: FastMCP) -> None:
                     await client.update_document(doc_id, request)
                     db.log_change(doc_id, "update", f"batch_triage:{action}")
                     results.append({"doc_id": doc_id, "action": action, "success": True})
-                except Exception as e:
+                # Per-item error collector: one document failing must not abort
+                # the batch, and the failure is reported back in the result row.
+                # The three reachable sources are the API call (httpx.HTTPError
+                # covers both transport and status errors), request-model
+                # construction and response decoding (pydantic ValidationError
+                # and JSONDecodeError, both ValueError), and the audit write
+                # (duckdb.Error). A bug in our own dispatch is not one of them
+                # and should not be silently recorded as a per-document failure.
+                except (httpx.HTTPError, ValueError, duckdb.Error) as e:
                     results.append({
                         "doc_id": doc_id, "action": action,
                         "success": False, "error": str(e),

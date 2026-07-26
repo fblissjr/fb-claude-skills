@@ -131,8 +131,6 @@ webhook_handler: WebhookHandler | None = None
 
 def create_app() -> Starlette:
     """Create the full ASGI application with MCP, OAuth, and webhook routes."""
-    global webhook_handler
-
     # The MCP app handles /mcp
     mcp_app = mcp.streamable_http_app()
 

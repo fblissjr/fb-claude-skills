@@ -6,7 +6,7 @@ import hmac
 import logging
 from typing import Any
 
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 from starlette.responses import JSONResponse, Response
 
 from readwise_reader.api.models import WebhookDocumentPayload, WebhookHighlightPayload
@@ -34,7 +34,10 @@ class WebhookHandler:
         """Process an incoming webhook request."""
         try:
             body: dict[str, Any] = await request.json()
-        except Exception:
+        # Malformed JSON and bad encodings are ValueError subclasses; a client
+        # vanishing mid-body raises ClientDisconnect. Anything else is our bug
+        # and should surface as a 500 rather than be blamed on the sender.
+        except (ValueError, ClientDisconnect):
             logger.warning("Invalid webhook payload")
             return JSONResponse({"error": "invalid payload"}, status_code=400)
 
@@ -46,7 +49,7 @@ class WebhookHandler:
         event_type = body.get("event_type", "")
         logger.info("Received webhook event: %s", event_type)
 
-        if event_type.startswith("reader.") or event_type.startswith("reader.any_document"):
+        if event_type.startswith(("reader.", "reader.any_document")):
             self._handle_document_event(body)
         elif event_type.startswith("readwise.highlight"):
             self._handle_highlight_event(body)

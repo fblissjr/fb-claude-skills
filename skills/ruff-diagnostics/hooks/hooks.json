@@ -1,0 +1,21 @@
+{
+  "description": "ruff-diagnostics: PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings as additionalContext. Exists because Claude Code registers only one LSP per extension -- pyright-lsp claims .py, so `ruff server` can never start alongside it. Read-only; never mutates the project or its environment; silent when a file is clean.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 20,
+            "if": "Edit(*.py)|Write(*.py)|Edit(*.pyi)|Write(*.pyi)",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/post-edit-ruff.sh"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

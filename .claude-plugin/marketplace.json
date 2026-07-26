@@ -53,13 +53,13 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.8.1"
+      "version": "0.9.0"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "1.0.2"
+      "version": "1.1.0"
     },
     {
       "name": "agent-state-mcp",
@@ -106,8 +106,8 @@
     {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
-      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
-      "version": "0.2.2"
+      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
+      "version": "0.3.0"
     },
     {
       "name": "explainer-video",
@@ -125,6 +125,12 @@
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
+      "version": "0.1.0"
+    },
+    {
+      "name": "ruff-diagnostics",
+      "source": "./skills/ruff-diagnostics",
+      "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
       "version": "0.1.0"
     }
   ],

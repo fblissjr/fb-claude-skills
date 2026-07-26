@@ -59,11 +59,41 @@ replicate by hand on another machine.
   up to date; but if it wrote a venv-less config before `.venv` existed (the
   clone-then-`uv sync` order), a later session adds the venv pointer once
   `.venv` appears.
-- **Non-destructive** — never overwrites a `pyrightconfig.json` it didn't write,
-  and never shadows a project's own `[tool.pyright]` — a bare header *or* any
-  `[tool.pyright.<subtable>]` (respects shared/team configs).
-- **Silent** — emits no stdout, so it injects nothing into context (a missing
-  `jq` is the one exception: one stderr line, then it skips).
+- **Non-destructive** — never overwrites or removes a `pyrightconfig.json` it
+  didn't write, and never shadows a project's own `[tool.pyright]` — a bare
+  header *or* any `[tool.pyright.<subtable>]` (respects shared/team configs).
+- **Hands the project back** — see below.
+- **Silent** — emits no stdout, so it injects nothing into context. Two
+  exceptions: a missing `jq` (one stderr line, then it skips), and the one-time
+  handoff notice.
+
+### Taking your config back
+
+Pyright's own rule:
+
+> A `pyrightconfig.json` file always takes precedent over `pyproject.toml` if
+> both are present.
+
+That makes "just decline to write a second one" the wrong behaviour on its own.
+A file dropped here *before* a project grew a `[tool.pyright]` block would go on
+silently outranking it — and you'd have no reason to suspect a git-excluded file
+you never created was the reason your config had no effect.
+
+So when a project declares `[tool.pyright]`, this hook **removes the
+`pyrightconfig.json` it wrote** (and its own `.git/info/exclude` line, which
+would otherwise hide a `pyrightconfig.json` you later want tracked), and says so
+once. It only ever removes its own byte-for-byte output — edit that file at all
+and it becomes yours, untouched forever.
+
+If you move settings into `[tool.pyright]`, carry `venvPath`/`venv` across or
+imports stop resolving:
+
+```toml
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+reportMissingImports = "none"
+```
 - **Scoped** — a fast no-op outside Python projects (a few `stat`s, then exit).
 
 ## Install
