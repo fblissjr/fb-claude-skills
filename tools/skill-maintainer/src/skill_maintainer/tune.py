@@ -207,6 +207,21 @@ def _installed_version(name: str) -> str | None:
     return None
 
 
+def _installed_template_version() -> str | None:
+    """The `tN` stamp the installed path-privacy would write today."""
+    for root in PLUGIN_ROOTS:
+        if not root.is_dir():
+            continue
+        for inst in root.rglob("skills/path-privacy/scripts/install-git-hooks.sh"):
+            try:
+                for line in inst.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if line.startswith("WRAPPER_TEMPLATE_VERSION="):
+                        return "t" + line.split("=", 1)[1].strip()
+            except OSError:
+                continue
+    return None
+
+
 def artifact_drift(repos: list[Path]) -> list[tuple[str, str, str, str]]:
     """Report files our plugins wrote into repos, and whether they have drifted.
 
@@ -217,7 +232,10 @@ def artifact_drift(repos: list[Path]) -> list[tuple[str, str, str, str]]:
     correct, and it is also the only place staleness can hide -- which is
     exactly how it hides: you only find out by opening a session in that repo.
     """
-    current = _installed_version("path-privacy")
+    # Wrapper stamps are template versions ("t2"), not plugin versions. Reading
+    # plugin.json here compared two different namespaces, so a perfectly current
+    # wrapper reported "cannot compare -- reinstall" in every repo.
+    current = _installed_template_version()
     rows: list[tuple[str, str, str, str]] = []
     for repo in repos:
         hook = repo / ".git" / "hooks" / "pre-commit"
@@ -236,11 +254,20 @@ def artifact_drift(repos: list[Path]) -> list[tuple[str, str, str, str]]:
             # source checkout is legitimately AHEAD of the installed plugin, and
             # telling someone to re-run the installer there would regenerate the
             # wrapper from the older plugin: the advertised fix as a downgrade.
-            have, want = _version_tuple(stamp or ""), _version_tuple(current or "")
-            if stamp is None:
+            def _tn(v: str) -> int | None:
+                return int(v[1:]) if v.startswith("t") and v[1:].isdigit() else None
+            have, want = _tn(stamp or ""), _tn(current or "")
+            if current is None:
+                # The installed plugin predates template stamps entirely. The
+                # wrapper is not the thing that is behind, and telling someone to
+                # reinstall from that plugin is the downgrade this whole
+                # comparison exists to prevent.
+                verdict = ("installed path-privacy predates wrapper-template "
+                           "versioning -- update the plugin, not the wrapper")
+            elif stamp is None:
                 verdict = "no stamp (foreign hook, or pre-0.6.0 install) -- reinstall"
-            elif have is None or want is None:
-                verdict = f"cannot compare stamp to plugin {current or '?'} -- reinstall"
+            elif have is None:
+                verdict = f"legacy stamp, plugin ships {current} -- reinstall to migrate"
             elif have == want:
                 verdict = "current"
             elif have > want:

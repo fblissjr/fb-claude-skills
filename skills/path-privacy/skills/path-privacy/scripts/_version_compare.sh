@@ -27,3 +27,18 @@ pp_version_is_newer() {
   # newer": the safe direction.
   [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V 2>/dev/null | tail -1)" = "$1" ]
 }
+
+# pp_template_is_newer A B -- true only when both are "tN" stamps and A > B.
+#
+# Wrapper stamps moved from the plugin version to a WRAPPER_TEMPLATE_VERSION
+# ("t1", "t2") so unrelated releases stop marking every installed wrapper stale.
+# pp_version_is_newer cannot judge those: it requires plainly numeric input and
+# answers "not newer" for BOTH t9 and t1, which sent an AHEAD wrapper into the
+# refresh branch and downgraded it. Same asymmetry as above -- anything not
+# matching tN (a legacy plugin-version stamp, "unknown", empty) is by definition
+# not ahead, so it lands in the stale branch whose remedy is harmless.
+pp_template_is_newer() {
+  case "$1" in t[0-9]*) ;; *) return 1 ;; esac
+  case "$2" in t[0-9]*) ;; *) return 1 ;; esac
+  [ "${1#t}" -gt "${2#t}" ] 2>/dev/null
+}

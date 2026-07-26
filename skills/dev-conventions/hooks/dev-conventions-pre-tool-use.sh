@@ -94,22 +94,32 @@ CMD=$(printf '%s' "$IN" | jq -r '.tool_input.command // ""' 2>/dev/null)
 # Normalise: collapse whitespace so `pip   install` and `pip\ninstall` match.
 NORM=$(printf '%s' "$CMD" | tr '\n\t' '  ' | tr -s ' ')
 
+
 # --- Python: pip in a uv project ----------------------------------------------
 # Requires uv.lock. A pyproject.toml alone is not evidence -- plenty of pip
 # projects have one.
 if [ -f "$root/uv.lock" ] && enforced python-package-manager; then
-  case " $NORM " in
-    *" pip install "*|*" pip3 install "*|*"-m pip install "*|\
-    *" pip uninstall "*|*" pip3 uninstall "*|*"-m pip uninstall "*)
-      # `uv pip install` is uv's own compatibility shim and is fine.
-      case " $NORM " in *" uv pip "*) exit 0 ;; esac
-      block "Blocked: this project is uv-managed (uv.lock present); pip would desync it.
+  # Scan the head of each command in the pipeline, not the whole string. The
+  # phrase appearing as an argument or inside quotes is not a violation:
+  # `rg "pip install" .` and `git commit -m "stop using pip install"` are things
+  # people legitimately run, and this file's own header argues a false block is
+  # worse than a directive the model can weigh in context.
+  while IFS= read -r head; do
+    [ -n "$head" ] || continue
+    case " $head " in *" uv pip "*) continue ;; esac   # uv's own shim is fine
+    case " $head " in
+      *" pip install "*|*" pip3 install "*|*"-m pip install "*|\
+      *" pip uninstall "*|*" pip3 uninstall "*|*"-m pip uninstall "*)
+        block "Blocked: this project is uv-managed (uv.lock present); pip would desync it.
   add:     uv add <pkg>          (exact pin for apps: uv add 'pkg==1.2.3')
   remove:  uv remove <pkg>
   install: uv sync
   one-off: uv pip install <pkg>  (uv's own shim, if you really mean it)
 Set DEV_CONVENTIONS_ALLOW=1 to override." ;;
-  esac
+    esac
+  done <<EOF
+$(printf '%s' "$NORM" | tr ';|&' '\n' | sed -e 's/^ *//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^ ]* *//')
+EOF
 fi
 
 # --- JS: npm/yarn/pnpm in a bun project ---------------------------------------
@@ -117,17 +127,22 @@ fi
 # genuinely uses both is left alone.
 if { [ -f "$root/bun.lock" ] || [ -f "$root/bun.lockb" ]; } && enforced js-package-manager; then
   if [ ! -f "$root/package-lock.json" ] && [ ! -f "$root/yarn.lock" ] && [ ! -f "$root/pnpm-lock.yaml" ]; then
-    case " $NORM " in
-      *" npm install "*|*" npm i "*|*" npm add "*|*" npm ci "*|*" npm uninstall "*|\
-      *" yarn add "*|*" yarn install "*|*" yarn remove "*|\
-      *" pnpm add "*|*" pnpm install "*|*" pnpm remove "*)
-        block "Blocked: this project is bun-managed (bun.lock present, no competing lockfile).
+    while IFS= read -r head; do
+      [ -n "$head" ] || continue
+      case " $head " in
+        *" npm install "*|*" npm i "*|*" npm add "*|*" npm ci "*|*" npm uninstall "*|\
+        *" yarn add "*|*" yarn install "*|*" yarn remove "*|\
+        *" pnpm add "*|*" pnpm install "*|*" pnpm remove "*)
+          block "Blocked: this project is bun-managed (bun.lock present, no competing lockfile).
   add:     bun add <pkg>       (exact pin for apps: bun add pkg@1.2.3)
   remove:  bun remove <pkg>
   install: bun install
   run:     bun run <script> / bunx <tool>
 Set DEV_CONVENTIONS_ALLOW=1 to override." ;;
-    esac
+      esac
+    done <<EOF
+$(printf '%s' "$NORM" | tr ';|&' '\n' | sed -e 's/^ *//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^ ]* *//')
+EOF
   fi
 fi
 

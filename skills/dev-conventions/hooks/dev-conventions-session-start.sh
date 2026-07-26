@@ -70,8 +70,14 @@ if [ -d "$CWD/internal/log" ] || [ -d "$CWD/internal" ]; then
   HAS_SESSION_LOG=true
 fi
 
+# A repo with no Python or JS marker still gets its own `rules[]` from
+# .dev-conventions.json -- the configure skill documents those as generic house
+# rules and promises they load next session, and a Go, Rust, or docs-only repo
+# would otherwise never see them because this guard runs first.
 if [ "$HAS_PYTHON" = false ] && [ "$HAS_JS" = false ]; then
-  exit 0
+  if [ ! -f "$CWD/.dev-conventions.json" ]; then
+    exit 0
+  fi
 fi
 
 # Assemble context from directive files

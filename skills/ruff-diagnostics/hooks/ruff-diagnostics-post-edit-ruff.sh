@@ -121,7 +121,12 @@ REL=${FILE#"$ROOT"/}
 # the state the note is warning about. Emitted at most once per session per
 # project root, so the advice lands without repeating on every edit.
 SELECT_NOTE=""
-for cfg in "$ROOT/pyproject.toml" "$ROOT/ruff.toml" "$ROOT/.ruff.toml"; do
+# Ruff's own precedence: .ruff.toml, then ruff.toml, then pyproject.toml. Check
+# in that order and stop at the first that EXISTS, because that is the file ruff
+# will actually read. Checking pyproject.toml first meant a project whose
+# `select` lives in ruff.toml never got the note -- the exact configuration the
+# note exists to catch.
+for cfg in "$ROOT/.ruff.toml" "$ROOT/ruff.toml" "$ROOT/pyproject.toml"; do
   [ -f "$cfg" ] || continue
   if grep -qE '^[[:space:]]*select[[:space:]]*=' "$cfg" 2>/dev/null \
      && ! grep -qE '^[[:space:]]*extend-select[[:space:]]*=' "$cfg" 2>/dev/null; then

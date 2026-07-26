@@ -43,6 +43,5 @@ still needs a version bump before commit.
 ## Related skills
 
 - `session-log-drafter` (agent, same plugin) -- does the actual log drafting.
-- `sync-bundled-ref` (same plugin) -- manual bundled-reference sync fallback.
 - `sync-versions` (same plugin) -- atomic version bump across all sources.
 - `quality` (same plugin) -- pre-commit quality scan.

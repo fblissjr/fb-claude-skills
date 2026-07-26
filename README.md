@@ -167,7 +167,8 @@ Once installed, invoke as namespaced slash commands:
 /dimensional-modeling          # Star schema design patterns
 
 /dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
-/dev-conventions:bun-tooling     # Full bun conversion tables
+/dev-conventions:configure      # Per-repo convention overrides
+/dev-conventions:dep-audit     # Full bun conversion tables
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax

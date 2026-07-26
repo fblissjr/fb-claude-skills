@@ -25,6 +25,7 @@ if [ -r "$VERSION_COMPARE_LIB" ]; then
   . "$VERSION_COMPARE_LIB"
 else
   pp_version_is_newer() { return 1; }
+  pp_template_is_newer() { return 1; }
 fi
 
 # --- outdated-wrapper notice -------------------------------------------------
@@ -79,16 +80,6 @@ if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
       # hand-written or foreign hook is never touched. `pp_version_is_newer`
       # still guards the other direction -- a wrapper AHEAD of the plugin is
       # left alone, because regenerating it would install OLDER logic.
-      # Template stamps are "tN". pp_version_is_newer only understands plainly
-      # numeric versions, so it answers "not newer" for BOTH t9 and t1 -- which
-      # sent an ahead wrapper into the refresh branch and downgraded it. Compare
-      # tN forms as integers here; anything not matching tN is a legacy stamp
-      # (a plugin version, or "unknown") and is by definition not ahead.
-      pp_template_is_newer() {
-        case "$1" in t[0-9]*) ;; *) return 1 ;; esac
-        case "$2" in t[0-9]*) ;; *) return 1 ;; esac
-        [ "${1#t}" -gt "${2#t}" ] 2>/dev/null
-      }
       if pp_template_is_newer "$have" "$CURRENT_VERSION"; then
         AHEAD_HOOKS="${AHEAD_HOOKS:+$AHEAD_HOOKS, }$h ($have)"
       elif [ -x "$INSTALLER" ] && "$INSTALLER" -C "$CWD" >/dev/null 2>&1 \

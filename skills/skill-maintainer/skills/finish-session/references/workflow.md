@@ -44,7 +44,7 @@ If `.skill-maintainer/best_practices.md` was modified in this session, the PostT
 cmp -s .skill-maintainer/best_practices.md skills/skill-maintainer/references/best_practices.md && echo "in sync" || echo "DRIFT"
 ```
 
-If drift reported, run `/skill-maintainer:sync-bundled-ref`.
+If drift is reported, copy the working copy over the bundled reference directly.
 
 Similar pattern for any other "working copy / bundled copy" pairs the project might accumulate.
 
@@ -85,7 +85,7 @@ Session wrap complete. Summary:
 
   Files changed: <N>  (across <X> plugins, <Y> tools)
   Session log:   <resolved log path> (part <N>)
-  Bundled refs:  in sync  (or: synced via hook / via sync-bundled-ref)
+  Bundled refs:  in sync  (or: synced via hook)
   Version bumps: <plugin>@<v>  <plugin>@<v>  (or: none needed)
   Quality:       30/30 valid, 0 over budget, 0 stale
 
