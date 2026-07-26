@@ -85,5 +85,5 @@ Run on a clean fresh clone. `git filter-repo` refuses to operate on a repo with 
 
 ## What is fine
 
-- A short, vague entry in a gitignored file like `internal/log/log_YYYY-MM-DD.md` describing what happened. The directory is gitignored — it stays local.
+- A short, vague entry in whatever gitignored file this repo keeps local notes in (here, `internal/log/log_YYYY-MM-DD.md`; other repos differ) describing what happened. It stays local because that file is gitignored.
 - An internal note to yourself in a personal todo. Not in the repo.

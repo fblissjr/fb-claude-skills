@@ -99,14 +99,14 @@ Shared resources (`ReadwiseClient`, `Database`, `TokenStore`) are initialized in
 
 - **Python 3.13**, managed with `uv` (never pip/python directly)
 - **orjson** for all JSON serialization
-- **ruff** for linting (`line-length=100`, target `py313`, select `E,W,F,I,B,C4,UP`)
+- **ruff** >= 0.16 for linting (`line-length=100`, target `py313`, `extend-select = E,W,F,I,B,C4,UP`). `extend-select`, not `select`: `select` would replace ruff's 413 default rules with just these seven groups.
 - **pytest** with `pytest-asyncio` (mode=auto), `respx` for HTTP mocking
 - DuckDB parameterized queries: `?` placeholders cannot mix with SQL functions like `CURRENT_TIMESTAMP` in the same VALUES clause. Pass timestamps as parameters instead.
 - Use `EXCLUDED.column` in ON CONFLICT DO UPDATE to reference new values (DuckDB syntax)
 - Tool registration follows `register_*_tools(mcp)` pattern in separate modules under `tools/`
 - No emojis in code, docs, or output
 - Never commit or stage files automatically
-- Keep `CHANGELOG.md` updated (semver, no dates)
+- Changelog entries go in the **repo root** `CHANGELOG.md`, not here. This package deliberately has no changelog of its own: it was the only first-party unit with one, so nothing maintained it and it drifted five versions behind `pyproject.toml` before anyone noticed. Semver, no dates.
 - Maintain daily logs in `internal/log/log_YYYY-MM-DD.md`
 
 ## running

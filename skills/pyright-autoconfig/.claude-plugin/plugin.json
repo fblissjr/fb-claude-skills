@@ -1,7 +1,7 @@
 {
   "name": "pyright-autoconfig",
-  "version": "0.2.2",
-  "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project that lacks a Pyright config -- points Pyright at the uv .venv so imports resolve (real cross-file type intel) and silences the reportMissingImports flood. Idempotent; no-op outside Python projects; never clobbers an existing pyright config; never commits the file.",
+  "version": "0.3.2",
+  "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
   "author": {
     "name": "Fred Bliss"
   },

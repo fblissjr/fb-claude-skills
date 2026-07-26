@@ -14,7 +14,7 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | Unbumped content changes | Pre-commit git hook | On commit (warning only) |
 | CLAUDE.md size creep | Pre-commit git hook | On commit (warning only) |
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |
-| Bundled best_practices.md drift | skill-maintainer PostToolUse hook (`sync-bundled-ref.sh`) | On Edit/Write of working copy |
+| Bundled best_practices.md drift | skill-maintainer PostToolUse hook (`skill-maintainer-sync-bundled-ref.sh`) | On Edit/Write of working copy |
 | Forgotten session log | skill-maintainer Stop hook (`maybe-draft-session-log.sh`) | On session stop, when ≥3 substantive files touched and today's log not updated |
 
 The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git** — must be re-applied on fresh clones. See [gotchas.md](gotchas.md) for setup.
@@ -30,7 +30,7 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Upstream Claude Code doc change detection (per-page snapshots, line/char deltas) | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
-| Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `/skill-maintainer:sync-bundled-ref` |
+| Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `a direct copy (the PostToolUse hook normally handles it)` |
 | Append-only audit log query | `skill-maintain log` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
@@ -72,7 +72,6 @@ JS/TS: `skill-dashboard` at `apps/skill-dashboard/mcp-app` is a TypeScript ext-a
 
 Setup: `uv sync --all-packages` installs all member deps into a shared venv. `readwise-reader` is excluded from the default workspace; opt in by removing it from the `exclude` list in root `pyproject.toml`.
 
-`env-forge` is deprecated: moved to `apps/_deprecated/env-forge/`, removed from `marketplace.json` and from the workspace members above. `_deprecated` is in `SKIP_DIRS`, so nothing under it is scanned for skills, plugins, or version alignment.
 
 ## Decision: no local copies of upstream docs (2026-07-21)
 

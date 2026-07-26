@@ -1,6 +1,6 @@
 # writing
 
-*Last updated: 2026-07-24*
+*Last updated: 2026-07-26*
 
 Writing skills for clear, accessible prose. One skill is an American plain-language house style — plain English, active voice, front-loaded content, sentence case, and no bold or italics for emphasis. A second matches the user's own voice, learning it from the conversation and a saved profile.
 

@@ -227,16 +227,16 @@ async def e2e_mcp_session(
                 transport=transport,
                 base_url=TEST_SERVER_URL,
                 headers={"Authorization": f"Bearer {e2e_access_token}"},
-            ) as http_client:
-                async with streamable_http_client(
-                    f"{TEST_SERVER_URL}/mcp",
-                    http_client=http_client,
-                ) as (read_stream, write_stream, _):
-                    async with ClientSession(read_stream, write_stream) as session:
-                        await session.initialize()
-                        session_ref["session"] = session
-                        ready.set()
-                        await done.wait()
+            ) as http_client, streamable_http_client(
+                f"{TEST_SERVER_URL}/mcp",
+                http_client=http_client,
+            ) as (read_stream, write_stream, _), ClientSession(
+                read_stream, write_stream
+            ) as session:
+                await session.initialize()
+                session_ref["session"] = session
+                ready.set()
+                await done.wait()
 
     task = asyncio.create_task(_run())
     await ready.wait()

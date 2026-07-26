@@ -1,5 +1,5 @@
 {
-  "description": "pyright-autoconfig: SessionStart drops a locally-git-ignored pyrightconfig.json in Python projects lacking one, so the Pyright LSP resolves the venv and stops flooding reportMissingImports. Side-effect only; emits no context.",
+  "description": "pyright-autoconfig: SessionStart drops a locally-git-ignored pyrightconfig.json in Python projects lacking one, so the Pyright LSP resolves the venv and stops flooding reportMissingImports. Retracts that file if the project later declares its own [tool.pyright], because Pyright ranks pyrightconfig.json above pyproject.toml. Side-effect only, except for a one-time notice when it retracts.",
   "hooks": {
     "SessionStart": [
       {
@@ -9,7 +9,7 @@
             "command": "bash",
             "timeout": 5,
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/pyright-autoconfig-session-start.sh"
             ]
           }
         ]

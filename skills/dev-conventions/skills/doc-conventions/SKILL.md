@@ -25,11 +25,11 @@ metadata:
 
 ## Internal documentation
 
-Use `./internal/` for documentation that isn't meant to be shared (design notes, debugging logs, scratch work). This directory should be in `.gitignore`.
+Use `./internal/` for documentation that isn't meant to be shared (design notes, debugging logs, scratch work), gitignored. This is the owner's preference, not a universal layout: a repo that already has somewhere for unshared notes keeps its own arrangement, and other plugins should read that rather than impose this one.
 
 ## Session logs
 
-Daily session logs go in `./internal/log/log_YYYY-MM-DD.md`. These capture what was done, decisions made, and open questions. Useful for continuity across sessions.
+Daily session logs capture what was done, decisions made, and open questions -- useful for continuity across sessions. The owner's layout is `./internal/log/log_YYYY-MM-DD.md`; adopt it in a repo that has no arrangement of its own, and match what is already there in a repo that does.
 
 ## Dependency change tracking
 

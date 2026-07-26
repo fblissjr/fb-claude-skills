@@ -1,50 +1,38 @@
 ---
 name: python-tooling
 description: >-
-  Detailed Python/uv conversion reference. Core conventions auto-loaded via SessionStart hook;
-  invoke /dev-conventions:python-tooling for full conversion tables.
-  Use when you need the complete uv command mapping, version pinning strategy, or lock file workflow.
+  Python type-checking failures that look like unfixable Pydantic/Pyright noise but
+  are two mechanical mistakes, plus this repo's dependency-pinning policy. Use when
+  pyright reports a wall of "Arguments missing for parameters" or reportCallIssue,
+  when a [tool.pyright] block seems to have no effect, when deciding how to pin a
+  dependency, or when asked to suppress type errors in a Python project.
 metadata:
-  last_verified: "2026-07-05"
+  last_verified: "2026-07-26"
 ---
 
-# Python Tooling Conventions
+# Python conventions and type-checking traps
 
-## Package management: uv
+Claude already knows uv. This skill carries only what it cannot derive: the
+house pinning policy, and the failures that reliably get misdiagnosed.
 
-Always use `uv` for Python package and environment management. Never use `pip`, `pip3`, `python -m pip`, or bare `python`/`python3`.
+## Pinning policy
 
-| Instead of | Use |
-|------------|-----|
-| `pip install X` | `uv add X` |
-| `pip install -r requirements.txt` | `uv sync` (with pyproject.toml) |
-| `python script.py` | `uv run script.py` |
-| `python -m pytest` | `uv run pytest` |
-| `python -m venv .venv` | `uv venv` |
-| `pip freeze > requirements.txt` | `uv lock` (use pyproject.toml + uv.lock) |
+Applications pin exact (`uv add httpx==0.27.2`); libraries and dev dependencies
+use floors (`uv add 'httpx>=0.27'`). Unsure → exact. `uv lock --check` after.
 
-## Version pinning
+## Before suppressing a wall of type errors
 
-| Project type | Strategy | Example |
-|-------------|----------|---------|
-| Application (deployed service, CLI, script) | Exact pin | `uv add httpx==0.27.2` |
-| Library (published package, workspace member) | Floor pin | `uv add 'httpx>=0.27'` |
-| Dev/test dependency | Floor pin | `uv add --group dev 'pytest>=7.0'` |
+Two mechanical mistakes produce hundreds of diagnostics that read as unfixable
+Pydantic/Pyright noise. Measured on one real project: 698 errors → 264, from a
+keyword argument and a single annotation. Check both before writing a
+suppression: `references/type-checking.md`.
 
-When in doubt, pin exact. After adding any dependency, run `uv lock --check` to verify the lock file is consistent.
+The same file covers Pyright config precedence — `pyrightconfig.json` always
+outranks `[tool.pyright]`, which is why a config block can appear to do nothing.
 
-## Lock file
+## Adjacent, owned elsewhere
 
-`uv.lock` is machine-generated. Never hand-edit it. Update it only through `uv lock` or `uv sync`, and commit it alongside `pyproject.toml`. Use `pyproject.toml` + `uv.lock`, not `requirements.txt`.
-
-## Pydantic `str` enums
-
-Assign enum members, never the bare string they coerce from:
-
-```python
-status = SkillStatus.ACTIVE   # not status = "active"
-```
-
-Pydantic accepts `"active"` at runtime and coerces it, so both spellings work and the difference never shows up in tests. But the coercion is invisible to Pyright, which sees `str` where the field is typed `SkillStatus`. Using the member is what puts the value under static analysis, so a typo like `"actve"` fails at check time instead of becoming a validation error in whatever code path happens to run first.
-
-> JSON library choice (stdlib `json` vs `orjson`, etc.) is a per-project preference, not a universal convention — set it in the project's own `CLAUDE.md` or `.claude/rules/` rather than assuming it here.
+- Lint config and ruff findings — `ruff-diagnostics` plugin.
+- Pointing Pyright at the project venv — `pyright-autoconfig` plugin.
+- `pip` and `uv.lock` edits are blocked by this plugin's PreToolUse hook, so the
+  package-manager preference is enforced rather than explained.

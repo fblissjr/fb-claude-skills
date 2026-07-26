@@ -9,7 +9,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/sync-bundled-ref.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/skill-maintainer-sync-bundled-ref.sh"
             ]
           }
         ]
@@ -22,7 +22,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/maybe-draft-session-log.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/skill-maintainer-maybe-draft-session-log.sh"
             ]
           }
         ]

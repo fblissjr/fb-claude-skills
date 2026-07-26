@@ -1,6 +1,21 @@
 {
-  "description": "Dev conventions hook: detect project type at session start and inject relevant tooling conventions",
+  "description": "Dev conventions hooks. PreToolUse blocks the convention violations that can be detected mechanically (pip in a uv project, npm in a bun project, hand-editing a lockfile), each gated on positive evidence from the project itself. SessionStart injects only what cannot be enforced. The `if` filters are spawn optimisations; every decision is made in-script from the parsed tool_input, because `if` fails open on unparseable Bash.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 5,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/dev-conventions-pre-tool-use.sh"
+            ]
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
@@ -8,7 +23,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/dev-conventions-session-start.sh"
             ]
           }
         ]

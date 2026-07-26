@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-26
 
 # skill-maintainer
 
@@ -28,7 +28,6 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 | `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, freshness, description quality |
 | `init-maintenance` | `/skill-maintainer:init-maintenance` | Set up persistent maintenance config and state in a repo |
 | `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` atomically. No longer touches SKILL.md -- `metadata.version` was removed from skill frontmatter, and `plugin.json` is the sole version source |
-| `sync-bundled-ref` | `/skill-maintainer:sync-bundled-ref` | Mirror the working-copy `best_practices.md` to the plugin-bundled reference |
 | `finish-session` | `/skill-maintainer:finish-session` | Orchestrate end-of-session cleanup: draft log, sync refs, flag version bumps, quality scan |
 
 ## agents
@@ -41,7 +40,6 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 
 | Event | What | When |
 |-------|------|------|
-| `PostToolUse` (`Edit`/`Write`/`MultiEdit`) | `sync-bundled-ref.sh` | Auto-mirrors `.skill-maintainer/best_practices.md` -> `skills/skill-maintainer/references/best_practices.md` so fresh `skill-maintain init` in new repos pulls the latest rules. `cmp -s` gated; silent no-ops; exit 0 always. |
 | `Stop` | `maybe-draft-session-log.sh` | When the session touched >= 3 substantive files (excluding logs, lock files, `.skill-maintainer/state/`) AND today's `internal/log/log_YYYY-MM-DD.md` doesn't exist or wasn't modified today, prints a one-line stderr nudge pointing at `/skill-maintainer:finish-session`. Honors `stop_hook_active=true`; never blocks; exit 0 always. |
 
 ## usage examples
@@ -56,12 +54,11 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 # set up maintenance config in a new skills repo
 /skill-maintainer:init-maintenance
 
-# bump tui-design's version across plugin.json, marketplace.json, pyproject.toml
+# bump path-privacy's version across plugin.json, marketplace.json, pyproject.toml
 # (SKILL.md no longer carries a version field -- plugin.json is the sole source)
-/skill-maintainer:sync-versions tui-design 0.4.0
+/skill-maintainer:sync-versions path-privacy 0.7.4
 
 # sync working copy -> bundled reference manually (hook does this automatically on Edit)
-/skill-maintainer:sync-bundled-ref
 
 # end-of-session cleanup before committing a substantive working session
 /skill-maintainer:finish-session

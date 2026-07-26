@@ -1,5 +1,6 @@
 ---
 name: maintain
+argument-hint: "[upstream|sources|quality|all]"
 description: >-
   Full maintenance pass for a skills repo: pull upstream docs, sync tracked source repos, run quality
   checks, and review best practices for updates. Use when user says "maintain", "maintenance pass",

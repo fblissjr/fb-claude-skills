@@ -1,10 +1,14 @@
 ---
 name: sync-versions
+argument-hint: "[plugin] [version]"
+arguments:
+  - plugin
+  - version
 description: >-
   Bump a plugin's version across all sources (plugin.json, marketplace.json,
   CHANGELOG.md, pyproject.toml) atomically. SKILL.md is deliberately NOT one of
   them. Use when the user says "sync versions",
-  "bump version", "align versions", or "/sync-versions <plugin> <version>".
+  "bump version", "align versions", or "/sync-versions path-privacy 0.9.0".
   Pass plugin name and target version as arguments.
 metadata:
   last_verified: "2026-07-21"
@@ -23,7 +27,7 @@ Bump a plugin's version atomically across all locations where version is tracked
 
 Examples:
 ```
-/skill-maintainer:sync-versions tui-design 0.3.0
+/skill-maintainer:sync-versions path-privacy 0.7.4
 /skill-maintainer:sync-versions skill-dashboard 1.1.0
 /skill-maintainer:sync-versions          # interactive: pick plugin + version
 ```

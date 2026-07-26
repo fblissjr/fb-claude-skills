@@ -1,8 +1,6 @@
 # trigger: python
 ## Python conventions (auto-detected)
-- Package manager: ALWAYS use uv, NEVER pip/pip3/`python -m pip`/bare python (`uv add`, `uv run`, `uv sync`).
-- Pinning: applications pin exact (`uv add httpx==0.27.2`), libraries use floors (`uv add 'httpx>=0.27'`). When unsure, pin exact.
+- Package manager is uv: `uv add`, `uv run <script>`, `uv sync`. Never bare `python`/`pip` — pip and `uv.lock` edits are hook-blocked, but reaching for `uv run` is on you.
+- Pin on the way in: apps exact (`uv add httpx==0.27.2`), libraries floors (`uv add 'httpx>=0.27'`). Unsure → exact.
 - Do NOT auto-run linters, formatters, or tests after edits unless asked.
-- Lock file: never hand-edit `uv.lock` (machine-generated); update via `uv lock`/`uv sync`, verify with `uv lock --check`.
-- Pydantic `str` enums: use enum members (`SkillStatus.ACTIVE`), never bare strings (`"active"`) — Pyright cannot see Pydantic's runtime coercion, so members catch typos at static-analysis time.
-- Full reference: /dev-conventions:python-tooling.
+- Depth on any of this, plus Pydantic/Pyright gotchas and pip→uv migration: `/dev-conventions:python-tooling`.

@@ -1,5 +1,6 @@
 ---
 name: scan-for-secrets
+argument-hint: "[paths to scan, default whole repo]"
 description: >-
   Pre-share scan for leaked secrets and privacy-sensitive content. Wraps simonw/scan-for-secrets
   for literal matching (with JSON/URL/HTML/backslash/unicode escape variants) and composes a

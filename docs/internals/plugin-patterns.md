@@ -50,7 +50,7 @@ Detection logic in `session-start.sh` orders cheap checks (file/dir stat) before
 - `mece-decomposer`: `agent-sdk`
 - `env-forge`: `envforge`
 
-Plugins using this pattern: `dev-conventions`, `tui-design`, `dimensional-modeling`, `mece-decomposer`, `env-forge`, `path-privacy`.
+Plugins using this pattern: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `env-forge`, `path-privacy`.
 
 ## Agent vs. skill
 
@@ -74,11 +74,11 @@ Every plugin hook in this repo runs a bundled `.sh` and therefore references
 {
   "type": "command",
   "command": "bash",
-  "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"]
+  "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/<plugin>-session-start.sh"]
 }
 ```
 
-Not shell form (`"command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"` with
+Not shell form (`"command": "${CLAUDE_PLUGIN_ROOT}/hooks/<plugin>-session-start.sh"` with
 no `args`). Shell form hands the whole string to `sh -c`, so a plugin root
 containing a space — a user account named `First Last`, for instance — splits at
 the space and the hook dies with `sh: /Users/First: No such file or directory`.  <!-- path-privacy: ignore -->
@@ -254,3 +254,25 @@ rather than solved it.
   indefinitely. If the rule is about repo *content*, something must audit
   content — `check_path_privacy` exists because five leaked paths survived 157
   days and a full docs triage behind clean diffs.
+
+## Per-repo plugin config
+
+A plugin that needs per-repo overrides ships its own root-level
+`.<plugin-name>.json`, tracked rather than gitignored, with the shape
+`dev-conventions` established:
+
+```json
+{ "enforce": { "some-rule": false }, "rules": ["extra house rule"] }
+```
+
+Omitted keys mean "default", so the file only ever states exceptions.
+
+**A convention, deliberately not a shared mechanism.** One shared config file
+would couple plugins that release independently and force a schema versioned
+across all of them, and there is exactly one consumer today. Writing the shape
+down is what stops the third plugin inventing a third format — and if three
+files ever become genuinely painful, a migration is mechanical because they
+already agree on structure.
+
+Root-level rather than under `.claude/`: that directory is Claude Code's
+namespace, not the plugin's, and a root dotfile is more discoverable to humans.

@@ -17,7 +17,8 @@ from typing import Any
 from urllib.parse import urlencode
 
 import jwt
-from starlette.requests import Request
+from starlette.exceptions import HTTPException
+from starlette.requests import ClientDisconnect, Request
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
@@ -90,7 +91,12 @@ class OAuthServer:
         """RFC 7591: Dynamic Client Registration."""
         try:
             body = await request.json()
-        except Exception:
+        # `Request.json()` is `json.loads` over `body()`. Malformed JSON raises
+        # JSONDecodeError and a bad encoding raises UnicodeDecodeError, both
+        # ValueError subclasses; a client vanishing mid-body raises
+        # ClientDisconnect. Anything else here is a bug in us, and should 500
+        # rather than be reported to the caller as their malformed request.
+        except (ValueError, ClientDisconnect):
             return JSONResponse({"error": "invalid_request"}, status_code=400)
 
         client_id = secrets.token_urlsafe(32)
@@ -235,7 +241,12 @@ class OAuthServer:
         """Exchange authorization code or refresh token for access token."""
         try:
             body = await request.form()
-        except Exception:
+        # A malformed form body is treated as an empty one; the grant-type
+        # dispatch below then rejects it with an RFC 6749 JSON error. Starlette
+        # converts form-parser failures into HTTPException(400), which must be
+        # caught here rather than allowed to propagate -- its default handler
+        # returns plain text, and this endpoint owes callers a JSON `error`.
+        except (ValueError, ClientDisconnect, HTTPException):
             body = {}
 
         grant_type = str(body.get("grant_type", ""))

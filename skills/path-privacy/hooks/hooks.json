@@ -8,7 +8,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/path-privacy-session-start.sh"
             ]
           }
         ]
@@ -16,14 +16,14 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|Bash",
         "hooks": [
           {
             "type": "command",
             "command": "bash",
             "timeout": 30,
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/path-privacy-pre-tool-use.sh"
             ]
           }
         ]

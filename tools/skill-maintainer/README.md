@@ -104,7 +104,7 @@ skill-maintain quality
 skill-maintain quality --dir /path/to/other-skill-repo
 
 # check a single skill's token budget
-skill-maintain measure --skill tui-design
+skill-maintain measure --skill path-privacy
 
 # see last 5 audit log entries
 skill-maintain log --tail 5
@@ -217,7 +217,7 @@ Reports errors (spec violations) and warnings (best practice issues) separately.
 
 ```bash
 skill-maintain validate --all
-skill-maintain validate --skill tui-design --verbose
+skill-maintain validate --skill path-privacy --verbose
 ```
 
 ### quality
@@ -247,7 +247,7 @@ The window is `metadata.review_interval_days` from that skill's frontmatter (def
 skill-maintain freshness                    # show all, per-skill review_interval_days
 skill-maintain freshness --quiet            # only show stale
 skill-maintain freshness --threshold 14     # override every skill's interval with 14 days
-skill-maintain freshness --skill tui-design # check one skill
+skill-maintain freshness --skill path-privacy # check one skill
 ```
 
 ### measure
@@ -256,7 +256,7 @@ Detailed token budget measurement with per-file breakdown. Classifies files by t
 
 ```bash
 skill-maintain measure
-skill-maintain measure --skill tui-design
+skill-maintain measure --skill path-privacy
 skill-maintain measure --output report.md   # write to file
 ```
 

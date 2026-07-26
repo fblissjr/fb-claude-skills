@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-07-26
 
 # Upstream drift backlog
 
@@ -11,6 +11,56 @@ quietly lost.
 
 Re-derive with: `skill-maintain upstream`, then diff
 `.skill-maintainer/state/pages/*.md` against the previous snapshot.
+
+## Identified 2026-07-26, not yet absorbed
+
+From a three-agent read of `skills`, `sub-agents`, `plugins-reference`, `hooks`,
+`hooks-guide`, `debug-your-config`, `best-practices`, `large-codebases`,
+`memory`, and the Claude 5 context-engineering post. Everything that changed a
+decision was applied at the time; this is the remainder, recorded so it is not
+rediscovered expensively.
+
+**Hook capabilities we do not use**
+
+- `PreToolUse` can return `updatedInput`, rewriting a tool's arguments before it
+  runs rather than only allowing or denying. Directly relevant to `path-privacy`:
+  a leaking path could be *corrected* instead of blocked, turning a failed call
+  into a silent fix. Weigh against surprise — silently rewriting what the model
+  asked for is its own hazard.
+- Hook `type` is not only `command`: `prompt` (LLM-evaluated, Haiku by default),
+  `agent` (experimental), and `http` (POSTs to an endpoint) exist. An entire
+  category we have never considered; a `prompt` hook could judge things a shell
+  script cannot pattern-match.
+- Hook output — `additionalContext`, `systemMessage`, plain stdout, exit-2
+  stderr — is capped at **10,000 characters**, then spilled to a file and
+  replaced with a preview plus path. Our `ruff-diagnostics` caps its own output
+  at 12 findings, which keeps it clear of this, but nothing enforces that.
+- `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` and an 8-consecutive-block cap on `Stop`.
+
+**Skill frontmatter we do not use**
+
+- `paths`: glob patterns limiting a skill's auto-activation to matching files.
+  This is the targeted alternative to a detection-gated SessionStart hook, and
+  would have been the right shape for `dimensional-modeling` had we kept a
+  trigger at all.
+- `context: fork` runs a skill in a forked subagent, defaulting to background
+  since v2.1.218 — relevant to anything long-running we currently do inline.
+- `disable-model-invocation` also blocks subagent preloading and scheduled-task
+  auto-run, not just the `/` menu.
+
+**Plugin mechanics**
+
+- `${CLAUDE_PLUGIN_DATA}` is a persistent per-plugin directory that survives
+  updates, unlike `${CLAUDE_PLUGIN_ROOT}` which changes on every update. The
+  documented pattern is diffing a bundled manifest against a copy there to
+  detect dependency changes across versions.
+- Plugins can ship `bin/`, added to the Bash tool's PATH as bare commands.
+
+**Practice, not mechanics**
+
+- Re-audit rules written for older models. Now invariant 1c, but see the note in
+  `.skill-maintainer/best_practices.md` — stating a practice is not the same as
+  triggering it, and this one still has no recurring prompt beyond that entry.
 
 ## Already applied (do not redo)
 
@@ -84,11 +134,7 @@ Re-derive with: `skill-maintain upstream`, then diff
 `review_interval_days` and `check_version_alignment` both detect drift over
 time. Nothing detects a document that was wrong on the day it was written.
 
-Concrete instance: `explainer-video`'s `method.md` states 3-4 seconds per beat
-as the pacing that reads, and the example shipped alongside it ran 2.4 / 2.4 /
-3.2 — under its own floor on two of three beats. Nothing was stale. The doc and
-the artifact disagreed from the start and it surfaced only when a human watched
-the video.
+Concrete instance was in a plugin since retired from this repo; the general point stands.
 
 Where a doc in this repo states a numeric threshold governing an artifact, the
 two should be compared. See "Designing a new check" in
@@ -110,5 +156,5 @@ split it into `last_changed` (mechanical) and `last_verified` (a human claim).
 
 - `displayName` — unused across all 19 plugins. `name` is the stable install key; `displayName` is the only way to relabel the `/plugin` picker without breaking installs
 - ~~`renames` — absent from `marketplace.json`.~~ **Resolved 2026-07-21**: added as `"renames": {"env-forge": null}` when env-forge was deprecated. Append-only history
-- `defaultEnabled: false` — candidates are the SessionStart-hook plugins that inject context every session (`dev-conventions`, `dimensional-modeling`, `tui-design`, `env-forge`, `mece-decomposer`, `pyright-autoconfig`). Would make ambient cost opt-in
+- `defaultEnabled: false` — candidates are the SessionStart-hook plugins that inject context every session (`dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `pyright-autoconfig`). Would make ambient cost opt-in
 - Marketplace top-level `description` — we only set `metadata.description`; the validator warns on the top-level field

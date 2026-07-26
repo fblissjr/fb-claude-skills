@@ -13,6 +13,7 @@ COMMANDS = {
     "test": "skill_maintainer.tests",
     "log": "skill_maintainer.log",
     "lint": "skill_maintainer.lint",
+    "tune": "skill_maintainer.tune",
     "init": None,  # handled inline
 }
 
@@ -32,6 +33,8 @@ Commands:
   sources     Pull tracked git repos and detect changes
   log         Query the append-only changes log
   lint        Wiki sanity: orphan detection in docs/analysis/, count drift across READMEs
+  tune        How plugins actually behave: hook emission rates per project, skill
+              invocation counts, and drift in files plugins wrote into repos
 
 All commands accept --dir <path> to target a different directory (default: .)
 
@@ -45,6 +48,8 @@ Examples:
   skill-maintain sources --no-pull
   skill-maintain log --days 7
   skill-maintain lint
+  skill-maintain tune --days 30
+  skill-maintain tune --project heylook --repo ~/some/repo   # path-privacy: ignore
 """
 
 

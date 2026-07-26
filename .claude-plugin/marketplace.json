@@ -8,40 +8,22 @@
   },
   "plugins": [
     {
-      "name": "mcp-apps",
-      "source": "./skills/mcp-apps",
-      "description": "Skills for building and migrating MCP Apps with interactive UIs",
-      "version": "0.1.1"
-    },
-    {
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
       "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
       "version": "0.2.2"
     },
     {
-      "name": "cogapp-markdown",
-      "source": "./skills/cogapp-markdown",
-      "description": "Auto-generate markdown sections using cogapp",
-      "version": "0.1.1"
-    },
-    {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
-      "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.4.1"
-    },
-    {
-      "name": "tui-design",
-      "source": "./skills/tui-design",
-      "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
-      "version": "0.4.1"
+      "description": "Dimensional modeling for analytical schemas: grain-first design, append-only facts, SCD Type 2 dimensions, conformed dimensions instead of fact-to-fact joins. A skill you invoke when designing a schema -- it ships no SessionStart hook, because the principles are needed at a decision point the model can recognise, not before the first action of every session.",
+      "version": "0.5.1"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
-      "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
-      "version": "0.5.1"
+      "description": "MECE decomposition for breaking work into mutually exclusive, collectively exhaustive parts. A skill you invoke when decomposing something -- it ships no SessionStart hook, because the method is needed at a decision point the model can recognise, not before the first action of every session.",
+      "version": "0.6.0"
     },
     {
       "name": "skill-dashboard",
@@ -52,14 +34,14 @@
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
-      "description": "Development conventions with auto-detection: SessionStart hook detects Python/JS projects and injects uv, bun, TDD, version pinning, and doc conventions into context. Skills provide detailed reference on demand including dependency security auditing.",
-      "version": "0.8.1"
+      "description": "Development conventions in three tiers: a PreToolUse hook blocks pip in uv projects, npm/yarn/pnpm in bun projects, and hand-edited lockfiles; a small SessionStart directive carries only the preferences no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides live in a tracked .dev-conventions.json -- disable a block or add house rules with /dev-conventions:configure.",
+      "version": "0.12.4"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "1.0.2"
+      "version": "1.1.0"
     },
     {
       "name": "agent-state-mcp",
@@ -71,7 +53,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.15.3"
+      "version": "0.16.4"
     },
     {
       "name": "json-query",
@@ -83,52 +65,51 @@
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
       "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
-      "version": "0.1.3"
+      "version": "0.1.4"
     },
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
-      "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.7.3"
+      "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
+      "version": "0.10.2"
     },
     {
       "name": "writing",
       "source": "./skills/writing",
       "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
-      "version": "0.3.0"
+      "version": "0.4.1"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
       "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     },
     {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
-      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Self-healing (adds the venv pointer once .venv appears), never touches a config it didn't write byte-for-byte, no-op outside Python projects.",
-      "version": "0.2.2"
-    },
-    {
-      "name": "explainer-video",
-      "source": "./skills/explainer-video",
-      "description": "Deterministic animated explainer films for any domain, on two backends — three.js 3D (cel shading, analytic IK, a per-frame-pure post chain, shots as data with a match-cut constraint) and Canvas2D flat vector — styled by swappable packs and bibles, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF that plays inline in a README",
-      "version": "0.25.10"
-    },
-    {
-      "name": "screenwright",
-      "source": "./skills/screenwright",
-      "description": "Deterministic animated films of any register — explainer, game cutscene, meme, character short — on the three.js node stack (WebGPURenderer with WebGL2 fallback, TSL node materials, MaterialX procedural noise) plus a Canvas2D backend, delivered as self-contained HTML, frame-exact MP4, or animated WebP/AVIF. Successor to explainer-video: same beats/shots/instruments method, new renderer and material ceiling.",
-      "version": "0.12.2"
+      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
+      "version": "0.3.2"
     },
     {
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.1.0"
+      "version": "0.2.1"
+    },
+    {
+      "name": "ruff-diagnostics",
+      "source": "./skills/ruff-diagnostics",
+      "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
+      "version": "0.1.4"
     }
   ],
   "renames": {
-    "env-forge": null
+    "env-forge": null,
+    "tui-design": null,
+    "mcp-apps": null,
+    "explainer-video": null,
+    "screenwright": null,
+    "cogapp-markdown": null
   }
 }

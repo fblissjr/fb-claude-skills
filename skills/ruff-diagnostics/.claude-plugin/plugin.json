@@ -1,0 +1,9 @@
+{
+  "name": "ruff-diagnostics",
+  "version": "0.1.4",
+  "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only: never writes ruff config, never syncs the environment, silent on clean files.",
+  "author": {
+    "name": "fbliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

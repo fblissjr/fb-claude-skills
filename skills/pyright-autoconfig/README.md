@@ -1,6 +1,6 @@
 # pyright-autoconfig
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 A one-hook plugin that makes the Claude Code **Pyright LSP** quiet and useful in
 every Python project, on every machine, without per-repo setup.
@@ -59,12 +59,42 @@ replicate by hand on another machine.
   up to date; but if it wrote a venv-less config before `.venv` existed (the
   clone-then-`uv sync` order), a later session adds the venv pointer once
   `.venv` appears.
-- **Non-destructive** — never overwrites a `pyrightconfig.json` it didn't write,
-  and never shadows a project's own `[tool.pyright]` — a bare header *or* any
-  `[tool.pyright.<subtable>]` (respects shared/team configs).
-- **Silent** — emits no stdout, so it injects nothing into context (a missing
-  `jq` is the one exception: one stderr line, then it skips).
+- **Non-destructive** — never overwrites or removes a `pyrightconfig.json` it
+  didn't write, and never shadows a project's own `[tool.pyright]` — a bare
+  header *or* any `[tool.pyright.<subtable>]` (respects shared/team configs).
+- **Hands the project back** — see below.
+- **Silent** — emits no stdout, so it injects nothing into context. Two
+  exceptions: a missing `jq` (one stderr line, then it skips), and the one-time
+  handoff notice.
 - **Scoped** — a fast no-op outside Python projects (a few `stat`s, then exit).
+
+### Taking your config back
+
+Pyright's own rule:
+
+> A `pyrightconfig.json` file always takes precedent over `pyproject.toml` if
+> both are present.
+
+That makes "just decline to write a second one" the wrong behaviour on its own.
+A file dropped here *before* a project grew a `[tool.pyright]` block would go on
+silently outranking it — and you'd have no reason to suspect a git-excluded file
+you never created was the reason your config had no effect.
+
+So when a project declares `[tool.pyright]`, this hook **removes the
+`pyrightconfig.json` it wrote** (and its own `.git/info/exclude` line, which
+would otherwise hide a `pyrightconfig.json` you later want tracked), and says so
+once. It only ever removes its own byte-for-byte output — edit that file at all
+and it becomes yours, untouched forever.
+
+If you move settings into `[tool.pyright]`, carry `venvPath`/`venv` across or
+imports stop resolving:
+
+```toml
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+reportMissingImports = "none"
+```
 
 ## Install
 
@@ -81,7 +111,7 @@ configured the next time you open a session in them (lazy retrofit). Requires
 
 ```sh
 printf '{"cwd":"%s"}' "$PWD" | \
-  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/session-start.sh  # path-privacy: ignore
+  ~/.claude/plugins/*/fb-claude-skills/*/skills/pyright-autoconfig/hooks/pyright-autoconfig-session-start.sh  # path-privacy: ignore
 ```
 
 (or just start a fresh session in that repo.)
@@ -90,7 +120,7 @@ printf '{"cwd":"%s"}' "$PWD" | \
 
 The default `reportMissingImports: "none"` trades away the "you typo'd an import
 name" catch for silence. If you'd rather keep that signal, edit
-`hooks/session-start.sh` to write `"warning"` instead — but note Claude Code
+`hooks/pyright-autoconfig-session-start.sh` to write `"warning"` instead — but note Claude Code
 surfaces warnings too, so that will **not** reduce what the model sees; `"none"`
 is the only value that actually removes the diagnostic. To also silence unused
 variable/import hints (the `DiagnosticTag.Unnecessary` spam, upstream issue

@@ -11,9 +11,9 @@ Two files, same content, sync-required:
 - `.skill-maintainer/best_practices.md` — the **working copy**. This is what `skill-maintain quality` reads. Edit this one.
 - `skills/skill-maintainer/references/best_practices.md` — the **bundled reference**. Seed for `skill-maintain init` in new repos.
 
-If you only edit the bundled copy, fresh `init` runs in other repos pull stale rules. The skill-maintainer plugin ships a PostToolUse hook (`sync-bundled-ref.sh`) that auto-mirrors the working copy → bundled reference on Edit/Write of `.skill-maintainer/best_practices.md`. The hook is `cmp -s`-gated, silent on no-op, exit 0 always.
+If you only edit the bundled copy, fresh `init` runs in other repos pull stale rules. The skill-maintainer plugin ships a PostToolUse hook (`skill-maintainer-sync-bundled-ref.sh`) that auto-mirrors the working copy → bundled reference on Edit/Write of `.skill-maintainer/best_practices.md`. The hook is `cmp -s`-gated, silent on no-op, exit 0 always.
 
-A `sync-best-practices` subcommand or a symlink would close this loop more robustly but hasn't been implemented. The hook is the current safety net; if it didn't fire, run `/skill-maintainer:sync-bundled-ref` manually.
+A `sync-best-practices` subcommand or a symlink would close this loop more robustly but hasn't been implemented. The hook is the current safety net; if it didn't fire, copy the working copy over the bundled one by hand. The manual skill that wrapped that one `cp` was removed on 2026-07-26 -- a skill whose whole body is a command the hook already runs automatically is a second place for the same logic to drift.
 
 ## security-guidance plugin's PreToolUse hook is disabled
 
@@ -93,13 +93,6 @@ The hooks are not removed from the plugins themselves. They exist for repos that
 
 A future session should not "helpfully" re-enable these plugins to restore consistency with other repos. The setting is intentional and repo-specific; if it looks like an oversight, check `.claude/settings.json` and this section before touching it.
 
-## `_deprecated/` is skipped by all tooling
-
-`apps/_deprecated/` holds plugins that are kept on disk but withdrawn from circulation — currently `env-forge`, moved there and removed from `marketplace.json` and the root `pyproject.toml` workspace members. `_deprecated` was added to `SKIP_DIRS`, so nothing under it is scanned for skills or plugins by `discover_skills`, `discover_plugins`, `measure_tokens`, or the version-alignment check.
-
-Why skip rather than just delete the marketplace entry and leave the code in place: a plugin that still exists on disk but isn't listed in `marketplace.json` would otherwise fail `check_version_alignment`'s "plugin on disk not in marketplace" check forever. That check is supposed to catch a plugin someone forgot to register, not flag a plugin that was deliberately retired. A permanently-red board trains everyone to ignore it — the whole point of the check is that a failure means something needs action.
-
-If a deprecated plugin needs to come back, move it out of `_deprecated/`, re-add it to `marketplace.json` and the workspace members, and it re-enters every check automatically.
 
 ## Removing a frontmatter field can break the pre-commit hook
 

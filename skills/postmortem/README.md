@@ -1,6 +1,6 @@
 # postmortem
 
-*Last updated: 2026-07-24*
+*Last updated: 2026-07-26*
 
 Evidence-grounded retrospectives. One skill runs a postmortem of finished work
 — a session, a feature, or a span of sessions mined from git history, session
@@ -49,3 +49,11 @@ tests are dead weight".
   bridge between the two skills: repeated green-but-blind escapes in
   postmortems are the trigger for a full test-audit.
 - Test deletions are recommended with evidence, never applied unasked.
+
+## Planned, not built
+
+Multi-format output — markdown by default, HTML or HTML/JS on request, in a
+style of the user's choosing, from a single analysis pass. Styling is meant to
+be pluggable and optional; no styler is a hard dependency. Design, constraints
+that must survive a rewrite, and open questions:
+[docs/internals/postmortem_output_formats.md](../../docs/internals/postmortem_output_formats.md).

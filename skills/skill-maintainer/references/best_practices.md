@@ -213,6 +213,15 @@ Source: Claude Code skill schema, a superset of the Agent Skills spec (agentskil
 
 ## maintenance
 
+- [ ] **Re-audit rules written for older models.** Upstream: "instructions that
+      worked around an older model's limitation may become overhead once a newer
+      model handles the case on its own." Most of this repo predates the Claude 5
+      generation. On each maintenance pass, pick at least one always-loaded rule
+      or skill instruction and ask whether the model still needs it, then delete
+      or demote what it does not. This is the one check with no mechanical
+      trigger -- freshness has `last_verified`, versions have an alignment test,
+      this has only the habit.
+
 - [ ] `metadata.last_verified` present in every SKILL.md frontmatter
 - [ ] `last_verified` is within the skill's own `metadata.review_interval_days` (default 30). Tier by how fast the source moves, not uniformly -- a single global window makes the board permanently red, and a permanently-red board is an ignored board
 - [ ] `last_verified` is written ONLY after a human reviewed the skill against its source. It is not part of a version cascade: a version bump says "bytes changed", not "someone checked this"

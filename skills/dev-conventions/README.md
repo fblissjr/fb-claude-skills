@@ -1,4 +1,4 @@
-last updated: 2026-07-24
+last updated: 2026-07-26
 
 # dev-conventions
 
@@ -39,15 +39,13 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 
 All injected content lives in `hooks/directives/` as standalone `.md` files. The hook concatenates whichever directives match and returns them as a single `additionalContext` block.
 
-To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
+To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/dev-conventions-session-start.sh`.
 
 ## skills
 
 | Skill | Invocation | What it does |
 |-------|------------|--------------|
 | `python-tooling` | `/dev-conventions:python-tooling` | Full uv conversion tables, pinning strategy, lock file workflow (detailed reference) |
-| `bun-tooling` | `/dev-conventions:bun-tooling` | Full bun conversion tables and lock file migration |
-| `tdd-workflow` | `/dev-conventions:tdd-workflow` | Red/green TDD: write failing test, implement, refactor |
 | `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, dependency change tracking, document the "why" |
 | `dep-audit` | `/dev-conventions:dep-audit` | Dependency security audit: uv audit, bun audit, transitive analysis, remediation workflow |
 

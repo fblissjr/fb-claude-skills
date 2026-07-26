@@ -7,6 +7,7 @@ No pytest dependency. No network calls. No file writes. Pure read-only.
 import re
 import subprocess
 import sys
+import tomllib
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -191,6 +192,25 @@ def test_plugins(root: Path) -> list[Result]:
 # ---------------------------------------------------------------------------
 
 
+def _pyproject_version(path: Path) -> str | None:
+    """Return `[project].version`, or None when there isn't a static one.
+
+    None covers three legitimate shapes that must not be reported as drift: a
+    virtual workspace root with no `[project]` table at all, a package using
+    `dynamic = ["version"]`, and a file this parser cannot read. Only a version
+    that is present and disagrees with plugin.json is a finding.
+    """
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return None
+    version = project.get("version")
+    return version if isinstance(version, str) else None
+
+
 def check_version_alignment(root: Path) -> list[Result]:
     """Compare every plugin.json version against its marketplace.json entry.
 
@@ -262,6 +282,28 @@ def check_version_alignment(root: Path) -> list[Result]:
             "repo", name, "version alignment", aligned,
             "" if aligned else f"marketplace.json={entry.get('version')} vs plugin.json={real}",
         ))
+
+        # A unit that is also a Python package carries a THIRD copy of the
+        # version, in pyproject.toml, where hatchling stamps it into wheel
+        # metadata. That copy has a real consumer, so it cannot simply be
+        # dropped the way SKILL.md's metadata.version and the per-unit
+        # changelogs were -- which means it has to be checked instead. It was
+        # not, and the repo invariants asked for it to be maintained by hand:
+        # a hand-maintained duplicate with a real consumer is the one
+        # combination that can lie silently and have the lie shipped.
+        pyproject = root / source / "pyproject.toml"
+        if pyproject.exists():
+            declared = _pyproject_version(pyproject)
+            if declared is None:
+                # No [project].version at all is fine and common: a virtual
+                # workspace root, or a package using dynamic versioning. Only a
+                # version that exists and disagrees is a finding.
+                pass
+            elif declared != real:
+                results.append(Result(
+                    "repo", name, "version alignment", False,
+                    f"plugin.json={real} vs {source}/pyproject.toml={declared}",
+                ))
 
     # A plugin on disk that nobody can install is the same class of bug, seen
     # from the other side.

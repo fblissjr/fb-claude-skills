@@ -1,4 +1,4 @@
-last updated: 2026-07-24
+last updated: 2026-07-26
 
 # fb-claude-skills
 
@@ -14,16 +14,13 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
-| [tui-design](skills/tui-design/) | Hook + Skill | Terminal UI design principles for Rich, Questionary, and Click. Hook detects TUI library imports. |
-| [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
-| [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
-| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved global or per-project profile. |
+| [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; a small SessionStart directive carries only what no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides in a tracked `.dev-conventions.json`. |
+| [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas. A skill you invoke when designing a schema -- the SessionStart hook was removed, since the principles are needed at a decision point rather than before every session. |
+| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. Both split into a short body plus `references/`. |
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
-| [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, and self-heals the pointer once `.venv` appears |
-| [explainer-video](skills/explainer-video/) | Skill | Deterministic animated explainer films on two backends (three.js 3D with a cinematic post chain + shot language, Canvas2D flat vector), styled by swappable packs and bibles -- delivered as self-contained HTML, frame-exact MP4, or inline-able animated WebP/AVIF. **Frozen** -- bugfix-only; superseded over time by screenwright |
-| [screenwright](skills/screenwright/) | Skill | The explainer-video successor on the three.js node stack: deterministic films of any register (explainer, cutscene, meme, character short) on WebGPURenderer with WebGL2 fallback + TSL node materials, plus Canvas2D -- same contract and instruments, higher material ceiling. Plan: `docs/internals/screenwright_plan.md` |
+| [pyright-autoconfig](skills/pyright-autoconfig/) | Hook | Points pyright at the project's uv venv automatically, self-heals once `.venv` appears, and retracts its config when the project declares its own `[tool.pyright]` |
+| [ruff-diagnostics](skills/ruff-diagnostics/) | Hook | Runs Ruff on each edited Python file and reports findings. A hook rather than an LSP because Claude Code starts only one language server per file extension, so `ruff server` cannot run alongside pyright. Silent on clean files. |
 
 ### decomposition & model routing
 
@@ -44,7 +41,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [mcp-apps](skills/mcp-apps/) | Skills | Build and migrate MCP Apps (interactive UIs for MCP-enabled hosts) |
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 | [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 
@@ -78,10 +74,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 # Install individual plugins
 /plugin install mece-decomposer@fb-claude-skills
-/plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
-/plugin install tui-design@fb-claude-skills
-/plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
@@ -89,8 +82,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
-/plugin install explainer-video@fb-claude-skills
-/plugin install screenwright@fb-claude-skills
+/plugin install ruff-diagnostics@fb-claude-skills
 /plugin install skill-dashboard@fb-claude-skills
 /plugin install scan-for-secrets@fb-claude-skills
 /plugin install path-privacy@fb-claude-skills
@@ -172,22 +164,16 @@ Once installed, invoke as namespaced slash commands:
 /mece-decomposer:validate     # Check MECE compliance and scores
 /mece-decomposer:export       # Generate Agent SDK Python scaffolding
 
-/mcp-apps:create-mcp-app      # Build an MCP App from scratch
-/mcp-apps:migrate-oai-app     # Migrate from OpenAI Apps SDK
 
 /plugin-toolkit                # Analyze and manage plugins
-/tui-design                    # Terminal UI design guidance
-/cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
 
 /dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
-/dev-conventions:bun-tooling     # Full bun conversion tables
-/dev-conventions:tdd-workflow    # Red/green TDD methodology
+/dev-conventions:configure      # Per-repo convention overrides
+/dev-conventions:dep-audit     # Full bun conversion tables
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax
-/explainer-video                 # Build an animated explainer film (2D or 3D; HTML / MP4 / WebP / AVIF)
-/screenwright                    # Deterministic film of any register on the node stack (explainer / cutscene / meme)
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
@@ -197,11 +183,10 @@ Once installed, invoke as namespaced slash commands:
 
 
 /skill-maintainer:quality              # Quick quality check for all skills
-/skill-maintainer:quality tui-design   # Check a specific skill
+/skill-maintainer:quality path-privacy   # Check a specific skill
 /skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:init-maintenance     # Set up maintenance in a new repo
-/skill-maintainer:sync-versions tui-design 0.3.0  # Bump version across all sources
-/skill-maintainer:sync-bundled-ref     # Mirror working-copy best_practices.md to bundled ref
+/skill-maintainer:sync-versions path-privacy 0.7.4  # Bump version across all sources
 /skill-maintainer:finish-session       # Orchestrate end-of-session: log -> sync -> bumps -> quality
 ```
 
@@ -299,8 +284,6 @@ Highlights:
 ## credits
 
 - Original idea for MECE decomposer by [Ron Zika](https://www.linkedin.com/in/ronzika/)
-- cogapp-markdown from [simonw](https://github.com/simonw/skills/tree/main/cogapp-markdown)
 - scan-for-secrets built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets) (Apache 2.0) — all literal-matching and escape-variant logic is his work
-- MCP Apps SDK from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)
 - More skills: [mlx-skills](https://github.com/fblissjr/mlx-skills) (Apple MLX)
-- env-forge (deprecated 2026-07-21, kept in `apps/_deprecated/`) built on the synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
+- env-forge (removed 2026-07-26; in git history) built on the synthesis methodology and dataset from [Agent World Model (AWM)](https://github.com/Snowflake-Labs/AgentWorldModel) by Snowflake Labs
