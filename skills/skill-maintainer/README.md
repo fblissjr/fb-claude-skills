@@ -71,3 +71,13 @@ The `skill-maintainer` Python package at `tools/skill-maintainer/` provides the 
 ## references
 
 - `references/best_practices.md` -- machine-parseable checklist used by the quality checks
+
+## `tune` — observed behaviour, not declared behaviour
+
+`skill-maintain tune` reads session transcripts and reports how plugins actually
+behave in every project they run in: how often each hook fired versus spoke,
+bytes emitted by channel, LSP diagnostic density, skill invocation counts, and
+drift in files plugins wrote into repos. It runs as Phase 4 of
+`/skill-maintainer:maintain` rather than on a schedule — a cron that quietly
+stops is the failure this tooling exists to avoid, and neither built-in
+scheduler fits (session-only jobs, or cloud routines with no local transcripts).

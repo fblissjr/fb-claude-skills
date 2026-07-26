@@ -74,7 +74,43 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 
 Output a table with one row per skill: name, valid, tokens, lines, days since verified, description quality.
 
-## Phase 4: Review and propose updates
+## Phase 4: Observed behaviour across repos
+
+```bash
+skill-maintain tune --days 30 --repo <each repo where plugins from here are installed>
+```
+
+The other phases check what this repo *says*. This one checks what its plugins
+actually *do*, in every project they run in — it reads session transcripts, so it
+reports machine-wide regardless of which repo you run it from.
+
+Deliberately part of the maintenance pass rather than a scheduled job. A cron
+that quietly stops is the same never-zero-channel failure this tooling exists to
+avoid, and neither built-in scheduler fits: `CronCreate` jobs are session-only
+and expire after 7 days, and cloud routines cannot read local transcripts.
+
+What to act on:
+
+- **A hook emitting at a high rate.** Read the rate, not the count: a hook firing
+  thousands of times and staying silent is nearly free, while one firing rarely
+  and always speaking is not. A 100% emitter on `SessionStart` is the shape to
+  question.
+- **`ambiguous(...)` in the plugin column.** Two plugins sharing a hook script
+  filename. Rename to `hooks/<plugin>-<purpose>.sh` — the transcript stores the
+  plugin-root variable unexpanded, so a shared filename is unattributable to
+  anything reading it back.
+- **LSP diagnostic density above ~3 per push.** A channel that is never at zero
+  is a channel that gets ignored. Fix the underlying diagnostics rather than
+  suppressing them.
+- **Skills at zero invocations.** Ambiguous on its own: not-needed and
+  not-discoverable look identical here, and the remedies are opposite. Use
+  `skill-creator`'s description-tuning harness to tell them apart before
+  deleting anything.
+- **Artifact drift.** Files a plugin wrote into a repo, with their staleness
+  verdict. Plugin *code* cannot drift — it installs once per user — so this is
+  the only place staleness hides.
+
+## Phase 5: Review and propose updates
 
 After all three phases:
 
@@ -84,6 +120,7 @@ After all three phases:
    - New or changed upstream doc pages (Phase 2) that affect skill authoring rules
    - New patterns or conventions from pulled repo changes (Phase 1)
    - Quality report findings that suggest missing or outdated checklist items (Phase 3)
+   - Behaviour findings from Phase 4 that point at a rule rather than a one-off
 4. If updates needed: list each proposed change with rationale. Wait for user approval before writing.
 5. If no updates needed: report "best_practices.md is current -- no changes needed"
 
@@ -92,4 +129,4 @@ After all three phases:
 - Never auto-write to `best_practices.md` -- always show proposed changes and wait for approval
 - Run all phases even if one reports no changes
 - If a phase fails, report the error and continue with remaining phases
-- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, best practices edits (if any)
+- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, best practices edits (if any)
