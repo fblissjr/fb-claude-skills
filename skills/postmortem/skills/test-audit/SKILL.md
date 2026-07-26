@@ -1,6 +1,6 @@
 ---
 name: test-audit
-description: "Audit an existing test suite for meaning and drift: recover each test's motivating claim, verify its oracle can actually fail (spot mutation — deliberately break the guarded behavior, confirm red), and map the reachability envelope (conditions the harness never exercises). Classifies tests as load-bearing, scar-tissue, decorative, or redundant and returns keep/rewrite/delete verdicts with evidence. Use when the user says 'audit the tests', 'test audit', 'are these tests testing the right thing', 'test drift', 'which tests are dead weight', 'do we trust this suite'. Do NOT use for writing new tests or TDD (use tdd-workflow) or for designing coverage on new features."
+description: "Audit an existing test suite for meaning and drift: recover each test's motivating claim, verify its oracle can actually fail (spot mutation — deliberately break the guarded behavior, confirm red), and map the reachability envelope (conditions the harness never exercises). Classifies tests as load-bearing, scar-tissue, decorative, or redundant and returns keep/rewrite/delete verdicts with evidence. Use when the user says 'audit the tests', 'test audit', 'are these tests testing the right thing', 'test drift', 'which tests are dead weight', 'do we trust this suite'. Do NOT use for writing new tests or for designing coverage on new features."
 metadata:
   last_verified: "2026-07-24"
   review_interval_days: "365"

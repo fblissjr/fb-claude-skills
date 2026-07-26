@@ -179,7 +179,6 @@ Once installed, invoke as namespaced slash commands:
 
 /dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
 /dev-conventions:bun-tooling     # Full bun conversion tables
-/dev-conventions:tdd-workflow    # Red/green TDD methodology
 /dev-conventions:doc-conventions # Documentation standards
 
 /json-query                      # JSON query tool selection + jg syntax

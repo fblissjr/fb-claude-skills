@@ -47,7 +47,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions in three tiers: a PreToolUse hook blocks pip in uv projects, npm/yarn/pnpm in bun projects, and hand-edited lockfiles; a small SessionStart directive carries only the preferences no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides live in a tracked .dev-conventions.json -- disable a block or add house rules with /dev-conventions:configure.",
-      "version": "0.11.0"
+      "version": "0.12.0"
     },
     {
       "name": "readwise-reader",
@@ -119,7 +119,7 @@
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite) plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "ruff-diagnostics",
