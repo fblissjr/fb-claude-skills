@@ -80,7 +80,15 @@ cd "$ROOT" 2>/dev/null || exit 0
 # adapted so that no rung can mutate the environment.
 RUFF=""
 PROVENANCE=""
-if command -v uv >/dev/null 2>&1 && uv run --no-sync ruff --version >/dev/null 2>&1; then
+if [ -x "$ROOT/.venv/bin/ruff" ]; then
+  # A stat, not a subprocess. This fires on every Python edit, and the probe
+  # below costs a full `uv run` environment resolution just to answer a question
+  # the filesystem already answers in the common case.
+  RUFF="$ROOT/.venv/bin/ruff"
+  PROVENANCE="project-pinned"
+elif command -v uv >/dev/null 2>&1 && uv run --no-sync ruff --version >/dev/null 2>&1; then
+  # Kept for uv layouts a stat cannot see. Still --no-sync: `uv run` alone syncs
+  # the environment, which a diagnostic hook must never do.
   RUFF="uv run --no-sync ruff"
   PROVENANCE="project-pinned"
 elif command -v ruff >/dev/null 2>&1; then

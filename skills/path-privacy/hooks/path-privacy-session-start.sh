@@ -35,10 +35,19 @@ fi
 # before 0.6.0 the generated file had no version marker at all, so old and new
 # were indistinguishable by inspection.
 #
-# This tells you once, per repo, in the repo where it matters. It deliberately
-# does NOT rewrite the hook: silently editing a file in someone's .git/hooks at
-# session start is exactly the kind of surprise a privacy gate should never
-# spring, and the same install path had four repo-damaging bugs before 0.6.0.
+# This tells you once, per repo, in the repo where it matters.
+#
+# It also REFRESHES a stale wrapper in place, which reverses this hook's original
+# policy. That policy said rewriting a file in someone's .git/hooks at session
+# start was a surprise a privacy gate should never spring, citing four
+# repo-damaging bugs in the install path before 0.6.0. The reversal is deliberate
+# and the caveat is answered rather than withdrawn: the alternative was telling
+# every user to run a shell script in every repo on every template change, which
+# is work a hook already standing in the right place can do. What makes it safe
+# now is that ownership is exact -- only a file carrying our own byte-for-byte
+# stamp is ever touched, a wrapper AHEAD of the plugin is left alone, and the
+# refresh is verified by re-reading the stamp before it is reported as done.
+# A foreign or hand-edited hook is still never rewritten.
 HOOKS_DIR=$(git -C "$CWD" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
 # Compare against the WRAPPER TEMPLATE version the installer stamps ("t1"), not
 # the plugin version. They were the same value until unrelated plugin bumps
@@ -77,9 +86,9 @@ if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
       #
       # Safe because ownership is exact: we reached this branch only after
       # confirming the file carries our own `path-privacy:wrapper` stamp, so a
-      # hand-written or foreign hook is never touched. `pp_version_is_newer`
-      # still guards the other direction -- a wrapper AHEAD of the plugin is
-      # left alone, because regenerating it would install OLDER logic.
+      # hand-written or foreign hook is never touched. `pp_template_is_newer`
+      # guards the other direction -- a wrapper AHEAD of the plugin is left
+      # alone, because regenerating it would install OLDER logic.
       if pp_template_is_newer "$have" "$CURRENT_VERSION"; then
         AHEAD_HOOKS="${AHEAD_HOOKS:+$AHEAD_HOOKS, }$h ($have)"
       elif [ -x "$INSTALLER" ] && "$INSTALLER" -C "$CWD" >/dev/null 2>&1 \

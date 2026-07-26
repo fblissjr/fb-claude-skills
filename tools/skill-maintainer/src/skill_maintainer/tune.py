@@ -44,6 +44,11 @@ import orjson
 
 NOOP_STDOUT = {"", "{}", "{ }", "null", "[]"}
 
+# The only attachment kinds analyze_project branches on. Used as a bytes
+# pre-filter so unrelated attachments never reach orjson.loads.
+_WANTED_KINDS = (b'"hook_success"', b'"hook_additional_context"',
+                 b'"diagnostics"', b'"invoked_skills"')
+
 # The one place this module names a location outside the repo. Claude Code owns
 # these directories; there is no repo-relative way to refer to them.
 _CLAUDE_HOME = Path(os.path.expanduser("~/.claude"))  # path-privacy: ignore
@@ -103,7 +108,7 @@ def _attribute(command: str, registry: dict[str, str]) -> str:
 def _iter_records(path: Path, cutoff: datetime | None):
     with path.open("rb") as fh:
         for raw in fh:
-            if b'"attachment"' not in raw:
+            if not any(k in raw for k in _WANTED_KINDS):
                 continue
             try:
                 rec = orjson.loads(raw)
@@ -179,32 +184,6 @@ def analyze_project(pdir: Path, registry: dict[str, str], cutoff) -> ProjectStat
                         skills[sk.get("name", "?")] += 1
 
     return res
-
-
-def _version_tuple(v: str) -> tuple[int, ...] | None:
-    """Numeric tuple, or None when the string is not plainly numeric.
-
-    None is the honest answer for `unknown`, a build suffix, or an empty stamp,
-    and callers must treat it as "cannot compare" rather than as older or newer.
-    """
-    parts = v.strip().split(".")
-    if not parts or not all(p.isdigit() for p in parts):
-        return None
-    return tuple(int(p) for p in parts)
-
-
-def _installed_version(name: str) -> str | None:
-    for root in PLUGIN_ROOTS:
-        if not root.is_dir():
-            continue
-        for pj in root.rglob(".claude-plugin/plugin.json"):
-            try:
-                data = orjson.loads(pj.read_bytes())
-            except (ValueError, OSError):
-                continue
-            if data.get("name") == name:
-                return data.get("version")
-    return None
 
 
 def _installed_template_version() -> str | None:

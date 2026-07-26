@@ -254,3 +254,25 @@ rather than solved it.
   indefinitely. If the rule is about repo *content*, something must audit
   content — `check_path_privacy` exists because five leaked paths survived 157
   days and a full docs triage behind clean diffs.
+
+## Per-repo plugin config
+
+A plugin that needs per-repo overrides ships its own root-level
+`.<plugin-name>.json`, tracked rather than gitignored, with the shape
+`dev-conventions` established:
+
+```json
+{ "enforce": { "some-rule": false }, "rules": ["extra house rule"] }
+```
+
+Omitted keys mean "default", so the file only ever states exceptions.
+
+**A convention, deliberately not a shared mechanism.** One shared config file
+would couple plugins that release independently and force a schema versioned
+across all of them, and there is exactly one consumer today. Writing the shape
+down is what stops the third plugin inventing a third format — and if three
+files ever become genuinely painful, a migration is mechanical because they
+already agree on structure.
+
+Root-level rather than under `.claude/`: that directory is Claude Code's
+namespace, not the plugin's, and a root dotfile is more discoverable to humans.

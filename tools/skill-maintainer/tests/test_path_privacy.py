@@ -181,17 +181,44 @@ def test_generated_wrapper_carries_the_helper_inline():
 def test_no_call_site_reintroduces_a_bare_version_inequality():
     """The bug class, not the three instances.
 
-    A bare `!=` between a wrapper stamp and a plugin version is direction-blind.
-    Guard the shape rather than trusting three copies to stay in step.
+    A bare `!=` between a wrapper stamp and a plugin version is direction-blind
+    and has now recurred five times. Guard the shape rather than trusting the
+    copies to stay in step.
+
+    Two things this test got wrong before, both of which made it useless in
+    exactly the situation it exists for:
+
+    * It named `hooks/session-start.sh` literally, so the rename to
+      `path-privacy-<purpose>.sh` broke it outright -- a hardcoded filename does
+      not survive routine refactors, so the scripts are globbed now.
+    * It asked whether the comparator name appeared anywhere in the FILE, and
+      the injected no-op fallback stub contains that name, so the assertion
+      passed vacuously forever. It now checks the line itself, and accepts
+      either shared comparator rather than one that no longer has call sites.
     """
-    hooks = (_PLUGIN / "hooks" / "session-start.sh").read_text(encoding="utf-8")
-    installer = _INSTALLER.read_text(encoding="utf-8")
-    for name, body in (("session-start.sh", hooks), ("install-git-hooks.sh", installer)):
-        for line in body.splitlines():
+    COMPARATORS = ("pp_version_is_newer", "pp_template_is_newer")
+    scripts = sorted((_PLUGIN / "hooks").glob("*.sh")) + [_INSTALLER]
+    assert scripts, "no scripts found to guard"
+
+    for path in scripts:
+        body = path.read_text(encoding="utf-8")
+        lines = body.splitlines()
+        for i, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith("#") or "!=" not in stripped:
                 continue
-            # The one legitimate `!=` is the cheap equality shortcut that guards
-            # the direction test; it must be followed by a pp_version_is_newer call.
-            if "VERSION" in stripped and "pp_version_is_newer" not in body:
-                raise AssertionError(f"{name}: bare version inequality: {stripped}")
+            if "VERSION" not in stripped:
+                continue
+            # A bare inequality is allowed only as the cheap equality shortcut
+            # in front of a real direction test, so the comparator has to appear
+            # within the next few lines -- not merely somewhere in the file.
+            # Count CODE lines, not raw lines: these call sites carry long
+            # rationale comments, and a comment block between the shortcut and
+            # the direction test is not a missing direction test.
+            code = [ln for ln in lines[i:i + 30] if not ln.strip().startswith("#")]
+            window = "\n".join(code[:6])
+            if not any(c in window for c in COMPARATORS):
+                raise AssertionError(
+                    f"{path.name}:{i + 1}: version inequality with no direction "
+                    f"test within 5 lines: {stripped}"
+                )

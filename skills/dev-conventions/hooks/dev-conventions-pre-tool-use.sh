@@ -38,8 +38,11 @@ command -v jq >/dev/null 2>&1 || exit 0
 IN=$(cat 2>/dev/null) || exit 0
 [ -n "$IN" ] || exit 0
 
-TOOL=$(printf '%s' "$IN" | jq -r '.tool_name // ""' 2>/dev/null)
-CWD=$(printf '%s' "$IN" | jq -r '.cwd // ""' 2>/dev/null)
+# One jq spawn, not three. This fires on every Bash/Edit/Write call -- measured
+# at ~5,000 per project -- so a subprocess saved here is ~10,000 saved overall.
+IFS=$'\t' read -r TOOL CWD FILE CMD <<EOF
+$(printf '%s' "$IN" | jq -r '[.tool_name // "", .cwd // "", .tool_input.file_path // "", .tool_input.command // ""] | @tsv' 2>/dev/null)
+EOF
 [ -n "$CWD" ] && cd "$CWD" 2>/dev/null
 
 # Walk up for a project marker; hooks can fire from a subdirectory.
@@ -52,6 +55,14 @@ done
 [ -n "$root" ] || exit 0
 
 block() { printf '%s\n' "$1" >&2; exit 2; }
+
+# The head of each command in the pipeline, one per line: split on ;|& , strip
+# leading blanks, drop env-var prefixes. Extracted because both rule blocks need
+# it and a divergence between two copies of a PARSER is a silent correctness
+# bug, unlike the rule blocks themselves, which are deliberately separate.
+command_heads() {
+  printf '%s' "$1" | tr ';|&' '\n' | sed -e 's/^ *//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^ ]* *//'
+}
 
 # Per-repo overrides. The plugin ships the defaults -- uv for Python, bun for
 # JS -- and a repo that genuinely differs says so in a tracked file rather than
@@ -72,7 +83,6 @@ enforced() {
 
 # --- Lockfile edits -----------------------------------------------------------
 if [ "$TOOL" = "Edit" ] || [ "$TOOL" = "Write" ] || [ "$TOOL" = "NotebookEdit" ]; then
-  FILE=$(printf '%s' "$IN" | jq -r '.tool_input.file_path // ""' 2>/dev/null)
   enforced lockfile-edits || exit 0
   case "$(basename "${FILE:-}")" in
     uv.lock)
@@ -118,7 +128,7 @@ if [ -f "$root/uv.lock" ] && enforced python-package-manager; then
 Set DEV_CONVENTIONS_ALLOW=1 to override." ;;
     esac
   done <<EOF
-$(printf '%s' "$NORM" | tr ';|&' '\n' | sed -e 's/^ *//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^ ]* *//')
+$(command_heads "$NORM")
 EOF
 fi
 
@@ -141,7 +151,7 @@ if { [ -f "$root/bun.lock" ] || [ -f "$root/bun.lockb" ]; } && enforced js-packa
 Set DEV_CONVENTIONS_ALLOW=1 to override." ;;
       esac
     done <<EOF
-$(printf '%s' "$NORM" | tr ';|&' '\n' | sed -e 's/^ *//' -e 's/^[A-Za-z_][A-Za-z0-9_]*=[^ ]* *//')
+$(command_heads "$NORM")
 EOF
   fi
 fi
