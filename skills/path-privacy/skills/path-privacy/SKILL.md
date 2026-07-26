@@ -2,8 +2,9 @@
 name: path-privacy
 description: >-
   Enforces a single rule: every path in repo content must be relative to the repo root.
-  Anything resolving outside the repo (other repos on disk, ~/.claude/<plan>, /Users/<name>/...,
-  /home/<name>/..., $HOME-based paths) is a leak. Ships a SessionStart directive plus
+  Anything resolving outside the repo is a leak: other repos on disk, absolute
+  home-directory paths under /Users or /home, tilde paths, and $HOME-based paths.
+  Ships a SessionStart directive plus
   pre-commit and commit-msg git hooks that hard-block. Use when user says
   "scan for path leaks", "check for leaked paths", "are we leaking my home path",
   "scrub external paths", "install path-privacy hooks", "find absolute paths in this repo",

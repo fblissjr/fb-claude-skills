@@ -15,6 +15,10 @@ Every skill description must include natural language phrases users would say. W
 
 Keep skill descriptions under 1024 characters. The description field in frontmatter is what users see and what determines when the skill loads.
 
+## No angle brackets in descriptions
+
+A description containing `<` or `>` is a hard validation error upstream (skill-creator's `quick_validate.py` rejects it outright; `skill-maintain validate` only warns). This collides with path-privacy's `<HOME>/...` placeholder form, which stays legal everywhere else -- bodies, references, docs. In a description, name the location in prose instead: "the user's Claude config directory", "absolute home-directory paths under /Users or /home".
+
 ## Frontmatter hygiene
 
 No `metadata.author` and no `metadata.version` in SKILL.md. The whole file, frontmatter included, loads into context when the skill activates -- a name or a duplicated version there is standing context cost with no runtime use. Authorship and version live in `plugin.json`; attribution detail goes in the plugin README.

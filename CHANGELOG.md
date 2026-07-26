@@ -1,5 +1,14 @@
 # changelog
 
+## 0.94.1
+
+### fixed
+- **`path-privacy` 0.10.2 → 0.10.3 — its description was invalid, and it was the one skill that could least afford to be.** Descriptions cannot contain `<` or `>`; upstream `skill-creator` rejects them outright and `skill-maintain validate` warns. `path-privacy`'s description demonstrated the leak forms it blocks using the placeholder convention itself, so it carried three angle-bracket pairs and was the only description in the repo doing so. The skill whose entire job is teaching that convention was the one place the convention is illegal.
+
+  It went unnoticed because validation runs on *changed* skills at commit time, so a rule nobody trips stays unenforced until someone edits the file. Found by tripping it on an unrelated skill and checking whether the rule was real rather than working around the warning. The placeholder form stays correct everywhere else — bodies, references, docs, commit messages — and the rule now lives in `.claude/rules/skills.md` so the next description does not rediscover it at commit time.
+
+  Wording only. The scanner, the hooks, and what counts as a leak are unchanged.
+
 ## 0.94.0
 
 ### changed
