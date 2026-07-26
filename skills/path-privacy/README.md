@@ -47,12 +47,18 @@ Three things narrow that window:
   and are reported as `pre-0.6.0`.
 - Since 0.7.0 the wrapper also says so itself, on stderr at commit time. That
   reaches you when you commit from a plain terminal with no session open.
-- Since 0.7.2 both notices establish which side is behind before advising
-  anything. A wrapper can be *newer* than the plugin — install the hooks from a
-  source checkout, then run against a lagging installed copy — and in that state
-  re-running the installer regenerates the wrapper from the older plugin and
-  downgrades a working gate. The ahead case gets its own message saying the gate
-  is fine, the plugin is behind, and not to re-run the installer.
+- Since 0.7.3 all three staleness checks — the SessionStart notice, the
+  wrapper's own self-report, and `--doctor` — establish which side is behind
+  before advising anything, from one shared comparison in
+  `scripts/_version_compare.sh`. A wrapper can be *newer* than the plugin
+  (install the hooks from a source checkout, then run against a lagging
+  installed copy), and in that state re-running the installer regenerates the
+  wrapper from the older plugin and downgrades a working gate. The ahead case
+  gets its own message saying the gate is fine and not to reinstall, and
+  `--doctor` annotates it rather than exiting non-zero. "Newer" has to be
+  positively verified: a stamp that is not plainly numeric — including the
+  `unknown` written when `plugin.json` was unreadable at install time — is
+  never treated as newer, so it gets the refresh advice, which is idempotent.
 - Since 0.7.0 a marketplace-installed wrapper re-resolves to the **newest**
   cached version of the plugin on every run, rather than only when its frozen
   path has been deleted. Before that it kept running the superseded scanner

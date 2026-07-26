@@ -16,6 +16,17 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTEXT=""
 
+# Shared with install-git-hooks.sh and every generated wrapper. Absent copy
+# means never claim "newer", which routes every mismatch to the stale branch --
+# the branch whose advice is idempotent.
+VERSION_COMPARE_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_version_compare.sh"
+if [ -r "$VERSION_COMPARE_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$VERSION_COMPARE_LIB"
+else
+  pp_version_is_newer() { return 1; }
+fi
+
 # --- outdated-wrapper notice -------------------------------------------------
 # A plugin update refreshes the scanner the wrapper CALLS, but not the wrapper
 # itself -- its logic is baked in at install time. So a repo can quietly carry a
@@ -47,18 +58,16 @@ if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
     fi
     have=$(sed -n 's/^# path-privacy:wrapper-version //p' "$f" | head -1)
     [ -z "$have" ] && have="pre-0.6.0"
-    # Direction matters, so this cannot be a string comparison. A wrapper can be
-    # NEWER than the running plugin -- install the hooks from a source checkout,
-    # then run in a session whose installed copy is several releases behind, and
-    # a `!=` test reports that as "older" and sends you to install-git-hooks.sh,
-    # which regenerates the wrapper from the OLDER plugin and silently downgrades
-    # a working gate. The remedy for each direction is the opposite one.
+    # Direction decides the remedy and they are opposites, so this cannot be a
+    # string comparison -- see _version_compare.sh for why "newer" is the claim
+    # that has to be earned. Non-semver stamps ("pre-0.6.0", the "unknown"
+    # written when plugin.json was unreadable at install time) are not newer,
+    # so they land in the stale branch and get the harmless advice.
     if [ "$have" != "$CURRENT_VERSION" ]; then
-      if [ "$have" = "pre-0.6.0" ] || \
-         [ "$(printf '%s\n%s\n' "$have" "$CURRENT_VERSION" | sort -V | head -1)" = "$have" ]; then
-        STALE_HOOKS="${STALE_HOOKS:+$STALE_HOOKS, }$h ($have)"
-      else
+      if pp_version_is_newer "$have" "$CURRENT_VERSION"; then
         AHEAD_HOOKS="${AHEAD_HOOKS:+$AHEAD_HOOKS, }$h ($have)"
+      else
+        STALE_HOOKS="${STALE_HOOKS:+$STALE_HOOKS, }$h ($have)"
       fi
     fi
   done

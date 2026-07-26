@@ -97,3 +97,92 @@ def test_marker_quoted_deep_in_a_file_does_not_exempt_it(tmp_path):
 def test_system_account_names_are_not_leaks(tmp_path):
     r = _repo(tmp_path, "doc.md", "brew lives at /home/linuxbrew/.linuxbrew\n")
     assert not _failed(check_path_privacy(r))
+
+
+# --- wrapper/plugin version comparison ---------------------------------------
+# The stale-wrapper notice decides between two OPPOSITE remedies: an older
+# wrapper should be refreshed with install-git-hooks.sh, a newer one must not be
+# (regenerating it from the older plugin downgrades a working gate). That check
+# was a bare `!=` in three separate places, so it could not tell the cases apart
+# and all three drifted independently. These pin the shared helper.
+
+_PLUGIN = Path(__file__).resolve().parents[3] / "skills" / "path-privacy"
+_VERSION_LIB = _PLUGIN / "skills" / "path-privacy" / "scripts" / "_version_compare.sh"
+_INSTALLER = _PLUGIN / "skills" / "path-privacy" / "scripts" / "install-git-hooks.sh"
+
+
+def _is_newer(a: str, b: str, lib: Path | None = None) -> bool:
+    """Run the real shell helper; exit 0 means 'a is strictly newer than b'."""
+    script = f'. "{lib or _VERSION_LIB}"; pp_version_is_newer "{a}" "{b}"'
+    return subprocess.run(["bash", "-c", script]).returncode == 0
+
+
+def test_newer_version_is_detected():
+    assert _is_newer("0.7.3", "0.7.2")
+
+
+def test_older_version_is_not_newer():
+    assert not _is_newer("0.7.1", "0.7.2")
+
+
+def test_equal_version_is_not_newer():
+    assert not _is_newer("0.7.2", "0.7.2")
+
+
+def test_double_digit_component_orders_numerically():
+    """0.9.0 vs 0.10.0 -- a lexicographic compare inverts this.
+
+    path-privacy shipped exactly that bug in 0.3.2, in the cache-selection glob.
+    """
+    assert _is_newer("0.10.0", "0.9.0")
+    assert not _is_newer("0.9.0", "0.10.0")
+
+
+def test_unknown_stamp_is_never_treated_as_newer():
+    """`unknown` is written when plugin.json is unreadable at install time.
+
+    Under `sort -V` it sorts ABOVE a numeric version, so a naive comparison
+    routes it to the ahead branch and tells the user NOT to refresh a wrapper
+    of unknown, probably ancient provenance -- the opposite of the right advice.
+    """
+    assert not _is_newer("unknown", "0.7.2")
+
+
+def test_prehistoric_stamp_is_never_treated_as_newer():
+    assert not _is_newer("pre-0.6.0", "0.7.2")
+
+
+def test_unparsable_versions_are_never_treated_as_newer():
+    """Anything not plainly numeric must fail toward the idempotent remedy."""
+    assert not _is_newer("", "0.7.2")
+    assert not _is_newer("0.7.2-rc1", "0.7.2")
+    assert not _is_newer("0.7.2", "")
+
+
+def test_generated_wrapper_carries_the_helper_inline():
+    """A wrapper is frozen at install time and cannot source anything at runtime.
+
+    If the helper stops being injected, the wrapper's version notice silently
+    reverts to whatever an undefined function does -- so pin the injection.
+    """
+    src = _INSTALLER.read_text(encoding="utf-8")
+    assert "$VERSION_COMPARE_SRC" in src, "wrapper heredoc no longer injects the helper"
+
+
+def test_no_call_site_reintroduces_a_bare_version_inequality():
+    """The bug class, not the three instances.
+
+    A bare `!=` between a wrapper stamp and a plugin version is direction-blind.
+    Guard the shape rather than trusting three copies to stay in step.
+    """
+    hooks = (_PLUGIN / "hooks" / "session-start.sh").read_text(encoding="utf-8")
+    installer = _INSTALLER.read_text(encoding="utf-8")
+    for name, body in (("session-start.sh", hooks), ("install-git-hooks.sh", installer)):
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#") or "!=" not in stripped:
+                continue
+            # The one legitimate `!=` is the cheap equality shortcut that guards
+            # the direction test; it must be followed by a pp_version_is_newer call.
+            if "VERSION" in stripped and "pp_version_is_newer" not in body:
+                raise AssertionError(f"{name}: bare version inequality: {stripped}")
