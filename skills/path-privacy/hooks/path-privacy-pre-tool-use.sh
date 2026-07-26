@@ -38,6 +38,47 @@ fi
 PAYLOAD=$(cat)
 [ -z "$PAYLOAD" ] && exit 0
 
+TOOL=$(jq -r '.tool_name // ""' <<<"$PAYLOAD" 2>/dev/null)
+
+# --- Bash: commit messages and branch names ----------------------------------
+# These reach the repo without ever passing through Write or Edit, so until now
+# they were caught only by the commit-msg git hook -- correct, but one step too
+# late: the commit fails and has to be retried. Catching it here turns a failed
+# commit into a corrected argument, and lets the SessionStart directive stop
+# explaining a rule that is now enforced.
+#
+# Narrow on purpose. Only `-m`/`--message` values and `-b`/`-B`/`-c` branch
+# names are extracted, and anything that does not parse cleanly falls through
+# untouched. `if`-style Bash matching fails open by design, so this must never
+# pretend to be exhaustive -- the commit-msg hook remains the real backstop.
+if [ "$TOOL" = "Bash" ]; then
+  CMD=$(jq -r '.tool_input.command // ""' <<<"$PAYLOAD" 2>/dev/null)
+  [ -z "$CMD" ] && exit 0
+  case "$CMD" in *git*) ;; *) exit 0 ;; esac
+  SUBJECT=$(printf '%s' "$CMD" | sed -n \
+    -e "s/.*-m[[:space:]]*'\([^']*\)'.*/\1/p" \
+    -e 's/.*-m[[:space:]]*"\([^"]*\)".*/\1/p' \
+    -e 's/.*checkout[[:space:]]\{1,\}-[bB][[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' \
+    -e 's/.*switch[[:space:]]\{1,\}-c[[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' | head -1)
+  [ -z "$SUBJECT" ] && exit 0
+  ROOT_B="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
+  [ -z "$ROOT_B" ] && exit 0
+  SELF_B="$(cd "$(dirname "$0")" && pwd)"
+  SCANNER_B="$SELF_B/../skills/path-privacy/scripts/find-external-paths.sh"
+  [ -x "$SCANNER_B" ] || exit 0
+  OUT_B=$("$SCANNER_B" --against-root "$(cd "$ROOT_B" && pwd -P)" --text "$SUBJECT" 2>&1)
+  RC_B=$?
+  if [ "$RC_B" -ne 1 ]; then exit 0; fi
+  {
+    echo "Blocked: would put an external path into a commit message or branch name."
+    printf '%s\n' "$OUT_B" | sed 's|<text>:|message:|g'
+    echo
+    echo "These reach the repo without passing through Write or Edit. Use a"
+    echo "repo-relative path, or say it generically."
+  } >&2
+  exit 2
+fi
+
 FILE_PATH=$(jq -r '.tool_input.file_path // ""' <<<"$PAYLOAD" 2>/dev/null) || exit 0
 [ -z "$FILE_PATH" ] && exit 0
 
