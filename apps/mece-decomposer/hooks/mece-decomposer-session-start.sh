@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Detect env-forge/FastAPI+MCP usage and inject environment design principles.
+# Detect MECE/Agent SDK usage and inject decomposition principles.
 # Reads hook input JSON from stdin, extracts cwd.
 # Outputs JSON with additionalContext if markers found, silent exit 0 otherwise.
 
@@ -10,22 +10,22 @@ if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
   exit 0
 fi
 
-HAS_ENVFORGE=false
+HAS_MECE=false
 
-# Check for env-forge output directory
-if [ -d "$CWD/.env-forge" ]; then
-  HAS_ENVFORGE=true
+# Cheap checks first: known files/directories
+if [ -f "$CWD/decomposition.json" ] || [ -d "$CWD/.mece" ]; then
+  HAS_MECE=true
 fi
 
-# Check for fastapi-mcp usage
-if [ "$HAS_ENVFORGE" = false ]; then
-  if grep -rqE "from fastapi_mcp|import fastapi_mcp|fastapi-mcp" "$CWD" --include="*.py" --include="pyproject.toml" \
+# Check for Agent SDK imports (expensive -- last)
+if [ "$HAS_MECE" = false ]; then
+  if grep -rqE "from claude_agent_sdk|import claude_agent_sdk|from agents import|from agents\." "$CWD" --include="*.py" \
     $(printf " --exclude-dir=%s" node_modules .venv venv .git __pycache__ dist build) 2>/dev/null; then
-    HAS_ENVFORGE=true
+    HAS_MECE=true
   fi
 fi
 
-if [ "$HAS_ENVFORGE" = false ]; then
+if [ "$HAS_MECE" = false ]; then
   exit 0
 fi
 
@@ -37,9 +37,9 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
   [ -f "$f" ] || continue
   trigger=$(head -1 "$f" | sed 's/^# trigger: //')
   case "$trigger" in
-    envforge) [ "$HAS_ENVFORGE" = true ] || continue ;;
-    any)      ;;
-    *)        continue ;;
+    mece) [ "$HAS_MECE" = true ] || continue ;;
+    any)  ;;
+    *)    continue ;;
   esac
   [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
   CONTEXT+=$(tail -n +2 "$f")
@@ -50,6 +50,7 @@ done
 JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
+<!-- plugin: mece-decomposer -->
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",

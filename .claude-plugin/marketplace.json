@@ -29,19 +29,13 @@
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
       "description": "Kimball-style dimensional modeling patterns for DuckDB star schemas in agent systems. SessionStart hook auto-injects principles when DuckDB or fact/dim tables detected.",
-      "version": "0.4.1"
-    },
-    {
-      "name": "tui-design",
-      "source": "./skills/tui-design",
-      "description": "Design functional, readable terminal UIs with proper visual hierarchy, semantic color, and responsive layout. SessionStart hook auto-injects principles when Rich/Textual/Click detected.",
-      "version": "0.4.1"
+      "version": "0.4.2"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
       "description": "MECE decomposition of goals, tasks, and workflows into Agent SDK-ready components with interactive tree visualizer. SessionStart hook auto-injects principles when Agent SDK or decomposition files detected.",
-      "version": "0.5.1"
+      "version": "0.5.2"
     },
     {
       "name": "skill-dashboard",
@@ -53,7 +47,7 @@
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
       "description": "Development conventions in three tiers: a PreToolUse hook blocks the violations that can be detected mechanically (pip in a uv project, npm in a bun project, hand-edited lockfiles), each gated on positive evidence from the project itself and overridable with DEV_CONVENTIONS_ALLOW=1; a SessionStart hook injects only what cannot be enforced; skills carry the full reference on demand.",
-      "version": "0.10.0"
+      "version": "0.10.1"
     },
     {
       "name": "readwise-reader",
@@ -71,7 +65,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.15.3"
+      "version": "0.15.4"
     },
     {
       "name": "json-query",
@@ -89,7 +83,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces a single rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo.",
-      "version": "0.7.3"
+      "version": "0.7.4"
     },
     {
       "name": "writing",
@@ -107,7 +101,7 @@
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
-      "version": "0.3.0"
+      "version": "0.3.1"
     },
     {
       "name": "explainer-video",
@@ -131,10 +125,11 @@
       "name": "ruff-diagnostics",
       "source": "./skills/ruff-diagnostics",
       "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ],
   "renames": {
-    "env-forge": null
+    "env-forge": null,
+    "tui-design": null
   }
 }

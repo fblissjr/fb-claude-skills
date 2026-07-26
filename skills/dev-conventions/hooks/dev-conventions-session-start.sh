@@ -98,6 +98,7 @@ done
 JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
+<!-- plugin: dev-conventions -->
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",

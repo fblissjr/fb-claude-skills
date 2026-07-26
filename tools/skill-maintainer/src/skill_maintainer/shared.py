@@ -2,14 +2,16 @@
 
 from pathlib import Path
 
-SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal",
-             "_deprecated"}
+SKIP_DIRS = {"__pycache__", ".backup", "node_modules", ".git", "coderef", ".venv", "internal"}
 """Directories never scanned for skills or plugins.
 
-`_deprecated` holds units we no longer publish but have not deleted. Keeping
-them discoverable would mean permanent red rows -- an unpublished plugin
-legitimately fails "listed in marketplace.json", and its skills legitimately
-go stale -- and a permanently-red board is an ignored board.
+`_deprecated` used to be here, for units withdrawn from circulation but kept on
+disk. That tree is gone: removal is now a deletion, and git history is the
+archive. A parallel archive was a second place to maintain whose contents were
+never read, and it needed this skip entry precisely because everything in it
+would otherwise sit permanently red -- an unpublished plugin legitimately fails
+"listed in marketplace.json". The entry is left out rather than kept "just in
+case", so a directory reappearing under that name is scanned like any other.
 """
 TOKEN_BUDGET_WARN = 4000
 TOKEN_BUDGET_CRITICAL = 8000

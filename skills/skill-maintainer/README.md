@@ -56,9 +56,9 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 # set up maintenance config in a new skills repo
 /skill-maintainer:init-maintenance
 
-# bump tui-design's version across plugin.json, marketplace.json, pyproject.toml
+# bump path-privacy's version across plugin.json, marketplace.json, pyproject.toml
 # (SKILL.md no longer carries a version field -- plugin.json is the sole source)
-/skill-maintainer:sync-versions tui-design 0.4.0
+/skill-maintainer:sync-versions path-privacy 0.7.4
 
 # sync working copy -> bundled reference manually (hook does this automatically on Edit)
 /skill-maintainer:sync-bundled-ref

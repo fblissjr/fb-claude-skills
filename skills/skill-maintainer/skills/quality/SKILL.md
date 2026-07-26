@@ -15,11 +15,11 @@ Discover all SKILL.md files in the repo and check each one. Output a summary tab
 
 ## Scope
 
-If `$ARGUMENTS` is non-empty, filter discovered skills to those whose directory name matches any of the space-separated arguments. Matching is substring: `tui` matches `tui-design`. If no skills match, report an error and exit.
+If `$ARGUMENTS` is non-empty, filter discovered skills to those whose directory name matches any of the space-separated arguments. Matching is substring: `path` matches `path-privacy`. If no skills match, report an error and exit.
 
 Examples:
 - `/skill-maintainer:quality` -- check all skills
-- `/skill-maintainer:quality tui-design` -- check only tui-design
+- `/skill-maintainer:quality path-privacy` -- check only path-privacy
 - `/skill-maintainer:quality mlx fast` -- check skills matching "mlx" or "fast"
 
 ## Discovery

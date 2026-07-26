@@ -15,7 +15,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [dev-conventions](skills/dev-conventions/) | Hook + Skills | Auto-detects Python/JS projects at session start, injects uv/bun/TDD/doc conventions via composable directive files |
-| [tui-design](skills/tui-design/) | Hook + Skill | Terminal UI design principles for Rich, Questionary, and Click. Hook detects TUI library imports. |
 | [cogapp-markdown](skills/cogapp-markdown/) | Skill | Auto-generate markdown sections using cogapp |
 | [dimensional-modeling](skills/dimensional-modeling/) | Hook + Skill | Kimball-style dimensional modeling for DuckDB star schemas. Hook detects DuckDB usage. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved global or per-project profile. |
@@ -80,7 +79,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install mece-decomposer@fb-claude-skills
 /plugin install mcp-apps@fb-claude-skills
 /plugin install plugin-toolkit@fb-claude-skills
-/plugin install tui-design@fb-claude-skills
 /plugin install cogapp-markdown@fb-claude-skills
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
@@ -176,7 +174,6 @@ Once installed, invoke as namespaced slash commands:
 /mcp-apps:migrate-oai-app     # Migrate from OpenAI Apps SDK
 
 /plugin-toolkit                # Analyze and manage plugins
-/tui-design                    # Terminal UI design guidance
 /cogapp-markdown               # Auto-generate markdown docs
 /dimensional-modeling          # Star schema design patterns
 
@@ -197,10 +194,10 @@ Once installed, invoke as namespaced slash commands:
 
 
 /skill-maintainer:quality              # Quick quality check for all skills
-/skill-maintainer:quality tui-design   # Check a specific skill
+/skill-maintainer:quality path-privacy   # Check a specific skill
 /skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:init-maintenance     # Set up maintenance in a new repo
-/skill-maintainer:sync-versions tui-design 0.3.0  # Bump version across all sources
+/skill-maintainer:sync-versions path-privacy 0.7.4  # Bump version across all sources
 /skill-maintainer:sync-bundled-ref     # Mirror working-copy best_practices.md to bundled ref
 /skill-maintainer:finish-session       # Orchestrate end-of-session: log -> sync -> bumps -> quality
 ```

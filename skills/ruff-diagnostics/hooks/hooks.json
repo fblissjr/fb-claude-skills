@@ -11,7 +11,7 @@
             "timeout": 20,
             "if": "Edit(*.py)|Write(*.py)|Edit(*.pyi)|Write(*.pyi)",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/post-edit-ruff.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/ruff-diagnostics-post-edit-ruff.sh"
             ]
           }
         ]

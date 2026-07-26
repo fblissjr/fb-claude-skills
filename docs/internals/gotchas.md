@@ -93,13 +93,6 @@ The hooks are not removed from the plugins themselves. They exist for repos that
 
 A future session should not "helpfully" re-enable these plugins to restore consistency with other repos. The setting is intentional and repo-specific; if it looks like an oversight, check `.claude/settings.json` and this section before touching it.
 
-## `_deprecated/` is skipped by all tooling
-
-`apps/_deprecated/` holds plugins that are kept on disk but withdrawn from circulation — currently `env-forge`, moved there and removed from `marketplace.json` and the root `pyproject.toml` workspace members. `_deprecated` was added to `SKIP_DIRS`, so nothing under it is scanned for skills or plugins by `discover_skills`, `discover_plugins`, `measure_tokens`, or the version-alignment check.
-
-Why skip rather than just delete the marketplace entry and leave the code in place: a plugin that still exists on disk but isn't listed in `marketplace.json` would otherwise fail `check_version_alignment`'s "plugin on disk not in marketplace" check forever. That check is supposed to catch a plugin someone forgot to register, not flag a plugin that was deliberately retired. A permanently-red board trains everyone to ignore it — the whole point of the check is that a failure means something needs action.
-
-If a deprecated plugin needs to come back, move it out of `_deprecated/`, re-add it to `marketplace.json` and the workspace members, and it re-enters every check automatically.
 
 ## Removing a frontmatter field can break the pre-commit hook
 

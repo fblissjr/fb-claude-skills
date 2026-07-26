@@ -1,6 +1,6 @@
 {
   "name": "dev-conventions",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Development conventions in three tiers: a PreToolUse hook blocks the violations that can be detected mechanically (pip in a uv project, npm in a bun project, hand-edited lockfiles), each gated on positive evidence from the project itself and overridable with DEV_CONVENTIONS_ALLOW=1; a SessionStart hook injects only what cannot be enforced; skills carry the full reference on demand.",
   "author": {
     "name": "Fred Bliss"

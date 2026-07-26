@@ -9,7 +9,7 @@
             "command": "bash",
             "timeout": 5,
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/pyright-autoconfig-session-start.sh"
             ]
           }
         ]

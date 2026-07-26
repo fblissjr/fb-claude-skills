@@ -10,7 +10,7 @@
             "command": "bash",
             "timeout": 5,
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/pre-tool-use.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/dev-conventions-pre-tool-use.sh"
             ]
           }
         ]
@@ -23,7 +23,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/dev-conventions-session-start.sh"
             ]
           }
         ]

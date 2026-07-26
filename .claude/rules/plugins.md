@@ -31,12 +31,17 @@ check confirming the duplicate matched. The pre-commit still validates the field
 **Do NOT bump `metadata.last_verified` as part of a cascade.** It asserts a human
 reviewed the skill against its source; a version bump does not establish that.
 
-## Deprecating a plugin
+## Removing a plugin
 
-Move it under `apps/_deprecated/` (in `SKIP_DIRS`, so it stops being scanned),
-drop it from `marketplace.json` `plugins[]` and the uv workspace, and add
+Delete the directory. Git history is the archive; a parallel `_deprecated/` tree
+was just a second place to maintain, and its contents never got read.
+
+Then: drop it from `marketplace.json` `plugins[]` and the uv workspace, add
 `"renames": {"<plugin>": null}` so existing installs get a removal notice instead
-of `plugin-not-found`. The `renames` map is append-only.
+of `plugin-not-found`, sweep the README (plugins table, install list, invocation
+list) and any doc or SKILL.md that used it as an example, and write a CHANGELOG
+entry. The `renames` map is append-only -- keep old entries forever, since
+Claude Code follows rename chains.
 
 ## Auto-discovery
 

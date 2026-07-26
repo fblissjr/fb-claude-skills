@@ -23,7 +23,7 @@ Bump a plugin's version atomically across all locations where version is tracked
 
 Examples:
 ```
-/skill-maintainer:sync-versions tui-design 0.3.0
+/skill-maintainer:sync-versions path-privacy 0.7.4
 /skill-maintainer:sync-versions skill-dashboard 1.1.0
 /skill-maintainer:sync-versions          # interactive: pick plugin + version
 ```

@@ -39,7 +39,7 @@ These bite on the first edit if you don't know them.
 | The version cascade and what is deliberately NOT in it | [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md) |
 | Where context cost actually goes; which tier a rule belongs in; built-in introspection not to rebuild | [docs/internals/context-cost.md](docs/internals/context-cost.md) |
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
-| Repo-specific gotchas (disabled plugins, `_deprecated`, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
+| Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
 | The explainer-video generalization plan (phases, gates, execution status) and per-item roadmap | [docs/internals/explainer_video_generalization_plan.md](docs/internals/explainer_video_generalization_plan.md), [docs/internals/explainer_video_roadmap.md](docs/internals/explainer_video_roadmap.md) |
 | What the explainer-video test suite covers, and every case's outcome | [docs/internals/explainer_video_test_cases.md](docs/internals/explainer_video_test_cases.md) |
@@ -60,7 +60,6 @@ These bite on the first edit if you don't know them.
 - `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored)
 - `<HOME>/.claude/agent_state.duckdb` — global DuckDB for run audit and state tracking (schema in `tools/agent-state/`)
 - Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves.
-- `apps/_deprecated/` — units kept for reference but no longer published. In `SKIP_DIRS`, so nothing there is scanned for skills or plugins.
 
 ## Cross-repo
 

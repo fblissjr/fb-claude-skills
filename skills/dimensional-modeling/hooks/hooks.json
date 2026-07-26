@@ -8,7 +8,7 @@
             "type": "command",
             "command": "bash",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/dimensional-modeling-session-start.sh"
             ]
           }
         ]

@@ -50,7 +50,7 @@ Detection logic in `session-start.sh` orders cheap checks (file/dir stat) before
 - `mece-decomposer`: `agent-sdk`
 - `env-forge`: `envforge`
 
-Plugins using this pattern: `dev-conventions`, `tui-design`, `dimensional-modeling`, `mece-decomposer`, `env-forge`, `path-privacy`.
+Plugins using this pattern: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `env-forge`, `path-privacy`.
 
 ## Agent vs. skill
 
