@@ -3,6 +3,8 @@
 ## 0.90.0
 
 ### changed
+- **`model-routing` 0.3.2 → 0.3.3 — reviewed by the owner.** `metadata.last_verified` moved 2026-07-05 → 2026-07-26. This is the one case where that field should move: a human actually read the skill against its source. It stays out of every mechanical cascade precisely so that when it does move, it means something.
+
 - **`skill-maintainer` 0.16.4 → 0.17.0 — `tune` runs as Phase 4 of the maintenance pass, not on a schedule.** The other phases check what this repo *says*; this one checks what its plugins actually *do*, in every project they run in. Folding it into `maintain` rather than scheduling it is deliberate: neither built-in scheduler fits — `CronCreate` jobs are session-only and expire after seven days, and cloud routines cannot read the local transcripts `tune` depends on — and a cron that quietly stops is the same never-zero-channel failure the rest of this tooling exists to remove. Running it where maintenance already happens has no way to silently stop working.
 
   The phase says what to act on, in the terms the measurements established: read the emission *rate* rather than the count, treat an `ambiguous(...)` plugin column as a filename collision to rename, question an LSP channel above ~3 diagnostics per push, and do **not** delete a zero-invocation skill on that evidence alone — not-needed and not-discoverable look identical there and the remedies are opposite, so `skill-creator`'s description-tuning harness settles it first.
