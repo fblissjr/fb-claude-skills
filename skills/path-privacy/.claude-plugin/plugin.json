@@ -1,6 +1,6 @@
 {
   "name": "path-privacy",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Enforces one rule: every path written into a repo must be relative to the repo root. Ships a SessionStart directive plus pre-commit and commit-msg git hooks that hard-block. The git hooks are frozen at install time by necessity, so the SessionStart hook refreshes them in place when the wrapper template changes -- no shell script to re-run. Stamped with a template version, not the plugin version, so unrelated releases raise no false staleness.",
   "author": {
     "name": "Fred Bliss"
