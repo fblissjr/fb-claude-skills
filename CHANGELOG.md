@@ -2,6 +2,15 @@
 
 ## 0.95.0
 
+### added
+- **`advisor` 0.1.1 → 0.2.0 — 22 tests for `digest.py`, the component that already failed silently once.** The digest reconstructs a session from its transcript so a stronger model can read it. Its failure mode is the dangerous kind: it does not crash, it just hands the advisor a session with something missing, and the advice comes back confident and uninformed.
+
+  The suite is built around the bug that shipped in 0.1.0 and was caught by eye rather than by any check — `AskUserQuestion` results were classified as tool output, so every constraint stated through that channel was dropped. `test_ask_user_question_result_is_promoted_to_human` pins it, with a sibling asserting ordinary tool results are *not* promoted, since the naive fix files every Bash result as user steering.
+
+  Also covered: user messages surviving an absurdly small character budget (a stated constraint must never be a compression casualty), sidechain exclusion, error attribution to the originating tool, file paths captured without inlining file bodies, a malformed trailing JSONL line degrading rather than raising (the transcript is written asynchronously and may be mid-write), harness-injected `<system-reminder>` blocks stripped, and the CLI exit codes.
+
+  Test-harness note worth keeping: loading a PEP 723 script by path needs the module registered in `sys.modules` *before* `exec_module`, or `@dataclass` fails with an unhelpful `'NoneType' object has no attribute '__dict__'` — it resolves its own module through `sys.modules[cls.__module__]`.
+
 ### fixed
 - **`advisor` 0.1.0 → 0.1.1 — the mint hook glob-expanded the arguments you typed.** `set -- $ARGS` performs pathname expansion as well as word splitting, so `/advisor --model *` run in a directory containing files became `--model <filename> <filename>`. The model validation coerced the unrecognised value back to the default, so it failed safe rather than spawning an unexpected tier — but it silently discarded what was asked for, which is the wrong behaviour for the one component whose whole job is honouring the user's stated bounds.
 
