@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-01
 
 # fb-claude-skills
 
@@ -27,7 +27,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
-| [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional layers: pre-shaped `fast-executor` / `task-coder` agents, and an `agent-state` feedback loop. Implements VISION.md "route to the cheapest capable model". |
+| [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped `fast-executor` / `task-coder` agents. **Installation is paused (2026-08-01)** — the rule asserts a cost/quality tradeoff nothing has measured, so it was removed everywhere and the skill is now user-invoked only. Removal still works. See [model_routing_flywheel.md](docs/internals/model_routing_flywheel.md). |
 | [advisor](skills/advisor/) | Skill + hooks | Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger model can see what was actually done. Strictly user-invoked: only a typed `/advisor` mints the spend authorization, and hooks deny any spawn without it. Mirror image of `model-routing`. |
 
 ### plugin & skill maintenance
@@ -63,7 +63,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Module | Description |
 |--------|-------------|
 | [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
-| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage with routing metadata and lifecycle management, delegation outcome tracking (acceptance rates per model/domain). |
+| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage. **No producers — nothing has written to it since 2026-03-12**, and the delegation-outcome feature was superseded before it ran. Read [agent_state_population.md](docs/internals/agent_state_population.md) before relying on it. |
 
 ## installation
 
@@ -197,6 +197,8 @@ Once installed, invoke as namespaced slash commands:
 ### keyword activation
 
 Skills also trigger automatically on relevant keywords. Say "decompose this process" or "interview me about this workflow" and the mece-decomposer skill loads.
+
+Two exceptions: `advisor` and `model-routing` set `disable-model-invocation: true`, so their descriptions never enter Claude's context and only an explicit slash command reaches them. For `advisor` that is the point — a typed `/advisor` is what authorizes the spend.
 
 ### MCP App tools
 
