@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-01
 
 # model-routing
 
@@ -45,3 +45,9 @@ The rule states delegation criteria in terms of task properties, not a fixed mod
 - Prefer the pre-shaped `fast-executor` / `task-coder` agents when the project has them installed.
 
 With the optional **feedback layer** added, the rule also records each verified delegation via `agent-state delegation record ...`, and `agent-state delegation stats` shows acceptance rates per model/domain — the loop for tuning what gets delegated. The `agent-state` package lives in this repo under `tools/agent-state/`; without it installed, leave the feedback layer off.
+
+## Related
+
+[`advisor`](../advisor/README.md) is this plugin's mirror image. This one routes *down* — well-specified mechanical work to a cheaper model in a subagent. `advisor` routes *up*, consulting a higher-tier model about the current session at the moments where judgment, not execution, is the expensive part.
+
+They compose but stay separate on purpose. This plugin is an installer with no runtime footprint, and it must be discoverable, so its description sits in the always-loaded skill listing. `advisor` is all runtime — hooks, a spend gate, session state — and sets `disable-model-invocation` so its description stays out of that listing and it can never fire on its own. One plugin cannot hold both settings, and their policies on autonomy are opposites: delegate downward freely, never spend upward without a keystroke.

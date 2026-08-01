@@ -2,6 +2,11 @@
 
 ## 0.95.0
 
+### changed
+- **`model-routing` 0.3.3 → 0.3.4 — cross-links with `advisor`, and the shipped rule template reconciled with the copy this repo actually runs.** They read as a pair — one routes down, one routes up — but they cannot merge on a technicality that matters: `model-routing` must stay discoverable, so its description sits in the always-loaded skill listing, while `advisor` sets `disable-model-invocation` precisely to stay out of it. One plugin cannot hold both settings. Their autonomy policies are also opposites: delegate downward on your own judgment, never spend upward without a keystroke.
+
+  The template had drifted from `.claude/rules/model-delegation.md` here, in the direction that mattered: it ended "keep it in the main loop **or spawn Opus**" and listed opus among the delegation tiers. That is a bug in a rule whose thesis is "route to the cheapest capable model" — it pointed the uncertainty fallback at the most expensive tier, and with `advisor` now in the repo it would have authorized exactly the autonomous up-tier spawn that plugin exists to prevent. Fresh installs got the drifted copy; this repo never did, so nothing here misbehaved and nothing revealed the gap. Same shape as invariant 3's `best_practices.md` duality: two copies, and the one nobody reads is the one that rots. Found by diffing them rather than by either copy failing.
+
 ### added
 - **`advisor` 0.1.0 — a higher-tier consult for the current session, with the spend decision moved from the model to the user.** Emulates the Claude API's [advisor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool) inside Claude Code. The API version pairs a cheap executor with a stronger advisor that reads the full transcript mid-generation; Claude Code cannot do that, because its `Agent` tool forces a choice — `subagent_type: "fork"` inherits full context but ignores the model override, and any other subagent takes the override but starts empty. Neither yields a stronger model that has seen your work.
 
