@@ -320,6 +320,23 @@ Consequences, and they are significant:
 - The probe left two undeletable interactions behind (trivial "Remember: blue"
   content). Any future probing of stateful behavior leaves permanent residue.
 
+### Correction: bulk deletion exists in the UI
+
+`interactions.delete` returns 501 and that stands -- there is no programmatic
+purge, and no `list` to enumerate what exists. But AI Studio's log settings
+dialog has a **Delete project logs** button that clears them project-wide.
+
+So the accurate statement is "cannot be deleted via the API", not "cannot be
+deleted". The mitigation is manual and all-or-nothing rather than per-run, but
+it is immediate rather than waiting out the retention window.
+
+That dialog also carries a per-API storage toggle. The **Interactions API**
+toggle sets the project default; a per-request `store` value overrides it. Since
+every shipped recipe is `stateful: false` and therefore sends `store: false`,
+turning the project toggle off costs nothing and makes storage opt-in --
+worth doing, because a misconfigured recipe would otherwise be retained
+silently.
+
 Re-test `delete` periodically — a 501 reads like "not enabled yet" rather than
 "never." If it starts working, `purge` becomes buildable and the storage
 calculus changes.
