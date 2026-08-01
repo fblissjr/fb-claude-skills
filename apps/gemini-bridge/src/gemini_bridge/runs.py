@@ -1,0 +1,124 @@
+"""The run directory: the handoff contract between Gemini, Claude, and you.
+
+Every invocation leaves a complete, inspectable record on disk. Claude reads
+`response.md` deliberately rather than having the whole answer dumped into its
+context via stdout -- tool output persists for the rest of the session, so a
+40KB scene description printed to stdout is ~10k tokens you cannot get back.
+
+The directory also carries the parameter set, not just the interaction id.
+`system_instruction` and `generation_config` are interaction-scoped: a follow-up
+that does not re-send them silently runs with no system instruction and
+different settings. And since the API offers no way to list stored interactions
+-- only create, get, cancel, delete -- this directory is the ONLY record of what
+there is to purge.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import orjson
+
+RUNS_DIRNAME = ".gemini-runs"
+
+
+def _slug(text: str, limit: int = 32) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return (s[:limit].rstrip("-")) or "run"
+
+
+def _dump(path: Path, obj: Any) -> None:
+    path.write_bytes(orjson.dumps(obj, option=orjson.OPT_INDENT_2))
+
+
+def _ensure_ignored(runs_root: Path) -> None:
+    """Self-ignore the runs tree.
+
+    Run directories are written into whatever project is being analysed, and
+    that project is usually a git repo. They hold prompts, model responses, and
+    the media manifest -- none of which belongs in someone's commit history by
+    accident. Writing `*` here means the tree excludes itself without the user
+    having to remember to edit their .gitignore.
+    """
+    marker = runs_root / ".gitignore"
+    if not marker.exists():
+        marker.write_text("# Written by gemini-bridge. Run output is local-only.\n*\n")
+
+
+@dataclass
+class RunDir:
+    path: Path
+
+    @classmethod
+    def create(
+        cls, root: Path, recipe_name: str, now: dt.datetime | None = None
+    ) -> RunDir:
+        now = now or dt.datetime.now()
+        runs_root = root / RUNS_DIRNAME
+        runs_root.mkdir(parents=True, exist_ok=True)
+        _ensure_ignored(runs_root)
+        stamp = now.strftime("%Y%m%dT%H%M%S")
+        base = runs_root / f"{stamp}-{_slug(recipe_name)}"
+        candidate, n = base, 1
+        while candidate.exists():
+            candidate = Path(f"{base}-{n}")
+            n += 1
+        candidate.mkdir(parents=True)
+        return cls(candidate)
+
+    # -- writes ---------------------------------------------------------
+
+    def write_request(self, request: dict[str, Any]) -> None:
+        _dump(self.path / "request.json", request)
+
+    def write_prompt(self, system_instruction: str, question: str) -> None:
+        self.prompt_path.write_text(
+            f"# system_instruction\n\n{system_instruction}\n\n"
+            f"# question\n\n{question}\n"
+        )
+
+    def write_response(self, text: str) -> None:
+        (self.path / "response.md").write_text(text if text.endswith("\n") else text + "\n")
+
+    def write_structured(self, obj: Any) -> None:
+        _dump(self.path / "response.json", obj)
+
+    def write_usage(self, usage: dict[str, Any]) -> None:
+        _dump(self.path / "usage.json", usage)
+
+    def write_interaction_id(self, interaction_id: str) -> None:
+        (self.path / "interaction.id").write_text(interaction_id + "\n")
+
+    def write_error(self, message: str) -> None:
+        (self.path / "error.txt").write_text(message + "\n")
+
+    # -- reads ----------------------------------------------------------
+
+    @property
+    def prompt_path(self) -> Path:
+        return self.path / "prompt.md"
+
+    @property
+    def interaction_id(self) -> str | None:
+        f = self.path / "interaction.id"
+        return f.read_text().strip() if f.exists() else None
+
+    @property
+    def request(self) -> dict[str, Any]:
+        return orjson.loads((self.path / "request.json").read_bytes())
+
+
+def find_runs(root: Path) -> list[RunDir]:
+    base = root / RUNS_DIRNAME
+    if not base.is_dir():
+        return []
+    return [RunDir(p) for p in sorted(base.iterdir()) if p.is_dir()]
+
+
+def stored_runs(root: Path) -> list[RunDir]:
+    """Runs holding a stored interaction id -- i.e. anything purgeable."""
+    return [r for r in find_runs(root) if r.interaction_id]
