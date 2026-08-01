@@ -61,16 +61,13 @@ def test_invalid_resolution_rejected():
         parse("---\nresolution: enormous\n---\n\nbody\n")
 
 
-def test_background_without_stateful_rejected():
-    # background=true requires store=true, which is what stateful controls.
-    # Caught locally rather than as a 400 from the API.
-    with pytest.raises(recipes.RecipeError, match="background"):
-        parse("---\nbackground: true\nstateful: false\n---\n\nbody\n")
-
-
-def test_background_with_stateful_allowed():
-    r = parse("---\nbackground: true\nstateful: true\n---\n\nbody\n")
-    assert r.background and r.stateful
+@pytest.mark.parametrize("stateful", ["true", "false"])
+def test_background_rejected_entirely(stateful):
+    # `background` was accepted and validated but never sent, so setting it
+    # passed validation and changed nothing. Rejected outright until the call
+    # path implements it, rather than left as an inert promise.
+    with pytest.raises(recipes.RecipeError, match="not implemented"):
+        parse(f"---\nbackground: true\nstateful: {stateful}\n---\n\nbody\n")
 
 
 def test_unknown_key_rejected():

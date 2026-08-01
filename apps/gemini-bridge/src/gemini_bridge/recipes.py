@@ -58,7 +58,6 @@ class Recipe:
     context_resolution: str | None = None
     service_tier: str | None = None
     stateful: bool = False
-    background: bool = False
     schema: dict[str, Any] | None = None
     labels: dict[str, str] = field(default_factory=dict)
     path: Path | None = None
@@ -101,13 +100,13 @@ def _validate(data: dict[str, Any], name: str) -> None:
         raise RecipeError(
             f"{name}: service_tier {tier!r} not in {sorted(SERVICE_TIERS)}"
         )
-    # The constraint graph: background execution requires server-side storage,
-    # and storage is what `stateful` turns on. Catch it here rather than
-    # letting the API return a 400.
-    if data.get("background") and not data.get("stateful"):
+    if "background" in data:
+        # Removed rather than left validated-but-inert: the call path never
+        # sent it, so setting it passed validation and changed nothing.
+        # Background execution also needs polling, which this tool does not do.
         raise RecipeError(
-            f"{name}: background=true requires stateful=true "
-            "(background execution needs store=true)"
+            f"{name}: background execution is not implemented. It requires "
+            "store=true plus polling, neither of which this tool does yet."
         )
     if "temperature" in data:
         # Probed 2026-08-01: the API accepts temperature and silently ignores

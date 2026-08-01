@@ -73,10 +73,22 @@ class Attachment:
     size_bytes: int
     resolution: str | None = None
 
-    def manifest_entry(self) -> dict[str, Any]:
-        """What goes in request.json -- never the base64 payload."""
+    def manifest_entry(self, relative_to: Path | None = None) -> dict[str, Any]:
+        """What goes in request.json -- never the base64 payload.
+
+        The path is recorded relative to the project when possible. Run
+        directories are written inside the user's own project and can be copied
+        or shared, and the raw argument was whatever was typed -- an absolute
+        path puts the local username on disk for no benefit.
+        """
+        path = self.path
+        if relative_to:
+            try:
+                path = path.resolve().relative_to(Path(relative_to).resolve())
+            except ValueError:
+                path = Path(path.name)  # outside the project: keep only the name
         return {
-            "path": str(self.path),
+            "path": str(path),
             "kind": self.kind,
             "mime_type": self.mime_type,
             "size_bytes": self.size_bytes,
@@ -126,14 +138,27 @@ def to_content_block(att: Attachment) -> dict[str, Any]:
             f"{att.kind} requires the Files API, not implemented until phase 4: "
             f"{att.path}"
         )
-    if att.size_bytes > INLINE_LIMIT_BYTES:
-        raise MediaError(
-            f"{att.path} is {att.size_bytes / 1e6:.1f}MB; inline attachment is "
-            "capped near 100MB after base64 expansion. Needs the Files API."
-        )
+    # Re-stat rather than trusting the size captured at inspect() time. The two
+    # happen at different moments, and the cached figure guards a cap that is
+    # then applied to a fresh read -- a file that grew in between would pass the
+    # check and still be sent in full. Reading also has to be guarded: a
+    # screenshot cleaned up by another process between argument parsing and the
+    # send would otherwise surface as a bare FileNotFoundError, uncaught,
+    # before any run directory exists.
+    try:
+        size = att.path.stat().st_size
+        if size > INLINE_LIMIT_BYTES:
+            raise MediaError(
+                f"{att.path} is {size / 1e6:.1f}MB; inline attachment is capped "
+                "near 100MB after base64 expansion. Needs the Files API."
+            )
+        payload = att.path.read_bytes()
+    except OSError as exc:
+        raise MediaError(f"could not read {att.path}: {exc}") from exc
+
     block: dict[str, Any] = {
         "type": att.kind,
-        "data": base64.b64encode(att.path.read_bytes()).decode(),
+        "data": base64.b64encode(payload).decode(),
         "mime_type": att.mime_type,
     }
     if att.resolution and att.kind in {"image", "video"}:

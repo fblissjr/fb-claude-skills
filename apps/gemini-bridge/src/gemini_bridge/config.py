@@ -103,3 +103,22 @@ EXAMPLE_USER_CONFIG = """\
 [defaults]
 # model = "gemini-3.6-flash"
 """
+
+EXAMPLE_PROJECT_CONFIG = """\
+# gemini-bridge project config (.gemini-bridge.toml), committed with the repo.
+# No [auth] section here -- a key command names a vault and an item, and this
+# file gets committed. It belongs in the user config only.
+
+[privacy]
+# Files matching any of these are refused rather than sent. Stored
+# interactions cannot be deleted, so refusing is the only protection.
+# Patterns match anywhere in the resolved path, case-insensitively.
+# A bare name matches any directory component.
+sensitive_paths = ["secrets", "*.key", "credentials/*"]
+
+[recipes]
+# dirs = ["prompts/gemini"]
+
+[defaults]
+# model = "gemini-3.6-flash"
+"""

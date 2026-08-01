@@ -1,6 +1,6 @@
 {
   "name": "gemini-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hand a multimodal task to Gemini when Claude cannot do it directly -- perceptual image comparison, scene description, structured extraction from media. Explicit, auditable, one run directory per call.",
   "author": {
     "name": "fbliss"

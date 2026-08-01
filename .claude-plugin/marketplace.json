@@ -58,7 +58,7 @@
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
+      "description": "JSON query tool selection and syntax \u2014 jg (jsongrep) for fast extraction, jq for transformations",
       "version": "0.1.1"
     },
     {
@@ -76,7 +76,7 @@
     {
       "name": "writing",
       "source": "./skills/writing",
-      "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
+      "description": "Writing skills for clear, accessible prose \u2014 an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
       "version": "0.5.0"
     },
     {
@@ -113,7 +113,7 @@
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
       "description": "Hand a multimodal task to Gemini when Claude cannot do it directly -- perceptual image comparison, scene description, structured extraction from media. Explicit, auditable, one run directory per call.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ],
   "renames": {
