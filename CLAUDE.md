@@ -41,6 +41,7 @@ These bite on the first edit if you don't know them.
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
 | Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started | [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) |
+| Why `agent-state` is empty, what would populate it, and the populate-or-retire decision — designed, NOT started | [docs/internals/agent_state_population.md](docs/internals/agent_state_population.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |

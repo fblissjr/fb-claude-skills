@@ -1,8 +1,60 @@
-last updated: 2026-07-25
+last updated: 2026-08-01
 
 # agent-state
 
 DuckDB-backed audit and state tracking for pipeline, agent, and CLI runs. Kimball star schema with run hierarchy, watermark history, and skill version lineage.
+
+## Status: not currently workable
+
+**This package has no producers. Read this before relying on anything below.**
+
+Measured against the live database on 2026-08-01:
+
+```
+fact_run             13     last write 2026-03-12
+fact_watermark       19
+fact_run_message      6
+dim_skill_version     0
+fact_delegation       table does not exist
+schema version        2     (this README documents 3)
+```
+
+Three specific problems:
+
+1. **The live database is at schema v2 and has no `fact_delegation` table or
+   `v_delegation_stats` view**, so the delegation feature documented below is not
+   reachable there. The schema is self-healing — `AgentStateDB.__init__` runs the
+   full DDL on every connect, and the DDL uses `CREATE TABLE IF NOT EXISTS` — so
+   this is not a migration bug. It is evidence that **no process has opened the
+   database since v3 shipped**.
+
+2. **`SCHEMA_VERSION = 2` in `database.py` is dead and has drifted.** It is
+   defined once and read nowhere, while the schema SQL inserts 3 and this README
+   says 3. Three sources for one number, two values, and the Python one has no
+   consumer. It should be deleted rather than corrected.
+
+3. **Nothing writes to any table during normal work.** Every table has a schema,
+   an API, tests, and a CLI. None has a caller. `fact_delegation` was designed to
+   be written by the `model-routing` feedback layer, which is opt-in, requires
+   this CLI on PATH, and asks an agent to self-report the outcome of its own
+   delegation — a signal shape that should not be built even once it is wired up.
+
+**What changed underneath it:** `ccutils` now reconstructs Claude Code sessions
+from transcripts, including agent delegations with per-message model and token
+attribution, observationally and retroactively. Delegation outcomes belong there.
+What survives here is the half ccutils structurally cannot see — watermarks, runs
+of things that are not Claude Code sessions, and skill content versions.
+
+**Before using this package**, read
+[`docs/internals/agent_state_population.md`](../../docs/internals/agent_state_population.md).
+It sets out the population plan, the observational-versus-instrumented split, why
+`v_flywheel` needs a join across both stores to ever return a row, and the
+decision it forces: populate `dim_skill_version` first, or retire the package.
+The current empty-but-documented state is the one option that should not persist,
+because it looks like instrumentation while measuring nothing.
+
+The schema documentation below is accurate as DDL. Treat it as a description of
+what the package *would* record, not of data that exists.
 
 ## installation
 
