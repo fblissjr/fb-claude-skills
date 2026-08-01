@@ -147,22 +147,60 @@ def get_review_interval(metadata: dict) -> int:
     return days if days > 0 else STALE_DAYS
 
 
-def check_description_quality(description: str) -> list[str]:
-    """Check description for WHAT verb + WHEN trigger."""
-    issues = []
+# Verbs a description may lead with. Deliberately broad and non-exhaustive:
+# every entry below leads a real description in this repo, and the original
+# 10-item list contained only four of them. A narrow list does not enforce
+# quality, it just fires on unfamiliar phrasing -- extend this rather than
+# rewording a description to satisfy it.
+_WHAT_VERBS = frozenset({
+    "add", "analyze", "audit", "break", "build", "bump", "consult", "create",
+    "creates", "decompose", "decomposes", "design", "enable", "enforce",
+    "enforces", "extract", "generate", "generates", "guide", "handle",
+    "handles", "inspect", "install", "manage", "manages", "monitor",
+    "monitors", "orchestrate", "pair", "query", "record", "remove", "render",
+    "report", "reproduce", "rewrite", "run", "scan", "set", "show",
+    "synthesize", "synthesizes", "validate", "validates", "verify", "write",
+})
+
+_WHAT_PHRASES = ("use when", "use for", "used to", "helps with")
+
+_WHEN_PHRASES = (
+    "use when", "when user", "when the", "if user",
+    "trigger", "mention", "says",
+)
+
+
+def check_description_quality(
+    description: str, *, model_invocable: bool = True
+) -> list[str]:
+    """Check a description for a WHAT verb and, when relevant, a WHEN trigger.
+
+    Set `model_invocable=False` for skills declaring
+    `disable-model-invocation: true`. Their description never enters Claude's
+    context, so it is never matched against a user's phrasing -- requiring a
+    trigger phrase there demands text that provably cannot do anything, and
+    the only way to satisfy it is to write a trigger that will never fire.
+
+    The WHAT check still applies in that case: the description is what a
+    person reads in the slash-command menu when deciding whether to run it.
+
+    Default is `True` so a skill that omits the frontmatter flag is held to
+    the stricter standard -- an exemption should have to be declared.
+    """
     if not description:
         return ["no description"]
+
+    issues = []
     desc_lower = description.lower()
-    has_what = any(w in desc_lower for w in [
-        "use when", "use for", "handles", "manages", "creates",
-        "generates", "monitors", "validates", "analyzes", "design",
-    ])
-    has_when = any(w in desc_lower for w in [
-        "use when", "when user", "when the", "if user",
-        "trigger", "mention", "says",
-    ])
+    first_word = desc_lower.split()[0].strip(",.:;!?") if desc_lower.split() else ""
+
+    has_what = first_word in _WHAT_VERBS or any(
+        p in desc_lower for p in _WHAT_PHRASES
+    )
     if not has_what:
         issues.append("missing WHAT verb")
-    if not has_when:
+
+    if model_invocable and not any(p in desc_lower for p in _WHEN_PHRASES):
         issues.append("missing WHEN trigger")
+
     return issues

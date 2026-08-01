@@ -115,7 +115,10 @@ def test_skills(root: Path) -> list[Result]:
 
         # 5. Description quality
         description = metadata.get("description", "")
-        issues = check_description_quality(description)
+        issues = check_description_quality(
+            description,
+            model_invocable=not metadata.get("disable-model-invocation", False),
+        )
         results.append(Result(
             "skill", name, "description quality",
             len(issues) == 0,

@@ -7,9 +7,13 @@ paths:
 
 These rules load when working with SKILL.md files.
 
-## Trigger phrases required
+## Trigger phrases required -- unless the skill is user-invoked only
 
 Every skill description must include natural language phrases users would say. Without trigger phrases, Claude won't auto-load the skill. Example: "Use when the user says 'decompose this', 'break down this workflow'..."
+
+**Exception: skills with `disable-model-invocation: true`.** Their description never enters Claude's context, so it is never matched against a user's phrasing -- a trigger phrase there is text that provably cannot fire, and writing one to satisfy the check is satisfying a check by touching what it measures. `skill-maintain validate` enforces this automatically: it skips the WHEN check when that flag is set, and still requires the description to say WHAT the skill does, because that is what a person reads in the slash-command menu.
+
+Write those descriptions to state the action and, where it is not obvious, that invocation is manual.
 
 ## Description limit
 

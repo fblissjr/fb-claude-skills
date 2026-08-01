@@ -69,7 +69,10 @@ def analyze_skill(skill_dir: Path) -> dict:
 
     # Description quality
     description = metadata.get("description", "")
-    result["desc_issues"] = check_description_quality(description)
+    result["desc_issues"] = check_description_quality(
+        description,
+        model_invocable=not metadata.get("disable-model-invocation", False),
+    )
     result["name"] = metadata.get("name", skill_dir.name)
 
     return result

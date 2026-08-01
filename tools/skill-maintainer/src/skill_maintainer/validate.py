@@ -48,7 +48,10 @@ def check_best_practices(skill_path: Path) -> list[str]:
 
     description = metadata.get("description", "")
     if description:
-        desc_issues = check_description_quality(description)
+        desc_issues = check_description_quality(
+            description,
+            model_invocable=not metadata.get("disable-model-invocation", False),
+        )
         for issue in desc_issues:
             warnings.append(f"Description: {issue}")
         if "<" in description or ">" in description:
