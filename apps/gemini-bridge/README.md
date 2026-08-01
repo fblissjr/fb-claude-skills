@@ -88,6 +88,11 @@ This matters because the prompt is usually composed by Claude, which has been
 reading your files. Checking only which files are attached would leave the
 larger opening unguarded.
 
+**What neither guard covers:** the *contents* of an image. A screenshot with a
+password, an API key, or a private path visible in it passes both checks --
+the path guard sees only a filename, and the prompt scanner reads only text.
+Look at what is in a screenshot before sending it.
+
 Configure in `.gemini-bridge.toml` at the project root:
 
 ```toml

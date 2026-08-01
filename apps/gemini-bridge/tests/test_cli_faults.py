@@ -21,7 +21,16 @@ from gemini_bridge import auth, cli, ledger, runs
 
 @pytest.fixture
 def project(tmp_path, monkeypatch):
-    """A project directory with a recipe and working fake credentials."""
+    """A project directory with a recipe and working fake credentials.
+
+    HOME and XDG_CONFIG_HOME are redirected first. Without that, Config.load()
+    reads the developer's real user config during the run -- harmless while
+    auth is mocked over, but it would put their absolute config path into
+    captured output the moment a test exercises `doctor`.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "home" / ".config"))
+    (tmp_path / "home" / ".config").mkdir(parents=True)
     recipes = tmp_path / "recipes"
     recipes.mkdir()
     (recipes / "demo.md").write_text(

@@ -38,6 +38,11 @@ Two guards run automatically and refuse the call rather than warning:
 
 Neither guard is a substitute for judgement about what belongs in the question.
 
+**Neither one reads image contents.** A screenshot showing a key, a token, or a
+private path passes both checks -- the path guard sees a filename, the scanner
+reads text. If you are about to send a screenshot of a terminal, an editor, or a
+browser, say so and let the user confirm.
+
 ## Running it
 
 ```bash
