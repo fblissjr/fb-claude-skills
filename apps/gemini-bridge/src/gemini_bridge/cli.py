@@ -70,16 +70,25 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # question used to be sent unchecked -- and a sent interaction cannot be
     # recalled.
     if cfg.scan_prompt and not args.allow_prompt_secrets:
-        findings = content.scan(question)
-        for f in findings:
-            stream = sys.stderr
-            print(f"{'BLOCKED' if f.blocking else 'WARNING'} prompt contains "
-                  f"what looks like a {f}", file=stream)
-        if content.blocking(findings):
+        # Both halves of the outgoing text. The recipe body becomes the
+        # system_instruction and is sent verbatim on every call -- it was
+        # unscanned by anything, and `--recipe /some/path.md` accepts an
+        # arbitrary file, so a recipe was a completely uncovered channel.
+        blocked = False
+        for label, text in (
+            ("prompt", question),
+            (f"recipe {recipe.name!r}", recipe.system_instruction),
+        ):
+            findings = content.scan(text)
+            for f in findings:
+                print(f"{'BLOCKED' if f.blocking else 'WARNING'} {label} contains "
+                      f"what looks like a {f}", file=sys.stderr)
+            blocked = blocked or bool(content.blocking(findings))
+        if blocked:
             return _fail(
-                "refusing to send: the prompt contains secret-shaped content. "
-                "Remove it, or pass --allow-prompt-secrets if these are false "
-                "positives. Sent interactions cannot be deleted."
+                "refusing to send: secret-shaped content found. Remove it, or "
+                "pass --allow-prompt-secrets if these are false positives. "
+                "Sent interactions cannot be deleted through the API."
             )
 
     # The path guard runs BEFORE media inspection, on the raw arguments.
@@ -131,7 +140,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
         for att in attachments:
             print(f"attach      {att.kind:9} {att.resolution or '-':5} "
                   f"{att.size_bytes / 1024:8.1f}KB  {att.path}")
-        print(f"question    {question[:100]}")
+        shown = question[:100]
+        for f in content.scan(question):
+            if f.blocking:
+                shown = "<withheld: contains secret-shaped content>"
+                break
+        print(f"question    {shown}")
         return 0
 
     try:

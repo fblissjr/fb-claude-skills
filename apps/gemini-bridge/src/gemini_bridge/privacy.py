@@ -21,6 +21,7 @@ interactions cannot be deleted.
 from __future__ import annotations
 
 import os
+import unicodedata
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -74,7 +75,12 @@ def _normalise(text: str) -> str:
     on a genuinely case-sensitive filesystem, which is the correct direction
     for a blocklist: a false positive costs one refused call.
     """
-    return os.path.expandvars(str(Path(text).expanduser())).lower()
+    # NFC first: macOS stores accented filenames decomposed (NFD) while a
+    # pattern typed into a config file is composed (NFC). The two are the
+    # same text to a person and different bytes to fnmatch, so a directory
+    # with an accent in its name silently failed to match.
+    expanded = os.path.expandvars(str(Path(text).expanduser()))
+    return unicodedata.normalize("NFC", expanded).lower()
 
 
 def is_sensitive(path: Path, patterns: list[str]) -> str | None:
@@ -91,7 +97,7 @@ def is_sensitive(path: Path, patterns: list[str]) -> str | None:
     """
     resolved = path.expanduser().resolve()
     text = _normalise(str(resolved))
-    parts = {p.lower() for p in resolved.parts}
+    parts = {unicodedata.normalize("NFC", p).lower() for p in resolved.parts}
 
     for pattern in patterns:
         # Blank check BEFORE normalising: Path("") is ".", which would then

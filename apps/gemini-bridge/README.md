@@ -88,10 +88,19 @@ This matters because the prompt is usually composed by Claude, which has been
 reading your files. Checking only which files are attached would leave the
 larger opening unguarded.
 
-**What neither guard covers:** the *contents* of an image. A screenshot with a
-password, an API key, or a private path visible in it passes both checks --
-the path guard sees only a filename, and the prompt scanner reads only text.
-Look at what is in a screenshot before sending it.
+**What neither guard covers**, stated plainly because each was confirmed by a
+red-team pass rather than assumed:
+
+- **The contents of any attachment.** A screenshot showing a password, or a CSV
+  with a key in a cell, passes both checks -- the path guard sees a filename,
+  the prompt scanner reads only the prompt. Look at what is in a file before
+  attaching it.
+- **A hardlink to a blocked file.** Matching is on the path string, not the
+  inode, so a hardlink under an innocuous name defeats every pattern. This is
+  a guard against mistakes, not against someone determined to route around it.
+- **Secrets with no distinguishing shape.** AWS secret access keys, bare bearer
+  tokens, and most passwords look like ordinary text. No pattern scanner
+  catches those, and this one does not pretend to.
 
 Configure in `.gemini-bridge.toml` at the project root:
 

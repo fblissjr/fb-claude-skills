@@ -84,6 +84,12 @@ def _run_key_command(command: str) -> str:
             f"key command timed out after {COMMAND_TIMEOUT_S}s "
             "(waiting on an unlock prompt?)"
         ) from exc
+    except OSError as exc:
+        # A file that `which` found but the kernel will not exec (wrong format,
+        # bad permissions) raised straight past cmd_ask's AuthError handler and
+        # printed a raw traceback -- the one path in this module not given the
+        # same treatment as the rest.
+        raise AuthError(f"could not run the key command: {exc.strerror or exc}") from exc
 
     if proc.returncode != 0:
         # stderr routinely echoes the secret reference back, so it is not

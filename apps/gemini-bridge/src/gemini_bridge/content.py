@@ -24,9 +24,21 @@ from dataclasses import dataclass
 # (name, compiled pattern, whether a hit should block rather than warn)
 _SPECS: list[tuple[str, str, bool]] = [
     # High confidence: these shapes are secrets or nothing.
-    ("openai-style key", r"sk-[A-Za-z0-9]{20,}", True),
+    # The class must allow - and _ : OpenAI's current dashboard keys are
+    # sk-proj-, sk-svcacct-, sk-admin-, and Stripe uses sk_live_ / rk_live_.
+    # A pattern of sk-[A-Za-z0-9]{20,} missed every modern key it was named for.
+    ("openai-style key", r"sk-[A-Za-z0-9_-]{20,}", True),
+    ("stripe key", r"[srp]k_(?:live|test)_[A-Za-z0-9]{16,}", True),
     ("anthropic-style key", r"sk-ant-[A-Za-z0-9_-]{20,}", True),
     ("github token", r"gh[pousr]_[A-Za-z0-9]{36,}", True),
+    # GitHub's recommended format since 2022; the classic pattern misses it.
+    ("github fine-grained token", r"github_pat_[A-Za-z0-9_]{50,}", True),
+    ("npm token", r"npm_[A-Za-z0-9]{36,}", True),
+    ("sendgrid key", r"SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}", True),
+    # A connection string with an inline password -- pasted constantly when
+    # debugging, and the password is the whole secret.
+    ("connection string with password",
+     r"[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s:/@]+@[^\s/]+", True),
     ("slack token", r"xox[baprs]-[A-Za-z0-9-]{10,}", True),
     ("google api key", r"AIza[A-Za-z0-9_-]{35}", True),
     ("aws access key", r"AKIA[0-9A-Z]{16}", True),
@@ -58,10 +70,18 @@ def _redact(match: str) -> str:
     An error message naming what it found is useless if the user cannot tell
     which string it means; printing the whole match relocates the secret into a
     terminal, a transcript, and possibly a bug report.
+
+    Never reveals more than a third of the string, and never more than 10
+    characters total. A fixed head+tail formula looked safe on long matches and
+    exposed 10 of 15 characters on a short one -- leaving a five-character
+    brute-force space -- because the formula did not scale with the input.
     """
-    if len(match) <= 12:
-        return f"{match[:2]}...{match[-2:]}" if len(match) > 6 else "..."
-    return f"{match[:6]}...{match[-4:]}"
+    budget = min(len(match) // 3, 10)
+    if budget < 4:
+        return "..."
+    head = budget - budget // 2
+    tail = budget // 2
+    return f"{match[:head]}...{match[-tail:]}"
 
 
 def scan(text: str) -> list[Finding]:

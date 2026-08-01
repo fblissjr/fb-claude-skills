@@ -114,3 +114,22 @@ def test_empty_pattern_does_not_match_everything(tmp_path):
     target = tmp_path / "ordinary.png"
     target.write_bytes(b"")
     assert is_sensitive(target, ["", "   ", "/"]) is None
+
+
+def test_decomposed_unicode_path_is_blocked(tmp_path):
+    """macOS stores accented filenames decomposed; config files are composed.
+
+    The two are the same text to a person and different bytes to fnmatch, so a
+    directory with an accent in its name silently failed to match. This needs
+    no deliberate evasion -- just an accented folder name.
+    """
+    import unicodedata
+
+    composed = unicodedata.normalize("NFC", "Café-Secrets")
+    decomposed = unicodedata.normalize("NFD", composed)
+    assert composed != decomposed
+
+    target = tmp_path / decomposed / "shot.png"
+    target.parent.mkdir()
+    target.write_bytes(b"")
+    assert is_sensitive(target, [composed]) == composed

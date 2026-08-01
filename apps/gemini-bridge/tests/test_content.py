@@ -91,3 +91,44 @@ def test_short_match_redaction_does_not_leak():
     # The redactor keeps head and tail; for a short string that could be most
     # of it, so it degrades to nothing rather than nearly-everything.
     assert content._redact("abc123") == "..."
+
+
+# -- regressions from the red-team pass -------------------------------------
+
+
+@pytest.mark.parametrize(
+    "sample",
+    [
+        # OpenAI's current dashboard formats. The original class excluded the
+        # hyphen, so it missed every modern key of the type it was named for.
+        "sk-proj-" + "a" * 40,
+        "sk-svcacct-" + "b" * 40,
+        "sk-admin-" + "c" * 40,
+        # GitHub's recommended format since 2022.
+        "github_pat_" + "d" * 55,
+        # Underscore-separated shapes the hyphen-only class could not reach.
+        "sk_live_" + "e" * 24,
+        "rk_live_" + "f" * 24,
+        "npm_" + "g" * 36,
+        "SG." + "h" * 22 + "." + "i" * 22,
+        # A connection string: the password is inline and people paste these
+        # constantly while debugging.
+        "postgres://user:Sup3rSecretPW@db.internal:5432/app",
+    ],
+)
+def test_modern_secret_shapes_block(sample):
+    assert content.blocking(content.scan(sample)), f"missed {sample[:16]}..."
+
+
+@pytest.mark.parametrize("length", [13, 15, 20, 40, 200])
+def test_redaction_never_reveals_more_than_a_third(length):
+    """The old formula was a fixed head+tail and did not scale.
+
+    On a 15-character match it showed 10 characters, leaving five to brute
+    force. Redaction has to be a function of the input length.
+    """
+    secret = "x" * length
+    excerpt = content._redact(secret)
+    revealed = len(excerpt.replace("...", ""))
+    assert revealed <= max(1, length // 3)
+    assert revealed <= 10

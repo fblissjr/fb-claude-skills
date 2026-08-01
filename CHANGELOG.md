@@ -1,5 +1,33 @@
 # changelog
 
+## 0.98.0
+
+### fixed
+- **`path-privacy` 0.10.0 → 0.11.0 — one staged binary silently disabled the leak scan for every file after it.** A red-team pass found and reproduced this; it is the most serious defect in the repo's privacy enforcement to date, and it was reachable without doing anything unusual.
+
+  When ripgrep is handed a file directly and that file is binary *and* matches, it does not emit `file:line:match` — it emits a diagnostic: `path: binary file matches (found "\0" byte around offset 0)`. The scanner fed the middle field of that line into an arithmetic expansion to index the source array. Bash treats the bare word `matches` inside `$(( ))` as a variable reference, `set -u` makes that fatal, and bash 3.2 — which is what `env bash` resolves to on a stock Mac — **terminated the script while still exiting 0**. The pre-commit hook read that as "scan passed".
+
+  The consequence was not "binaries are not scanned", which is documented and expected. It was that one binary aborted the scan for **every file after it in the same commit**, so unrelated plain-text leaks went through unreported, with the only symptom a stderr line that reads like a random bash bug. Reproduced end to end: a plain-text leak alone is correctly blocked; the same leak with a compiled binary staged alongside it commits successfully. Staging a build artifact with an embedded absolute path is entirely ordinary.
+
+  Scope was precisely the `--staged` mode — the pre-commit hook, the authoritative gate — and single-file audits. The whole-tree audit was immune, because directory mode filters binaries out before this code runs, which is why the audit kept reporting clean while the commit path stayed open.
+
+  Anything that is not a plain line number is now handled explicitly instead of reaching arithmetic, and files that cannot be line-scanned are reported by name rather than dropped silently. `references/patterns.md`'s claim that ripgrep skips binaries was true of the audit path and false of the gate that matters.
+
+### changed
+- **`gemini-bridge` 0.3.0 → 0.4.0 — closes what two red-team passes found.** The most serious: a recipe's `system_instruction` was sent verbatim on every call and scanned by nothing. Recipes are files, `--recipe` accepts an arbitrary path, and no flag could even opt that path into scanning. Both halves of the outgoing text are checked now.
+
+  The secret patterns missed the modern form of the very keys they were named for. `sk-[A-Za-z0-9]{20,}` excludes the hyphen, so OpenAI's current `sk-proj-`, `sk-svcacct-` and `sk-admin-` keys produced no finding at all; likewise GitHub's recommended `github_pat_` format, Stripe's underscore-separated keys, npm and SendGrid tokens, and connection strings carrying an inline password — the shape people paste most often while debugging.
+
+  Path matching now normalises Unicode. macOS stores accented filenames decomposed while a config file is composed; the two are the same text to a person and different bytes to `fnmatch`, so an accented directory name silently failed to match with no deliberate evasion involved.
+
+  Redaction now scales with input length. The fixed head-and-tail formula looked safe on long matches and revealed 10 of 15 characters on a short one, leaving five to brute force.
+
+  Also: run directories are created owner-only, because the prompt-scan override writes the secret it was overridden for to local disk in plaintext with no retention window, and default umask left that world-readable; `--dry-run` withholds a prompt containing secret-shaped content rather than printing it, since stdout persists in the calling agent's context; and a key command the kernel refuses to exec raises a clean error instead of a raw traceback.
+
+  Two limitations are now documented rather than left to inference: neither guard reads the *contents* of an attachment, and a hardlink under an innocuous name defeats path matching entirely. These are guards against mistakes, not against determined evasion.
+
+  198 tests, up from 183.
+
 ## 0.97.0
 
 ### changed

@@ -33,6 +33,21 @@ def _slug(text: str, limit: int = 32) -> str:
 
 def _dump(path: Path, obj: Any) -> None:
     path.write_bytes(orjson.dumps(obj, option=orjson.OPT_INDENT_2))
+    _restrict(path)
+
+
+def _restrict(path: Path) -> None:
+    """Owner-only.
+
+    A run directory is a complete local record of what was sent, and when the
+    prompt-scan override is used that includes the secret it was overridden
+    for, in plaintext with no retention window. Default umask left these
+    world-readable and sweepable into any backup or synced folder.
+    """
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
 
 
 def _ensure_ignored(runs_root: Path) -> None:
@@ -67,7 +82,7 @@ class RunDir:
         while candidate.exists():
             candidate = Path(f"{base}-{n}")
             n += 1
-        candidate.mkdir(parents=True)
+        candidate.mkdir(parents=True, mode=0o700)
         return cls(candidate)
 
     # -- writes ---------------------------------------------------------
@@ -80,9 +95,12 @@ class RunDir:
             f"# system_instruction\n\n{system_instruction}\n\n"
             f"# question\n\n{question}\n"
         )
+        _restrict(self.prompt_path)
 
     def write_response(self, text: str) -> None:
-        (self.path / "response.md").write_text(text if text.endswith("\n") else text + "\n")
+        target = self.path / "response.md"
+        target.write_text(text if text.endswith("\n") else text + "\n")
+        _restrict(target)
 
     def write_structured(self, obj: Any) -> None:
         _dump(self.path / "response.json", obj)

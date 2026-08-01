@@ -234,6 +234,9 @@ emit_finding() {
 }
 
 FOUND=0
+# Files rg reported as binary-and-matching. They cannot be line-scanned, and
+# silently dropping them is what let a poisoned scan look like a clean one.
+BINARY_UNSCANNED=''
 
 # Decide whether a candidate path is a leak; emit + flag if so.
 check_candidate() {
@@ -295,6 +298,30 @@ scan_file() {
     local rest="${rg_line#*:}"
     lln="${rest%%:*}"
     cand="${rest#*:}"
+
+    # rg does not always emit `file:line:match`. When a file named directly on
+    # the command line is binary AND matches, it emits a diagnostic instead:
+    #   path: binary file matches (found "\0" byte around offset 0)
+    # That put the word `matches` inside the arithmetic expansion below. Under
+    # `set -u`, bash 3.2 -- which is what `env bash` resolves to on a stock
+    # Mac -- treated it as an unbound variable, killed the script, and still
+    # exited 0. The pre-commit hook read that as "scan passed".
+    #
+    # The effect was not "binaries are skipped". It was that ONE staged binary
+    # aborted the scan for every file after it, so unrelated plain-text leaks
+    # in the same commit went through unreported. Staging a compiled artifact
+    # with an embedded build path is entirely ordinary, so this was reachable
+    # without doing anything unusual.
+    #
+    # Anything that is not a plain line number is therefore handled explicitly
+    # rather than fed to arithmetic.
+    case "$lln" in
+      ''|*[!0-9]*)
+        BINARY_UNSCANNED="${BINARY_UNSCANNED}${f}"$'\n'
+        continue
+        ;;
+    esac
+
     src="${lines[$((lln - 1))]:-}"
     case "$src" in
       *"$IGNORE_MARKER"*) continue ;;
@@ -343,6 +370,12 @@ scan_text() {
 [ -n "$TEXT" ] && scan_text "<text>" "$TEXT"
 for f in "${FILES[@]+"${FILES[@]}"}"; do scan_file "$f"; done
 for d in "${DIRS[@]+"${DIRS[@]}"}"; do scan_dir "$d"; done
+
+if [ -n "$BINARY_UNSCANNED" ] && [ $QUIET -eq 0 ]; then
+  printf '\nNot scanned (binary, contains a matching byte sequence):\n'
+  printf '%s' "$BINARY_UNSCANNED" | sort -u | sed 's/^/  /'
+  printf 'Line-level scanning cannot report these. Check them by hand before committing.\n'
+fi
 
 if [ $FOUND -eq 1 ]; then
   if [ $QUIET -eq 0 ]; then

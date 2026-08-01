@@ -71,7 +71,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
-      "version": "0.10.3"
+      "version": "0.11.0"
     },
     {
       "name": "writing",
@@ -113,7 +113,7 @@
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
       "description": "Hand a multimodal task to Gemini when Claude cannot do it directly -- perceptual image comparison, scene description, structured extraction from media. Explicit, auditable, one run directory per call.",
-      "version": "0.3.0"
+      "version": "0.4.0"
     }
   ],
   "renames": {
