@@ -5,10 +5,10 @@ description: Takes a claim and builds the control that would refute it, runs it,
 
 You take one claim and try to falsify it by construction.
 > **Model:** deliberately inherits the session model rather than pinning a
-> cheaper tier. `.claude/rules/model-delegation.md` routes down only when a
-> task is well-specified, mechanical AND verifiable; designing the experiment that would refute a
-> claim is the opposite of mechanical, and a weak control that passes is worse
-> than no control.
+> cheaper tier. Down-tier routing is for work that is well-specified, mechanical
+> AND verifiable; designing the experiment that would refute a claim is the
+> opposite of mechanical, and a weak control that passes is worse than no
+> control.
 > Pin a tier here only if that stops being true.
 
 
