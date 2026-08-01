@@ -4,6 +4,20 @@ last updated: 2026-08-01
 
 Opt a project into down-tier model delegation. One skill installs a `.claude/rules/model-delegation.md` file into the current project; from the next session on, Claude routes well-specified data and coding tasks to a cheaper model in a subagent and keeps judgment-heavy work in the main loop.
 
+> **Installation is paused as of 2026-08-01.** The rule was removed from all
+> eight repos that had it. It is ~1,885 characters of always-loaded text
+> asserting a cost/quality tradeoff that has never been measured, and the
+> feedback layer meant to measure it asks the agent to grade its own work.
+>
+> The skill is now `disable-model-invocation: true`, so it cannot load on
+> Claude's judgment — only an explicit `/model-routing:model-routing` reaches it,
+> and if invoked it will explain the pause and confirm before writing. Removal
+> is unaffected.
+>
+> What would justify resuming: a definition of a good delegation outcome and a
+> way to observe one, per
+> [docs/internals/model_routing_flywheel.md](../../docs/internals/model_routing_flywheel.md).
+
 The install is layered, and the base rule is fully **standalone** — no external tool, no CLI:
 
 - **Base rule** (always): the delegation behavior. Complete on its own.
@@ -28,12 +42,13 @@ Why a rules file and not a hook: the rule is plain data in the target project. I
 ## Invocation
 
 ```
-/model-routing:model-routing            # install the standalone base rule
-"set up model delegation here"          # natural-language trigger
-"set up model delegation with agents"   # base rule + fast-executor / task-coder agents
-"set up model delegation with feedback" # base rule + agent-state recording layer
-"remove the model delegation rule"      # uninstall from the current project
+/model-routing:model-routing            # invoke the skill (install is paused, see below)
+/model-routing:model-routing remove     # uninstall from the current project
 ```
+
+Natural-language phrases such as "set up model delegation here" no longer
+trigger this skill. It sets `disable-model-invocation: true`, so its description
+is not in Claude's context and only an explicit slash command reaches it.
 
 ## What the installed rule does
 

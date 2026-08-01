@@ -1,11 +1,31 @@
 ---
 name: model-routing
-argument-hint: "[task description to route]"
-description: Opt the current project into down-tier model delegation by installing a standalone .claude/rules/model-delegation.md rule, optionally with pre-shaped .claude/agents/ definitions (fast-executor, task-coder) and an optional agent-state feedback layer. The rule tells Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Use when the user says "set up model routing", "set up model delegation", "use cheaper models for subagents", "delegate to a lower-power model", or wants to remove or update that rule.
+argument-hint: "[install | remove]"
+description: Install, update, or remove the per-project down-tier model-delegation rule (.claude/rules/model-delegation.md), optionally with fast-executor / task-coder agent definitions. Installation is currently paused pending measurement, and this skill is user-invoked only -- it will not load on its own judgment.
+disable-model-invocation: true
 metadata:
-  last_verified: "2026-07-26"
+  last_verified: "2026-08-01"
   review_interval_days: "365"
 ---
+
+> **Status: installation paused (2026-08-01).**
+>
+> The rule was removed from all eight repos that had it, and should not be
+> reinstalled for now. It is 1,885 characters of always-loaded text asserting
+> that down-tier delegation improves cost without hurting quality — a claim
+> nothing has measured. Until there is evidence, installing it spends context
+> budget on an unfalsified belief.
+>
+> **If invoked, say this and confirm before writing anything.** The removal was
+> deliberate and recent; a reinstall silently undoes it.
+>
+> Removal still works normally and needs no confirmation.
+>
+> To resume: delete this block and `disable-model-invocation` from the
+> frontmatter. What would justify resuming is in
+> [docs/internals/model_routing_flywheel.md](https://github.com/fblissjr/fb-claude-skills/blob/main/docs/internals/model_routing_flywheel.md)
+> — the rule needs a definition of a good delegation outcome and a way to
+> observe one before it earns its place in every session.
 
 Install, update, or remove a per-project model-delegation rule. The rule is a plain `.claude/rules/` file: it loads at session start in that project only, needs no plugin installed to keep working, and is removed by deleting the file.
 

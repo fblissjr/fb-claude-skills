@@ -179,7 +179,7 @@ Once installed, invoke as namespaced slash commands:
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
-/model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
+/model-routing:model-routing     # Per-project down-tier delegation rule (install paused; removal works)
 /advisor                         # Consult a higher-tier model about this session (user-invoked only)
 /postmortem:postmortem           # Evidence-grounded retrospective of a session, feature, or span
 /postmortem:postmortem-index     # Browsable HTML index over a repo's postmortems

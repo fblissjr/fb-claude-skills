@@ -82,8 +82,8 @@
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
-      "description": "Opt a project into down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped .claude/agents/ definitions and an optional agent-state feedback layer.",
-      "version": "0.3.5"
+      "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Installation is paused pending measurement, and the skill is user-invoked only. Removal is unaffected.",
+      "version": "0.4.0"
     },
     {
       "name": "advisor",

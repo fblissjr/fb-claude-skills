@@ -3,6 +3,12 @@
 ## 0.95.0
 
 ### changed
+- **`model-routing` 0.3.5 → 0.4.0 — installation paused, and the skill is now user-invoked only.** The rule was removed from all eight repos carrying it, so the thing to prevent is it coming back on its own. `disable-model-invocation: true` keeps the description out of Claude's context entirely, which means phrases like "set up model delegation here" no longer reach it — only an explicit slash command does, and the skill then explains the pause and confirms before writing. Removal needs no confirmation and is unaffected.
+
+  Deliberately *not* a hook. The advisor gate exists because its failure mode is spending money on a frontier model, which is invisible until the bill. Here the failure is a file appearing in `.claude/rules/` — cheap, visible, and deleted in one command. Blocking the eager path is proportionate; a `PreToolUse` gate would be machinery a paused feature has not earned. The tier test from invariant 1c cuts both ways, and this is the side where it argues for less.
+
+  Second skill in the repo to trip `skill-maintain validate`'s "missing WHEN trigger" warning, for the same reason as `advisor`: a description that never enters context cannot carry a trigger phrase. Two instances is enough to say the check should exempt `disable-model-invocation` skills rather than have both of them documented as accepted warnings.
+
 - **`model-routing` 0.3.4 → 0.3.5 — the rule now tells Claude to check `.claude/agents/` instead of trusting the agent names printed in the rule itself.** Found by surveying the eight repos that have the rule installed: one had hand-edited this exact line, and the edit was a bug report. It read *"An earlier version of this line named `fast-executor` and `task-coder`, neither of which has ever existed here — a dispatch to a nonexistent agent name is the failure to avoid."*
 
   The rule is copied verbatim into projects, but the agents layer is opt-in, so any install that skipped it got a rule confidently naming two agents that were not there. Someone hit that, diagnosed it, and fixed their local copy — where the fix was invisible to everyone else and would have been overwritten by the next install. The template now states the general form: list the directory, use what is actually in it, do not trust a name written here.
