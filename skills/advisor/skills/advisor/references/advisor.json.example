@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to <project-root>/.claude/advisor.json. Every field is optional.",
+
+  "_checkpoint": "off | warn | block -- the pre-write gate enforced by the PreToolUse hook. 'off' does nothing. 'warn' notes a first write with no consult on record. 'block' denies it until the user runs /advisor or changes this setting. Default: off.",
+  "checkpoint": "off",
+
+  "_defaults": "Overrides the built-in bounds for /advisor when the user does not name them explicitly.",
+  "defaults": {
+    "model": "opus",
+    "effort": "high",
+    "words": 250,
+    "maxChars": 40000
+  }
+}

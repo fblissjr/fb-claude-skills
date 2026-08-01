@@ -86,6 +86,12 @@
       "version": "0.3.3"
     },
     {
+      "name": "advisor",
+      "source": "./skills/advisor",
+      "description": "Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger-model subagent can read what the executor has actually done, then returns strategic guidance. Strictly user-invoked: the spend authorization is minted only by a UserPromptExpansion hook on a user-typed /advisor, the skill is disable-model-invocation, and a PreToolUse hook denies any spawn lacking that provenance or naming a different model. A frontier-tier call is never a surprise.",
+      "version": "0.1.0"
+    },
+    {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",

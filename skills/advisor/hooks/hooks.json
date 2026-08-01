@@ -1,0 +1,49 @@
+{
+  "description": "advisor hooks: UserPromptExpansion is the only place a spend authorization is created, and it fires solely on a user-typed /advisor; SessionStart silently pins the session transcript path; PreToolUse refuses model-initiated skill invocation, denies advisor spawns lacking user-typed provenance or a matching model, and enforces the optional pre-write checkpoint. No hook here ever spawns a model.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 10,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/advisor-session-start.sh"
+            ]
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "matcher": "advisor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 10,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/advisor-user-prompt-expansion.sh"
+            ]
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task|Skill|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 10,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/advisor-pre-tool-use.sh"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

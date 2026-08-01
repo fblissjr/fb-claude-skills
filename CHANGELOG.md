@@ -1,5 +1,26 @@
 # changelog
 
+## 0.95.0
+
+### added
+- **`advisor` 0.1.0 — a higher-tier consult for the current session, with the spend decision moved from the model to the user.** Emulates the Claude API's [advisor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool) inside Claude Code. The API version pairs a cheap executor with a stronger advisor that reads the full transcript mid-generation; Claude Code cannot do that, because its `Agent` tool forces a choice — `subagent_type: "fork"` inherits full context but ignores the model override, and any other subagent takes the override but starts empty. Neither yields a stronger model that has seen your work.
+
+  `skills/advisor/scripts/digest.py` bridges that gap by reconstructing the session from its transcript JSONL into a bounded digest. It is lossy on purpose: one transcript in this repo reached 13 MB, far more than the live window it came from ever held, because tool results are truncated in-session but written to disk in full. Allocation is deliberate rather than proportional — the task statement and every human message survive uncompressed, because losing a constraint the user stated is the one failure mode that makes advice actively harmful.
+
+  **The inversion.** The API tool's premise is that the executor knows when it needs help, which is reasonable when you have set a budget in advance and wrong for an interactive session, where an autonomous frontier-model spawn is a surprise charge against someone watching their own bill. So typing `/advisor` is the only thing that authorizes a spend.
+
+  **Where the authorization is minted decides whether that is true.** The first cut had `prepare-consult.sh` mint it, which quietly defeated the gate: that script runs under Bash, so the agent could call it and satisfy the constraint it was supposed to be bound by. The hook checked that *a* token existed, not that a human made one. Minting now happens only in a `UserPromptExpansion` hook, an event that fires solely when a user-typed command expands — upstream is explicit that this is the path `PreToolUse` misses, because Claude invoking a skill goes through the `Skill` tool while typing `/advisor` does not. The agent cannot reach it. Tokens carry `origin: user_typed_command`, and both the script and the spawn gate refuse anything without it.
+
+  Three independent gates, since the failure is a surprise charge: `disable-model-invocation: true` keeps the skill out of Claude's context entirely; the mint hook is unreachable from the agentic loop; and `PreToolUse` denies spawns whose authorization is missing, expired, replayed, lacking provenance, or naming a model other than the one typed — which closes "approve sonnet, spawn fable". Bounds are captured at mint time, so nothing downstream can substitute a value.
+
+  The honest limit, stated rather than papered over: the token is a file, so anything holding Write or Bash can fabricate one. This is defense against an *eager* agent, which is the actual risk, not against a hostile one. No file-based scheme can promise the latter.
+
+  Neither hook job can spawn a model — they detect and refuse, nothing else. That is why block messages terminate in a human decision: telling Claude to "consult the advisor first" would have the main loop helpfully do exactly that, restoring the surprise spend the hook exists to prevent.
+
+  The optional pre-write checkpoint (the upstream "hard rule") ships **off**. Anthropic's own numbers have it raising Haiku coding pass rates ~7.5pp while costing ~4pp on retrieval-heavy workloads and pushing Opus to over-call — a real tradeoff, not a free win, and defaulting it on would misrepresent it as one.
+
+  Mirror image of `model-routing`, which routes *down* to cheaper models for mechanical work. Same axis, opposite direction; they compose.
+
 ## 0.94.1
 
 ### fixed

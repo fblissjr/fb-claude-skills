@@ -28,6 +28,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional layers: pre-shaped `fast-executor` / `task-coder` agents, and an `agent-state` feedback loop. Implements VISION.md "route to the cheapest capable model". |
+| [advisor](skills/advisor/) | Skill + hooks | Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger model can see what was actually done. Strictly user-invoked: only a typed `/advisor` mints the spend authorization, and hooks deny any spawn without it. Mirror image of `model-routing`. |
 
 ### plugin & skill maintenance
 
@@ -88,6 +89,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
 /plugin install model-routing@fb-claude-skills
+/plugin install advisor@fb-claude-skills
 /plugin install postmortem@fb-claude-skills
 ```
 
@@ -178,6 +180,7 @@ Once installed, invoke as namespaced slash commands:
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
 /model-routing:model-routing     # Install per-project rule: delegate scoped tasks to cheaper models
+/advisor                         # Consult a higher-tier model about this session (user-invoked only)
 /postmortem:postmortem           # Evidence-grounded retrospective of a session, feature, or span
 /postmortem:postmortem-index     # Browsable HTML index over a repo's postmortems
 /postmortem:test-audit           # Audit the test suite: claims, oracles, envelope, verdicts
