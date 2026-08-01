@@ -1,5 +1,27 @@
 # changelog
 
+## 0.97.0
+
+### changed
+- **`gemini-bridge` 0.2.0 → 0.3.0 — the privacy guard now covers what is actually transmitted, and it is on by default.** Asked whether the security posture was good, the honest answer was "mostly, with one hole", and the hole was structural rather than a bug: `privacy.is_sensitive` inspected which *files* were attached and said nothing about the *prompt* — which is composed by Claude, after Claude has spent a session reading the user's files. A secret pasted into a question went out unchecked, while a configured `sensitive_paths` implied the tool was vetting what it sent. A misleading guard is worse than an absent one.
+
+  Outgoing text is now scanned for secret-shaped content before the call, using patterns adapted from this repo's own `scan-for-secrets` so the two agree on what a secret looks like. High-confidence shapes block; lower-confidence ones (an email address, an absolute home path) warn. Findings are redacted before display — a message naming what it found must not reproduce it, or the secret simply relocates into a terminal and a session transcript.
+
+  The path guard also **defaulted to empty**, which meant that out of the box it blocked nothing and the real protection was "the user chose which files to name". It now ships a deliberately narrow default set covering shapes that are secrets or nothing, opt-out rather than opt-in.
+
+  **The guard also ran too late to work.** Ordered after media inspection, a file it exists to block — `id_rsa`, something `.pem` — was rejected first for having an unrecognised mime type, so most default patterns could never fire. Found by a test written for something else. It now runs on the raw arguments, because whether a file should be sent has nothing to do with whether its type is supported.
+
+  `doctor` reports both guards and states plainly that sent interactions cannot be deleted through the API.
+
+### fixed
+- **Correction to an earlier claim: bulk deletion does exist.** `interactions.delete` returning 501 stands, and there is still no programmatic or per-interaction purge. But AI Studio's log dialog has a project-wide **Delete project logs** button, so the accurate statement is "cannot be deleted *via the API*". Different mitigation, different ergonomics — manual and all-or-nothing, but immediate rather than waiting out the retention window. That dialog also carries a per-API storage toggle whose default the per-request `store` value overrides.
+
+### added
+- **Generative tests for the path guard**, motivated by a bad track record rather than a hunch: the function was rewritten three times in one session and each fix revealed the previous one broken in a way that looked correct. Hand-picked cases kept passing while it leaked, because they were chosen by whoever held the wrong mental model. The new tests generate paths, derive the patterns a person would expect to block each one, and assert the guard never under-blocks — 360 assertions across forms that all silently failed at some point.
+- **Fault injection for the post-call path**, which existed to handle failures that had never happened. Confirms that a write failure after a billed call still records the interaction id first, still writes the ledger, and surfaces the answer rather than losing it.
+
+  183 tests, up from 83.
+
 ## 0.96.0
 
 ### added

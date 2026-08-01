@@ -26,6 +26,32 @@ from pathlib import Path
 
 GLOB_CHARS = "*?["
 
+# On by default, because a blocklist nobody configures protects nobody. These
+# are file shapes that are secrets or nothing -- there is no legitimate reason
+# to hand a private key to an image-comparison model, so refusing costs a user
+# who genuinely wants to nothing but an explicit override.
+#
+# Deliberately narrow. Every entry that could plausibly match something a user
+# actually wants to send makes the whole guard something they switch off.
+DEFAULT_SENSITIVE_PATHS: tuple[str, ...] = (
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.keystore",
+    "id_rsa",
+    "id_ed25519",
+    "id_ecdsa",
+    ".env",
+    ".env.*",
+    "*.kdbx",
+    ".ssh",
+    ".gnupg",
+    ".aws",
+    "credentials.json",
+    "service-account*.json",
+)
+
 
 def _normalise(text: str) -> str:
     """Expand and case-fold, so both sides of a comparison are treated alike.
@@ -87,3 +113,8 @@ def is_sensitive(path: Path, patterns: list[str]) -> str | None:
             return pattern
 
     return None
+
+
+def effective_patterns(configured: list[str], use_defaults: bool = True) -> list[str]:
+    """User patterns plus the built-in ones, unless defaults are switched off."""
+    return [*configured, *(DEFAULT_SENSITIVE_PATHS if use_defaults else ())]

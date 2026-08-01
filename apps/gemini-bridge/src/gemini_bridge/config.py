@@ -43,6 +43,8 @@ class Config:
     default_model: str | None = None
     recipe_dirs: list[Path] = field(default_factory=list)
     sensitive_paths: list[str] = field(default_factory=list)
+    use_default_sensitive_paths: bool = True
+    scan_prompt: bool = True
     sources: list[Path] = field(default_factory=list)
 
     @classmethod
@@ -81,7 +83,13 @@ class Config:
                 (project_root / p).resolve()
                 for p in project.get("recipes", {}).get("dirs", [])
             ]
-            cfg.sensitive_paths = project.get("privacy", {}).get("sensitive_paths", [])
+            privacy_cfg = project.get("privacy", {})
+            cfg.sensitive_paths = privacy_cfg.get("sensitive_paths", [])
+            # Opt-out rather than opt-in: the defaults cover file shapes that
+            # are secrets or nothing, and a user who genuinely needs to send one
+            # can say so explicitly.
+            cfg.use_default_sensitive_paths = privacy_cfg.get("use_defaults", True)
+            cfg.scan_prompt = privacy_cfg.get("scan_prompt", True)
 
         return cfg
 

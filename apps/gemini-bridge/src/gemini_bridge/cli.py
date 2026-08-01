@@ -18,7 +18,7 @@ import sys
 from os import environ
 from pathlib import Path
 
-from . import auth, client as call_mod, ledger, media, privacy, recipes, runs
+from . import auth, client as call_mod, content, ledger, media, privacy, recipes, runs
 from .config import Config
 
 RECIPE_SUBPATH = Path("skills") / "gemini-multimodal" / "references" / "recipes"
@@ -65,6 +65,41 @@ def cmd_ask(args: argparse.Namespace) -> int:
     if not question:
         return _fail("no question: pass one positionally or via --prompt-file")
 
+    # The prompt is composed by Claude, which has been reading the user's
+    # files. The path guard says nothing about it, so a secret pasted into a
+    # question used to be sent unchecked -- and a sent interaction cannot be
+    # recalled.
+    if cfg.scan_prompt and not args.allow_prompt_secrets:
+        findings = content.scan(question)
+        for f in findings:
+            stream = sys.stderr
+            print(f"{'BLOCKED' if f.blocking else 'WARNING'} prompt contains "
+                  f"what looks like a {f}", file=stream)
+        if content.blocking(findings):
+            return _fail(
+                "refusing to send: the prompt contains secret-shaped content. "
+                "Remove it, or pass --allow-prompt-secrets if these are false "
+                "positives. Sent interactions cannot be deleted."
+            )
+
+    # The path guard runs BEFORE media inspection, on the raw arguments.
+    # Ordered the other way round, a file the guard exists to block -- id_rsa,
+    # something.pem -- was rejected first for having an unrecognised mime type,
+    # so most default patterns could never fire and the user got a confusing
+    # error instead of a refusal. Type support is irrelevant to whether a file
+    # should be sent.
+    patterns = privacy.effective_patterns(
+        cfg.sensitive_paths, cfg.use_default_sensitive_paths
+    )
+    for raw in [*args.file, *args.context]:
+        hit = privacy.is_sensitive(Path(raw), patterns)
+        if hit:
+            return _fail(
+                f"{raw} matches sensitive path pattern {hit!r}. "
+                "Sent interactions cannot be deleted through the API, so this "
+                "is refused rather than sent."
+            )
+
     try:
         attachments = media.resolve_attachments(
             args.file,
@@ -74,15 +109,6 @@ def cmd_ask(args: argparse.Namespace) -> int:
         )
     except media.MediaError as exc:
         return _fail(str(exc))
-
-    for att in attachments:
-        hit = privacy.is_sensitive(att.path, cfg.sensitive_paths)
-        if hit:
-            return _fail(
-                f"{att.path} matches sensitive path pattern {hit!r}. "
-                "Stored interactions cannot be deleted (delete returns 501), "
-                "so this is refused rather than sent."
-            )
 
     try:
         request = call_mod.build_request(
@@ -270,6 +296,18 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 1
     n = sum(1 for d in _recipe_dirs(cfg) if d.is_dir() for _ in d.glob("*.md"))
     print(f"recipes        : {n} found")
+
+    patterns = privacy.effective_patterns(
+        cfg.sensitive_paths, cfg.use_default_sensitive_paths
+    )
+    print(f"path guard     : {len(patterns)} pattern(s) "
+          f"({len(cfg.sensitive_paths)} from config, "
+          f"{len(patterns) - len(cfg.sensitive_paths)} built in)")
+    print(f"prompt scan    : {'on' if cfg.scan_prompt else 'OFF'}")
+    print()
+    print("Anything sent is retained for the project's retention window and")
+    print("CANNOT be deleted -- interactions.delete returns 501. Set that window")
+    print("in AI Studio; it is the only cleanup that exists.")
     return 0
 
 
@@ -294,6 +332,10 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--resolution", choices=sorted(recipes.RESOLUTIONS))
     ask.add_argument("--context-resolution", choices=sorted(recipes.RESOLUTIONS))
     ask.add_argument("--continue-from", metavar="INTERACTION_ID")
+    ask.add_argument(
+        "--allow-prompt-secrets", action="store_true",
+        help="send even if the prompt looks like it contains a secret",
+    )
     ask.add_argument("--dry-run", action="store_true",
                      help="print what would be sent, call nothing")
     ask.set_defaults(func=cmd_ask)

@@ -6,6 +6,9 @@ module scope -- that is deferred to the point of the call, so `--dry-run`,
 `recipes`, and `stats` work without it installed.
 """
 
-from . import auth, client, config, ledger, media, privacy, recipes, runs
+from . import auth, client, config, content, ledger, media, privacy, recipes, runs
 
-__all__ = ["auth", "client", "config", "ledger", "media", "privacy", "recipes", "runs"]
+__all__ = [
+    "auth", "client", "config", "content", "ledger", "media", "privacy",
+    "recipes", "runs",
+]
