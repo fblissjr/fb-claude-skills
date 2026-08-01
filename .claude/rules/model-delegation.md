@@ -17,7 +17,7 @@ For data-processing, routine coding, and similar well-specified tasks, use your 
 
 ## How to delegate
 
-- If this project has pre-shaped delegation agents in `.claude/agents/` (`fast-executor` for mechanical work, `task-coder` for standard coding and data tasks), delegate to those. Otherwise spawn a generic subagent with a `model` override. Illustrative tiers as of mid-2026: haiku for mechanical work, sonnet for standard coding and data tasks. Tier names change; the principle is fixed — pick the cheapest model you judge capable of the slice.
+- **List `.claude/agents/` before dispatching. Do not trust an agent name written here.** This rule is installed verbatim into projects that may have different agents, or none — dispatching to a name that does not exist is the failure to avoid. The optional install adds `fast-executor` (mechanical work) and `task-coder` (standard coding and data); use them if they are actually present, use whatever else the directory holds if not, and otherwise spawn a generic subagent with a `model` override. Illustrative tiers as of mid-2026: haiku for mechanical work, sonnet for standard coding and data tasks. Tier names change; the principle is fixed — pick the cheapest model you judge capable of the slice.
 - Give the subagent a complete, self-contained task spec: exact files, expected output, constraints, and how the result will be verified. A subagent sees none of the conversation.
 - Independent delegable tasks go to parallel subagents.
 
