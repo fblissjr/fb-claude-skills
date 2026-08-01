@@ -97,8 +97,22 @@ esac
 case "$WORDS" in *[!0-9]* | "") WORDS=250 ;; esac
 case "$MAX_CHARS" in *[!0-9]* | "") MAX_CHARS=40000 ;; esac
 
-STATE_DIR="${TMPDIR:-/tmp}/claude-advisor/${SESSION_ID}"
+ADVISOR_ROOT="${TMPDIR:-/tmp}/claude-advisor"
+STATE_DIR="$ADVISOR_ROOT/${SESSION_ID}"
+
+# See advisor-session-start.sh for why 077: this tree holds a digest of the
+# session transcript, and the TMPDIR fallback is a shared /tmp on Linux.
+umask 077
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
+chmod 700 "$ADVISOR_ROOT" "$STATE_DIR" 2>/dev/null || true
+
+# A digest is written per consult and nothing else deletes it, so it would
+# otherwise sit on disk until reboot. Drop the previous one when authorizing a
+# new consult, and sweep sessions older than a week. Bounded to this plugin's
+# own directory.
+rm -f "$STATE_DIR/digest.md" 2>/dev/null || true
+find "$ADVISOR_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +7 \
+  -exec rm -rf {} + 2>/dev/null || true
 
 jq -n \
   --arg model "$MODEL" \

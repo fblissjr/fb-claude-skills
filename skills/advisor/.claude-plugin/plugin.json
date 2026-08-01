@@ -1,6 +1,6 @@
 {
   "name": "advisor",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger-model subagent can read what the executor has actually done, then returns strategic guidance. Strictly user-invoked: the spend authorization is minted only by a UserPromptExpansion hook on a user-typed /advisor, the skill is disable-model-invocation, and a PreToolUse hook denies any spawn lacking that provenance or naming a different model. A frontier-tier call is never a surprise.",
   "author": {
     "name": "fbliss"

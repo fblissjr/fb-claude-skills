@@ -41,6 +41,23 @@ import orjson
 # Tool calls whose inputs name a file we should track as "touched".
 WRITE_TOOLS = {"Write", "Edit", "NotebookEdit", "MultiEdit"}
 
+# Keys a tool uses to name its target file, in preference order. One list, used
+# by both the trajectory summary and the touched-files collector -- they
+# previously kept separate copies and disagreed: the collector checked only
+# `file_path`, so NotebookEdit (which uses `notebook_path`) rendered in the
+# trajectory but never appeared under "Files written or edited".
+PATH_KEYS = ("file_path", "path", "notebook_path")
+
+
+def target_path(tool_input: Any) -> str | None:
+    """The file a tool call names, if it names one."""
+    if not isinstance(tool_input, dict):
+        return None
+    for key in PATH_KEYS:
+        if tool_input.get(key):
+            return str(tool_input[key])
+    return None
+
 # Injected wrappers that are noise to an advisor: they are harness bookkeeping,
 # not anything the executor decided to do.
 NOISE_MARKERS = ("<system-reminder>", "<command-name>", "<local-command-")
@@ -106,9 +123,9 @@ def summarize_input(name: str, tool_input: Any) -> str:
             f"{tool_input.get('description') or tool_input.get('prompt', '')}",
             200,
         )
-    for key in ("file_path", "path", "notebook_path"):
-        if key in tool_input:
-            return str(tool_input[key])
+    named = target_path(tool_input)
+    if named:
+        return named
     for key in ("command", "pattern", "query", "url", "prompt", "description"):
         if key in tool_input:
             return clip(str(tool_input[key]), 200)
@@ -147,9 +164,21 @@ def load_events(
                 if record.get(key) is not None:
                     meta[key] = record[key]
 
-            message = record.get("message") or {}
+            message = record.get("message")
+            if not isinstance(message, dict):
+                # A record can parse as valid JSON and still carry an
+                # unexpected `message` shape. Skipping degrades the digest by
+                # one turn; raising aborts the whole run and blocks the consult.
+                continue
             content = message.get("content")
             event = Event(kind="assistant" if kind == "assistant" else "human", index=len(events))
+            # Promotion to human is sticky. A single user-role message can batch
+            # an AskUserQuestion result together with an ordinary tool result,
+            # and processing the ordinary one second used to flip `kind` back to
+            # tool_output -- which then dropped the whole event, user's answer
+            # included. Same failure class as the bug that shipped in 0.1.0,
+            # one ordering away.
+            promoted_to_human = False
 
             if isinstance(content, str):
                 event.text = strip_noise(content)
@@ -168,9 +197,9 @@ def load_events(
                             (name, summarize_input(name, block.get("input") or {}))
                         )
                         if name in WRITE_TOOLS:
-                            target = (block.get("input") or {}).get("file_path")
+                            target = target_path(block.get("input"))
                             if target:
-                                touched.append(str(target))
+                                touched.append(target)
                     elif btype == "tool_result":
                         called = call_names.get(str(block.get("tool_use_id", "")), "?")
                         # AskUserQuestion returns through the tool channel, but
@@ -180,11 +209,14 @@ def load_events(
                         # bytes in the file, so promote it back to human.
                         if called == "AskUserQuestion":
                             event.kind = "human"
+                            promoted_to_human = True
                             texts.append(block_text(block))
                             continue
                         # Any other user record carrying tool_result blocks is
-                        # the harness returning output, not a person speaking.
-                        event.kind = "tool_output"
+                        # the harness returning output, not a person speaking --
+                        # unless this event already carried a user answer.
+                        if not promoted_to_human:
+                            event.kind = "tool_output"
                         if block.get("is_error"):
                             event.errors.append(
                                 f"{called}: {clip(block_text(block), 200)}"

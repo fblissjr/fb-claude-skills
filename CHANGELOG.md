@@ -2,6 +2,24 @@
 
 ## 0.95.0
 
+### fixed
+- **`advisor` 0.2.0 → 0.3.0 — the spend gate had a total bypass, and it was a copied idiom.** Two Sonnet reviewers, one on correctness and one on privacy, found six real defects between them. The worst: `advisor-pre-tool-use.sh` opened with a blanket `command -v jq || exit 0`, lifted from `path-privacy`'s hook where failing open is correct. Here `exit 0` means *allow the spend*, so on any machine without `jq` on the hook's PATH the gate silently became a no-op — no authorization check, no model check, no trace. No hostile actor required, just a missing dependency.
+
+  The lesson generalises past this bug: **a defensive idiom is only defensive relative to what failure means in that script.** The same line is right in the mint hook (no jq → no token → nothing authorized) and catastrophic in the gate. Failure policy is now stated per-job rather than at the top of the file, and when `jq` is absent the gate falls back to a crude substring match and *refuses* an advisor spawn rather than waving it through.
+
+  Also fixed: **the one-authorization-one-spawn guarantee did not hold under concurrency.** Validation read the token and only then deleted it, so two parallel `Agent` calls — a supported and encouraged pattern — could both pass every check against the same file. The token is now claimed with an atomic `mv` *before* validation, so only the winner proceeds. Verified with 10 rounds of two concurrent spawns against one authorization: exactly 10 allowed, 10 denied. An empty `session_id` also used to skip the gate entirely; it now denies, since a spawn that cannot be verified must not be funded.
+
+  Three defects in `digest.py`, two of them silent-data-loss:
+  - **The `AskUserQuestion` promotion was order-dependent.** A user-role message batching an `AskUserQuestion` result with an ordinary tool result would flip back to `tool_output` and drop the whole event — the user's answer included. The same failure class as the bug that shipped in 0.1.0, one ordering away, and the existing regression test used a single block so it did not catch it. Promotion is now sticky.
+  - **A non-dict `message` raised instead of degrading.** Valid JSON, unexpected shape, uncaught `AttributeError`, whole digest aborted, consult blocked.
+  - **`NotebookEdit` never appeared under "Files written or edited"** — it names its target `notebook_path`, and the collector checked only `file_path` while the trajectory summary checked all three. Two copies of one key list that disagreed; now one shared helper.
+
+  Privacy fixes from the second reviewer: state is written under `umask 077` with `chmod 700`, where it previously inherited the default umask and landed `0644` in a `0755` directory. On macOS `TMPDIR` is per-user so this was contained, but the `${TMPDIR:-/tmp}` fallback is a shared world-readable `/tmp` on Linux — and that directory holds a digest of the session transcript. Digests are now cleared when a new consult is authorized, and session directories older than seven days are swept.
+
+  The README now states plainly what the digest contains and does not filter. Your own messages are preserved verbatim by design, so anything pasted into the chat is in there. That sends nothing new to the model — it was already in the conversation — but it does write a second copy to disk, which is the part worth knowing. `scan-for-secrets` is named as the tool to point at a digest if the payload needs screening; wiring it in automatically is deliberately not done.
+
+  Three tests added, one per data-loss defect. 25 for the digest, 100 across the repo.
+
 ### added
 - **`advisor` 0.1.1 → 0.2.0 — 22 tests for `digest.py`, the component that already failed silently once.** The digest reconstructs a session from its transcript so a stronger model can read it. Its failure mode is the dangerous kind: it does not crash, it just hands the advisor a session with something missing, and the advice comes back confident and uninformed.
 

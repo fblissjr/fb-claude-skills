@@ -107,6 +107,29 @@ class TestUserMessagesSurvive:
         assert "## Everything the user said afterwards" not in out
         assert "file-a" not in out
 
+    def test_promotion_survives_a_later_tool_result_in_the_same_message(self, tmp_path):
+        """Ordering variant of the bug that shipped, found in review.
+
+        A single user-role message can batch an AskUserQuestion result with an
+        ordinary tool result. Processing the ordinary one second used to flip
+        the event back to tool_output, which dropped the whole event -- the
+        user's answer included."""
+        records = [
+            _rec("user", "Do the thing."),
+            _rec("assistant", [
+                {"type": "tool_use", "id": "tu1", "name": "AskUserQuestion", "input": {}},
+                {"type": "tool_use", "id": "tu2", "name": "Read", "input": {"file_path": "/repo/a.py"}},
+            ]),
+            _rec("user", [
+                {"type": "tool_result", "tool_use_id": "tu1",
+                 "content": 'The user answered: "Scope?"="ANSWER-SENTINEL"'},
+                {"type": "tool_result", "tool_use_id": "tu2", "content": "file body"},
+            ]),
+        ]
+        out = digest_of(tmp_path, records)
+        assert "ANSWER-SENTINEL" in out
+        assert "## Everything the user said afterwards" in out
+
     def test_user_messages_survive_an_absurdly_small_budget(self, tmp_path):
         """Budget pressure must never cost a stated constraint."""
         records = [_rec("user", "TASK-SENTINEL do the thing.")]
@@ -172,6 +195,21 @@ class TestErrorsAndFiles:
         assert out.count("`/repo/x.py`") == 1
         assert "`/repo/y.py`" in out
 
+    def test_notebook_edits_appear_under_files_written(self, tmp_path):
+        """NotebookEdit names its target `notebook_path`, not `file_path`. The
+        collector used to check only `file_path`, so notebook edits rendered in
+        the trajectory and silently vanished from the files list."""
+        records = [
+            _rec("user", "Do the thing."),
+            _rec("assistant", [
+                {"type": "tool_use", "id": "a", "name": "NotebookEdit",
+                 "input": {"notebook_path": "/repo/analysis.ipynb", "new_source": "..."}},
+            ]),
+        ]
+        out = digest_of(tmp_path, records)
+        assert "## Files written or edited" in out
+        assert "/repo/analysis.ipynb" in out.split("## Files written or edited")[1]
+
     def test_file_contents_are_not_inlined(self, tmp_path):
         """A single Write carries a whole file; the advisor gets the path and
         has Read if it needs more."""
@@ -197,6 +235,21 @@ class TestRobustness:
         )
         events, meta = digest.load_events(p, False)
         assert "KEEP-SENTINEL" in digest.render(events, meta, 40000)
+
+    def test_a_non_dict_message_degrades_rather_than_raising(self, tmp_path):
+        """Valid JSON, unexpected shape. Raising here aborts the whole digest
+        and blocks the consult; skipping costs one turn."""
+        p = tmp_path / "t.jsonl"
+        p.write_text(
+            json.dumps(_rec("user", "KEEP-SENTINEL")) + "\n"
+            + json.dumps({"type": "assistant", "message": "not-a-dict"}) + "\n"
+            + json.dumps(_rec("assistant", [{"type": "text", "text": "AFTER-SENTINEL"}])) + "\n",
+            encoding="utf-8",
+        )
+        events, meta = digest.load_events(p, False)
+        out = digest.render(events, meta, 40000)
+        assert "KEEP-SENTINEL" in out
+        assert "AFTER-SENTINEL" in out
 
     def test_harness_injected_blocks_are_stripped(self, tmp_path):
         records = [_rec("user", "REAL-SENTINEL\n<system-reminder>NOISE-SENTINEL</system-reminder>")]

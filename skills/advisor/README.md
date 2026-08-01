@@ -156,6 +156,37 @@ They also encode opposite policies about who decides: the delegation rule tells
 Claude to route downward on its own judgment, while this one forbids acting
 without a keystroke. Kept apart, each says one thing clearly.
 
+## What the digest contains, and what it does not filter
+
+The digest is a condensation of your session transcript, and **it is not
+filtered for secrets.** Your own messages are deliberately preserved verbatim —
+losing a constraint you stated is the failure mode that makes advice actively
+harmful — so anything you pasted into the chat is in there at full fidelity. An
+API key, a `.env` value a command printed, a customer record, an internal
+hostname: if it was in the conversation, it is in the digest.
+
+Two things this does *not* change, worth being precise about:
+
+- **It sends nothing new to the model.** That content already went to Claude when
+  you typed it. The advisor is a different model tier, but the same backend, and
+  no code here reaches the network on its own.
+- **It does create a second copy on disk.** `$TMPDIR/claude-advisor/<session>/digest.md`,
+  written `0600` in a `0700` directory, replaced on the next consult, and swept
+  after seven days. Before 0.2.1 it inherited the default umask, which meant
+  `0644` — a real exposure on Linux, where the `${TMPDIR:-/tmp}` fallback is a
+  shared world-readable directory.
+
+If you work with sensitive material and want the payload screened, this repo's
+[`scan-for-secrets`](../scan-for-secrets/) plugin detects the relevant shapes and
+can be pointed at the digest before you consult. Wiring it in automatically is
+deliberately not done — it would couple two plugins and add a scan to every
+consult — but the option is there.
+
+Related: the advisor subagent has `Read`, `Grep`, and `Glob`. It can read any
+file your session's permissions allow, not only what the digest contains. That
+is what lets it verify a claim against the code rather than trusting a
+compressed summary, and it is why it has no `Write` and no `Bash`.
+
 ## Limitations
 
 - **The digest is lossy.** It is a reconstruction, not the live context window.

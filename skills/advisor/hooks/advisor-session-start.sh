@@ -27,7 +27,17 @@ CWD=$(jq -r '.cwd // ""' <<<"$PAYLOAD" 2>/dev/null)
 [ -z "$SESSION_ID" ] && exit 0
 
 STATE_DIR="${TMPDIR:-/tmp}/claude-advisor/${SESSION_ID}"
+
+# umask 077 before any mkdir or write. On macOS TMPDIR is already per-user, but
+# the fallback is a shared world-readable /tmp on Linux, and this directory ends
+# up holding a digest of the session transcript. Default umask 022 would leave
+# it 0644 in a directory any local user can enumerate.
+#
+# chmod as well as umask: umask only affects newly created paths, and the
+# directory may already exist from a run that predates this fix.
+umask 077
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
+chmod 700 "${TMPDIR:-/tmp}/claude-advisor" "$STATE_DIR" 2>/dev/null || true
 
 # Session state lives in TMPDIR, not in the repo and not in the user's Claude
 # config directory. It is per-session and worthless after the session ends, so

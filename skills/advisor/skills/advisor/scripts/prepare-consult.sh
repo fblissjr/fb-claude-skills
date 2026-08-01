@@ -51,6 +51,12 @@ fi
 STATE_DIR="${TMPDIR:-/tmp}/claude-advisor/${SESSION_ID}"
 AUTH_FILE="$STATE_DIR/authorization.json"
 
+# The digest written below is a condensation of the session transcript. It is
+# not filtered for secrets -- if something sensitive was pasted into the chat,
+# it is in there. Keep it readable only by this user; the TMPDIR fallback is a
+# shared /tmp on Linux.
+umask 077
+
 if [ ! -r "$AUTH_FILE" ]; then
   cat >&2 <<'EOF'
 advisor: no authorization for this session.

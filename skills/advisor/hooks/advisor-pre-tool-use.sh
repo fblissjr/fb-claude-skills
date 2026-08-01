@@ -25,20 +25,44 @@
 #   exit 0: allow
 #   exit 2: block, stderr shown to the user and to Claude
 #
-# Fails open on every error path: no jq, malformed payload, unreadable state.
-# A privacy-free convenience gate should never wedge a session.
+# Failure policy is NOT uniform, and getting that wrong was a total bypass.
+#
+# The write checkpoint fails OPEN: it is a convenience, and wedging a session
+# because a dependency is missing is worse than skipping a reminder.
+#
+# The spend gate fails CLOSED. An earlier version opened this script with a
+# blanket `command -v jq || exit 0`, copied from a hook where fail-open is
+# correct. Here exit 0 means "allow the spend", so on any machine without jq on
+# the hook's PATH the gate silently became a no-op -- no authorization check, no
+# model check, no trace. That needs no hostile actor, just an ops condition.
+#
+# So: if we cannot verify, we refuse the spawn. Never the reverse.
 
 set -u
-
-command -v jq >/dev/null 2>&1 || exit 0
 
 PAYLOAD=$(cat)
 [ -z "$PAYLOAD" ] && exit 0
 
+HAVE_JQ=1
+command -v jq >/dev/null 2>&1 || HAVE_JQ=0
+
+# Without jq we cannot parse the payload, but we can still recognise an advisor
+# spawn well enough to refuse it. Crude on purpose: over-matching here costs a
+# denied consult the user can retry, while under-matching costs an unauthorized
+# frontier-model call.
+if [ "$HAVE_JQ" -eq 0 ]; then
+  case "$PAYLOAD" in
+    *'"subagent_type"'*advisor*)
+      echo "advisor: blocked -- jq is unavailable, so this spawn's authorization cannot be verified. Install jq, or tell the user the consult could not be authorized. Refusing rather than allowing an unverified frontier-model call." >&2
+      exit 2
+      ;;
+  esac
+  exit 0
+fi
+
 TOOL=$(jq -r '.tool_name // ""' <<<"$PAYLOAD" 2>/dev/null)
 SESSION_ID=$(jq -r '.session_id // ""' <<<"$PAYLOAD" 2>/dev/null)
 CWD=$(jq -r '.cwd // ""' <<<"$PAYLOAD" 2>/dev/null)
-[ -z "$SESSION_ID" ] && exit 0
 
 STATE_DIR="${TMPDIR:-/tmp}/claude-advisor/${SESSION_ID}"
 AUTH_FILE="$STATE_DIR/authorization.json"
@@ -78,6 +102,26 @@ if [ "$TOOL" = "Agent" ] || [ "$TOOL" = "Task" ]; then
   esac
 
   REQUESTED_MODEL=$(jq -r '.tool_input.model // ""' <<<"$PAYLOAD" 2>/dev/null)
+
+  # Without a session id the state directory cannot be located, so nothing can
+  # be verified. That is a denial, not a pass -- the same mistake as the old
+  # blanket jq check, one field further in.
+  if [ -z "$SESSION_ID" ]; then
+    echo "advisor: blocked -- no session id in the hook payload, so this spawn's authorization cannot be located or verified." >&2
+    exit 2
+  fi
+
+  # Claim the token atomically BEFORE validating it. Parallel tool calls are a
+  # supported pattern, so two advisor spawns in one turn could otherwise both
+  # read the same still-present file, both pass every check, and both proceed --
+  # one `/advisor` funding two consults. Only the process that wins this `mv`
+  # gets to continue; `mv` on the same filesystem is atomic.
+  CLAIM_FILE="$AUTH_FILE.claimed.$$"
+  if [ -r "$AUTH_FILE" ] && mv "$AUTH_FILE" "$CLAIM_FILE" 2>/dev/null; then
+    AUTH_FILE="$CLAIM_FILE"
+    # Whatever happens next, this claim is spent.
+    trap 'rm -f "$CLAIM_FILE" 2>/dev/null' EXIT
+  fi
 
   if [ ! -r "$AUTH_FILE" ]; then
     cat >&2 <<'EOF'
@@ -132,7 +176,9 @@ EOF
     exit 2
   fi
 
-  # One authorization funds exactly one spawn.
+  # One authorization funds exactly one spawn. The claim above already made
+  # that true against concurrent spawns; this and the EXIT trap just clear the
+  # claimed file.
   rm -f "$AUTH_FILE" 2>/dev/null
   printf '%s consult model=%s\n' "$(now_epoch)" "$AUTH_MODEL" >>"$CONSULT_LOG" 2>/dev/null
   exit 0
