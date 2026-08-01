@@ -64,7 +64,20 @@ if [ -n "$CWD" ] && [ -r "$CONFIG" ]; then
 fi
 
 # Parse what the user typed. Flags win over config.
+#
+# `set -f` disables pathname expansion for the duration of the split. Without
+# it, bash globs the unquoted expansion against the working directory, so
+# `/advisor --model *` run where files exist becomes `--model <filename> ...`
+# and the typed value is lost. The validation below coerces the result back to
+# a default, so this failed safe rather than spawning an unexpected model --
+# but it silently discarded what the user asked for.
+#
+# `set -f` rather than `read -ra`: the array form needs bash 4.4+ to be safe
+# under `set -u` when empty, and macOS still ships bash 3.2.
+set -f
+# shellcheck disable=SC2086  # word splitting is intended here; globbing is off
 set -- $ARGS
+set +f
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) [ -n "${2:-}" ] && MODEL="$2" && shift ;;

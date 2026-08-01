@@ -58,7 +58,7 @@
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "description": "JSON query tool selection and syntax \u2014 jg (jsongrep) for fast extraction, jq for transformations",
+      "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
       "version": "0.1.1"
     },
     {
@@ -76,7 +76,7 @@
     {
       "name": "writing",
       "source": "./skills/writing",
-      "description": "Writing skills for clear, accessible prose \u2014 an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
+      "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
       "version": "0.5.0"
     },
     {
@@ -89,7 +89,7 @@
       "name": "advisor",
       "source": "./skills/advisor",
       "description": "Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger-model subagent can read what the executor has actually done, then returns strategic guidance. Strictly user-invoked: the spend authorization is minted only by a UserPromptExpansion hook on a user-typed /advisor, the skill is disable-model-invocation, and a PreToolUse hook denies any spawn lacking that provenance or naming a different model. A frontier-tier call is never a surprise.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "pyright-autoconfig",

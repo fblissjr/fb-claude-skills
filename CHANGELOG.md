@@ -2,6 +2,13 @@
 
 ## 0.95.0
 
+### fixed
+- **`advisor` 0.1.0 → 0.1.1 — the mint hook glob-expanded the arguments you typed.** `set -- $ARGS` performs pathname expansion as well as word splitting, so `/advisor --model *` run in a directory containing files became `--model <filename> <filename>`. The model validation coerced the unrecognised value back to the default, so it failed safe rather than spawning an unexpected tier — but it silently discarded what was asked for, which is the wrong behaviour for the one component whose whole job is honouring the user's stated bounds.
+
+  Fixed with `set -f` around the split rather than `read -ra`: the array form needs bash 4.4+ to be safe under `set -u` when empty, and macOS still ships bash 3.2.
+
+  Found while scoping a code review, and the first attempt to reproduce it was itself wrong — the check ran in this environment's zsh, which does not word-split unquoted expansions, and reported no bug. Re-run under `bash -c`, the expansion produced three positional parameters from two. Shell-behaviour claims need the shell the script actually declares.
+
 ### removed
 - **`model-routing` 0.4.0 → 0.5.0 — the agent-state feedback layer is gone.** It appended an outcome-recording section to the installed rule, telling Claude to run `agent-state delegation record` after verifying each delegation. Three independent reasons it had to go: the table it wrote to (`fact_delegation`) has never existed in the live database, nothing has written to that database since 2026-03-12, and the outcome it captured was the orchestrator grading its own delegation — the signal shape both design notes now say should not be built. It was also always-loaded text in every project that opted in.
 
