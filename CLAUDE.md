@@ -42,7 +42,7 @@ These bite on the first edit if you don't know them.
 | Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started | [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) |
 | Why `agent-state` is empty, what would populate it, and the populate-or-retire decision — designed, NOT started | [docs/internals/agent_state_population.md](docs/internals/agent_state_population.md) |
-| Gemini multimodal bridge (verified API facts, recipes, storage/invocation tradeoffs) — designed, NOT started | [docs/internals/gemini_bridge_design.md](docs/internals/gemini_bridge_design.md) |
+| Gemini multimodal bridge — API facts established by live probing (every static source was wrong about something), recipes-as-data, why storage is irreversible. Shipped as `apps/gemini-bridge`; re-run `internal/scratch/gemini_probe.py` before exposing any new API parameter | [docs/internals/gemini_bridge_design.md](docs/internals/gemini_bridge_design.md) |
 | Why the delegation feedback layer is a report and not a loop; schema/grain/cost fixes | [docs/internals/model_routing_flywheel.md](docs/internals/model_routing_flywheel.md) |
 | Gating expensive/external calls by tier (UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny) | [docs/internals/tiered_authorization.md](docs/internals/tiered_authorization.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |

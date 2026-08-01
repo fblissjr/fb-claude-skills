@@ -2,10 +2,16 @@ last updated: 2026-08-01
 
 # gemini-bridge: design notes
 
-> Status: **designed, NOT started.** No code, no plugin directory, no version.
-> This document is the output of one design session. It records what was
-> verified against primary sources, what was decided and why, and what is still
-> open. Read it before writing any code.
+> Status: **shipped** as `apps/gemini-bridge` (0.3.0). This began as a design
+> note written before any code existed, and the design sections are preserved
+> as written — including the parts later disproved, because *how* they were
+> wrong is the useful part. Anything a live probe contradicted is marked in
+> place rather than quietly corrected.
+>
+> The operating lesson: **form hypotheses from docs and the SDK, confirm
+> anything load-bearing with a real call.** Every static source turned out to be
+> wrong about something material. Re-run `internal/scratch/gemini_probe.py`
+> before exposing any new API parameter.
 
 ## What this is
 

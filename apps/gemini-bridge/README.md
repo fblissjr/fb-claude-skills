@@ -61,8 +61,44 @@ gemini-bridge ask -r perceptual-diff -f before.png -f after.png \
 gemini-bridge ask ... --dry-run    # print the manifest, call nothing
 gemini-bridge recipes              # list available recipes
 gemini-bridge stats                # token totals per recipe from the ledger
-gemini-bridge doctor               # check config, credentials, recipes
+gemini-bridge stored               # interactions held server-side
+gemini-bridge doctor               # config, credentials, recipes, guards
 ```
+
+## What gets checked before anything is sent
+
+Two guards, both on by default, because a call cannot be recalled — the API's
+delete endpoint returns 501, so the only cleanups are the project retention
+window and a project-wide bulk delete in the console.
+
+**Attached files** are matched against a built-in pattern set covering shapes
+that are secrets or nothing (`*.pem`, `id_rsa`, `.env`, `.ssh`, and similar),
+plus anything you add. Matching is case-insensitive, expands home-relative and
+environment-variable prefixes in your patterns, and runs on the raw arguments
+before any file is opened. It is designed to over-block rather than
+under-block.
+
+**The prompt itself** is scanned for secret-shaped content — API keys, tokens,
+private key blocks, JWTs. High-confidence shapes refuse the call; weaker signals
+(an email address, an absolute home path) warn and continue. Findings are
+redacted in the message, so a warning never reproduces the thing it found.
+`--allow-prompt-secrets` overrides when they are false positives.
+
+This matters because the prompt is usually composed by Claude, which has been
+reading your files. Checking only which files are attached would leave the
+larger opening unguarded.
+
+Configure in `.gemini-bridge.toml` at the project root:
+
+```toml
+[privacy]
+sensitive_paths = ["design-docs", "*.sketch"]
+# use_defaults = false   # drop the built-in patterns
+# scan_prompt  = false   # disable prompt scanning
+```
+
+`gemini-bridge doctor` reports how many patterns are active and whether prompt
+scanning is on.
 
 ## Skills
 

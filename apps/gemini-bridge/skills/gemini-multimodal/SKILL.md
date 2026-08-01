@@ -16,13 +16,27 @@ change anything visible."
 
 ## Before calling
 
-Every call spends money and sends the attached files to Google. Two things to
-check:
+Every call spends money and sends the attached files to Google, where they are
+retained for the project's window and **cannot be deleted through the API**.
+Two things to do:
 
 1. **Say what you are sending.** Name the files and the recipe in one line
    before running the command.
 2. **`--dry-run` first** when the attachment set is large or unfamiliar. It
-   prints the manifest and calls nothing.
+   prints the manifest and calls nothing — it opens no connection, so nothing
+   leaves the machine.
+
+Two guards run automatically and refuse the call rather than warning:
+
+- **Attached paths** are matched against built-in patterns for secret-shaped
+  files plus anything configured in `.gemini-bridge.toml`.
+- **The prompt** is scanned for secret-shaped content. This one matters most
+  here, because *you* compose the prompt after reading the user's files. Do not
+  paste key material, tokens, or credential blocks into a question. If a refusal
+  is a false positive, say so and let the user decide rather than reaching for
+  `--allow-prompt-secrets` yourself.
+
+Neither guard is a substitute for judgement about what belongs in the question.
 
 ## Running it
 
