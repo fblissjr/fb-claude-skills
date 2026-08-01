@@ -58,7 +58,7 @@
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
+      "description": "JSON query tool selection and syntax \u2014 jg (jsongrep) for fast extraction, jq for transformations",
       "version": "0.1.1"
     },
     {
@@ -76,14 +76,14 @@
     {
       "name": "writing",
       "source": "./skills/writing",
-      "description": "Writing skills for clear, accessible prose — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
+      "description": "Writing skills for clear, accessible prose \u2014 an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis) plus voice matching that learns the user's own style.",
       "version": "0.5.0"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
-      "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Installation is paused pending measurement, and the skill is user-invoked only. Removal is unaffected.",
-      "version": "0.4.0"
+      "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop, with optional fast-executor / task-coder agent definitions. Installation is paused pending measurement and the skill is user-invoked only; removal is unaffected.",
+      "version": "0.5.0"
     },
     {
       "name": "advisor",
@@ -108,6 +108,12 @@
       "source": "./skills/ruff-diagnostics",
       "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
       "version": "0.1.4"
+    },
+    {
+      "name": "gemini-bridge",
+      "source": "./apps/gemini-bridge",
+      "description": "Hand a multimodal task to Gemini when Claude cannot do it directly -- perceptual image comparison, scene description, structured extraction from media. Explicit, auditable, one run directory per call.",
+      "version": "0.1.0"
     }
   ],
   "renames": {

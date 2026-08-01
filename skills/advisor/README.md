@@ -140,15 +140,20 @@ routes *down*, sending well-specified mechanical work to cheaper models in
 subagents. The advisor routes *up*, buying a stronger opinion at the moments
 where judgment is the expensive part.
 
-They are deliberately separate plugins rather than one. `model-routing` is an
-installer with no runtime footprint and must stay discoverable, so its
-description lives in the always-loaded skill listing. This plugin is the
-opposite on both counts: it is all runtime — hooks, a spend gate, session state
-— and it sets `disable-model-invocation`, keeping its description out of that
-listing so it can never auto-trigger. One plugin cannot hold both settings.
+They are deliberately separate plugins rather than one, though the original
+reason has expired. This section used to argue that `model-routing` must stay
+discoverable while this plugin must not, so one plugin could not hold both
+settings. On 2026-08-01 `model-routing` paused installation and took
+`disable-model-invocation` too, so both are now user-invoked only.
 
-The two also encode opposite policies about who decides: `model-routing` tells
-Claude to delegate downward on its own judgment, while this one forbids acting
+What still separates them is shape and lifecycle. `model-routing` is an
+installer: it writes a file and gets out of the way, no runtime footprint. This
+plugin is all runtime — hooks on three events, a spend gate, per-session state.
+`model-routing` is paused pending measurement; this one tracks a beta upstream
+feature and will keep moving.
+
+They also encode opposite policies about who decides: the delegation rule tells
+Claude to route downward on its own judgment, while this one forbids acting
 without a keystroke. Kept apart, each says one thing clearly.
 
 ## Limitations

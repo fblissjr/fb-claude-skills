@@ -6,8 +6,9 @@ Opt a project into down-tier model delegation. One skill installs a `.claude/rul
 
 > **Installation is paused as of 2026-08-01.** The rule was removed from all
 > eight repos that had it. It is ~1,885 characters of always-loaded text
-> asserting a cost/quality tradeoff that has never been measured, and the
-> feedback layer meant to measure it asks the agent to grade its own work.
+> asserting a cost/quality tradeoff that has never been measured. The feedback
+> layer meant to measure it asked the agent to grade its own work, and was
+> removed in 0.5.0.
 >
 > The skill is now `disable-model-invocation: true`, so it cannot load on
 > Claude's judgment — only an explicit `/model-routing:model-routing` reaches it,
@@ -22,7 +23,6 @@ The install is layered, and the base rule is fully **standalone** — no externa
 
 - **Base rule** (always): the delegation behavior. Complete on its own.
 - **Agents** (opt-in): pre-shaped `.claude/agents/` definitions — `fast-executor` (haiku, mechanical work) and `task-coder` (sonnet, standard coding/data) — so delegation targets carry tailored execute-to-spec system prompts instead of a bare model override.
-- **Feedback** (opt-in): an `agent-state` outcome-recording section appended to the rule. Only worth adding where the `agent-state` CLI is installed — it's kept out of the base because it's always-loaded text that only pays off with the CLI present.
 
 Why a rules file and not a hook: the rule is plain data in the target project. It keeps working if this plugin is uninstalled, it's inspectable and locally editable, and removal is deleting one file. Opt-in is per project — invoke the skill only where you want the behavior. Design rationale: [VISION.md "route to the cheapest capable model"](../../VISION.md).
 
@@ -37,7 +37,7 @@ Why a rules file and not a hook: the rule is plain data in the target project. I
 
 | Skill | Description |
 |-------|-------------|
-| [model-routing](skills/model-routing/SKILL.md) | Install, update, or remove the per-project model-delegation rule (standalone base), optionally with the `fast-executor` / `task-coder` agent definitions and an agent-state feedback layer. Verbatim-copies templates from `references/`; diffs and confirms before overwriting local edits. |
+| [model-routing](skills/model-routing/SKILL.md) | Install, update, or remove the per-project model-delegation rule (standalone base), optionally with the `fast-executor` / `task-coder` agent definitions. Verbatim-copies templates from `references/`; diffs and confirms before overwriting local edits. |
 
 ## Invocation
 
@@ -59,10 +59,12 @@ The rule states delegation criteria in terms of task properties, not a fixed mod
 - Current tiers (haiku for mechanical work, sonnet for standard coding/data) appear only as examples, so the rule survives model-lineup changes.
 - Prefer the pre-shaped `fast-executor` / `task-coder` agents when the project has them installed.
 
-With the optional **feedback layer** added, the rule also records each verified delegation via `agent-state delegation record ...`, and `agent-state delegation stats` shows acceptance rates per model/domain — the loop for tuning what gets delegated. The `agent-state` package lives in this repo under `tools/agent-state/`; without it installed, leave the feedback layer off.
+The **agent-state feedback layer was removed in 0.5.0.** It appended an outcome-recording section to the rule, telling Claude to run `agent-state delegation record` after verifying each delegation. Three things were wrong with it: the table it wrote to has never existed in the live database, nothing has written to that database since 2026-03-12, and the outcome it captured was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts, which needs no cooperation from the party being measured and backfills retroactively. If a project still carries the section, delete it.
 
 ## Related
 
 [`advisor`](../advisor/README.md) is this plugin's mirror image. This one routes *down* — well-specified mechanical work to a cheaper model in a subagent. `advisor` routes *up*, consulting a higher-tier model about the current session at the moments where judgment, not execution, is the expensive part.
 
-They compose but stay separate on purpose. This plugin is an installer with no runtime footprint, and it must be discoverable, so its description sits in the always-loaded skill listing. `advisor` is all runtime — hooks, a spend gate, session state — and sets `disable-model-invocation` so its description stays out of that listing and it can never fire on its own. One plugin cannot hold both settings, and their policies on autonomy are opposites: delegate downward freely, never spend upward without a keystroke.
+They compose but stay separate on purpose — though not for the reason first written here. The original argument was that this plugin must stay discoverable while `advisor` must not, so one plugin could not hold both settings. That stopped being true on 2026-08-01, when pausing installation made this skill `disable-model-invocation: true` as well. Both are now user-invoked only.
+
+What still separates them is shape and lifecycle. This plugin is an installer: it writes a file and gets out of the way, with no runtime footprint. `advisor` is all runtime — hooks on three events, a spend gate, per-session state. This one is paused pending measurement; that one tracks a beta upstream feature and will keep moving. Merging them would couple a settled thing to a churning one and put two opposite policies — delegate downward on your own judgment, never spend upward without a keystroke — behind one description.

@@ -2,6 +2,13 @@
 
 ## 0.95.0
 
+### removed
+- **`model-routing` 0.4.0 → 0.5.0 — the agent-state feedback layer is gone.** It appended an outcome-recording section to the installed rule, telling Claude to run `agent-state delegation record` after verifying each delegation. Three independent reasons it had to go: the table it wrote to (`fact_delegation`) has never existed in the live database, nothing has written to that database since 2026-03-12, and the outcome it captured was the orchestrator grading its own delegation — the signal shape both design notes now say should not be built. It was also always-loaded text in every project that opted in.
+
+  Superseded rather than merely deleted: `ccutils` recovers 947 delegations from session transcripts observationally, needing no cooperation from the party being measured and backfilling five months retroactively.
+
+  This also caught two claims that expired when installation was paused. Both plugin READMEs argued the pair must stay separate because `model-routing` needs to be discoverable while `advisor` must not be — an argument that died the moment `model-routing` took `disable-model-invocation` too. Rewritten to the reason that still holds (shape and lifecycle: an installer with no runtime footprint versus three hook events and a spend gate; a paused thing versus one tracking a moving upstream beta), with the expiry noted rather than silently patched.
+
 ### changed
 - **`skill-maintainer` 0.18.1 → 0.19.0 — the description check no longer demands a trigger phrase from skills that cannot be triggered.** `disable-model-invocation: true` keeps a description out of Claude's context entirely, so it is never matched against a user's phrasing. Requiring a WHEN trigger there asks for text that provably cannot fire, and the only way to satisfy it is to write one that never will — passing a check by touching what it measures. `validate`, `quality`, and `test` now skip that check when the flag is set. The WHAT check still applies: the description is what a person reads in the slash-command menu. Default stays strict, so an exemption has to be declared rather than inferred.
 
