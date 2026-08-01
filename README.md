@@ -45,6 +45,12 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 | [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 
+### cross-model bridges
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [gemini-bridge](apps/gemini-bridge/) | CLI + Skill + Command | Hand a perceptual task to a Gemini model when Claude cannot do it directly — comparing two renders and reporting what a person would notice, rather than falling back to pixel statistics. Recipes are data (frontmatter plus a system instruction), every call writes an auditable run directory, and the API surface was established by live probing rather than documentation. Secret-manager agnostic. |
+
 ### privacy & pre-share safety
 
 | Plugin | Type | Description |

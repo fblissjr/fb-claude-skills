@@ -1,5 +1,35 @@
 # changelog
 
+## 0.96.0
+
+### added
+- **`gemini-bridge` 0.2.0 — a new plugin for handing a perceptual task to a Gemini model when Claude cannot do it directly.** The motivating case: comparing two renders of the same 3D scene, where Claude could measure the images with numpy but could not see the difference, and answered a visual question with pixel statistics. That substitution is the trigger phrase the skill actually keys on, not "there is an image here".
+
+  Shape is a thin CLI plus recipes as data. A recipe is YAML frontmatter for parameters and a markdown body that becomes the `system_instruction`, so a new kind of analysis is a new file rather than new code. Keeping the analytical stance in a versioned file is what makes results reproducible: composing the prompt fresh each session makes the answer depend on how the question happened to be phrased that day.
+
+  Every call writes a run directory — prompt, media manifest, response, structured verdict, token usage — and stdout stays deliberately small, because tool output persists in a session's context for the rest of that session and a full scene description printed there is thousands of tokens that cannot be reclaimed.
+
+  **The API surface was established by live probing, not documentation, and that turned out to be necessary rather than fastidious.** Every static source was wrong about something material: the OpenAPI spec omits video input entirely, the generated SDK omits a parameter the API accepts and ships a `delete` the server does not implement, and the docs are wrong about both while giving three mutually contradictory video token rates. A drift check validating the CLI's flags against the OpenAPI spec was designed and then abandoned — it would have failed video input as invalid and sent us chasing a bug that does not exist.
+
+  What the probe established, all of it load-bearing: `temperature` is accepted and **silently ignored** (at 0.0 the same prompt returns varying answers, and 0.0 versus 2.0 produce identical answer sets), so recipes reject it and `seed` is the determinism knob. Thinking runs by **default** and bills at the output rate — 195 thought tokens for "17 * 23" at `high` against 0 at `minimal` — so an unset `thinking_level` is the expensive path, not the cheap one. `interactions.delete` returns **HTTP 501**, so stored interactions cannot be purged at all and `stateful: false` is the only privacy lever that exists.
+
+  Resolution guidance is measured rather than assumed. A control harness over four real image pairs, two runs each, at both resolutions: `low` is sufficient for storyboards and contact sheets — it found *more* differences than `high` on two of them — and `high` earns its cost only on full-frame renders, where it found five or six differences to `low`'s one. The same harness measured the failure mode that actually matters for the use case, comparing images against themselves, with zero false positives across every case. `confidence` returned `high` in all 32 runs, so nothing routes on it and the escalation mechanism designed around it was dropped rather than shipped unexercised.
+
+  Credentials are secret-manager agnostic by construction: the tool runs any command that prints a key, with a plain environment variable as the zero-setup fallback, so nobody is required to install anything. The first version hard-coded one vendor and had to be rewritten.
+
+### fixed
+- **`gemini-bridge` 0.1.0 → 0.2.0 — findings from a code review and a privacy audit, run as independent passes over the initial commit.** The serious ones clustered into two themes.
+
+  Losing something irreplaceable after a call that had already been paid for. `call` raised on a truncated or unparseable response, discarding the interaction id into a local variable — and since delete returns 501, that leaves a permanent, billed, untracked interaction with no record anywhere. Separately, any write failure after a successful call lost the answer, the usage record and the id together, with nothing on disk to show the call had happened. `call` no longer raises once the API has responded, the id is written first because it is the only thing a re-run cannot regenerate, and an answer that cannot reach disk is printed rather than dropped.
+
+  A safety guard that did not guard. The sensitive-path check expanded the candidate path but not the pattern, so home-relative and variable-prefixed patterns — the forms this repo's own conventions teach people to write — matched nothing at all. Both reviews found it independently.
+
+  **Three bugs surfaced while fixing that one, each of which made the fix look like it worked**, which is the part worth remembering: normalising an empty pattern produced `"."`, matching every file with an extension; `os.path.normcase` is a no-op on POSIX, so the first attempt at case folding changed nothing while appearing correct; and a test passed for the wrong reason, because macOS temp directories sit under a `private` prefix, so that pattern matched the temp path rather than the directory under test. A green test that is not testing anything is worse than a red one.
+
+  Also: status handling now covers the full set the SDK defines rather than the two the docs mention — a `failed` interaction returns empty output, which was parsed as JSON and reported as a malformed reply, blaming the parser for an API failure and burying the only signal that explained it. Attachment paths are recorded relative to the project, so an absolute argument no longer writes a username into a run directory that can be copied or shared. `background` is rejected outright rather than validated and never sent. A `stored` command lists what exists server-side, which is the only thing a user can act on given it cannot be deleted.
+
+  Tests went from 28 to 83, concentrated on the modules where the critical bugs lived and had no coverage at all.
+
 ## 0.95.0
 
 ### fixed
