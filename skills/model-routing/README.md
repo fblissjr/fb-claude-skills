@@ -59,7 +59,7 @@ The rule states delegation criteria in terms of task properties, not a fixed mod
 - Current tiers (haiku for mechanical work, sonnet for standard coding/data) appear only as examples, so the rule survives model-lineup changes.
 - Prefer the pre-shaped `fast-executor` / `task-coder` agents when the project has them installed.
 
-The **agent-state feedback layer was removed in 0.5.0.** It appended an outcome-recording section to the rule, telling Claude to run `agent-state delegation record` after verifying each delegation. Three things were wrong with it: the table it wrote to has never existed in the live database, nothing has written to that database since 2026-03-12, and the outcome it captured was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts, which needs no cooperation from the party being measured and backfills retroactively. If a project still carries the section, delete it.
+The **agent-state feedback layer was removed in 0.5.0.** It appended an outcome-recording section to the rule, telling Claude to run `agent-state delegation record` after verifying each delegation. Three things were wrong with it: the table it wrote to has never existed in the live database, nothing had written to that database since 2026-03-12 (the package was retired outright on 2026-08-02), and the outcome it captured was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts, which needs no cooperation from the party being measured and backfills retroactively. If a project still carries the section, delete it.
 
 ## Related
 

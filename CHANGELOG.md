@@ -1,6 +1,20 @@
 # changelog
 
-## 0.101.0
+## 1.1.1
+
+### fixed
+- **Shipped content no longer names a package that was deleted.** Retiring `agent-state` left five references behind in plugins that users install, and the sweep that found them ran only after the retirement had already been committed — a reminder that "no broken markdown links" is a weaker check than "nothing points at a thing that no longer exists".
+
+  `path-privacy` 0.11.0 → 0.11.1: two teaching examples used "the agent-state DB" and a path under the user's Claude config directory to illustrate naming an external dependency generically. The lesson was never about agent-state, so the examples now use a neutral name and nobody goes looking for a package that isn't there.
+
+  `skill-maintainer` 0.17.0 → 0.17.1: the finish-session workflow listed `apps/agent-state-mcp/` among example directories a session might touch. Now `apps/gemini-bridge/`.
+
+  `model-routing` 0.5.0 → 0.5.1: its README and SKILL.md explain why the delegation feedback layer was removed, and the argument rested partly on "nothing has written to that database since 2026-03-12". Still true, and now stronger — both note the package was retired outright. The instructions to delete the section from an installed rule stay exactly as they were: those describe what may still be sitting in someone else's repo, which is unaffected by what we ship.
+
+### changed
+- **The repo version is 1.0.0.** Removing two published plugins is a breaking change for anyone who installed them, and the `renames` map exists precisely because that breakage has to be handled rather than absorbed. Numbering it 0.100.0 would have understated it. The two entries below are renumbered accordingly; nothing about their content changed.
+
+## 1.1.0
 
 ### added
 - **`skill-maintain test` now blocks tracked content from citing gitignored files.** The failure it catches had two live instances and one of them was shipping: `CLAUDE.md` and `gemini_bridge_design.md` both instructed every reader to run `internal/scratch/gemini_probe.py`, and `gemini-bridge`'s SKILL.md carried *measured* resolution guidance produced by `internal/scratch/diff_control.py`. Neither file exists for anyone who clones the repo. A measurement whose instrument is untracked is an assertion wearing a measurement's clothes.
@@ -11,7 +25,7 @@
 
 - **`skill-maintainer` CLI 0.19.0 → 0.20.0 — `scripts/trigger_eval.py` and `scripts/make_evals.py`.** The trigger-rate harness, adapted from `skill-creator`'s `run_eval.py` with two deliberate fixes: a "real" mode so an installed twin cannot steal a trigger and be miscounted as a miss, and a full-turn scan, because stock `run_eval.py` returns False at the first tool call that is not Skill/Read — scoring a natural Read → Skill → Edit sequence as a miss. Improvements to the sanctioned measurement tool should not live in gitignored scratch, particularly in the same session that retired a package for pretending to measure skills.
 
-## 0.100.0
+## 1.0.0
 
 ### removed
 - **`agent-state` and `agent-state-mcp` are retired.** Both packages deleted, `agent-state-mcp` added to the marketplace `renames` map so installed copies are cleaned up. This closes a question `docs/internals/agent_state_population.md` opened on 2026-07-26 and had been carrying since: populate the schema, or retire the package, because "empty but documented" is the one state that should not persist.

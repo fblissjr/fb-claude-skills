@@ -37,9 +37,9 @@ Examples that do NOT leak:
 
 - `./scripts/foo.sh`, `scripts/foo.sh` (repo-relative)
 - `/Users/USERNAME/foo` (placeholder username)
-- `<HOME>/.claude/...`, `the agent state DB` (generic reference)
+- `<HOME>/.claude/...`, `the shared state DB` (generic reference)
 
-For external dependencies, name them generically: "another project", "SecondRepo", "the agent-state DB", `<HOME>/.claude/...`. Never paste an actual absolute path.
+For external dependencies, name them generically: "another project", "SecondRepo", "the shared state DB", `<HOME>/.claude/...`. Never paste an actual absolute path.
 
 ## Quiet operation
 

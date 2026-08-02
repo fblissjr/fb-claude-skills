@@ -47,7 +47,7 @@
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "description": "Maintenance tools for skills repos: validation, quality, freshness, upstream detection, best practices review, wiki-sanity lint",
-      "version": "0.17.0"
+      "version": "0.17.1"
     },
     {
       "name": "json-query",
@@ -65,7 +65,7 @@
       "name": "path-privacy",
       "source": "./skills/path-privacy",
       "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
-      "version": "0.11.0"
+      "version": "0.11.1"
     },
     {
       "name": "writing",
@@ -77,7 +77,7 @@
       "name": "model-routing",
       "source": "./skills/model-routing",
       "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop, with optional fast-executor / task-coder agent definitions. Installation is paused pending measurement and the skill is user-invoked only; removal is unaffected.",
-      "version": "0.5.0"
+      "version": "0.5.1"
     },
     {
       "name": "advisor",

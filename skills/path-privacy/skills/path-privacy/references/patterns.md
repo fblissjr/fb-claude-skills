@@ -54,7 +54,7 @@ Tilde paths (`~/...`) and `$HOME`-rooted paths are not subject to placeholder al
 A line containing the literal token `path-privacy: ignore` is skipped entirely. Examples:
 
 ```
-# Example: see ~/.claude/agent_state.duckdb (path-privacy: ignore)
+# Example: see ~/.claude/some_state.duckdb (path-privacy: ignore)
 ```
 
 ```python

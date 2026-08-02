@@ -15,7 +15,7 @@ git diff --stat HEAD
 
 If no changes, stop and report "Nothing to wrap up -- clean tree." Exit.
 
-Otherwise, note the top-level directories touched (e.g., `skills/skill-maintainer/`, `apps/agent-state-mcp/`, `tools/`, root config) -- these determine which downstream handoffs matter.
+Otherwise, note the top-level directories touched (e.g., `skills/skill-maintainer/`, `apps/gemini-bridge/`, `tools/`, root config) -- these determine which downstream handoffs matter.
 
 ### Step 2 -- Draft session log
 

@@ -31,7 +31,7 @@ Install, update, or remove a per-project model-delegation rule. The rule is a pl
 
 The install has two independent layers. The **base rule** is standalone — no external tool, no CLI. One layer is opt-in: pre-shaped **agents**. The base is complete on its own.
 
-A third layer, an `agent-state` feedback section, was removed in 0.5.0. It told Claude to record each delegation outcome via a CLI, into a table that never existed in the live database — and the outcome it recorded was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts instead. If a project still carries that section in its installed rule, delete it.
+A third layer, an `agent-state` feedback section, was removed in 0.5.0. It told Claude to record each delegation outcome via a CLI, into a table that never existed in the live database (the whole package was retired on 2026-08-02) — and the outcome it recorded was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts instead. If a project still carries that section in its installed rule, delete it.
 
 Design rationale: [VISION.md "route to the cheapest capable model"](https://github.com/fblissjr/fb-claude-skills/blob/main/VISION.md) — decomposition quality and model tiering are complements; well-scoped leaf tasks don't need the frontier model.
 
