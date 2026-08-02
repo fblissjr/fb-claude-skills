@@ -23,6 +23,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
 | [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
 | [gemini_bridge_design.md](internals/gemini_bridge_design.md) | Gemini Interactions API facts established by live probing; why every static source was wrong; what is deliberately not built |
+| [foreign_capability_bridge.md](internals/foreign_capability_bridge.md) | The seven invariants a second bridge to a foreign capability should follow, and why it is a contract rather than a library at N=1 |
 | [tiered_authorization.md](internals/tiered_authorization.md) | Gating expensive or external calls by tier: UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny |
 | [model_routing_flywheel.md](internals/model_routing_flywheel.md) | Why the delegation feedback layer was a report rather than a loop; schema, grain and cost fixes |
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
