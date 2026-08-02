@@ -104,6 +104,12 @@
       "version": "0.1.4"
     },
     {
+      "name": "dangling-refs",
+      "source": "./skills/dangling-refs",
+      "description": "Remove a unit from a repo without leaving references behind. Sweeps tracked content before you delete, sorts every hit into what must change, what must stay as history, and what reaches users, and names the cascade a removal actually triggers.",
+      "version": "0.1.0"
+    },
+    {
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
       "description": "Hand a multimodal task to Gemini when Claude cannot do it directly -- perceptual image comparison, scene description, structured extraction from media. Explicit, auditable, one run directory per call.",

@@ -1,5 +1,20 @@
 # changelog
 
+## 1.2.0
+
+### added
+- **New plugin: `dangling-refs` 0.1.0.** One skill, `retire`: remove a unit — plugin, package, module, directory, dependency — without leaving references behind.
+
+  It exists because of a failure this repo hit hours earlier and could not have caught with any of its existing machinery. Retiring `agent-state` left five references in shipped content, and they were found by a manual sweep run *after* the deletion was committed. **Deletion-induced breakage is non-local**: the files that broke were never edited, so nothing fired. A language server sees open files, a `PostToolUse` hook sees edited files, a pre-commit check sees the diff — every one of them is scoped to what changed, and what changed is not where the damage is.
+
+  Shipped as a procedure rather than a linter, deliberately. Of those five references exactly one was mechanically detectable as a path that no longer resolved; the other four were sentences naming a concept, which no path checker catches. A link check had passed cleanly the entire time, which is the useful lesson: *"no broken links" is a strictly weaker property than "nothing names a thing that no longer exists."*
+
+  The judgment the skill encodes is the sorting, and two of its four buckets are **do not touch**. Changelogs and design records describe what was true when written, and rewriting them destroys the record of what was tried — the reason `model_routing_flywheel.md` kept its dead commands behind a status header this morning instead of being cleaned up. Instructions about what may still sit in *someone else's* repo stay correct after your removal and strand their audience if deleted. Getting those two wrong costs more than missing a stale reference.
+
+  It also names the parts of a removal that are easy to forget: the deprecation mapping so installed copies get cleaned up rather than silently orphaned, the distribution boundary as a separate and higher bar because shipped content reaches other people, and the fact that removing anything published is a major version bump.
+
+  Complementary to a whole-tree consistency check rather than a replacement — a check can answer "does this path resolve", never "should this sentence still exist". The check half stays unbuilt until it earns it.
+
 ## 1.1.1
 
 ### fixed

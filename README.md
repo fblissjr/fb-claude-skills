@@ -56,6 +56,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [scan-for-secrets](skills/scan-for-secrets/) | Skill + Scripts | Pre-share scanner built on [simonw/scan-for-secrets](https://github.com/simonw/scan-for-secrets): literal pass + ripgrep regex pass for leaked secrets and privacy-sensitive paths (your `$HOME`/`$USER`, SSH keys, other users' home paths, emails, IPv4, common API-token shapes). <!-- path-privacy: ignore --> |
 | [path-privacy](skills/path-privacy/) | Hook + Skill + Scripts | Enforces a single rule across every artifact: every path written into the repo must be relative to the repo root. SessionStart directive plus pre-commit and commit-msg git hooks that hard-block commits whose staged files, message, or branch name reference anything outside the repo. |
+| [dangling-refs](skills/dangling-refs/) | Skill | Remove a unit without leaving references behind. Sweeps tracked content *before* the delete and sorts every hit into what must change, what must stay as history, and what reaches users. Exists because deletion-induced breakage is non-local — the files that break are ones nobody edited, so no language server, hook, or diff check ever fires. |
 
 ### project-scoped
 
