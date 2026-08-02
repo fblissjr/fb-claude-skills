@@ -77,6 +77,40 @@ Splitting a diff across branches to fit that cap manufactures false positives: r
 
 The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~270 lines to ~70. The pre-commit hook now warns when CLAUDE.md exceeds 150 lines or ~4000 tokens. The warning catches the slow drift back into single-file-everything; treat it as a prompt to move content into a spoke (`docs/internals/`) or remove duplication with SessionStart-injected directives. The warning does not block — discretion stays with the author.
 
+## Shell snippets in shipped docs inherit the reader's working directory
+
+Several plugins here ship commands in their skill bodies for a reader to run. A
+snippet carries an implicit working directory: the author's, wherever they
+happened to be. The reader's is wherever the task put them, and nothing in the
+snippet records the difference or reveals it in the output.
+
+`dangling-refs` 0.1.0 shipped with `git ls-files | xargs grep -ln 'name'` as the
+sweep a user runs before deleting a unit. `git ls-files` lists files under the
+**cwd**, not the repo — and the most natural place to run a pre-deletion sweep is
+inside the unit being deleted. Measured here: sweeping for `gemini-bridge` from
+inside `apps/gemini-bridge/` returned 12 files, all of them inside that directory
+and therefore about to be deleted anyway; from the repo root, 26. The 14 it could
+not see were the entire point. It did not error, and it did not return zero — it
+returned a plausible list of the wrong files, which is the failure mode you
+cannot detect from the output.
+
+Prefer commands that state their scope over commands that inherit it:
+
+| Instead of | Write |
+|---|---|
+| `git ls-files \| xargs grep …` | `git grep -F -- 'term' :/` |
+| `git ls-files '*.py' \| xargs …` | `git grep -- 'term' :/ -- '*.py'` |
+
+`git grep` also handles paths containing spaces (which `xargs` splits on), avoids
+GNU `xargs` running the utility with no operands when nothing matches (it blocks
+on stdin — passes on macOS, hangs on Linux), and takes `-F` for literal matching
+so a unit named `foo.js` is not treated as a regex.
+
+The general rule, which applies to any snippet this repo ships: **if a command's
+answer depends on where it runs, testing it from one directory tells you
+nothing.** Run it from the location a reader would actually be in — usually not
+the repo root, because that is where the author was.
+
 ## Count drift across files
 
 Multiple places in the repo (root `README.md`, `docs/README.md`, historically `CLAUDE.md`) have at various times asserted counts of files — domain reports, captured docs, sub-skills, plugins. These drift independently as the filesystem evolves, and any single number falls out of sync within a release or two.
