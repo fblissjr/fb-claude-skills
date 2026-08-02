@@ -144,12 +144,29 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
     *)        continue ;;
   esac
   [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
-  CONTEXT+=$(tail -n +2 "$f")
+  # Drop the file-level opt-out marker on the way out. A directive that explains
+  # the rule necessarily contains path-shaped prose -- this one names the
+  # home-directory variable while defining what a leak is -- so the SOURCE file
+  # has to carry the marker or the plugin blocks its own directive. The EMISSION
+  # needs nothing of the kind, and until now the marker rode along as the first
+  # line of every injected block, since `tail -n +2` strips only the trigger
+  # line above it.
+  # Anchored on purpose: a line that merely mentions the marker in prose (a
+  # future directive documenting the escape hatch) survives, and only a line
+  # that is nothing but the marker is dropped.
+  CONTEXT+=$(tail -n +2 "$f" \
+    | grep -vE '^[[:space:]]*(<!--[[:space:]]*)?#?[[:space:]]*path-privacy: skip-file([[:space:]]*-->)?[[:space:]]*$')
 done
 
 [ -z "$CONTEXT" ] && exit 0
 
-JSON_CONTEXT=$(printf '%s' "$CONTEXT" | jq -Rs '.')
+# Attribution, stated rather than inherited. `hook_additional_context` transcript
+# records carry only the EVENT name, so an injected block cannot otherwise be
+# traced back to the plugin that produced it. This hook used to get that for free
+# from the skip-file marker filtered out above -- a coincidence that read as a
+# stray comment and broke the moment the marker was removed. Same bracket form
+# dev-conventions emits, so the two are greppable together.
+JSON_CONTEXT=$(printf '[plugin:path-privacy]\n%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
 {

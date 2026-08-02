@@ -1,5 +1,18 @@
 # changelog
 
+## 1.2.2
+
+### fixed
+- **`path-privacy` 0.11.1 → 0.12.0 — the plugin's own file-level opt-out marker was riding into every session's context.** It was the first line of every block the SessionStart hook injected, in every git repo, since 0.1.0. The source file has to carry that marker: the directive defines a leak by naming the home-directory variable in prose, so without it the scanner flags the directive and the plugin blocks its own rule from loading — verified by stripping the marker and rescanning, which exits 1. The emission needs nothing of the kind. `tail -n +2` stripped the `# trigger:` line above the marker and nothing else, so the marker rode along as a stray comment nobody wrote on purpose.
+
+  Now filtered on the way out, anchored so only a line consisting of *nothing but* the marker is dropped. A future directive that documents the escape hatch in prose keeps its sentence — the naive `grep -vF` would have deleted it silently, which is the kind of removal that gets noticed a release later.
+
+  **The marker was doing a second job by accident, and that job is now stated outright.** `hook_additional_context` records carry only the event name, so an injected block cannot be traced to the plugin that produced it — the reason SessionStart emissions grew an attribution first line in 0.89.0. path-privacy never got an explicit one, because the stray marker already served as a de facto signature; 0.89.0 recorded that coincidence and kept it. So removing the stray comment would have silently cost attribution, which is why the two changes ship together rather than as a one-line cleanup. It now emits `[plugin:path-privacy]`, the same bracket form `dev-conventions` uses, so both are greppable with one pattern.
+
+  Four probes pin it: the marker dropped in both comment syntaxes including an indented one, a prose mention preserved, a directive that filters to empty producing no attribution-only block, and a non-git cwd still silent.
+
+  **Writing this entry re-triggered a defect 0.48.0 thought it had closed.** The first draft quoted the marker token literally, which put it inside the changelog's first 30 lines and silently exempted the entire file from the leak gate. 0.48.0 narrowed exactly this — a file merely *quoting* the token anywhere was exempt — by limiting the search to the first 30 lines. That window is not a fix for the one file guaranteed to keep discussing the marker and to grow from the top; it only moves the trigger to "documented recently". Entry rewritten descriptively so the gate stays live. Left standing as a known hazard rather than patched under this bump: **the exemption matches the token anywhere on a line**, where the same anchoring now used by the SessionStart filter — the line must be *nothing but* the marker — would make prose incapable of disabling the audit. Both the shell scanner and the Python whole-tree check would need it, so it is its own change. The failure mode is the bad one: an exemption that works looks exactly like a file with nothing to hide.
+
 ## 1.2.1
 
 ### fixed
