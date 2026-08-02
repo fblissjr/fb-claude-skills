@@ -90,7 +90,9 @@ Accepted introducers are `#`, `//`, `--`, `;`, and `<!--`. This is for files tha
 
 One definition, `scripts/_skip_marker.sh`, is shared by all four shell consumers — scanner, scrub, and both hooks — so it cannot be fixed in one and left broken in the others. The Python audit keeps a deliberate copy, because it must run in repos where this plugin is not installed; a test asserts the two accept the same strings, which is the only thing that makes a copy safe.
 
-**The rule narrows the hole. It does not close it.** A fenced code block is not indented, so a doc quoting the marker inside one still exempts itself, and no pattern can do better — the marker and a quotation of it are the same string. What actually closes it is a check in `skill-maintain test` asserting that changelogs and skill docs are never file-level exempt, on the principle that those are the file classes this keeps happening to. Quote the marker inline with backticks, as this paragraph does, and it stays inert.
+**A marker inside a fenced code block does not count either.** That one cannot be expressed as a pattern — an example line inside ``` is byte-identical to a real marker — so the check carries fence state across the window instead of testing each line alone. Documentation can therefore show the marker in a fence, which is how documentation should show it. (An earlier release claimed this was impossible and left it open; it is a four-line scan.)
+
+**None of that is the last line of defence, and it should not be treated as one.** `skill-maintain test` asserts that changelogs, skill docs, and plugin READMEs are never file-level exempt *by any route* — including routes nobody has thought of yet. Those are the file classes this keeps happening to, and the assertion holds whatever the pattern does. Quoting the marker inline with backticks, as this paragraph does, is inert regardless.
 
 Three limits worth knowing:
 

@@ -1,5 +1,18 @@
 # changelog
 
+## 1.2.5
+
+### fixed
+- **`path-privacy` 0.14.0 → 0.15.0, `skill-maintain` 0.22.0 → 0.23.0 — a marker shown as an example inside a fenced code block was still a working opt-out, and 1.2.4 argued that was unavoidable.** It is not. The argument was that a marker and a quotation of one are the same string, so no pattern separates them — true, and irrelevant, because fence state is not a property of a line. It is a property of what came before it. That takes a scan rather than a better regex, and the scan is four lines of awk. Shipping an argument for why a hole must stay open, in the release notes of the change that narrowed it, is the failure worth naming here: the reasoning was sound about patterns and simply never asked whether a pattern was the right tool.
+
+  Both engines now drop fenced blocks before looking, so a doc can demonstrate the marker the way a doc should. Strictly fail-closed: skipping lines can only ever remove matches, so this turns exempt files into audited ones and never the reverse — a stray fence above a genuine marker costs a visible false positive rather than a silent exemption.
+
+  **Discovered while verifying it: the fence pass made the scanner noisy on binary files.** Under a UTF-8 locale, macOS awk writes `towc: multibyte conversion failure` to stderr for every undecodable record, the scanner runs over whole trees, and the PreToolUse hook captures its stderr into the block message — so every binary in the repo would have become noise inside an unrelated diagnostic. `LC_ALL=C` on the awk, matching the greps, which makes it treat input as bytes and stay silent. Caught by running the census over the real tree rather than over fixtures.
+
+  **`check_marker_denylist` now covers plugin READMEs**, not just changelogs and skill docs, and matches path-privacy's sanctioned exception on the whole path rather than the parent directory name. A README describing the escape hatch is exactly as likely as a skill doc doing it.
+
+  Pinned by six new tests across both engines and mutation-checked in each: neutering the fence pass turns the four fenced forms red plus the cross-engine agreement test, and a marker following a *closed* fence must still exempt — the obvious way to get fence tracking wrong. The cross-engine test now compares whole file bodies rather than single lines, since neither fence state nor the 30-line window is a property of one line.
+
 ## 1.2.4
 
 ### fixed

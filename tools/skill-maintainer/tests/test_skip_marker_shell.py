@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from skill_maintainer.tests import _SKIP_MARKER
+from skill_maintainer.tests import _SKIP_MARKER, _has_skip_marker
 
 REPO = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO / "skills/path-privacy/skills/path-privacy/scripts"
@@ -92,6 +92,33 @@ def test_shell_rejects_prose_and_markdown_structure(tmp_path, line):
     assert not _scan_file(f, tmp_path), f"should NOT be exempt: {line!r}"
 
 
+FENCED = [
+    "```\n# path-privacy: skip-file\n```",
+    "```sh\n# path-privacy: skip-file -- regex source\n```",
+    "~~~\n<!-- path-privacy: skip-file -->\n~~~",
+    "Write it like this:\n\n```\n# path-privacy: skip-file\n```\n",
+]
+
+
+@pytest.mark.parametrize("block", FENCED)
+def test_fenced_example_does_not_exempt(tmp_path, block):
+    """A doc DEMONSTRATING the marker must not thereby switch the audit off.
+
+    This is the case that survived the anchoring release: a fenced block is not
+    indented, so the example line is byte-identical to a real marker. No line
+    pattern separates them; fence state is carried between lines, so it takes a
+    scan. The claim that no pattern could do it was simply wrong.
+    """
+    f = _write(tmp_path, f"{block}\nleak {LEAK}\n")
+    assert not _scan_file(f, tmp_path), f"fenced example exempted the file: {block!r}"
+
+
+def test_marker_after_a_closed_fence_still_exempts(tmp_path):
+    """Fence tracking must not swallow a real marker that follows an example."""
+    f = _write(tmp_path, f"```\nexample\n```\n# path-privacy: skip-file\nleak {LEAK}\n")
+    assert _scan_file(f, tmp_path)
+
+
 def test_shell_ignores_marker_below_the_window(tmp_path):
     body = "\n".join(["filler"] * 40 + ["# path-privacy: skip-file", f"leak {LEAK}"])
     f = _write(tmp_path, body + "\n")
@@ -120,13 +147,21 @@ def test_shell_and_python_agree(tmp_path):
         "path-privacy: ignore",
         "nothing to see here",
     ]
+    # Whole bodies, not bare lines: the two engines must agree about fenced
+    # blocks and the 30-line window too, and neither is a property of one line.
+    bodies = [f"{line}\nleak {LEAK}\n" for line in corpus]
+    bodies += [f"{block}\nleak {LEAK}\n" for block in FENCED]
+    bodies += [
+        "```\nexample\n```\n# path-privacy: skip-file\nleak " + LEAK + "\n",
+        "\n".join(["filler"] * 40 + ["# path-privacy: skip-file", f"leak {LEAK}"]),
+    ]
     disagreements = []
-    for line in corpus:
-        f = _write(tmp_path, f"{line}\nleak {LEAK}\n", name="agree.md")
+    for body in bodies:
+        f = _write(tmp_path, body, name="agree.md")
         shell_exempt = _scan_file(f, tmp_path)
-        python_exempt = bool(_SKIP_MARKER.match(line))
+        python_exempt = _has_skip_marker(body)
         if shell_exempt != python_exempt:
-            disagreements.append((line, shell_exempt, python_exempt))
+            disagreements.append((body[:60], shell_exempt, python_exempt))
     assert not disagreements, f"shell/python disagree on: {disagreements}"
 
 

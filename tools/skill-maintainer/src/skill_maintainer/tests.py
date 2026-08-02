@@ -377,6 +377,27 @@ _HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)(?:/|\b)")
 # UTF-8 locale, which had made the commit gate quietly more permissive than this
 # audit, and made the shell side differ between machines.
 _SKIP_MARKER = re.compile(r"^ {0,3}(<!--|#|//|--|;)?[ \t]*path-privacy: skip-file")
+_FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def _has_skip_marker(text: str) -> bool:
+    """Mirror of pp_head_has_skip_marker: window, drop fenced blocks, then match.
+
+    The fence pass is the half no line pattern can do. A marker shown as an
+    example inside ``` is byte-identical to a real one, so telling them apart
+    needs state carried between lines, not a better regex.
+
+    Fail-closed by construction: skipping lines only ever removes matches, so
+    this can turn an exempt file into an audited one and never the reverse.
+    """
+    fenced = False
+    for line in text.split("\n")[:30]:
+        if _FENCE.match(line):
+            fenced = not fenced
+            continue
+        if not fenced and _SKIP_MARKER.match(line):
+            return True
+    return False
 
 
 def check_path_privacy(root: Path) -> list[Result]:
@@ -441,12 +462,7 @@ def check_path_privacy(root: Path) -> list[Result]:
         # both grow from the top. This repo's own CHANGELOG left the gate twice
         # that way, in the fail-open direction, where a working exemption is
         # indistinguishable from a file with nothing to hide.
-        # `split("\n")`, not `splitlines()`. The shell side scopes the window
-        # with `head -30`, which breaks on newline only, while `splitlines()`
-        # also breaks on \v, \f, \r, U+0085, U+2028 and U+2029 -- so a file
-        # carrying any of those got a different 30-line window in each engine,
-        # and a marker could be inside the window here and outside it there.
-        if any(_SKIP_MARKER.match(ln) for ln in text.split("\n")[:30]):
+        if _has_skip_marker(text):
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if "path-privacy: ignore" in line:
@@ -492,20 +508,26 @@ def check_marker_denylist(root: Path) -> list[Result]:
         targets.append(changelog)
     targets.extend(sorted(root.glob("skills/*/skills/*/SKILL.md")))
     targets.extend(sorted(root.glob("apps/*/skills/*/SKILL.md")))
+    # Plugin READMEs belong here for the same reason skill docs do: describing
+    # the escape hatch is a normal thing for a README to do, and they grow from
+    # the top like everything else this has bitten.
+    targets.extend(sorted(root.glob("skills/*/README.md")))
+    targets.extend(sorted(root.glob("apps/*/README.md")))
 
     exempt: list[str] = []
     for f in targets:
-        # path-privacy's own SKILL.md documents the marker AND legitimately
-        # carries one, since its prose is full of path shapes. It is the single
-        # sanctioned exception, named explicitly rather than pattern-matched, so
-        # adding a second one is a deliberate edit to this list.
-        if f.parent.name == "path-privacy":
+        # path-privacy's own docs describe the marker AND legitimately carry
+        # one, since their prose is full of path shapes. The single sanctioned
+        # exception, named explicitly rather than pattern-matched, so adding a
+        # second one is a deliberate edit to this list rather than a side effect
+        # of a filename happening to match.
+        if "path-privacy" in f.parts:
             continue
         try:
             text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        if any(_SKIP_MARKER.match(ln) for ln in text.split("\n")[:30]):
+        if _has_skip_marker(text):
             exempt.append(str(f.relative_to(root)))
 
     if not exempt:

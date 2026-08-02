@@ -32,12 +32,17 @@
 #   At most three spaces of indent. Four spaces (or a tab) is markdown's own
 #   boundary for an indented code block, i.e. a doc *demonstrating* the marker.
 #
-# What is deliberately still reachable: a fenced code block, which is not
-# indented, can hold a line that is a valid marker. There is no regex that both
-# accepts a marker and rejects documentation quoting one, because they are the
-# same string. That residue is why `check_marker_denylist` in skill-maintainer
-# asserts the file classes this keeps happening to -- changelogs and skill docs
-# -- are never exempt. The rule narrows the hole; the deny-list is what closes it.
+#   Not inside a fenced code block. See pp_strip_fenced below. This is the one
+#   restriction a line pattern cannot express, and it was left open for a
+#   release on the argument that no pattern could separate a fenced quotation
+#   from a marker. True of a line regex; false of a scan, which is what fence
+#   state requires and gets here.
+#
+# Even so, the pattern is not the last line of defence, and should not be
+# treated as one. `check_marker_denylist` in skill-maintainer asserts that the
+# file classes this keeps happening to -- changelogs, skill docs, plugin READMEs
+# -- are never exempt by any route, including routes not yet thought of. The
+# rule narrows the hole; the deny-list is what makes a recurrence loud.
 #
 # The failure direction is what makes this worth a file of its own. A broken
 # exemption is loud: the gate blocks something it should not and you go look. A
@@ -64,15 +69,46 @@ pp_is_skip_marker_line() {
   printf '%s\n' "$1" | LC_ALL=C grep -qE "$PP_SKIP_MARKER_RE"
 }
 
+# pp_strip_fenced -- drop fenced code blocks from stdin.
+#
+# This is the part a line-oriented pattern genuinely cannot do, and claiming
+# otherwise is what left the last hole open: a fenced block is not indented, so
+# `# path-privacy: skip-file` shown as an EXAMPLE inside ``` is byte-identical to
+# a real marker. No regex over a single line can separate them, because they are
+# the same string. Fence state is not a property of the line; it is a property of
+# what came before it, so it takes a scan, and a scan is four lines of awk.
+#
+# Strictly fail-closed: removing lines can only ever remove matches, so this can
+# turn an exempt file into a scanned one and never the reverse. A stray ``` above
+# a genuine marker therefore costs a false positive, which is loud and gets
+# fixed, rather than a silent exemption, which is the failure that keeps
+# happening here.
+#
+# Applied to every file type, not just markdown. A ``` line in a .py or .sh file
+# is already a syntax error, so the only realistic place one appears is inside a
+# docstring or heredoc -- which is a quotation too, and treating it as one lands
+# on the safe side either way.
+# LC_ALL=C for the same reason the greps have it, plus one specific to awk: on a
+# BINARY file under a UTF-8 locale, macOS awk writes "towc: multibyte conversion
+# failure" to stderr for every undecodable record. The scanner runs over whole
+# trees, which contain binaries, and the PreToolUse hook captures its stderr and
+# shows it to the user -- so without this the fence pass turns every binary file
+# in the repo into noise inside a block message. In the C locale awk treats the
+# input as bytes and stays silent.
+pp_strip_fenced() {
+  LC_ALL=C awk '/^[[:space:]]*(```|~~~)/ { fenced = !fenced; next } !fenced'
+}
+
 # pp_head_has_skip_marker <file> -- exempt by inspecting the file on disk.
 pp_head_has_skip_marker() {
-  head -"$PP_SKIP_MARKER_LINES" "$1" 2>/dev/null | LC_ALL=C grep -qE "$PP_SKIP_MARKER_RE"
+  head -"$PP_SKIP_MARKER_LINES" "$1" 2>/dev/null \
+    | pp_strip_fenced | LC_ALL=C grep -qE "$PP_SKIP_MARKER_RE"
 }
 
 # pp_text_has_skip_marker -- the same question asked of a string on stdin, for
 # callers holding content not yet on disk (a Write payload, a brand-new file).
 pp_text_has_skip_marker() {
-  head -"$PP_SKIP_MARKER_LINES" | LC_ALL=C grep -qE "$PP_SKIP_MARKER_RE"
+  head -"$PP_SKIP_MARKER_LINES" | pp_strip_fenced | LC_ALL=C grep -qE "$PP_SKIP_MARKER_RE"
 }
 
 # pp_filter_skip_marker_lines -- drop marker lines from stdin, pass the rest

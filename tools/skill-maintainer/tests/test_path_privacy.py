@@ -291,3 +291,22 @@ def test_no_call_site_reintroduces_a_bare_version_inequality():
                     f"{path.name}:{i + 1}: version inequality with no direction "
                     f"test within 5 lines: {stripped}"
                 )
+
+
+def test_fenced_example_does_not_exempt(tmp_path):
+    """A doc demonstrating the marker must not switch the audit off for itself.
+
+    The residual hole after anchoring: a fenced block is not indented, so an
+    example line is byte-identical to a real marker. Separating them needs fence
+    state carried between lines, which is a scan, not a pattern.
+    """
+    r = _repo(tmp_path, "doc.md",
+              "```\n# path-privacy: skip-file\n```\nleak /Users/realpersonname/x\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_marker_after_a_closed_fence_still_exempts(tmp_path):
+    """Fence tracking must not swallow a real marker that follows an example."""
+    r = _repo(tmp_path / "d", "doc.md",
+              "```\nexample\n```\n# path-privacy: skip-file\nleak /Users/realpersonname/x\n")
+    assert not _failed(check_path_privacy(r))
