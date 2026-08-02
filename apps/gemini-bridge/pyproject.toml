@@ -1,6 +1,6 @@
 [project]
 name = "gemini-bridge"
-version = "0.5.1"
+version = "0.5.2"
 description = "Send multimodal tasks to Gemini from Claude Code and get structured answers back"
 requires-python = ">=3.11"
 dependencies = [

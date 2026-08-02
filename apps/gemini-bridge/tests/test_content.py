@@ -41,8 +41,12 @@ def test_jwt_blocks():
     "sample",
     [
         "someone@example.com",
-        "/Users/somebody/Desktop/shot.png",
-        "/home/somebody/project/file.txt",
+        # These two are fixtures for the very shape the scanner exists to
+        # notice, so they cannot be written as `<user>` placeholders without
+        # testing something else. `somebody` is not a real account; the repo
+        # audit's allowlist just does not know the word.
+        "/Users/somebody/Desktop/shot.png",  # path-privacy: ignore
+        "/home/somebody/project/file.txt",  # path-privacy: ignore
     ],
 )
 def test_lower_confidence_shapes_warn_but_do_not_block(sample):

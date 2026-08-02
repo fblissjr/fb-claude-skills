@@ -57,6 +57,7 @@ def record(
     credential_kind: str,
     error: str | None = None,
     allow_prompt_secrets: bool = False,
+    interaction_id: str | None = None,
 ) -> Path:
     """Append one call record. Never raises -- logging must not break the call."""
     path = runs_root / LEDGER_NAME
@@ -73,6 +74,14 @@ def record(
         # Provenance only. A key command names a vault and item, so the
         # reference itself never reaches disk.
         "credential_kind": credential_kind,
+        # The handle to anything the server kept. Recorded here and not only in
+        # the run directory because deleting a run directory would otherwise
+        # destroy the only local record of a stored interaction -- and the API
+        # offers no `list` to rebuild it and no working `delete` to act on it.
+        # Without this, pruning run dirs silently blinds `stored`, which is the
+        # only disclosure surface a user has. Not a secret: an opaque pointer to
+        # data already sent, already on disk in the run dir's `interaction.id`.
+        "interaction_id": interaction_id,
         # True means the scan was BYPASSED, so the outgoing text was never
         # checked -- not that a secret was confirmed present. Either way the run
         # directory holds that text in plaintext locally and the interaction at

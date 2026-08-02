@@ -1,5 +1,21 @@
 # changelog
 
+## 0.99.3
+
+### added
+- **`gemini-bridge` 0.5.1 → 0.5.2 — the ledger now keeps the interaction id, so a run directory can be deleted without losing the only handle to what is stored.** Cleaning up `.gemini-runs/` looked like a housekeeping question and was not. `stored` reads `interaction.id` out of each run directory; the ledger did not record it; the API has no `list` to rebuild the set and `delete` returns 501. So deleting old run directories would have silently blinded the only disclosure surface a user has, permanently, with no error and no way to recover the handles.
+
+  It matters less than it sounds today, because every shipped recipe is `stateful: false` and stores nothing — but `client.py` deliberately captures the id *whenever the server returns one*, precisely in case `store` was misreported. Naive pruning would have reintroduced exactly the risk that code was written to guard.
+
+  Recorded as present-and-null rather than omitted when nothing was stored, for the same reason as the scan-bypass flag: a query for stored interactions must not have to distinguish "no id" from "this row predates the field". The id is not a secret — an opaque pointer to data already sent, already sitting in plaintext in the run directory.
+
+  This is the piece that had to land before pruning could be built at all, and the one piece that cannot be backfilled: runs made without it never get their handles into the ledger.
+
+### fixed
+- **The repo path-privacy audit had a standing false positive.** It flagged two fixtures reading `/Users/somebody/...` and `/home/somebody/...` as leaked home paths. They are deliberately shaped like the thing the scanner exists to notice, so they cannot be rewritten as `<user>` placeholders without testing something else, and `somebody` is not a real account — the audit's allowlist covers substitution syntax and a fixed set of system accounts, and simply does not know the word. Annotated with the sanctioned per-line `path-privacy: ignore` rather than by widening the allowlist, which would have been making a check pass by editing what it measures.
+
+  206 tests, up from 204. The repo board is now 244 green with one deliberate red — `content-triage`, which has real unfixed drift.
+
 ## 0.99.2
 
 ### changed

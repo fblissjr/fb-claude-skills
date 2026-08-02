@@ -86,6 +86,26 @@ def test_success_writes_everything_and_logs(project, monkeypatch):
     assert (run_dir / "interaction.id").read_text().strip() == "v1_abc"
 
 
+def test_ledger_keeps_the_interaction_id(project, monkeypatch):
+    """The ledger must survive deletion of the run directory.
+
+    `stored` reads `interaction.id` out of run dirs, and the API has no `list`
+    to rebuild that set and no working `delete` to act on it. So pruning run
+    dirs without this field would silently blind the only disclosure surface a
+    user has -- and the handle would be gone for good.
+    """
+    assert run_ask(project, monkeypatch, interaction_id="v1_keepme") == 0
+    assert read_ledger(project)[0]["interaction_id"] == "v1_keepme"
+
+
+def test_ledger_records_a_null_id_when_nothing_was_stored(project, monkeypatch):
+    """Present-and-null, not absent: a query for stored interactions must not
+    have to distinguish 'no id' from 'this row predates the field'."""
+    assert run_ask(project, monkeypatch, interaction_id=None) == 0
+    entry = read_ledger(project)[0]
+    assert "interaction_id" in entry and entry["interaction_id"] is None
+
+
 def test_scan_bypass_is_recorded_in_the_ledger(project, monkeypatch):
     """Run dirs written under the bypass are the ones worth finding later.
 

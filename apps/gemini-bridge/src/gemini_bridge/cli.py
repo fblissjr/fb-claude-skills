@@ -223,6 +223,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         thinking_level=request.get("generation_config", {}).get("thinking_level"),
         credential_kind=creds.kind,
         allow_prompt_secrets=args.allow_prompt_secrets,
+        interaction_id=interaction_id,
     )
 
     u = result.usage
