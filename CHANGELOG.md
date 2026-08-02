@@ -1,5 +1,12 @@
 # changelog
 
+## 0.99.5
+
+### fixed
+- **`agent-state-mcp` 0.2.3 → 0.2.4 — angle brackets removed from the skill description.** It named the database as `(<HOME>/.claude/agent_state.duckdb)`. That form is correct everywhere in this repo *except* a description: `skill-creator`'s validator rejects angle brackets in frontmatter outright, while `skill-maintain validate` only warns, so this would have failed hard the first time the skill met the stricter tool. It was the only such description in the repo.
+
+  The location is now named in prose, and the exact path stays in the body where the `<HOME>/` convention is legal. That is the better place for it anyway: a description loads on every session, a body loads only when the skill activates, so the path moved from L1 to L2 at no cost to anyone trying to find the file.
+
 ## 0.99.4
 
 ### removed

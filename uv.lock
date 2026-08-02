@@ -40,7 +40,7 @@ requires-dist = [
 
 [[package]]
 name = "agent-state-mcp"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "apps/agent-state-mcp" }
 dependencies = [
     { name = "agent-state" },
