@@ -55,6 +55,37 @@ All commands accept `--dir <path>` to target a different repo.
 - `.skill-maintainer/state/pages/<slug>.md` — per-page content snapshots for line/char delta computation (v0.4.0+, auto-generated)
 - `.skill-maintainer/state/changes.jsonl` — append-only audit log of quality reports, upstream checks, source pulls (consumed by `skill-maintain log`)
 - Each `SKILL.md`'s `metadata.last_verified` — date a human last reviewed the skill against its source. Not part of the version cascade: a version bump does not establish that a human checked the content, so nothing bumps this mechanically. Consumed by `skill-maintain freshness` together with `metadata.review_interval_days` (default 30) — the per-skill staleness window, tiered 30 days (content derived from Claude Code docs), 90 days (tracks a third-party SDK or API), or 365 days (methodology, or our own code). Replaces the old single global 30-day window.
+
+### The tiers are now measurable, and the 30-day one checks out
+
+`changes.jsonl` is the only record of how fast each upstream source *actually*
+moved, and until 2026-08-02 nothing read it that way — the tiers were set from
+intuition while the evidence sat unread in a gitignored file.
+`tools/skill-maintainer/queries/upstream_churn.sql` answers it. First run, over
+2026-03-03 to 2026-07-21:
+
+| Page | Changes | Roughly |
+|---|---|---|
+| `docs/en/skills` | 12 | every 11 days |
+| `docs/en/hooks`, `plugin-marketplaces`, `discover-plugins`, `memory` | 8 | every 17 days |
+| `docs/en/sub-agents`, `hooks-guide`, `plugins` | 7 | every 19 days |
+| `docs/en/plugins-reference` | 5 | every 27 days |
+
+So **30 days is defensible for docs-derived content and arguably generous** — the
+fastest page moves twice inside that window, and nothing tracked moves slower
+than it.
+
+Two cautions before this gets over-read. `changes` counts only checks that *found*
+a change, so the interval is an upper bound on quiet periods, not a release
+cadence. And `abs_chars` is not comparable across the window: `changed_pages`
+holds bare strings before 0.4.0 and structs after, so only struct-era rows carry
+`chars_delta`. Rank on `changes`. The three pages showing a single change with
+enormous character counts are first-seen-after-the-format-change, not sudden
+rewrites.
+
+Deliberately a query file rather than a subcommand. One use does not earn a CLI
+surface or a `duckdb` dependency on this tool; if it gets run every maintenance
+pass, that is the evidence for promoting it.
 - `<HOME>/.claude/agent_state.duckdb` — global DuckDB for run audit and state tracking across all projects (schema in `tools/agent-state/`)
 
 ## Workspace members (Python)
