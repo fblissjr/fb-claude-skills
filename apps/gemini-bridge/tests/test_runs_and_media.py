@@ -17,6 +17,22 @@ def test_runs_root_self_ignores(tmp_path):
     assert ignore.read_text().strip().endswith("*")
 
 
+def test_ignore_status_reports_a_missing_marker(tmp_path):
+    """The self-ignore is one file, and deleting it exposes the tree silently.
+
+    Nothing rewrites it until the next call, so `doctor` is the only place the
+    window is visible. If this predicate ever returns True for an unprotected
+    tree, that report becomes a false reassurance.
+    """
+    assert runs.ignore_status(tmp_path) == (False, True), "no tree yet is not a fault"
+
+    runs.RunDir.create(tmp_path, "demo")
+    assert runs.ignore_status(tmp_path) == (True, True)
+
+    (tmp_path / runs.RUNS_DIRNAME / ".gitignore").unlink()
+    assert runs.ignore_status(tmp_path) == (True, False)
+
+
 def test_run_dirs_do_not_collide(tmp_path):
     now = dt.datetime(2026, 8, 1, 12, 0, 0)
     a = runs.RunDir.create(tmp_path, "demo", now)

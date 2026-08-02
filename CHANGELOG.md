@@ -1,5 +1,25 @@
 # changelog
 
+## 0.99.0
+
+### added
+- **`gemini-bridge` 0.4.0 → 0.5.0 — a `general` recipe, because until now the tool could not be asked an arbitrary question.** `-r/--recipe` is required and exactly one recipe shipped, so every call was a perceptual diff or nothing. That is backwards for a bridge whose realistic use is mostly ad hoc: the one analysis anyone had written down was the specialised one, and the general case had no path at all.
+
+  The fix is a recipe, not an optional flag. Making `--recipe` optional would have meant a call whose analytical stance came from however the question happened to be phrased that session, which is the failure the recipe format exists to prevent. A `general` recipe keeps the stance versioned and diffable while leaving the question free, and it gives ad-hoc calls a name in the ledger instead of a null — so the corpus that a future recipe would be promoted *from* starts accumulating under a label rather than evaporating.
+
+  It ships without a schema, deliberately. A schema would force arbitrary questions into one verdict shape, and not knowing the question in advance is the entire point of the bucket.
+
+- **The prompt-scan bypass is now recorded.** `--allow-prompt-secrets` skips the outgoing-text scan, so the run directory keeps text nobody checked, in plaintext, while the interaction at Google cannot be deleted. Those are the runs most worth finding later and there was no way to find them: the ledger did not record the flag, so locating them meant grepping every `prompt.md` — reading the very content the flag was used to send. Recorded on the failure path too, since a failed call still transmitted the prompt.
+
+  The field is written as `false` on ordinary calls rather than omitted. A filter for risky runs must not depend on a key that exists only on the risky ones.
+
+### fixed
+- **Run trees relied on a single file to stay out of git.** The tool writes a `*` gitignore inside `.gemini-runs/` at creation, and a project's own `.gitignore` knows nothing about the tool. Delete that one file and prompts and responses are stageable by `git add .` until the next call rewrites it, with nothing announcing the window. `doctor` now reports whether the marker is in place, this repo's root `.gitignore` covers the tree as a second layer, and the README says to do the same in any project using it. The tool still does not edit anyone's `.gitignore` for it — a marker that reappears silently is the failure mode being fixed, not the fix.
+
+- **Shipped recipes are now validated as a set rather than by name.** The suite tested one recipe by path, so the recipe most likely to be malformed — a newly added one — was the one nothing covered. It now parametrises over the directory and asserts the invariants that hold for every shipped recipe: no recipe opts into storage without argument, and every one resolves a valid thinking level.
+
+  204 tests, up from 198.
+
 ## 0.98.0
 
 ### fixed

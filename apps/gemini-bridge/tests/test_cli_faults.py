@@ -59,12 +59,12 @@ def fake_genai(status="completed", text='{"ok": true}', interaction_id="v1_abc")
     ))
 
 
-def run_ask(project, monkeypatch, **genai_kw):
+def run_ask(project, monkeypatch, extra=None, question="compare these", **genai_kw):
     import sys
     monkeypatch.setitem(sys.modules, "google", SimpleNamespace(genai=fake_genai(**genai_kw)))
     return cli.main([
         "--project-root", str(project.root), "ask", "-r", "demo",
-        "-f", str(project.image), "compare these",
+        "-f", str(project.image), *(extra or []), question,
     ])
 
 
@@ -84,6 +84,51 @@ def test_success_writes_everything_and_logs(project, monkeypatch):
     assert (run_dir / "response.md").is_file()
     assert (run_dir / "response.json").is_file()
     assert (run_dir / "interaction.id").read_text().strip() == "v1_abc"
+
+
+def test_scan_bypass_is_recorded_in_the_ledger(project, monkeypatch):
+    """Run dirs written under the bypass are the ones worth finding later.
+
+    The override skips the scan entirely, so the outgoing text was never
+    checked -- and the run directory keeps it in plaintext locally while the
+    interaction at Google cannot be deleted. Without this field the only way to
+    locate those runs is grepping every prompt.md, which means reading the very
+    content the flag was used to send.
+    """
+    secret = "ghp_" + "a" * 36
+    assert run_ask(
+        project, monkeypatch,
+        extra=["--allow-prompt-secrets"], question=f"is {secret} visible here",
+    ) == 0
+    assert read_ledger(project)[0]["allow_prompt_secrets"] is True
+
+
+def test_ordinary_calls_record_the_bypass_as_false(project, monkeypatch):
+    """False, not absent -- a filter for risky runs must not depend on a key
+    that only exists on the risky ones."""
+    assert run_ask(project, monkeypatch) == 0
+    assert read_ledger(project)[0]["allow_prompt_secrets"] is False
+
+
+def test_bypass_is_recorded_even_when_the_call_fails(project, monkeypatch):
+    """The failure path is where it matters most: the prompt still reached
+    Google, and the run directory still holds it."""
+    import sys
+
+    class Boom:
+        def create(self, **_kw):
+            raise RuntimeError("upstream exploded")
+
+    monkeypatch.setitem(sys.modules, "google", SimpleNamespace(
+        genai=SimpleNamespace(Client=lambda **_kw: SimpleNamespace(interactions=Boom()))
+    ))
+    cli.main([
+        "--project-root", str(project.root), "ask", "-r", "demo",
+        "-f", str(project.image), "--allow-prompt-secrets", "q",
+    ])
+    entries = read_ledger(project)
+    assert entries and entries[0]["status"] == "failed"
+    assert entries[0]["allow_prompt_secrets"] is True
 
 
 # -- write failures ---------------------------------------------------------

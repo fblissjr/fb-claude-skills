@@ -56,6 +56,7 @@ def record(
     thinking_level: str | None,
     credential_kind: str,
     error: str | None = None,
+    allow_prompt_secrets: bool = False,
 ) -> Path:
     """Append one call record. Never raises -- logging must not break the call."""
     path = runs_root / LEDGER_NAME
@@ -72,6 +73,13 @@ def record(
         # Provenance only. A key command names a vault and item, so the
         # reference itself never reaches disk.
         "credential_kind": credential_kind,
+        # True means the scan was BYPASSED, so the outgoing text was never
+        # checked -- not that a secret was confirmed present. Either way the run
+        # directory holds that text in plaintext locally and the interaction at
+        # Google cannot be deleted, which makes these the runs worth finding
+        # later. Recorded because the alternative is grepping every prompt.md,
+        # i.e. reading the content the flag was used to send.
+        "allow_prompt_secrets": allow_prompt_secrets,
         "attachments": [
             {k: a.get(k) for k in ("kind", "mime_type", "size_bytes", "resolution")}
             for a in attachments

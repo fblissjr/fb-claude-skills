@@ -145,6 +145,20 @@ output cannot be committed into your repo by accident. A `ledger.jsonl` beside
 it records one line per call — model, recipe, tokens, duration, status — using
 only facts the API reported, never a self-assessment.
 
+**Add `.gemini-runs/` to your project's own `.gitignore` as well.** The
+self-ignore is a single file: delete it and the tree is stageable until the next
+call rewrites it, and nothing announces that window. `gemini-bridge doctor`
+reports whether the marker is currently in place. The tool does not edit your
+`.gitignore` for you.
+
+One ledger field is worth knowing about. `allow_prompt_secrets` is true when the
+prompt scan was **bypassed** — meaning the outgoing text was never checked, not
+that a secret was confirmed present. Those run directories hold that text in
+plaintext locally, and since the interaction cannot be deleted through the API,
+the copy at Google is permanent. Filtering the ledger on that field is the only
+way to find them without grepping every `prompt.md`, which means reading the
+content the flag was used to send.
+
 ## Recipes
 
 A recipe is data, not code: YAML frontmatter for parameters, markdown body for

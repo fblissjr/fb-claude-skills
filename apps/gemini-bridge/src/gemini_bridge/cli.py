@@ -183,6 +183,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
             service_tier=recipe.service_tier,
             thinking_level=request.get("generation_config", {}).get("thinking_level"),
             credential_kind=creds.kind, error=str(exc),
+            allow_prompt_secrets=args.allow_prompt_secrets,
         )
         return _fail(f"{type(exc).__name__}: {exc}\n  run: {run.path}")
 
@@ -216,6 +217,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         service_tier=recipe.service_tier,
         thinking_level=request.get("generation_config", {}).get("thinking_level"),
         credential_kind=creds.kind,
+        allow_prompt_secrets=args.allow_prompt_secrets,
     )
 
     u = result.usage
@@ -299,7 +301,8 @@ def cmd_stored(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    cfg = Config.load(Path(args.project_root or Path.cwd()).resolve())
+    project_root = Path(args.project_root or Path.cwd()).resolve()
+    cfg = Config.load(project_root)
     print(f"config sources : {[str(p) for p in cfg.sources] or 'none'}")
     print(f"default model  : {cfg.default_model or '(recipe default)'}")
     try:
@@ -318,6 +321,21 @@ def cmd_doctor(args: argparse.Namespace) -> int:
           f"({len(cfg.sensitive_paths)} from config, "
           f"{len(patterns) - len(cfg.sensitive_paths)} built in)")
     print(f"prompt scan    : {'on' if cfg.scan_prompt else 'OFF'}")
+
+    exists, ignored = runs.ignore_status(project_root)
+    if not exists:
+        print("runs tree      : none yet")
+    elif ignored:
+        print("runs tree      : present, self-ignored")
+    else:
+        print("runs tree      : present but NOT self-ignored")
+        print(f"                 {project_root / runs.RUNS_DIRNAME}/.gitignore is "
+              "missing, so prompts and")
+        print("                 responses are stageable by `git add .`. The next "
+              "call rewrites it;")
+        print("                 restore it now, or add .gemini-runs/ to the "
+              "project's .gitignore.")
+
     print()
     print("Anything sent is retained for the project's retention window and")
     print("CANNOT be deleted -- interactions.delete returns 501. Set that window")

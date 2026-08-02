@@ -247,3 +247,8 @@ research/schema-processing/results/
 .stripframes
 .motionframes
 .aspectframes
+
+# gemini-bridge run directories. The tool writes a `*` gitignore inside the
+# tree at creation, but that is one file and one deletion away from exposing
+# prompts and responses. This is the belt to its braces.
+.gemini-runs/

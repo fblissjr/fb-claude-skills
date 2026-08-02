@@ -130,6 +130,21 @@ class RunDir:
         return orjson.loads((self.path / "request.json").read_bytes())
 
 
+def ignore_status(root: Path) -> tuple[bool, bool]:
+    """(runs tree exists, it is self-ignored).
+
+    The `*` marker written at creation is the ONLY thing keeping prompts and
+    responses out of `git add .` -- a project's root .gitignore knows nothing
+    about this tool. Deleting the marker leaves the tree exposed until the next
+    call rewrites it, and nothing surfaces that. `doctor` reports it so the
+    window is visible rather than silent.
+    """
+    runs_root = root / RUNS_DIRNAME
+    if not runs_root.is_dir():
+        return False, True
+    return True, (runs_root / ".gitignore").is_file()
+
+
 def find_runs(root: Path) -> list[RunDir]:
     base = root / RUNS_DIRNAME
     if not base.is_dir():

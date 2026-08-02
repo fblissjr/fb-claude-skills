@@ -89,14 +89,50 @@ def test_no_schema_means_no_response_format():
     assert parse(MINIMAL).response_format() is None
 
 
-def test_shipped_recipe_is_valid():
+def _shipped_dir():
     from pathlib import Path
 
-    shipped = (
+    return (
         Path(__file__).resolve().parents[1]
-        / "skills/gemini-multimodal/references/recipes/perceptual-diff.md"
+        / "skills/gemini-multimodal/references/recipes"
     )
-    r = recipes.parse(shipped.read_text(), shipped.stem, shipped)
-    assert r.stateful is False, "storage cannot be undone: delete returns 501"
+
+
+def _shipped_recipes():
+    return sorted(_shipped_dir().glob("*.md"))
+
+
+def test_every_shipped_recipe_parses():
+    """Parametrising over the directory rather than naming files.
+
+    Named per-file tests only cover recipes someone remembered to add a test
+    for, which is exactly the recipe most likely to be malformed -- the new one.
+    """
+    found = _shipped_recipes()
+    assert found, "no shipped recipes found; the path is probably wrong"
+    for path in found:
+        r = recipes.parse(path.read_text(), path.stem, path)
+        assert r.stateful is False, (
+            f"{path.stem}: storage cannot be undone -- delete returns 501, so a "
+            "shipped recipe must not opt into it without a deliberate argument"
+        )
+        assert r.generation_config()["thinking_level"] in recipes.THINKING_LEVELS
+
+
+def test_shipped_perceptual_diff_still_carries_its_measured_defaults():
+    path = _shipped_dir() / "perceptual-diff.md"
+    r = recipes.parse(path.read_text(), path.stem, path)
     assert r.resolution == "low", "validated as sufficient by the control harness"
     assert r.response_format() is not None
+
+
+def test_general_recipe_is_free_text():
+    """The ad-hoc bucket must not impose a shape on answers it cannot predict.
+
+    A schema here would force arbitrary questions into one verdict structure,
+    and the point of this recipe is that the question is not known in advance.
+    """
+    path = _shipped_dir() / "general.md"
+    r = recipes.parse(path.read_text(), path.stem, path)
+    assert r.response_format() is None
+    assert r.generation_config()["thinking_level"] == "minimal"
