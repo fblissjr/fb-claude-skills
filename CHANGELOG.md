@@ -1,5 +1,12 @@
 # changelog
 
+## 0.99.1
+
+### fixed
+- **`gemini-bridge` 0.5.0 → 0.5.1 — the interaction id was read at write time, not at check time.** The guard tested `result.interaction_id`, then a closure read that attribute again when the deferred write actually ran, so the value written was not provably the value that passed the check. Harmless in practice — nothing mutates the result between the two — but this is the one field a re-run cannot regenerate and the only handle on a stored interaction, which makes "provably the same value" worth having. Bound to a local before the guard.
+
+  Version bumped for a change with no user-visible behaviour because the alternative is worse: leaving it unbumped means the copy in an installed marketplace cache and the copy in this repo both claim to be 0.5.0 while differing. Two artifacts with one version is the drift the cascade exists to prevent.
+
 ## 0.99.0
 
 ### added
