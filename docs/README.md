@@ -22,7 +22,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; agents; bash 3.2 portability |
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
 | [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
-| [gemini_bridge_design.md](internals/gemini_bridge_design.md) | Gemini Interactions API facts established by live probing; why every static source was wrong; what is deliberately not built |
+| [gemini_bridge_design.md](internals/gemini_bridge_design.md) | **Frozen record** (2026-08-02) of the gemini-bridge design session and the live probing that corrected it. History, not documentation |
 | [foreign_capability_bridge.md](internals/foreign_capability_bridge.md) | The seven invariants a second bridge should follow; the capability/opinion/agent split and why mutation is the boundary; why it is a contract rather than a library at N=1 |
 | [tiered_authorization.md](internals/tiered_authorization.md) | Gating expensive or external calls by tier: UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny |
 | [model_routing_flywheel.md](internals/model_routing_flywheel.md) | Why the delegation feedback layer was a report rather than a loop; schema, grain and cost fixes |

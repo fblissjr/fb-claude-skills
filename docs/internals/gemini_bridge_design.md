@@ -1,17 +1,44 @@
-last updated: 2026-08-01
+frozen: 2026-08-02
 
-# gemini-bridge: design notes
+# gemini-bridge: a design record
 
-> Status: **shipped** as `apps/gemini-bridge` (0.3.0). This began as a design
-> note written before any code existed, and the design sections are preserved
-> as written — including the parts later disproved, because *how* they were
-> wrong is the useful part. Anything a live probe contradicted is marked in
-> place rather than quietly corrected.
+> **This is a historical record, not documentation. It is frozen and will not be
+> updated.** It captures the design session of 2026-08-01 and the live probing
+> that corrected it, including the parts later disproved — because *how* they
+> were wrong is the whole value. Read it to understand why the plugin is shaped
+> the way it is, never to learn what it currently does.
 >
-> The operating lesson: **form hypotheses from docs and the SDK, confirm
-> anything load-bearing with a real call.** Every static source turned out to be
-> wrong about something material. Re-run `apps/gemini-bridge/scripts/probe.py`
-> before exposing any new API parameter.
+> **For current behaviour, read the code and `SKILL.md`.** Every load-bearing
+> fact here migrated into the source during implementation and lives next to what
+> depends on it: the ignored-`temperature` finding in `recipes.py`, the
+> capture-the-id-before-anything-else reasoning in `client.py`, the storage and
+> disclosure reasoning in `ledger.py` and `runs.py`. That migration is what makes
+> freezing safe — the facts that must stay true are not in this file.
+>
+> It was frozen because it went stale within a day of being written, and the
+> version line was the least of it: the architecture tree below describes ten
+> reference files and three recipes that were never built. A design note promoted
+> to a status document without changing form will do that every time. The
+> distinction worth carrying: a record is finished when the thing it records
+> finished; documentation is never finished while the thing it documents lives.
+>
+> **The operating lesson, which outlived everything else here:** form hypotheses
+> from docs and the SDK, confirm anything load-bearing with a real call. Every
+> static source turned out to be wrong about something material. The probe that
+> established it is `apps/gemini-bridge/scripts/probe.py` — re-run it before
+> exposing any new API parameter.
+>
+> Two known-stale items, left in place rather than corrected, because correcting
+> a frozen record is how it stops being one:
+>
+> - Statuses and versions throughout are as of 0.3.0. The plugin is well past it.
+> - **"Architecture" below is the v0.1 *intention*, not a description.** What
+>   actually shipped is `SKILL.md`, `general.md` and `perceptual-diff.md` under
+>   `references/recipes/`, plus `scripts/`. `purge` was never built and cannot be:
+>   `interactions.delete` returns 501.
+> - Cross-references may name retired units. `agent-state` and `agent-state-mcp`
+>   were retired 2026-08-02; where this document cites them as precedent, the
+>   precedent still reads correctly as history.
 
 ## What this is
 
