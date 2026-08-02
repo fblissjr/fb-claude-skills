@@ -7,26 +7,114 @@ last updated: 2026-08-02
 > that the second is cheap and so that the differences between them are
 > informative rather than accidental. **No shared code exists and none should be
 > written yet** — see "Extraction" at the end for the trigger and the scope.
+>
+> The title says *capability* and the category below says *consultation*. That is
+> deliberate, not drift: the first draft of this document scoped it to work
+> Claude cannot do at all, and a design conversation the same day showed that was
+> too narrow — a second opinion is work Claude *can* do, and belongs here too.
+> The filename is load-bearing (two indexes link it) so it stays; the category
+> widened. Foreign capability is now one of two kinds inside it.
 
 ## The category
 
 The durable abstraction is not "a bridge to other models." It is a **foreign
-capability**: any consultation that
+consultation**: anything that
 
-1. Claude cannot perform itself,
-2. costs real money or real time, and
-3. returns output of unbounded size.
+1. costs real money or real time, and
+2. returns output of unbounded size, and
+3. **does not mutate your working tree.**
 
 Those three properties, not the vendor, generate every constraint below.
 
-Other models qualify — a vision model, a long-context model reading a corpus that
-will not fit, a local model for work that must not leave the machine. So do
-things that are not models at all: a solver, a fuzzer, a long-running analysis, an
-embedding pass. Vision was the first forcing function, not the category.
+The third is the boundary of this document, and it is the one that took a second
+pass to find. The first version of this section said "any consultation that
+Claude cannot perform itself," which was too narrow in one direction and too
+broad in another. Two useful things sit inside the boundary:
+
+| Kind | What it is | Example |
+|---|---|---|
+| **Foreign capability** | Claude cannot do it at all | comparing two renders; watching a video; a corpus that will not fit |
+| **Foreign opinion** | Claude *can* do it — the value is that a different model fails differently | a second read on a design; an outside review of a session |
+
+Both are in scope, and the invariants below apply to both. Non-models qualify
+too: a solver, a fuzzer, a long-running analysis, an embedding pass.
+
+What sits **outside** is a third kind:
+
+> **Foreign agent** — an external harness (Antigravity, Codex, any agentic CLI)
+> that runs its own tool loop against your filesystem. That is not a
+> consultation; it is a competing agent with hands on the same working tree.
+> Different plugin, different design, and the invariants here do not carry over.
+> Its central problem is isolation — a worktree, a sandbox, and a merge story —
+> none of which a consultation needs. Do not extend this contract to cover it.
 
 The framing matters because it determines what gets built. "A bridge to other
-models" invites an abstraction layer over vendors. "A foreign capability" invites
-a protocol, which is what this is.
+models" invites an abstraction layer over vendors. "A foreign consultation"
+invites a protocol, which is what this is.
+
+## The cut is mutation, not execution
+
+The obvious place to draw the line is "does it run code," and that is wrong. A
+second opinion frequently *cannot be given* without execution: opinions about
+design are readable, opinions about behaviour are not. This repo's own strongest
+evidence for that is `gemini_bridge_design.md` — every static source about the
+Gemini API was wrong about something material, and only live calls settled it. An
+advisor reasoning from a description would have been confidently wrong the same
+way the documentation was.
+
+So the line is **mutation**:
+
+- **Non-mutating execution is in scope** — running the test suite, profiling,
+  probing an API, grepping the tree. Nothing changes, so there is no merge story
+  and no isolation requirement.
+- **Mutating execution is out** — writing files, installing, committing. That is
+  the foreign-agent case above.
+
+### Claude executes; the foreign model advises
+
+When a consultation needs evidence, the foreign model says what it needs and
+**Claude runs it** — under the permission prompts, tool logging, and approval
+flow that already exist. The foreign model never touches the machine.
+
+This is the opposite of the function-calling path in
+[gemini_bridge_design.md](gemini_bridge_design.md)'s open question 4, which
+inverts control: the foreign model drives a loop executing code outside Claude
+Code's permission system. Same capability, opposite direction of control, and
+the direction is the whole safety argument. That document already identified the
+right function shape without connecting it to advising — *"the high-value
+functions are ones that let it ask for more data about what it is already looking
+at, not ones that act."* Read-more, not act. That generalises past frames and
+images to test output and profiles.
+
+### Two stateless calls, not one stateful conversation
+
+The obvious implementation of an evidence loop is a stateful follow-up. Avoid it:
+statefulness requires `store: true`, and stored interactions cannot be deleted.
+
+Instead:
+
+1. **Stateless call 1** — "here is the situation; what evidence would change your
+   answer?" Returns a list.
+2. You run what you are willing to run.
+3. **Stateless call 2** — a fresh, better-informed request carrying that evidence.
+
+Storage stays off, and you keep a veto between the two. The second call is not a
+continuation; it is a better question.
+
+### What this adds to the threat model
+
+A consultation that can request evidence introduces a party that can **ask** for
+things. Until now the risk was the caller accidentally including something
+sensitive; now there is a counterparty that can say "show me your config."
+
+The existing guards still hold, because a content scan is content-based and does
+not care who prompted the text. But this is a new reason they matter, and it is
+the argument for
+[tiered_authorization.md](tiered_authorization.md): an evidence-gathering
+consult over a session digest is a different risk class from comparing two
+images, and it is much closer to `advisor`'s threat model — which is locked to
+user invocation precisely so a model cannot self-authorise its own second
+opinions.
 
 ## The shape: a bridge is a subagent with a file boundary
 
@@ -68,7 +156,7 @@ blob on disk satisfies the letter and not the point.
 
 ### 2. The stance is versioned data, not composed prose
 
-The analytical framing — what the foreign capability is being asked to be — lives
+The analytical framing — what the consulted party is being asked to be — lives
 in a tracked file. The caller supplies only the specific question.
 
 Rationale: a stance composed fresh each session makes the answer depend on how
