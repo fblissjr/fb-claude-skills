@@ -23,8 +23,9 @@
 # Skipped contexts:
 #   - file_path outside the repo (nothing to enforce against)
 #   - file_path that's gitignored (can't reach a commit anyway)
-#   - file carrying the `path-privacy: skip-file` marker, on disk or in the
-#     content being written
+#   - file carrying the `path-privacy: skip-file` marker as a line's leading
+#     content, on disk or in the content being written (see _skip_marker.sh;
+#     a prose mention of the marker is not an opt-out)
 #   - missing/empty content (nothing to scan)
 
 set -u
@@ -104,13 +105,28 @@ if git -C "$ROOT_REAL" check-ignore -q "$FILE_PATH" 2>/dev/null; then
   exit 0
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCANNER="$SCRIPT_DIR/../skills/path-privacy/scripts/find-external-paths.sh"
+
+# Shared definition of the file-level opt-out; see _skip_marker.sh for why it is
+# anchored. Resolved BEFORE the check below, which is why SCRIPT_DIR moved up
+# from under it. Missing library fails closed, matching the scanner: nothing is
+# exempt, so a genuine marker stops working loudly rather than a prose mention
+# working silently.
+_PP_SKIP_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_skip_marker.sh"
+if [ -r "$_PP_SKIP_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$_PP_SKIP_LIB"
+else
+  pp_head_has_skip_marker() { return 1; }
+fi
+
 # File-level opt-out, read from the TARGET as it exists on disk. An Edit sends
 # only `new_string` — a fragment from the middle of the file — so a marker at the
 # top is never in the payload and scanning the payload alone can never honour it.
 # Write of a brand-new file has no disk copy; that case is covered by passing
 # --allow-skip-file below, which reads the marker out of the content itself.
-if [ -f "$FILE_PATH" ] \
-   && head -30 "$FILE_PATH" 2>/dev/null | grep -qF 'path-privacy: skip-file'; then
+if [ -f "$FILE_PATH" ] && pp_head_has_skip_marker "$FILE_PATH"; then
   exit 0
 fi
 
@@ -118,8 +134,6 @@ fi
 CONTENT=$(jq -r '[.tool_input.content // empty, .tool_input.new_string // empty] | join("\n")' <<<"$PAYLOAD" 2>/dev/null)
 [ -z "$CONTENT" ] && exit 0
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCANNER="$SCRIPT_DIR/../skills/path-privacy/scripts/find-external-paths.sh"
 [ -x "$SCANNER" ] || exit 0
 
 # --allow-skip-file: the string being scanned is a FILE's contents, so the

@@ -25,8 +25,9 @@
 #   --apply = write changes in place.
 #
 # Skipped contexts:
-#   - files containing the literal `path-privacy: skip-file` marker in the
-#     first 30 lines (same convention as find-external-paths.sh)
+#   - files whose first 30 lines have the `path-privacy: skip-file` marker as a
+#     line's LEADING content (shared definition in _skip_marker.sh; a file that
+#     merely mentions the marker in prose is not exempt)
 #   - files with no match against any configured suggestion
 #   - missing config (or jq absent): exit 0 with a notice on stderr
 #
@@ -42,6 +43,23 @@ set -u
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "scrub-paths: jq not found. Install via 'brew install jq' or equivalent." >&2
+  exit 2
+fi
+
+# Same file-level opt-out definition the scanner uses; see _skip_marker.sh.
+# This script REWRITES files, so a missing library aborts rather than degrading.
+# The scanner can afford to fail closed and over-report; here the equivalent
+# would be rewriting the pattern catalogs the marker exists to protect.
+#
+# Checked up here beside the other hard dependency rather than next to its one
+# call site: down there it sat below the "no config, nothing to do" early exit,
+# so the abort was unreachable in exactly the common case.
+_PP_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -r "$_PP_LIB_DIR/_skip_marker.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$_PP_LIB_DIR/_skip_marker.sh"
+else
+  echo "scrub-paths: _skip_marker.sh not found; refusing to rewrite files without it." >&2
   exit 2
 fi
 
@@ -115,8 +133,6 @@ if [ ${#SUGGEST_MATCH[@]} -eq 0 ]; then
   exit 0
 fi
 
-FILE_SKIP_MARKER='path-privacy: skip-file'
-
 # Pick a sed delimiter that appears in none of the match/replacement strings.
 # `|` is unlikely to appear in path patterns; fall back to `~` then `#`.
 pick_delim() {
@@ -178,7 +194,7 @@ file_has_match() {
 scrub_one() {
   local f="$1"
   [ -f "$f" ] || return 0
-  if head -30 "$f" 2>/dev/null | grep -qF "$FILE_SKIP_MARKER"; then
+  if pp_head_has_skip_marker "$f"; then
     return 0
   fi
   file_has_match "$f" || return 0

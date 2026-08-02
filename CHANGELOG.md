@@ -1,5 +1,20 @@
 # changelog
 
+## 1.2.3
+
+### fixed
+- **`path-privacy` 0.12.0 → 0.13.0, `skill-maintain` 0.20.0 → 0.21.0 — a file could switch the leak gate off for itself just by describing how to switch it off.** The file-level opt-out matched its token *anywhere* on a line, so any document that discussed the escape hatch exempted itself from the entire audit. 0.48.0 narrowed this once, from "anywhere in the file" to "anywhere in the first 30 lines", and 1.2.2 walked straight back into it: an entry documenting the marker put the token in the window and silently un-gated the changelog. Two encounters with the same defect, the second while writing about the first, is the argument for fixing the class instead of the instance.
+
+  The rule is now anchored. A marker counts when it is a line's **leading content** — optional indentation, an optional comment introducer, then the token — and anything after it on that line is free text, so `marker -- why this file is exempt` keeps working and is the form to prefer. Prose cannot reach it, because a sentence always has words before the token. Head-scoping stays; anchoring is what makes it hold for the files most likely to discuss the marker, which are skill docs and changelogs, and which grow from the top straight into the window.
+
+  **One definition, in `scripts/_skip_marker.sh`, for the same reason `_version_compare.sh` exists.** The check was written out separately at all four call sites — scanner, scrub, PreToolUse hook, and the whole-tree audit — which is how a defect in it survived being "fixed" once already: repairing one copy looks exactly like repairing the rule. The three shell consumers now source it. The Python audit keeps a deliberate copy, because it has to run in repos where path-privacy is not installed at all; that copy has a consumer beyond the check that confirms it is a copy, which is the test this repo applies to every duplicated field.
+
+  **Degradation is per-consumer, chosen by what the caller does with the answer.** A missing library makes the scanner and the write blocker fail CLOSED — nothing is exempt, everything is scanned — because a false positive is loud and a silent exemption is the whole defect. `scrub-paths.sh` instead aborts: it rewrites files, so failing closed there means scrubbing the pattern catalogs the marker protects. That abort was first placed next to its call site, below the "no config, nothing to do" early exit, which made it unreachable in the common case; it now sits with the other hard dependency check at the top.
+
+  **Behaviour change for anyone with an existing marker.** A marker buried mid-sentence stops exempting its file, so a repo relying on the loose match will start seeing findings it did not see before. That is the fail-closed direction and it is visible, but it is a change. The only such file here was the config template, whose exemption turned out never to have been load-bearing — it contains nothing but the `USERNAME` placeholder, which both checks already treat as clean — so the marker was removed rather than the rule bent to fit it.
+
+  Pinned by three new Python tests and thirteen shell probes: both comment syntaxes, indented, trailing rationale, prose mention, backticked-alone, beyond the 30-line window, the `--text` matrix in both the write-blocker and commit-message directions, the scrub skip, and both degradation paths. The prose test was mutation-checked against the old logic to confirm it can actually go red; the two that guard against over-tightening pass either way, which is what a regression guard is for.
+
 ## 1.2.2
 
 ### fixed

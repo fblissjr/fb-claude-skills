@@ -115,7 +115,7 @@ Trigger phrases: "scan for path leaks", "check for leaked paths", "are we leakin
 
 ## How "leak" is defined
 
-After expanding `~`, `$HOME`, and `${HOME}`, if the absolute path does NOT live under the current repo root, it is a leak. Repo-relative paths and generic placeholders (`/Users/USERNAME/foo`, `<HOME>/.claude/...`) are not flagged. Per-line `path-privacy: ignore` opts a specific line out; `path-privacy: skip-file` in a file's first 30 lines opts the whole file out. Commit messages and branch names honour only the per-line form — a message cannot exempt itself by quoting one token.
+After expanding `~`, `$HOME`, and `${HOME}`, if the absolute path does NOT live under the current repo root, it is a leak. Repo-relative paths and generic placeholders (`/Users/USERNAME/foo`, `<HOME>/.claude/...`) are not flagged. Per-line `path-privacy: ignore` opts a specific line out. The file-level marker opts a whole file out when it is the **leading content** of one of the first 30 lines — indentation and a comment introducer are allowed before it, and a rationale after it, but a mention buried in a sentence is not an opt-out. That anchoring is what stops a file from exempting itself just by documenting the escape hatch. Commit messages and branch names honour only the per-line form — a message cannot exempt itself by quoting one token.
 
 Full pattern reference: `skills/path-privacy/references/patterns.md`.
 

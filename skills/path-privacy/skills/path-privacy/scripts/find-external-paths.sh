@@ -26,8 +26,9 @@
 # ones; the user does not need to order them by hand. Requires jq;
 # silently no-ops if jq is missing or the config is malformed.
 #
-# `--allow-skip-file` lets `--text` honour a `path-privacy: skip-file` marker in
-# its first 30 lines, the same way a file on disk is treated. Off by default so
+# `--allow-skip-file` lets `--text` honour a `path-privacy: skip-file` marker
+# leading one of its first 30 lines, the same way a file on disk is treated
+# (shared definition in _skip_marker.sh). Off by default so
 # a commit message cannot exempt itself; the PreToolUse hook passes it because
 # there the string IS a file's contents.
 #
@@ -131,7 +132,22 @@ PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|
 PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
 
 IGNORE_MARKER='path-privacy: ignore'
-FILE_SKIP_MARKER='path-privacy: skip-file'
+
+# The file-level opt-out is defined once, in _skip_marker.sh, and shared with the
+# scrub script and the PreToolUse hook. A missing library fails CLOSED -- nothing
+# is exempt and every file is scanned. That direction is deliberate: a false
+# positive is visible and gets fixed, while a silent exemption is exactly the
+# defect the library exists to prevent, so the degraded mode must not be the
+# permissive one.
+_PP_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -r "$_PP_LIB_DIR/_skip_marker.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$_PP_LIB_DIR/_skip_marker.sh"
+else
+  echo "find-external-paths: _skip_marker.sh not found; file-level opt-outs are OFF." >&2
+  pp_head_has_skip_marker() { return 1; }
+  pp_text_has_skip_marker() { cat >/dev/null 2>&1; return 1; }
+fi
 
 # Generic placeholder usernames -- skipping these prevents documentation false positives.
 PLACEHOLDER_USERS=(
@@ -281,7 +297,7 @@ check_candidate() {
 scan_file() {
   local f="$1"
   [ -f "$f" ] || return 0
-  if head -30 "$f" 2>/dev/null | grep -qF "$FILE_SKIP_MARKER"; then
+  if pp_head_has_skip_marker "$f"; then
     return 0
   fi
 
@@ -350,7 +366,7 @@ scan_text() {
   # commit-msg hook, where honouring it would let any commit message exempt
   # ITSELF from the gate by quoting one token. Only the first passes the flag.
   if [ $ALLOW_SKIP_FILE -eq 1 ] \
-     && printf '%s\n' "$content" | head -30 | grep -qF "$FILE_SKIP_MARKER"; then
+     && printf '%s\n' "$content" | pp_text_has_skip_marker; then
     return 0
   fi
   local pat="$PATTERN_STRICT"

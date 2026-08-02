@@ -28,6 +28,18 @@ else
   pp_template_is_newer() { return 1; }
 fi
 
+# Same definition of a marker line the scanner exempts on, so removal here and
+# exemption there cannot drift apart. Absent copy means emit the directive
+# unfiltered -- a stray comment in context is the harmless failure, and dropping
+# lines by a guessed pattern is not.
+SKIP_MARKER_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_skip_marker.sh"
+if [ -r "$SKIP_MARKER_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$SKIP_MARKER_LIB"
+else
+  PP_SKIP_MARKER_RE='$^'   # matches nothing
+fi
+
 # --- outdated-wrapper notice -------------------------------------------------
 # A plugin update refreshes the scanner the wrapper CALLS, but not the wrapper
 # itself -- its logic is baked in at install time. So a repo can quietly carry a
@@ -153,9 +165,8 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
   # line above it.
   # Anchored on purpose: a line that merely mentions the marker in prose (a
   # future directive documenting the escape hatch) survives, and only a line
-  # that is nothing but the marker is dropped.
-  CONTEXT+=$(tail -n +2 "$f" \
-    | grep -vE '^[[:space:]]*(<!--[[:space:]]*)?#?[[:space:]]*path-privacy: skip-file([[:space:]]*-->)?[[:space:]]*$')
+  # whose LEADING content is the marker is dropped.
+  CONTEXT+=$(tail -n +2 "$f" | grep -vE "$PP_SKIP_MARKER_RE")
 done
 
 [ -z "$CONTEXT" ] && exit 0

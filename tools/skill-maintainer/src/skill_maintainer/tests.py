@@ -364,6 +364,13 @@ _PLACEHOLDER = re.compile(
 # thing it replaces.
 _HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)(?:/|\b)")
 
+# Deliberate duplicate of PP_SKIP_MARKER_RE in path-privacy's _skip_marker.sh.
+# The shell library cannot be imported here, and this check has to keep working
+# in a repo where path-privacy is not installed at all -- so the copy has a real
+# consumer, not just the assertion that it is a copy. Anything after the marker
+# on the line is free text, which is what makes `marker -- rationale` legal.
+_SKIP_MARKER = re.compile(r"^[ \t]*(<!--|#+|//|--|;|\*)?[ \t]*path-privacy: skip-file")
+
 
 def check_path_privacy(root: Path) -> list[Result]:
     """No tracked file may contain an absolute home path with a real username.
@@ -419,11 +426,15 @@ def check_path_privacy(root: Path) -> list[Result]:
             text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue                    # binary or unreadable: nothing to leak
-        # Scope the marker to the head, as find-external-paths.sh does. Matching
-        # it anywhere meant any file that merely QUOTED the marker in prose --
-        # including this repo's CHANGELOG.md and path-privacy's own SKILL.md --
-        # was silently exempt from the entire audit, in the fail-open direction.
-        if "path-privacy: skip-file" in "\n".join(text.splitlines()[:30]):
+        # Mirrors path-privacy's _skip_marker.sh: head-scoped AND anchored, so
+        # the marker must be a line's LEADING content rather than appearing
+        # anywhere in it. Head-scoping alone was not enough -- it left the
+        # exemption reachable by any prose that discusses the marker inside the
+        # window, which is precisely what a changelog or a skill doc does, and
+        # both grow from the top. This repo's own CHANGELOG left the gate twice
+        # that way, in the fail-open direction, where a working exemption is
+        # indistinguishable from a file with nothing to hide.
+        if any(_SKIP_MARKER.match(ln) for ln in text.splitlines()[:30]):
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if "path-privacy: ignore" in line:

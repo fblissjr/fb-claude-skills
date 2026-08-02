@@ -82,11 +82,20 @@ A line containing the literal token `path-privacy: ignore` is skipped by the sca
 
 ## File-level opt-out
 
-A file whose **first 30 lines** contain the literal token `path-privacy: skip-file` is skipped entirely — by the scanner, the scrub, and the PreToolUse write blocker. Any comment syntax works; `<!-- path-privacy: skip-file -->` is just the markdown form. This is for files that are *about* the rule: the scanner's own regex source, this skill, the suggestion template.
+A file is skipped entirely — by the scanner, the scrub, and the PreToolUse write blocker — when one of its **first 30 lines** has the opt-out marker as that line's **leading content**: optional indentation, an optional comment introducer, then the token. Any comment syntax works, and the markdown form is the one you will usually write. Anything after the marker on that line is free text, so prefer stating why:
 
-Two limits worth knowing:
+```
+# path-privacy: skip-file -- regex source; every pattern here looks like a leak
+```
+
+This is for files that are *about* the rule: the scanner's own regex source, this skill, the pattern catalogs.
+
+**A file that merely mentions the marker mid-sentence is not exempt**, and that is the point of the anchoring rather than an accident of it. Matching the token anywhere on a line meant any document *discussing* the opt-out silently switched the audit off for itself — which is what skill docs and changelogs do, and both grow from the top, feeding fresh prose into the 30-line window. That failure is invisible in the direction that matters: an exemption that works looks exactly like a file with nothing to hide. One definition of a marker line, `scripts/_skip_marker.sh`, is shared by all three consumers so it cannot be fixed in one and left broken in the others.
+
+Three limits worth knowing:
 
 - **Commit messages and branch names cannot use it.** They are scanned as a string with the marker check off, so quoting one token cannot exempt a message from the gate. Use `path-privacy: ignore` on the offending line instead.
+- **A quoted or indented-into-prose marker does not count.** Backtick it, or put a sentence before it, and the file stays audited. To exempt a file, the marker leads a line.
 - **The marker must already be on disk to cover an Edit.** An Edit sends only the replacement fragment, so a marker at the top of the file is not in the payload; the write blocker reads it from the target file instead. A brand-new file has no disk copy, so there the marker is read from the content being written — which means it has to be in that content's first 30 lines.
 
 ## Checking that the gate is actually there

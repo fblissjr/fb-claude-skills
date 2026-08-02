@@ -1,5 +1,5 @@
 {
-  "_comment": "path-privacy: skip-file — Starter template. Each `match` is a literal substring (not a regex). Entries are auto-sorted longest-first, so list them in any order; the most specific one wins. Absolute forms and tilde-prefixed home-relative forms both work — write whichever form actually appears in your files.",
+  "_comment": "Starter template. Each `match` is a literal substring (not a regex). Entries are auto-sorted longest-first, so list them in any order; the most specific one wins. Absolute forms and tilde-prefixed home-relative forms both work — write whichever form actually appears in your files.",
 
   "_step_1_gitignore_FIRST": "Add .path-privacy.local.json to .gitignore BEFORE creating the file, not after. The file is by definition a list of your absolute paths, so while it is untracked the PreToolUse hook will block every write to it. Order matters: append the filename to .gitignore first, then copy this template.",
 

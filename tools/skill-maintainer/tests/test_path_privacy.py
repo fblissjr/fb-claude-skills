@@ -103,6 +103,39 @@ def test_marker_quoted_deep_in_a_file_does_not_exempt_it(tmp_path):
     assert _failed(check_path_privacy(r))
 
 
+def test_marker_mentioned_in_prose_near_the_top_does_not_exempt(tmp_path):
+    """Head-scoping alone left the exemption reachable by any prose about it.
+
+    The 30-line window helps every file except the ones most likely to discuss
+    the marker -- skill docs and changelogs -- because both grow from the top and
+    push new prose straight into the window. This repo's CHANGELOG.md disabled
+    its own audit exactly this way while documenting the fix for it. Anchoring
+    is what closes the class: a sentence always has text before the token.
+    """
+    r = _repo(tmp_path, "doc.md",
+              "Opt out with `path-privacy: skip-file` near the top.\n"
+              "leak /Users/realpersonname/x\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_marker_line_may_carry_a_trailing_rationale(tmp_path):
+    """`marker -- why` is the preferred form, so anchoring must not break it."""
+    r = _repo(tmp_path, "scanner.sh",
+              "# path-privacy: skip-file -- regex source, every pattern looks like a leak\n"
+              "match /Users/realpersonname/x\n")
+    assert not _failed(check_path_privacy(r))
+
+
+def test_marker_is_honoured_in_html_comment_and_indented_forms(tmp_path):
+    """The two syntaxes actually used across this repo's markdown and configs."""
+    r = _repo(tmp_path, "doc.md",
+              "<!-- path-privacy: skip-file -->\nleak /Users/realpersonname/x\n")
+    assert not _failed(check_path_privacy(r))
+    r2 = _repo(tmp_path / "b", "doc.md",
+               "    # path-privacy: skip-file\nleak /Users/realpersonname/x\n")
+    assert not _failed(check_path_privacy(r2))
+
+
 def test_system_account_names_are_not_leaks(tmp_path):
     r = _repo(tmp_path, "doc.md", "brew lives at /home/linuxbrew/.linuxbrew\n")
     assert not _failed(check_path_privacy(r))
