@@ -6,6 +6,16 @@ last updated: 2026-08-01
 > `fact_delegation` do what they were built to do. This document argues they
 > were built as a **logging and reporting** system, and describes what would
 > have to change for the loop to actually compound.
+>
+> **Status 2026-08-02: the store is gone.** `agent-state` was retired — every
+> candidate population turned out to duplicate a file, and `fact_delegation`
+> was already ruled out here. Every `agent-state` command and table named below
+> now refers to something that no longer exists; they are kept because the
+> reasoning is the point and rewriting it would erase the record of what was
+> tried. The conclusion is unaffected and arguably strengthened: delegation
+> outcomes are recovered observationally from session transcripts, which needs no
+> cooperation from the party being measured. See
+> [agent_state_population.md](agent_state_population.md) for the retirement.
 
 ## What exists today
 

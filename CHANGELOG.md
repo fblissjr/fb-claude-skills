@@ -1,5 +1,20 @@
 # changelog
 
+## 0.100.0
+
+### removed
+- **`agent-state` and `agent-state-mcp` are retired.** Both packages deleted, `agent-state-mcp` added to the marketplace `renames` map so installed copies are cleaned up. This closes a question `docs/internals/agent_state_population.md` opened on 2026-07-26 and had been carrying since: populate the schema, or retire the package, because "empty but documented" is the one state that should not persist.
+
+  Its own recommendation was to populate `dim_skill_version` first and retire only if that had not happened in a reasonable window. What closed the window was not the calendar but three findings, each killing one candidate population. **`fact_watermark` duplicates files** — `.skill-maintainer/state/upstream_hashes.json` holds current values, `changes.jsonl` holds the history of what changed and when, and between them they carry what `WatermarkRecord` normalizes. **`dim_skill_version` duplicates git**, which already stores every SKILL.md version, with token count and validity computed from the files on demand. **`fact_delegation`** was already ruled out by the flywheel analysis, and the `changes.jsonl` importer feeding `fact_run` was deleted earlier the same day for being lossy in the wrong direction.
+
+  That left run lineage, which has no producer. And the question the whole thing existed to answer — *is this skill any good* — needs a different instrument. `v_flywheel` could only ever have offered observational correlation from production: which runs consumed which skill version, and whether those runs happened to succeed. A skill version shipped in the same week as three other changes would take credit for all of them.
+
+  The Claude Code docs are explicit that this is the wrong shape: *"Seeing a skill trigger tells you Claude found it, not that it did what you intended."* They point at `skill-creator`, which runs the same prompt with and without the skill **in the same turn**, uses the previous version as the baseline when iterating, and reports mean, stddev, and the delta between configurations. A controlled A/B beats production correlation for this question, and one already exists — this repo has even adapted its eval runner, with two fixes for miscounted triggers.
+
+  `VISION.md` cited agent-state as an exemplar of "nothing else reads it, so a database is the store" — twice today, narrowing it once before removing it. The cautionary note stays in its place, because it is worth more than the example was: **run the test on your own units before citing them as exemplars.** A principle illustrated by something that fails it ships with a counterexample built in.
+
+  Docs that discussed it are updated rather than rewritten. `model_routing_flywheel.md` and `agent_state_population.md` keep their `agent-state` commands and table names with a status header, because the reasoning is the point and erasing it would destroy the record of what was tried.
+
 ## 0.99.5
 
 ### fixed

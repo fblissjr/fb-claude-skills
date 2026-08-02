@@ -25,7 +25,7 @@ These bite on the first edit if you don't know them.
 
 3. **best_practices.md has two copies that drift.** Edit `.skill-maintainer/best_practices.md` (working copy). The PostToolUse hook mirrors to `skills/skill-maintainer/references/best_practices.md`. Editing only the bundled copy means fresh `skill-maintain init` runs in other repos pull stale rules. More: [docs/internals/gotchas.md](docs/internals/gotchas.md).
 
-4. **Greenfield default for local DBs.** For `<HOME>/.claude/agent_state.duckdb` and readwise-reader's DuckDB, prefer `CREATE OR REPLACE VIEW` + re-init over migration bridges. Production-facing schemas (marketplace.json, published plugin contents) are the exception.
+4. **Greenfield default for local DBs.** For readwise-reader's DuckDB, prefer `CREATE OR REPLACE VIEW` + re-init over migration bridges. Production-facing schemas (marketplace.json, published plugin contents) are the exception.
 
 5. **Security-guidance plugin's PreToolUse hook is disabled here** via `.claude/settings.json` env `ENABLE_SECURITY_REMINDER=0`. It substring-matches benign tokens in markdown prose and false-fires on docs and session logs. If you reset settings, re-disable. Detail: [docs/internals/gotchas.md](docs/internals/gotchas.md).
 
@@ -41,7 +41,7 @@ These bite on the first edit if you don't know them.
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
 | Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started | [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) |
-| Why `agent-state` is empty, what would populate it, and the populate-or-retire decision — designed, NOT started | [docs/internals/agent_state_population.md](docs/internals/agent_state_population.md) |
+| Why `agent-state` was retired rather than populated — each candidate population turned out to duplicate a file, and effectiveness needs a controlled A/B, not production correlation | [docs/internals/agent_state_population.md](docs/internals/agent_state_population.md) |
 | Gemini multimodal bridge — API facts established by live probing (every static source was wrong about something), recipes-as-data, why storage is irreversible. Shipped as `apps/gemini-bridge`; re-run `internal/scratch/gemini_probe.py` before exposing any new API parameter | [docs/internals/gemini_bridge_design.md](docs/internals/gemini_bridge_design.md) |
 | The contract any second bridge should follow (return a path not a payload; stance as versioned data; files are the store). Scope is capability AND opinion; the boundary is **mutation, not execution** — an external agent harness (Antigravity, Codex) is out of scope and a different plugin. A protocol, NOT a library; no shared code exists yet | [docs/internals/foreign_capability_bridge.md](docs/internals/foreign_capability_bridge.md) |
 | Why the delegation feedback layer is a report and not a loop; schema/grain/cost fixes | [docs/internals/model_routing_flywheel.md](docs/internals/model_routing_flywheel.md) |
@@ -52,14 +52,13 @@ These bite on the first edit if you don't know them.
 | MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |
 | MCP protocol | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md) (verified current) |
 | Current upstream Claude Code docs | `skill-maintain upstream`, then `.skill-maintainer/state/pages/` (gitignored). Nothing upstream is copied into this repo |
-| DuckDB schema (agent-state, readwise-reader) | `tools/agent-state/README.md`, `apps/readwise-reader/CLAUDE.md` |
+| DuckDB schema (readwise-reader) | `apps/readwise-reader/CLAUDE.md` |
 | Repo layout, plugins table, install commands | [README.md](README.md) |
 | Setup from a fresh clone | [README.md](README.md) "installation" + `uv sync --all-packages` |
 
 ## State
 
 - `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored)
-- `<HOME>/.claude/agent_state.duckdb` — global DuckDB for run audit and state tracking (schema in `tools/agent-state/`)
 - Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves.
 
 ## Cross-repo

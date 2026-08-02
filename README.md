@@ -43,7 +43,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
-| [agent-state-mcp](apps/agent-state-mcp/) | MCP Server | 18 read-only tools over `<HOME>/.claude/agent_state.duckdb` (runs, watermarks, skill versions, flywheel). Ergonomic MCP replacement for the `agent-state` CLI. Opt-in via `.mcp.json` (enable with `/agent-state-mcp:enable`). |
 
 ### cross-model bridges
 
@@ -69,7 +68,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Module | Description |
 |--------|-------------|
 | [skill-maintainer](tools/skill-maintainer/) | `skill-maintain` CLI for validating, monitoring, and maintaining skill repos. Git-installable into any repo. |
-| [agent-state](tools/agent-state/) | `agent-state` CLI for DuckDB audit/state tracking of pipeline, agent, and CLI runs. Watermark history, run trees, skill version lineage. **No producers — nothing has written to it since 2026-03-12**, and the delegation-outcome feature was superseded before it ran. Read [agent_state_population.md](docs/internals/agent_state_population.md) before relying on it. |
 
 ## installation
 
@@ -86,7 +84,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
 /plugin install readwise-reader@fb-claude-skills
-/plugin install agent-state-mcp@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
 /plugin install ruff-diagnostics@fb-claude-skills
@@ -290,7 +287,7 @@ Highlights:
 - [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
 - [docs/internals/](docs/internals/) -- repo-specific operating reference (version cascade, plugin patterns, maintenance commands, gotchas)
 - Upstream Claude Code docs are **not** vendored here — `skill-maintain upstream` fetches them to `.skill-maintainer/state/pages/` (gitignored)
-- [docs/analysis/](docs/analysis/) -- what survived the 2026-07-21 triage: the agent-state decision record, the MCP protocol reference, and the decision log explaining what went and why
+- [docs/analysis/](docs/analysis/) -- what survived the 2026-07-21 triage: the agent-state decision record (now closed: the package was retired 2026-08-02), the MCP protocol reference, and the decision log explaining what went and why
 - Each plugin has its own README with detailed usage
 
 ## credits

@@ -32,7 +32,6 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 
 | Document | Description |
 |----------|-------------|
-| [agent-state README](../tools/agent-state/README.md) | Schema reference (v2), CLI, Python API, migration guide |
 | [skill-maintainer README](../tools/skill-maintainer/README.md) | CLI reference, data flow, workflow, configuration |
 
 ## domain reports (`analysis/`)

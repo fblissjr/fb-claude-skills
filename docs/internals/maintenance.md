@@ -35,7 +35,6 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Append-only audit log query | `skill-maintain log` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
-| Promote `agent-state` MCP server from `_available_servers` → `mcpServers` | `/agent-state-mcp:enable` |
 
 ## Lower-level CLI
 
@@ -86,7 +85,6 @@ rewrites.
 Deliberately a query file rather than a subcommand. One use does not earn a CLI
 surface or a `duckdb` dependency on this tool; if it gets run every maintenance
 pass, that is the evidence for promoting it.
-- `<HOME>/.claude/agent_state.duckdb` — global DuckDB for run audit and state tracking across all projects (schema in `tools/agent-state/`)
 
 ## Workspace members (Python)
 
@@ -95,8 +93,6 @@ Python managed as a uv workspace. The root `pyproject.toml` coordinates members,
 | Member | Path | Key dependencies |
 |--------|------|-----------------|
 | `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref; CLI: `skill-maintain` |
-| `agent-state` | `tools/agent-state` | orjson, duckdb; CLI: `agent-state` |
-| `agent-state-mcp` | `apps/agent-state-mcp` | mcp, duckdb, orjson, agent-state (workspace); CLI: `agent-state-mcp` |
 | `mece-decomposer` | `apps/mece-decomposer` | orjson |
 | `readwise-reader` | `apps/readwise-reader` | mcp, httpx, duckdb, pydantic, authlib, skill-maintainer (workspace); opt-in (Python 3.13+, excluded by default) |
 

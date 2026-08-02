@@ -172,9 +172,42 @@ The one ordering constraint: a version must be recorded *before or when* it is
 used, not after. If `skill-maintain` writes `dim_skill_version` at the moment it
 changes a skill, that holds by construction.
 
-## The decision this forces
+## RESOLVED 2026-08-02: retired
 
-Three options, and the status quo is not one of them.
+> The package is gone — `tools/agent-state` and `apps/agent-state-mcp` both, with
+> a `renames` entry. Everything below is preserved as the record that produced
+> that decision; read it as history, not as a plan.
+>
+> The doc's own recommendation was to populate `dim_skill_version` first and
+> retire only if that had not happened within a reasonable window. The window ran
+> from 2026-03-12 to 2026-08-02. What closed it was not the calendar but three
+> findings, each of which killed one candidate population:
+>
+> - **`fact_watermark` duplicates files.** `.skill-maintainer/state/upstream_hashes.json`
+>   holds current values, `changes.jsonl` holds the history of what changed and
+>   when. Between them they carry what `WatermarkRecord` normalizes.
+> - **`dim_skill_version` duplicates git.** Every SKILL.md version is already in
+>   the object store, and token count and validity are computed from the files on
+>   demand by `skill-maintain quality`.
+> - **`fact_delegation`** was already ruled out by item 4 below, and the
+>   `changes.jsonl` importer that fed `fact_run` was deleted earlier the same day
+>   for being lossy in the wrong direction.
+>
+> That left run lineage, which has no producer. And the question the flywheel
+> existed to answer — *is this skill any good* — turns out to need a different
+> instrument entirely. `v_flywheel` could only ever have offered observational
+> correlation from production: which runs consumed which skill version, and
+> whether those runs succeeded. The Claude Code docs are explicit that this is the
+> wrong shape — *"seeing a skill trigger tells you Claude found it, not that it
+> did what you intended"* — and point at `skill-creator`, which runs the same
+> prompt with and without the skill in the same turn, against the previous
+> version as baseline when iterating, and reports mean, stddev and the delta
+> between configurations. A controlled A/B beats production correlation for this
+> question, and one of them already exists.
+
+## The decision this forced
+
+Three options, and the status quo was not one of them.
 
 **Populate it** (the plan above). Cost: real work in `skill-maintain`, plus
 keeping a second store alive. Benefit: version history and watermarks that

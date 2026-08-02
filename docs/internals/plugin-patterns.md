@@ -218,11 +218,11 @@ The pre-commit hook (jq-based), `regex-scan.sh`, and `find-external-paths.sh` al
 
 ## Greenfield default for local DBs
 
-For local DuckDB instances under `<HOME>/.claude/` (e.g., `agent_state.duckdb`) or per-app (e.g., readwise-reader's), prefer `CREATE OR REPLACE VIEW` + schema re-init on next connection over migration bridges. "OK to drop data, greenfield is fine" is the working default for non-production state.
+For local DuckDB instances (e.g. readwise-reader's), prefer `CREATE OR REPLACE VIEW` + schema re-init on next connection over migration bridges. "OK to drop data, greenfield is fine" is the working default for non-production state.
 
 ## Schema evolution: production-facing
 
-The exception to greenfield. `marketplace.json` and any data shape consumed by users of installed plugins needs additive evolution: add fields, don't rename, don't drop. Use the existing version cascade to carry users forward. Applies to MCP tool schemas, agent-state tables exposed by `agent-state-mcp`, and any artifact other repos pull from this one.
+The exception to greenfield. `marketplace.json` and any data shape consumed by users of installed plugins needs additive evolution: add fields, don't rename, don't drop. Use the existing version cascade to carry users forward. Applies to MCP tool schemas and any artifact other repos pull from this one.
 
 ## Hook anti-patterns
 

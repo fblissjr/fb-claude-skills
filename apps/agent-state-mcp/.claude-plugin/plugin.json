@@ -1,9 +1,0 @@
-{
-  "name": "agent-state-mcp",
-  "version": "0.2.4",
-  "description": "MCP server exposing <HOME>/.claude/agent_state.duckdb (run history, watermarks, skill versions, flywheel) to Claude Code as ergonomic, read-only tools. Use this instead of shelling out to the agent-state CLI.",
-  "author": {
-    "name": "Fred Bliss"
-  },
-  "repository": "https://github.com/fblissjr/fb-claude-skills"
-}

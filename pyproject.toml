@@ -8,7 +8,7 @@
 # package version. See docs/internals/plugin-versioning.md.
 
 [tool.uv.workspace]
-members = ["tools/skill-maintainer", "tools/agent-state", "apps/agent-state-mcp", "apps/mece-decomposer", "apps/gemini-bridge", "research/schema-processing"]
+members = ["tools/skill-maintainer", "apps/mece-decomposer", "apps/gemini-bridge", "research/schema-processing"]
 exclude = ["apps/readwise-reader"]
 
 [tool.uv.sources]
