@@ -1,5 +1,14 @@
 # changelog
 
+## 0.99.4
+
+### removed
+- **`agent-state` 0.3.1 → 0.4.0 — the `changes.jsonl` importer is gone**, along with `migration.py`, its tests, and the `agent-state migrate` command. `agent-state-mcp` 0.2.2 → 0.2.3 for the two docs that advertised it.
+
+  It had never been run, and the decisive part is not that it was unused but that it was **lossy in the wrong direction.** Three structurally different event types collapsed into one `fact_run` shape with the distinguishing payload buried in an opaque `metadata` blob, so a `quality_report` lost `skills`, `valid`, `over_budget` and `stale` as queryable columns. The imported copy answered *fewer* questions than `read_json` over the original JSONL. A second copy that is strictly worse than the original is the clearest possible case for not keeping it — the same test [VISION.md](VISION.md) now states as "substrate follows from consumers", and the one CLAUDE.md invariant 1b applies to duplicated versions.
+
+  `docs/internals/agent_state_population.md` already argued this from the other direction: "either adopt the schema or delete the importer; maintaining both formats is the actual cost." That resolves item 3 of that document. The wider populate-or-retire question for `agent-state` remains open and is unaffected — watermark staging and run lineage are instrumented facts with no file behind them, and stay correctly in a database.
+
 ## 0.99.3
 
 ### added

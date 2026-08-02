@@ -165,20 +165,6 @@ def cmd_delegation(args: argparse.Namespace) -> None:
         db.close()
 
 
-def cmd_migrate(args: argparse.Namespace) -> None:
-    """Import data from skill-maintainer's changes.jsonl and upstream_hashes.json."""
-    from agent_state.migration import migrate_from_jsonl
-
-    db = AgentStateDB(args.db)
-    counts = migrate_from_jsonl(db, args.dir, dry_run=args.dry_run)
-    db.close()
-
-    prefix = "[DRY RUN] " if args.dry_run else ""
-    print(f"{prefix}Migration complete:")
-    print(f"  Runs imported: {counts['runs']}")
-    print(f"  Watermarks imported: {counts['watermarks']}")
-    print(f"  Skipped: {counts['skipped']}")
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -237,11 +223,6 @@ def main() -> None:
     list_parser = delegation_sub.add_parser("list", help="Recent delegation records")
     list_parser.add_argument("-n", "--limit", type=int, default=20)
 
-    migrate_parser = sub.add_parser("migrate", help="Import from changes.jsonl")
-    migrate_parser.add_argument("--dir", type=Path, default=Path("."),
-                                help="Repo directory with .skill-maintainer/state/")
-    migrate_parser.add_argument("--dry-run", action="store_true",
-                                help="Show what would be imported")
 
     args = parser.parse_args()
 
@@ -262,7 +243,6 @@ def main() -> None:
         "watermarks": cmd_watermarks,
         "flywheel": cmd_flywheel,
         "delegation": cmd_delegation,
-        "migrate": cmd_migrate,
     }
     cmd_map[args.command](args)
 

@@ -130,8 +130,22 @@ a parent/child tree.
 free and mildly embarrassing: that directory already keeps per-repo upstream doc
 hashes and a `changes.jsonl` audit log — a bespoke watermark table and run log in
 a parallel format. `migration.py::migrate_from_jsonl` was written to import
-exactly that file and has never been run. Either adopt the schema or delete the
+exactly that file and was never run. Either adopt the schema or delete the
 importer; maintaining both formats is the actual cost.
+
+> **Resolved 2026-08-02: the importer was deleted**, along with its tests and the
+> `agent-state migrate` command. It had no consumer, and it was lossy in the
+> wrong direction — three structurally different event types collapsed into one
+> `fact_run` shape with the distinguishing payload buried in an opaque
+> `metadata` blob, so a `quality_report` lost `skills`/`valid`/`over_budget`/
+> `stale` as queryable columns. The imported copy therefore answered *fewer*
+> questions than `read_json` over the original JSONL would. That is the
+> files-are-the-store argument in its purest form; see
+> [foreign_capability_bridge.md](foreign_capability_bridge.md) invariant 5 and
+> the "substrate follows from consumers" test in [../../VISION.md](../../VISION.md).
+>
+> This resolves item 3 only. The wider populate-or-retire question for
+> `agent-state` is still open.
 
 **4. `fact_delegation`: do not populate.** Drop the table and
 `v_delegation_stats`. Delegation outcomes come from ccutils, observed rather than

@@ -21,7 +21,6 @@ version). Structured beats parsing every time.
 
 Exceptions -- Bash the CLI only for:
 - `agent-state init` (one-time DB creation)
-- `agent-state migrate` (bulk import from `changes.jsonl`)
 - Writes in general (this MCP is read-only by design)
 
 ## tool map (question -> tool)

@@ -21,8 +21,7 @@ Bash. MCP tools are a better fit:
   than raw tables ("SELECT ... FROM fact_run").
 
 The server is **read-only by design**. Writes go through the existing
-`agent-state` CLI (`init`, `migrate`) or the `RunContext` API in the host
-pipeline.
+`agent-state` CLI (`init`) or the `RunContext` API in the host pipeline.
 
 ## installation
 
@@ -120,8 +119,8 @@ as MCP tools, adds small conveniences (`list_tracked_domains`,
 
 ## not implemented / out of scope
 
-- Writes -- all tools are read-only. Use the CLI (`agent-state init`,
-  `agent-state migrate`) or the `RunContext` API.
+- Writes -- all tools are read-only. Use the CLI (`agent-state init`) or the
+  `RunContext` API.
 - HTTP/SSE transport -- stdio only for now.
 - Multi-database federation -- one DB per server process. Override the path
   via `AGENT_STATE_DB` or `--db`.
