@@ -367,9 +367,16 @@ _HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)(?:/|\b)")
 # Deliberate duplicate of PP_SKIP_MARKER_RE in path-privacy's _skip_marker.sh.
 # The shell library cannot be imported here, and this check has to keep working
 # in a repo where path-privacy is not installed at all -- so the copy has a real
-# consumer, not just the assertion that it is a copy. Anything after the marker
-# on the line is free text, which is what makes `marker -- rationale` legal.
-_SKIP_MARKER = re.compile(r"^[ \t]*(<!--|#+|//|--|;|\*)?[ \t]*path-privacy: skip-file")
+# consumer, not just the assertion that it is a copy. What makes a deliberate
+# copy safe is a test that the two accept the same language;
+# test_skip_marker_shell.py is that test, and it runs both engines over one
+# corpus. Read _skip_marker.sh for why each restriction is there.
+#
+# `[ \t]` matches the shell's `[[:blank:]]` under LC_ALL=C, which is why the
+# shell side pins the locale: BSD grep folds U+00A0 into [[:blank:]] under a
+# UTF-8 locale, which had made the commit gate quietly more permissive than this
+# audit, and made the shell side differ between machines.
+_SKIP_MARKER = re.compile(r"^ {0,3}(<!--|#|//|--|;)?[ \t]*path-privacy: skip-file")
 
 
 def check_path_privacy(root: Path) -> list[Result]:
@@ -434,7 +441,12 @@ def check_path_privacy(root: Path) -> list[Result]:
         # both grow from the top. This repo's own CHANGELOG left the gate twice
         # that way, in the fail-open direction, where a working exemption is
         # indistinguishable from a file with nothing to hide.
-        if any(_SKIP_MARKER.match(ln) for ln in text.splitlines()[:30]):
+        # `split("\n")`, not `splitlines()`. The shell side scopes the window
+        # with `head -30`, which breaks on newline only, while `splitlines()`
+        # also breaks on \v, \f, \r, U+0085, U+2028 and U+2029 -- so a file
+        # carrying any of those got a different 30-line window in each engine,
+        # and a marker could be inside the window here and outside it there.
+        if any(_SKIP_MARKER.match(ln) for ln in text.split("\n")[:30]):
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if "path-privacy: ignore" in line:
@@ -453,6 +465,57 @@ def check_path_privacy(root: Path) -> list[Result]:
 
 
 _INTERNAL_PATH = re.compile(r"\binternal/[A-Za-z0-9_./-]+")
+
+
+def check_marker_denylist(root: Path) -> list[Result]:
+    """Files that must NEVER carry a file-level path-privacy opt-out.
+
+    The opt-out token is an ordinary English phrase, so any document that
+    explains the escape hatch has to write it down -- and a rule anchored tightly
+    enough to reject every such sentence would also reject the marker itself.
+    They are the same string. Narrowing the pattern shrinks the hole; it cannot
+    close it, and a fenced code example showing the marker is still a working
+    marker.
+
+    So this stops trying to out-regex prose and asserts the outcome instead, on
+    the file classes it keeps happening to. This repo's CHANGELOG.md silently
+    exempted itself twice -- the second time inside the entry documenting the fix
+    for the first -- and path-privacy's SKILL.md is the other obvious candidate,
+    because describing the marker is its job.
+
+    Failure here is the point: a file that has genuinely earned an exemption does
+    not belong in these classes, so there is no legitimate way to trip it.
+    """
+    targets: list[Path] = []
+    changelog = root / "CHANGELOG.md"
+    if changelog.is_file():
+        targets.append(changelog)
+    targets.extend(sorted(root.glob("skills/*/skills/*/SKILL.md")))
+    targets.extend(sorted(root.glob("apps/*/skills/*/SKILL.md")))
+
+    exempt: list[str] = []
+    for f in targets:
+        # path-privacy's own SKILL.md documents the marker AND legitimately
+        # carries one, since its prose is full of path shapes. It is the single
+        # sanctioned exception, named explicitly rather than pattern-matched, so
+        # adding a second one is a deliberate edit to this list.
+        if f.parent.name == "path-privacy":
+            continue
+        try:
+            text = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if any(_SKIP_MARKER.match(ln) for ln in text.split("\n")[:30]):
+            exempt.append(str(f.relative_to(root)))
+
+    if not exempt:
+        return [Result("repo", "", "no self-exempting changelog or skill doc", True, "")]
+    return [Result(
+        "repo", "", "no self-exempting changelog or skill doc", False,
+        "file-level path-privacy opt-out found in: " + ", ".join(exempt[:3])
+        + " -- these files must stay audited; quote the marker inline with "
+        "backticks instead of on its own line",
+    )]
 
 
 def check_internal_citations(root: Path) -> list[Result]:
@@ -631,6 +694,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
 
     # Whole-tree path audit -- the pre-commit hook only sees the diff.
     results.extend(check_path_privacy(root))
+
+    # ...and the backstop for the audit's own escape hatch.
+    results.extend(check_marker_denylist(root))
 
     # Tracked content must not depend on gitignored files.
     results.extend(check_internal_citations(root))

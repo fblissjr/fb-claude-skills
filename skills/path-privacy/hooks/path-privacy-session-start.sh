@@ -29,15 +29,24 @@ else
 fi
 
 # Same definition of a marker line the scanner exempts on, so removal here and
-# exemption there cannot drift apart. Absent copy means emit the directive
-# unfiltered -- a stray comment in context is the harmless failure, and dropping
-# lines by a guessed pattern is not.
+# exemption there cannot drift apart. Degraded mode emits the directive
+# UNFILTERED: a stray marker comment in context is the harmless failure, and
+# dropping lines by a guessed pattern is not.
+#
+# That degraded path is expressed as a passthrough FUNCTION, never as a pattern.
+# The previous attempt set `PP_SKIP_MARKER_RE='$^'` with the comment "matches
+# nothing" and fed it to `grep -vE`; under BSD grep `$^` matches every EMPTY
+# line, so the fallback silently stripped the blank lines out of the directive
+# and merged its paragraphs. A readable-but-broken library was worse still --
+# the variable stayed unset, `grep -vE ""` matched every line, `-v` inverted it,
+# and the entire privacy directive stopped loading in every repo, invisibly.
+# A function cannot fail that way, and it degrades identically on every platform.
 SKIP_MARKER_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_skip_marker.sh"
-if [ -r "$SKIP_MARKER_LIB" ]; then
-  # shellcheck source=/dev/null
-  . "$SKIP_MARKER_LIB"
-else
-  PP_SKIP_MARKER_RE='$^'   # matches nothing
+# shellcheck source=/dev/null
+[ -r "$SKIP_MARKER_LIB" ] && . "$SKIP_MARKER_LIB" 2>/dev/null
+if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
+   || ! command -v pp_filter_skip_marker_lines >/dev/null 2>&1; then
+  pp_filter_skip_marker_lines() { cat; }
 fi
 
 # --- outdated-wrapper notice -------------------------------------------------
@@ -166,7 +175,7 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
   # Anchored on purpose: a line that merely mentions the marker in prose (a
   # future directive documenting the escape hatch) survives, and only a line
   # whose LEADING content is the marker is dropped.
-  CONTEXT+=$(tail -n +2 "$f" | grep -vE "$PP_SKIP_MARKER_RE")
+  CONTEXT+=$(tail -n +2 "$f" | pp_filter_skip_marker_lines)
 done
 
 [ -z "$CONTEXT" ] && exit 0

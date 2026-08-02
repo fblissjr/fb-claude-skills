@@ -82,20 +82,20 @@ A line containing the literal token `path-privacy: ignore` is skipped by the sca
 
 ## File-level opt-out
 
-A file is skipped entirely — by the scanner, the scrub, and the PreToolUse write blocker — when one of its **first 30 lines** has the opt-out marker as that line's **leading content**: optional indentation, an optional comment introducer, then the token. Any comment syntax works, and the markdown form is the one you will usually write. Anything after the marker on that line is free text, so prefer stating why:
+A file is skipped entirely — by the scanner, the scrub, and both hooks — when one of its **first 30 lines** has the opt-out marker as that line's **leading content**: at most three spaces of indent, an optional comment introducer, then the token. Anything after the marker on that line is free text, so prefer stating why — write it as `# path-privacy: skip-file -- regex source, every pattern here looks like a leak`, at the start of a line.
 
-```
-# path-privacy: skip-file -- regex source; every pattern here looks like a leak
-```
+Accepted introducers are `#`, `//`, `--`, `;`, and `<!--`. This is for files that are *about* the rule: the scanner's own regex source, this skill, the pattern catalogs.
 
-This is for files that are *about* the rule: the scanner's own regex source, this skill, the pattern catalogs.
+**A file that merely mentions the marker is not exempt**, and the restrictions are narrower than they first look because each one was reached by a real bypass. `##` is excluded because it is an ordinary markdown heading; `*` because it is a bullet; four spaces of indent because that is markdown's own boundary for a code block, i.e. a document *demonstrating* the marker. All three were working opt-outs at one point, verified by landing a real commit carrying a home path through the installed pre-commit hook.
 
-**A file that merely mentions the marker mid-sentence is not exempt**, and that is the point of the anchoring rather than an accident of it. Matching the token anywhere on a line meant any document *discussing* the opt-out silently switched the audit off for itself — which is what skill docs and changelogs do, and both grow from the top, feeding fresh prose into the 30-line window. That failure is invisible in the direction that matters: an exemption that works looks exactly like a file with nothing to hide. One definition of a marker line, `scripts/_skip_marker.sh`, is shared by all three consumers so it cannot be fixed in one and left broken in the others.
+One definition, `scripts/_skip_marker.sh`, is shared by all four shell consumers — scanner, scrub, and both hooks — so it cannot be fixed in one and left broken in the others. The Python audit keeps a deliberate copy, because it must run in repos where this plugin is not installed; a test asserts the two accept the same strings, which is the only thing that makes a copy safe.
+
+**The rule narrows the hole. It does not close it.** A fenced code block is not indented, so a doc quoting the marker inside one still exempts itself, and no pattern can do better — the marker and a quotation of it are the same string. What actually closes it is a check in `skill-maintain test` asserting that changelogs and skill docs are never file-level exempt, on the principle that those are the file classes this keeps happening to. Quote the marker inline with backticks, as this paragraph does, and it stays inert.
 
 Three limits worth knowing:
 
 - **Commit messages and branch names cannot use it.** They are scanned as a string with the marker check off, so quoting one token cannot exempt a message from the gate. Use `path-privacy: ignore` on the offending line instead.
-- **A quoted or indented-into-prose marker does not count.** Backtick it, or put a sentence before it, and the file stays audited. To exempt a file, the marker leads a line.
+- **Formats with no comment syntax have no file-level opt-out.** JSON and CSV cannot put the marker at the head of a line, and widening the rule to admit a JSON key prefix would reopen it to every YAML value and config string. Use per-line `path-privacy: ignore`, or gitignore the file — which is the right answer for a data file genuinely full of real paths.
 - **The marker must already be on disk to cover an Edit.** An Edit sends only the replacement fragment, so a marker at the top of the file is not in the payload; the write blocker reads it from the target file instead. A brand-new file has no disk copy, so there the marker is read from the content being written — which means it has to be in that content's first 30 lines.
 
 ## Checking that the gate is actually there

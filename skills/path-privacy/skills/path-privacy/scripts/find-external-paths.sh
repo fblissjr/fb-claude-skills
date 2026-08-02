@@ -52,7 +52,17 @@ LAX=0
 CONFIG_PATH=""
 ALLOW_SKIP_FILE=0
 
-usage() { sed -n '2,21p' "$0"; }
+# Print the header comment block, starting BELOW this file's own skip-file
+# marker on line 2. Emitting that line was the same defect fixed in the
+# SessionStart hook: redirect `--help` into a file and the file is silently
+# exempt from the entire audit. `usage` also runs on any unknown argument, so
+# the leak needed no deliberate act.
+#
+# Bounded by "the header block ends at the first non-comment line" rather than a
+# hardcoded range. The old `2,21p` was a magic number tied to comment length,
+# and editing the header above it silently truncated the help text elsewhere --
+# which is exactly what happened to this script's sibling.
+usage() { awk 'NR>2 { if (/^#/) print; else exit }' "$0"; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -140,11 +150,21 @@ IGNORE_MARKER='path-privacy: ignore'
 # defect the library exists to prevent, so the degraded mode must not be the
 # permissive one.
 _PP_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -r "$_PP_LIB_DIR/_skip_marker.sh" ]; then
-  # shellcheck source=/dev/null
-  . "$_PP_LIB_DIR/_skip_marker.sh"
-else
-  echo "find-external-paths: _skip_marker.sh not found; file-level opt-outs are OFF." >&2
+# Source, then VERIFY what got defined. `[ -r ]` alone tests readability, not
+# definition: a truncated or syntactically broken library passes it, the else
+# branch never runs, and the resulting undefined function exits 127 -- which
+# every call site here reads as "not exempt", i.e. fails OPEN in the one place
+# that must not. Suppressing the source's own stderr matters for a second
+# reason: bash's diagnostic for a broken library quotes an absolute path under
+# the plugin root, and this scanner's stderr is captured and re-shown to the
+# user by the PreToolUse hook. A privacy tool must not leak a path while
+# complaining that it cannot check for leaked paths.
+# shellcheck source=/dev/null
+[ -r "$_PP_LIB_DIR/_skip_marker.sh" ] && . "$_PP_LIB_DIR/_skip_marker.sh" 2>/dev/null
+if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
+   || ! command -v pp_head_has_skip_marker >/dev/null 2>&1 \
+   || ! command -v pp_text_has_skip_marker >/dev/null 2>&1; then
+  echo "find-external-paths: _skip_marker.sh missing or unusable; file-level opt-outs are OFF." >&2
   pp_head_has_skip_marker() { return 1; }
   pp_text_has_skip_marker() { cat >/dev/null 2>&1; return 1; }
 fi

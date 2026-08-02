@@ -126,14 +126,50 @@ def test_marker_line_may_carry_a_trailing_rationale(tmp_path):
     assert not _failed(check_path_privacy(r))
 
 
-def test_marker_is_honoured_in_html_comment_and_indented_forms(tmp_path):
-    """The two syntaxes actually used across this repo's markdown and configs."""
+def test_marker_is_honoured_in_html_comment_form(tmp_path):
+    """The syntax every markdown file in this repo actually uses."""
     r = _repo(tmp_path, "doc.md",
               "<!-- path-privacy: skip-file -->\nleak /Users/realpersonname/x\n")
     assert not _failed(check_path_privacy(r))
-    r2 = _repo(tmp_path / "b", "doc.md",
-               "    # path-privacy: skip-file\nleak /Users/realpersonname/x\n")
-    assert not _failed(check_path_privacy(r2))
+
+
+def test_marker_indented_up_to_three_spaces_is_honoured(tmp_path):
+    """Three spaces is markdown's boundary for 'still a paragraph, not code'."""
+    r = _repo(tmp_path / "a", "doc.md",
+              "   # path-privacy: skip-file\nleak /Users/realpersonname/x\n")
+    assert not _failed(check_path_privacy(r))
+
+
+def test_marker_indented_four_spaces_does_not_exempt(tmp_path):
+    """Four spaces is an indented code block -- a doc DEMONSTRATING the marker.
+
+    An earlier version of this test asserted the opposite, which is how the bug
+    got pinned as the intended behaviour: any doc showing the marker in an
+    indented example silently un-gated itself, which is the class the anchoring
+    exists to close.
+    """
+    r = _repo(tmp_path / "b", "doc.md",
+              "    # path-privacy: skip-file\nleak /Users/realpersonname/x\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_markdown_structure_does_not_exempt(tmp_path):
+    """Headings and bullets are display forms, not comments.
+
+    `## path-privacy: skip-file` is an ordinary H2; `* path-privacy: ...` is a
+    bullet in a feature list. Both were working opt-outs when the introducer set
+    allowed `#+` and `*` -- verified at the time by landing a real commit with a
+    home path in it, through the installed pre-commit hook.
+    """
+    for i, line in enumerate((
+        "## path-privacy: skip-file",
+        "### path-privacy: skip-file",
+        "* path-privacy: skip-file exempts a whole file",
+        "## path-privacy: skip-file semantics",
+    )):
+        r = _repo(tmp_path / f"c{i}", "doc.md",
+                  f"{line}\nleak /Users/realpersonname/x\n")
+        assert _failed(check_path_privacy(r)), line
 
 
 def test_system_account_names_are_not_leaks(tmp_path):

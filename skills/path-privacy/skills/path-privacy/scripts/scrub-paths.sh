@@ -46,23 +46,6 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 2
 fi
 
-# Same file-level opt-out definition the scanner uses; see _skip_marker.sh.
-# This script REWRITES files, so a missing library aborts rather than degrading.
-# The scanner can afford to fail closed and over-report; here the equivalent
-# would be rewriting the pattern catalogs the marker exists to protect.
-#
-# Checked up here beside the other hard dependency rather than next to its one
-# call site: down there it sat below the "no config, nothing to do" early exit,
-# so the abort was unreachable in exactly the common case.
-_PP_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -r "$_PP_LIB_DIR/_skip_marker.sh" ]; then
-  # shellcheck source=/dev/null
-  . "$_PP_LIB_DIR/_skip_marker.sh"
-else
-  echo "scrub-paths: _skip_marker.sh not found; refusing to rewrite files without it." >&2
-  exit 2
-fi
-
 DIRS=()
 FILES=()
 STAGED=0
@@ -71,7 +54,12 @@ CONFIG_PATH=""
 APPLY=0
 QUIET=0
 
-usage() { sed -n '2,33p' "$0"; }
+# Starts below this file's own marker on line 2, and ends at the first
+# non-comment line rather than a hardcoded range -- see find-external-paths.sh
+# for both reasons. The hardcoded `2,33p` this replaces was shifted by an edit
+# to the header comment in the same change that introduced it, silently
+# truncating the help output at a different place.
+usage() { awk 'NR>2 { if (/^#/) print; else exit }' "$0"; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -86,6 +74,30 @@ while [ $# -gt 0 ]; do
     *) echo "scrub-paths: unknown arg: $1" >&2; usage; exit 1 ;;
   esac
 done
+
+# Same file-level opt-out definition the scanner uses; see _skip_marker.sh.
+# This script REWRITES files, so an unusable library ABORTS rather than
+# degrading. The scanner can afford to fail closed and over-report; the
+# equivalent here would be scrubbing the pattern catalogs the marker exists to
+# protect -- verified: with the library emptied, this rewrote a marked file.
+#
+# Placed after argument parsing and before any file is touched. Two earlier
+# spots were both wrong: next to its call site it sat below the "no config,
+# nothing to do" early exit, so the abort was unreachable in the common case;
+# hoisted to the top beside the jq check, it made `--help` exit 2 over a
+# dependency that printing usage does not use.
+#
+# Sourced, then VERIFIED. `[ -r ]` tests readability, not definition -- a
+# truncated library passes it, the abort never fires, and the undefined function
+# returns 127, which the call site reads as "not exempt".
+_PP_LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
+[ -r "$_PP_LIB_DIR/_skip_marker.sh" ] && . "$_PP_LIB_DIR/_skip_marker.sh" 2>/dev/null
+if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
+   || ! command -v pp_head_has_skip_marker >/dev/null 2>&1; then
+  echo "scrub-paths: _skip_marker.sh missing or unusable; refusing to rewrite files without it." >&2
+  exit 2
+fi
 
 if [ -z "$ROOT" ]; then
   ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")

@@ -114,11 +114,18 @@ SCANNER="$SCRIPT_DIR/../skills/path-privacy/scripts/find-external-paths.sh"
 # exempt, so a genuine marker stops working loudly rather than a prose mention
 # working silently.
 _PP_SKIP_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_skip_marker.sh"
-if [ -r "$_PP_SKIP_LIB" ]; then
-  # shellcheck source=/dev/null
-  . "$_PP_SKIP_LIB"
-else
-  pp_head_has_skip_marker() { return 1; }
+# Sourced with its stderr discarded, then VERIFIED. Both halves matter here.
+# `[ -r ]` alone tests readability rather than definition, so a broken library
+# left `pp_head_has_skip_marker` undefined, and an undefined function exits 127,
+# which the check below reads as "not exempt". And bash's own diagnostic for a
+# broken library names an absolute path under the plugin root -- which this hook
+# would then capture and print back to the user, leaking a home path from inside
+# the tool whose only job is stopping that.
+# shellcheck source=/dev/null
+[ -r "$_PP_SKIP_LIB" ] && . "$_PP_SKIP_LIB" 2>/dev/null
+if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
+   || ! command -v pp_head_has_skip_marker >/dev/null 2>&1; then
+  pp_head_has_skip_marker() { return 1; }   # fail closed: nothing is exempt
 fi
 
 # File-level opt-out, read from the TARGET as it exists on disk. An Edit sends
@@ -152,6 +159,19 @@ fi
 # scanner's `<text>:N:` label, so the diagnostic points at the right file.
 RELABELED=$(printf '%s\n' "$SCANNER_OUT" | sed "s|<text>:|${REL}:|g")
 
+# Name the comment syntax that is actually legal in THIS file. The message used
+# to suggest the HTML-comment form unconditionally, which is a syntax error in
+# Python, shell, and Makefiles, and has no valid equivalent at all in JSON --
+# sending the user to an escape hatch that cannot work in the file they are in.
+case "$REL" in
+  *.md|*.markdown|*.html|*.htm|*.xml|*.svg) SKIP_FORM='<!-- path-privacy: skip-file -->' ;;
+  *.js|*.jsx|*.ts|*.tsx|*.c|*.h|*.cc|*.cpp|*.go|*.rs|*.java|*.swift|*.kt|*.scala)
+                                            SKIP_FORM='// path-privacy: skip-file' ;;
+  *.sql|*.lua|*.hs|*.ada)                   SKIP_FORM='-- path-privacy: skip-file' ;;
+  *.json|*.jsonc|*.csv|*.tsv)               SKIP_FORM='' ;;
+  *)                                        SKIP_FORM='# path-privacy: skip-file' ;;
+esac
+
 {
   echo "Blocked: would introduce an external path into ${REL}"
   echo ""
@@ -160,7 +180,13 @@ RELABELED=$(printf '%s\n' "$SCANNER_OUT" | sed "s|<text>:|${REL}:|g")
   echo "Bypass options:"
   echo "  - replace the path with a repo-relative form or generic placeholder"
   echo "  - append 'path-privacy: ignore' to the offending line"
-  echo "  - add '<!-- path-privacy: skip-file -->' near the top of the file"
+  if [ -n "$SKIP_FORM" ]; then
+    echo "  - put '$SKIP_FORM' at the START of a line near the top of the file"
+    echo "    (it must lead the line; a mention inside a sentence is not an opt-out)"
+  else
+    echo "  - this file type has no file-level opt-out (no comment syntax);"
+    echo "    use the per-line marker above, or write to a gitignored path"
+  fi
   echo "  - write to a gitignored path instead"
 } >&2
 
