@@ -1,5 +1,16 @@
 # changelog
 
+## 0.101.0
+
+### added
+- **`skill-maintain test` now blocks tracked content from citing gitignored files.** The failure it catches had two live instances and one of them was shipping: `CLAUDE.md` and `gemini_bridge_design.md` both instructed every reader to run `internal/scratch/gemini_probe.py`, and `gemini-bridge`'s SKILL.md carried *measured* resolution guidance produced by `internal/scratch/diff_control.py`. Neither file exists for anyone who clones the repo. A measurement whose instrument is untracked is an assertion wearing a measurement's clothes.
+
+  The rule is "resolves to an existing **file** under `internal/`", not "mentions `internal/`", and that distinction is what makes it mechanical rather than a judgment call. `internal/log/log_YYYY-MM-DD.md` is a naming convention and passes; `internal/log/` and `internal/postmortems/` are directories — places to write to, which is the entire point of having the directory — and pass; `internal/api/`, `internal/service/` in the MCP analysis describe Go's project layout and pass. Only a path that really is a file sitting there right now, being cited as a source, fails. `CHANGELOG.md` is exempt because it is a record of the past.
+
+- **`gemini-bridge` 0.5.2 → 0.5.3 — both instruments promoted out of scratch.** `scripts/probe.py` is the live API probe, tracked because every static source about this API was wrong about something material and only a live call settles a new parameter. `scripts/diff_control.py` is the control harness SKILL.md already tells you to run against a null pair before trusting a new comparison recipe. Both had `Throwaway.` in their docstrings; both now say what they are and why they are tracked. Bodies are unchanged.
+
+- **`skill-maintainer` CLI 0.19.0 → 0.20.0 — `scripts/trigger_eval.py` and `scripts/make_evals.py`.** The trigger-rate harness, adapted from `skill-creator`'s `run_eval.py` with two deliberate fixes: a "real" mode so an installed twin cannot steal a trigger and be miscounted as a miss, and a full-turn scan, because stock `run_eval.py` returns False at the first tool call that is not Skill/Read — scoring a natural Read → Skill → Edit sequence as a miss. Improvements to the sanctioned measurement tool should not live in gitignored scratch, particularly in the same session that retired a package for pretending to measure skills.
+
 ## 0.100.0
 
 ### removed

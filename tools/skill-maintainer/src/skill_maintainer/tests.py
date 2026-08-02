@@ -441,6 +441,72 @@ def check_path_privacy(root: Path) -> list[Result]:
                    f"absolute home path with a real username in: {shown}")]
 
 
+_INTERNAL_PATH = re.compile(r"\binternal/[A-Za-z0-9_./-]+")
+
+
+def check_internal_citations(root: Path) -> list[Result]:
+    """No tracked file may cite a file that exists under gitignored `internal/`.
+
+    The failure this catches is specific and had two live instances: a *tracked*
+    document instructing every reader to run `internal/scratch/gemini_probe.py`,
+    and a shipped SKILL.md whose measured resolution guidance came from
+    `internal/scratch/diff_control.py`. Both are unfollowable by anyone who
+    clones the repo, and the second is worse -- a measurement whose instrument is
+    untracked is an assertion wearing a measurement's clothes.
+
+    The rule is deliberately "resolves to an existing FILE", not "mentions
+    internal/". That distinction is what makes it mechanical instead of a
+    judgment call, and it lands correctly on every current use:
+
+    - `internal/log/log_YYYY-MM-DD.md` is a naming convention, not a file. Passes.
+    - `internal/log/`, `internal/postmortems/` are directories -- places to write
+      to, which is exactly what `internal/` is for. Pass.
+    - `internal/api/`, `internal/service/` in the MCP analysis describe Go's
+      project layout and have nothing to do with this repo. Pass.
+    - A path that really is a file sitting in `internal/` right now is being
+      cited as a source. Fails, and the fix is to track it or stop citing it.
+
+    Directories pass on purpose: writing *to* `internal/` is the point of having
+    it. Reading *from* it in tracked content is the leak.
+    """
+    try:
+        tracked = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                                 capture_output=True, text=True, timeout=60)
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        return [Result("repo", "", "no tracked citations of internal/", False,
+                       f"could not list tracked files: {e}")]
+    if tracked.returncode != 0:
+        if not (root / ".git").exists():
+            return []
+        return [Result("repo", "", "no tracked citations of internal/", False,
+                       f"git ls-files failed: {tracked.stderr.strip()[:120]}")]
+
+    hits: list[str] = []
+    for rel in tracked.stdout.split("\0"):
+        if not rel or rel == "CHANGELOG.md":
+            continue                    # the changelog is a record of the past
+        f = root / rel
+        if not f.is_file():
+            continue
+        try:
+            text = f.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            for m in _INTERNAL_PATH.finditer(line):
+                if (root / m.group(0).rstrip(".,;:)")).is_file():
+                    hits.append(f"{rel}:{i} -> {m.group(0)}")
+                    break
+
+    if not hits:
+        return [Result("repo", "", "no tracked citations of internal/", True, "")]
+    shown = "; ".join(hits[:3]) + (f" (+{len(hits) - 3} more)" if len(hits) > 3 else "")
+    return [Result("repo", "", "no tracked citations of internal/", False,
+                   f"tracked content cites a gitignored file: {shown}")]
+
+
 def check_changelog_version(root: Path) -> list[Result]:
     """The top `## X.Y.Z` in CHANGELOG.md must be well-formed, and must equal the
     root pyproject version when the root declares one.
@@ -554,6 +620,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
 
     # Whole-tree path audit -- the pre-commit hook only sees the diff.
     results.extend(check_path_privacy(root))
+
+    # Tracked content must not depend on gitignored files.
+    results.extend(check_internal_citations(root))
 
     # Changelog heading vs repo version.
     results.extend(check_changelog_version(root))

@@ -10,7 +10,7 @@ last updated: 2026-08-01
 >
 > The operating lesson: **form hypotheses from docs and the SDK, confirm
 > anything load-bearing with a real call.** Every static source turned out to be
-> wrong about something material. Re-run `internal/scratch/gemini_probe.py`
+> wrong about something material. Re-run `apps/gemini-bridge/scripts/probe.py`
 > before exposing any new API parameter.
 
 ## What this is
@@ -47,7 +47,7 @@ Sources disagree with each other, so the provenance matters.
 
 ### Source hierarchy: only the live API is authoritative
 
-A probe run on 2026-08-01 (`internal/scratch/gemini_probe.py`) disproved the
+A probe run on 2026-08-01 (`apps/gemini-bridge/scripts/probe.py`) disproved the
 hierarchy this document previously asserted. **Every static source is wrong
 about something**, including the generated SDK, which had been treated as
 highest authority:
