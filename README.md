@@ -95,6 +95,8 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install model-routing@fb-claude-skills
 /plugin install advisor@fb-claude-skills
 /plugin install postmortem@fb-claude-skills
+/plugin install gemini-bridge@fb-claude-skills
+/plugin install dangling-refs@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -188,6 +190,8 @@ Once installed, invoke as namespaced slash commands:
 /postmortem:postmortem           # Evidence-grounded retrospective of a session, feature, or span
 /postmortem:postmortem-index     # Browsable HTML index over a repo's postmortems
 /postmortem:test-audit           # Audit the test suite: claims, oracles, envelope, verdicts
+/gemini                          # Hand a perceptual task to Gemini; answer lands in a run directory
+/dangling-refs:retire            # Remove a unit without leaving references behind
 
 
 /skill-maintainer:quality              # Quick quality check for all skills

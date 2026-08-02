@@ -20,12 +20,26 @@ Run this first. The output is your work list, and it is much harder to assemble
 once the thing is gone and you are grepping from memory.
 
 ```bash
-git ls-files | xargs grep -ln '<name>' 2>/dev/null
+git grep -lF -- 'the-name' :/
 ```
 
 Search the **name**, not the path. Paths appear in links and manifests; the name
 appears in prose, commands, and examples, which is where most references hide.
 For a unit with a distinct directory, sweep both.
+
+**The `:/` is load-bearing and the `-F` nearly so.** Without `:/` the search is
+scoped to your working directory, and the single most likely place to run this is
+inside the unit you are about to delete — where it reports a tidy handful of
+self-references while every external reference stays invisible. Measured in one
+repo: sweeping for a plugin's name from inside its own directory found 12 hits;
+from the root, 26. The 14 it missed are the entire point of sweeping.
+
+`-F` matches the name literally. A unit called `foo.js` or `c++-utils` is a
+regex that quietly matches things it should not, and a name beginning with `-`
+is parsed as an option. `git grep` is used rather than `git ls-files | xargs
+grep` because the latter splits on whitespace (a tracked path containing a space
+is silently skipped), and on GNU systems runs `grep` with no file operands when
+nothing matches, which blocks on stdin instead of reporting clean.
 
 Do not trust a link check for this. "No broken markdown links" is a strictly
 weaker property than "nothing names a thing that no longer exists" — a repo can
@@ -93,18 +107,31 @@ to anyone downstream.
 ## Verify
 
 ```bash
-# nothing but deliberate history should remain
-git ls-files | xargs grep -ln '<name>' 2>/dev/null
+# every remaining hit should be one you deliberately kept
+git grep -nF -- 'the-name' :/
 
-# no markdown link points at the removed paths
-git ls-files '*.md' | xargs grep -oE '\]\([^)]*<path>[^)]*\)' 2>/dev/null
+# no link, inline or reference-style, points at the removed path
+git grep -nE -- '\]\(<path>|\]:[[:space:]]*<path>|href="[^"]*<path>' :/
 
-# nothing still imports it
-git ls-files '*.py' '*.ts' '*.js' | xargs grep -nE 'import .*<name>|from .*<name>' 2>/dev/null
+# nothing still imports it -- extensions, not a hand-listed glob
+git grep -nE -- '(import|require|from)[^\n]*the-name' :/
 ```
 
-Then run the repo's own test or lint suite. A removal that leaves the suite green
-and the sweep quiet is done; one that leaves either noisy is not.
+Replace `<path>` with the removed path **regex-escaped** — a literal `.` in a
+filename otherwise matches any character. The link check deliberately covers
+reference-style definitions and `href=` as well as inline links, and searches
+every tracked file rather than only `*.md`, because a manifest or registry entry
+naming a path is exactly what a removal breaks.
+
+Do not hand-list source extensions in the import check. A glob of
+`'*.py' '*.ts' '*.js'` looks complete and silently skips `.tsx`, `.mjs`, `.jsx`,
+`.pyi` and `.cjs` — in one repo, 21 tracked files the check never opened.
+
+Then run the repo's own test or lint suite. A removal is done when the suite is
+green and every remaining sweep hit falls in the historical or third-party
+bucket. **The sweep will not go silent, and should not:** the cascade above
+requires a changelog entry naming the retired unit, so a permanently empty result
+would mean that entry is missing.
 
 ## Report what you deliberately left
 

@@ -107,7 +107,7 @@
       "name": "dangling-refs",
       "source": "./skills/dangling-refs",
       "description": "Remove a unit from a repo without leaving references behind. Sweeps tracked content before you delete, sorts every hit into what must change, what must stay as history, and what reaches users, and names the cascade a removal actually triggers.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "gemini-bridge",

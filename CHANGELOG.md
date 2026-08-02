@@ -1,5 +1,18 @@
 # changelog
 
+## 1.2.1
+
+### fixed
+- **`dangling-refs` 0.1.0 → 0.1.1 — the sweep the skill is built around only searched the current directory.** A code review caught it within an hour of shipping. `git ls-files` lists files under the cwd, not the repo, and **the single most likely place to run a pre-deletion sweep is inside the unit being deleted** — where it returns a tidy handful of self-references and reports clean. Measured here: sweeping for `gemini-bridge` from inside `apps/gemini-bridge/` found 12 hits; from the root, 26. The 14 it missed are the non-local references the skill exists to find. A skill whose one job is catching what edit-time tools cannot see, shipping with a command that cannot see them either.
+
+  All four snippets moved to `git grep -- :/`, which fixes three more defects in the same change. `git ls-files | xargs` splits on whitespace, so a tracked path containing a space was silently skipped — and since every snippet ended in `2>/dev/null`, the resulting errors were swallowed and the sweep still looked clean. On GNU systems `xargs` with no matches runs the utility with no file operands, so the import check blocked reading stdin instead of reporting clean; it would have passed on macOS and hung on Linux. And the name was interpolated as a regex, so a unit called `foo.js` matched loosely while one starting with `-` was parsed as an option — now `-F`.
+
+  Two coverage gaps fixed alongside. The import check hand-listed `*.py *.ts *.js`, missing `.tsx`, `.mjs`, `.jsx`, `.pyi`, `.cjs` — 21 tracked files in this repo the check never opened. The link check matched only inline `](…)` links in `*.md`, missing reference-style definitions, `href=`, and any non-markdown file — which is where a registry entry naming a removed path actually lives.
+
+  Also corrected a contradiction the review spotted: the skill said a removal is done when "the sweep is quiet", while its own cascade requires a changelog entry naming the retired unit. The sweep will never go quiet, and should not. It now says every remaining hit must fall in the historical or third-party bucket.
+
+- **Two plugins were missing from the README install block.** `dangling-refs` and — pre-existing — `gemini-bridge`. Someone copy-pasting the documented install list never got either. Both added, along with their slash commands. This is exactly the "indexes, tables of contents, any file whose job is to enumerate what exists" bucket the new skill declares must-change, missed on the commit that introduced the skill.
+
 ## 1.2.0
 
 ### added
