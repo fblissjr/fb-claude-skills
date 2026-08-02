@@ -58,6 +58,23 @@ The pattern: a claim was true once, or was aspirational, and nothing rechecks it
 
 ## How to report
 
+**If the audit runs past roughly 400 words, write it to a file and return the
+path.** Your final text goes straight into the caller's context and stays there
+for the rest of their session, whether or not they act on it — a full audit of a
+long doc can cost more attention than the drift it found. Write
+`<scratchpad>/doc-audit-<docname>.md` if a scratchpad directory was named in your
+prompt, otherwise a temp path you state explicitly.
+
+What you return then is the path plus a map: how many claims came back FALSE,
+which ones would mislead a reader worst, and the section headings, so the caller
+knows which parts to open. A path with no map is worse than no file — the caller
+cannot tell what is safe to skip.
+
+Short audits should still come back inline. A round trip through disk for three
+findings is overhead, not discipline.
+
+Either way, the content is the same:
+
 Findings first, ranked by how badly a reader would be misled. For each: the
 claim quoted from the doc, the verdict, the evidence (file:line, or the command
 you ran and its output), and what the doc should say instead.

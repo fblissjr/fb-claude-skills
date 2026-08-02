@@ -41,7 +41,7 @@
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
       "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     {
       "name": "agent-state-mcp",

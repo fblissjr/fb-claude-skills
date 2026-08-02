@@ -1,5 +1,20 @@
 # changelog
 
+## 0.99.2
+
+### changed
+- **`readwise-reader` 1.1.0 → 1.1.1 — two skills were on a freshness window their content cannot justify.** `library-search` and `knowledge-retrieval` moved from `review_interval_days: "90"` to `"365"`. `content-triage` deliberately stays at 90.
+
+  The 90-day tier was assigned to all three in bulk, by a commit whose own stated rule is "30d for content derived from the Claude Code docs, 90d for skills tracking a third-party SDK or API, 365d for methodology and for our own code." Only one of the three meets the middle condition. `library-search` depends on this repo's `tools/search.py` and `tools/tags.py` — all four tool signatures it cites were checked and match — and `knowledge-retrieval` cites no tool, no API surface, and no URL at all. It was authored methodology. A window on it could never have detected anything; it was a recurring alarm with no signal behind it. Both were tiered at 90 because they live in a plugin whose *name* contains a third-party product.
+
+  **`last_verified` was not touched, deliberately.** Under a corrected window neither is stale, and moving the date would assert a review that did not happen. That matters more than usual here: the existing 2026-04-02 date is itself a mechanical bump — the commit that set it changed only the date across 21 skills, with no body change — so the true last-review date for all three is unknown. Re-tiering is the sanctioned response to a wrong window; bumping the date is the one edit that makes the signal lie, which the quality skill says in as many words.
+
+- **`content-triage` needs a real review, and it is not just the skill.** Its lifecycle diagram declares the Readwise location set as `new → later → archive`, but the live API also carries `shortlist`, and our own code is behind in the same direction: `tools/triage.py` accepts only `later`/`archive`/`delete` while `api/models.py`'s enum comment already names `feed`. Skill and implementation drifted together, away from the API, so fixing the skill alone would create a new inconsistency. Left for a human against the live API rather than guessed at here.
+
+- **`doc-claim-auditor` now writes long audits to a file and returns a path.** A subagent's final text lands in the caller's context and stays for the rest of their session whether or not it gets acted on, so a full audit of a long doc can cost more attention than the drift it found. Past roughly 400 words it writes a file and returns the path plus a map — FALSE count, worst offenders, section headings — because a path with no map is worse than no file. Short audits still come back inline; a round trip through disk for three findings is overhead, not discipline.
+
+  This is the first application of the return-a-path invariant from [docs/internals/foreign_capability_bridge.md](docs/internals/foreign_capability_bridge.md) to something other than a foreign capability. It fits exactly one of this repo's four local agents — the rest are narrow executors whose reports are short by design — which places the real cost in the built-in exploratory agent types, where there is no definition to edit.
+
 ## 0.99.1
 
 ### fixed
