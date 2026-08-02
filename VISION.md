@@ -196,11 +196,18 @@ The real investment is not bigger context windows but better indexing, richer me
 
 ### structured outputs as state
 
-Store agent outputs as structured data. Relational databases are the right substrate -- queryable, versionable, debuggable. Data people understand them intuitively. LLMs are good at SQL.
+Store agent outputs as structured data. The invariant is the **shape**, not the substrate: append-only facts, explicit grain, versionable, queryable. Relational access is what makes that shape pay off -- queryable, debuggable, intuitive to data people, and LLMs are good at SQL.
 
 Knowledge graphs are seductive but brittle. Updates are impossible without breaking existing edges. Granularity changes invalidate the schema. What looks like flexibility is actually fragility at scale.
 
-This repo uses DuckDB star schemas (agent-state) for exactly this reason: append-only facts, slowly changing dimensions, queryable from any language.
+**Substrate follows from consumers.** Ask what reads the artifact besides a query:
+
+- **Nothing else reads it** -- a database is the store. `agent-state`'s DuckDB star schema holds watermarks and run lineage as append-only facts against slowly changing dimensions: instrumented facts about a run, with no file that could serve as source of truth. `readwise-reader` mirrors a remote SaaS with FTS indexes and staged reconciliation. Both are correct and should stay that way.
+- **Something else reads it** -- files are the store, and relational is a *lens* over them. A prompt that must stay re-runnable, a response another agent opens deliberately with Read, a manifest that is the only local record of remote state: none of those survive being flattened into a row. Query them in place instead. DuckDB reads JSON and JSONL directly, in memory by default, so relational access costs no ingestion step and creates no second copy.
+
+The second case is not a grudging exception to the first. It is the more common one, and this repo already lives by it. `postmortem-index` rebuilds its index from the directory every time it is asked and refuses to commit a listing, because "a listing that gets committed and trusted becomes a copy that drifts out of agreement with the directory." `gemini-bridge` writes run directories that are the handoff contract between models, plus an append-only `ledger.jsonl` queried in place.
+
+The failure this rule prevents is a copy with no reader. A copy earns its place only if it has a consumer other than the check that confirms it is a copy -- the same test CLAUDE.md invariant 1b applies to versions and changelogs.
 
 ### feedback loops compound
 
@@ -222,5 +229,5 @@ These principles govern everything in fb-claude-skills:
 - **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
 - **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
 - **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
-- **State management**: agent outputs stored in relational schemas (DuckDB star schema in agent-state), not flat files or KV stores (structured outputs as state).
+- **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (`agent-state`, `readwise-reader`), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
 - **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).
