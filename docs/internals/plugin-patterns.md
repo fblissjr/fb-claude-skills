@@ -82,6 +82,22 @@ for any plugin whose value is "inject conventions":
 Candidates when next touched: `dimensional-modeling`, `mece-decomposer` —
 both disabled in this repo for exactly the broadcast reason.
 
+Known ground-pattern limits, with specimens (first consumer report,
+2026-08-03): a bare package-manager token in a tooling list ("Tooling: bun,
+three@0.185.1 + playwright-core@1.61.1 (both pinned)") is a genuine
+declaration that matches nothing — bare tokens are exactly what 0.15.1
+stopped counting — while a documented command invocation ("bun run
+<script> --parity-only") matches `\b(bun|npm|yarn|pnpm) (add|install|run|ci)\b`
+despite being an example, not a rule. Net effect in the reporting repo:
+right verdict (silence), wrong line read. Tuning trigger: a second
+consumer specimen, or any wrong-direction case (a block silenced where the
+repo genuinely never stated its tooling). Until then the specimens
+accumulate here. Related diagnostic gap from the same report: the hook's
+silence has at least three causes (no cwd in stdin, no triggers matched,
+all ground covered) and nothing distinguishes them without `bash -x` — an
+opt-in `--explain` mode printing per-directive verdicts is the candidate
+fix, filed not built.
+
 ## Agent vs. skill
 
 - **Skill** (in `skills/<name>/SKILL.md`): static reference. Loads when the description matches the user's intent. Read by the model in the main session.
