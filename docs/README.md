@@ -1,4 +1,4 @@
-last updated: 2026-07-23
+last updated: 2026-08-03
 
 # documentation
 
@@ -19,7 +19,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | Document | Description |
 |----------|-------------|
 | [plugin-versioning.md](internals/plugin-versioning.md) | Full version cascade for plugin content changes; `sync-versions` coverage gaps; worked example |
-| [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; agents; bash 3.2 portability |
+| [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; scaffolder-not-broadcaster; bracket-the-hook; agents; bash 3.2 portability |
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
 | [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
 | [gemini_bridge_design.md](internals/gemini_bridge_design.md) | **Frozen record** (2026-08-02) of the gemini-bridge design session and the live probing that corrected it. History, not documentation |

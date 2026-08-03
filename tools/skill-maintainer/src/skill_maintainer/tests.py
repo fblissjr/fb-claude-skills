@@ -23,6 +23,7 @@ from skill_maintainer.shared import (
     get_review_interval,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
+    _skipped,
     check_description_quality,
     discover_plugins,
     discover_skills,
@@ -780,7 +781,21 @@ def _version_candidates(root: Path) -> dict[str, set[str]]:
         add(data.get("name"), data.get("version"))
         add(plugin_dir.name, data.get("version"))
 
-    for pyproject in sorted(root.glob("*/*/pyproject.toml")):
+    # Root pyproject included so a single-package repo reached via --dir
+    # resolves its own name; _skipped keeps gitignored reference clones
+    # (coderef/ symlinks to foreign repos) out of the map -- their versions are
+    # whatever the local checkout happens to be, which made this check
+    # machine-dependent for claims naming an upstream dep.
+    pyprojects = [
+        p
+        for p in (
+            root / "pyproject.toml",
+            *root.glob("*/pyproject.toml"),
+            *root.glob("*/*/pyproject.toml"),
+        )
+        if p.is_file() and not _skipped(p, root)
+    ]
+    for pyproject in sorted(pyprojects):
         # _pyproject_version already parsed this file and returned None for every
         # shape without a static version, so reaching here means it parses.
         version = _pyproject_version(pyproject)
@@ -878,7 +893,19 @@ def check_changelog_claims(root: Path) -> list[Result]:
     note = f"{checked}/{len(claims)} top-section claims resolved to a versioned unit"
     if unresolved:
         note += f"; not versioned here: {', '.join(sorted(set(unresolved)))}"
-    results.append(Result("repo", "", "changelog claims", True, note))
+    # The scope summary rides along only when every claim row passed. A run
+    # that failed a claim must not also emit a PASS row under the same check
+    # name -- anyone filtering output for "changelog claims.*PASS" would see
+    # green for the exact check that just fired.
+    if all(r.passed for r in results):
+        results.append(Result("repo", "", "changelog claims", True, note))
+    else:
+        for i, r in enumerate(results):
+            if not r.passed:
+                results[i] = Result(
+                    r.category, r.name, r.check, r.passed, f"{r.detail} [{note}]"
+                )
+                break
     return results
 
 

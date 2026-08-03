@@ -80,7 +80,7 @@ Everything in this list loads on every session. Each line is a fixed cost.
 For plugins with behavioral content that should persist across sessions:
 
 - [ ] `hooks/` directory with `hooks.json` (event -> command) and `session-start.sh`
-- [ ] Directives in `hooks/directives/*.md`, each with `# trigger: <signal>` on line 1
+- [ ] Directives in `hooks/directives/*.md`, each with `# trigger: <signal>` on line 1. Directives a repo can supersede also declare `# ground: <ERE>` in the leading metadata block (line 2 by convention) -- the pattern of a repo-local rule covering the same ground, which silences the block there. A directive without a ground line broadcasts unconditionally, which is the pre-ground behavior and usually not what you want for convention prose
 - [ ] Detection logic orders cheap checks (file/dir stat) before expensive checks (grep)
 - [ ] Adding a new convention = dropping a `.md` file in `directives/`, no shell editing
 - [ ] Behavioral content in hook directives; detailed reference in on-demand skills

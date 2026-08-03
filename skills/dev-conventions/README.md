@@ -24,7 +24,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 
 | Hook | Event | What it does |
 |------|-------|--------------|
-| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd (root + 2 levels deep for monorepos), injects matching directives as additionalContext. |
+| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd (root + 2 levels deep for monorepos), injects matching directives as additionalContext -- skipping any block whose ground the repo's own files already cover, and any block muted in `.dev-conventions.json`. |
 
 ### detection markers
 
@@ -43,7 +43,7 @@ To add a new directive: drop a `.md` file in `hooks/directives/` and add a detec
 
 ### ground coverage: blocks silence themselves where local rules exist
 
-Each directive declares its *ground* as a regex on line 2 (`# ground: ...`). Before injecting a block, the hook greps that pattern across the repo's own conventions surfaces -- root `CLAUDE.md`, `.claude/rules/*.md`, and `rules[]` in `.dev-conventions.json`. Covered ground means that block stays silent, per block: a CLAUDE.md that only describes module layout silences nothing; a repo that states its own package-manager rule silences exactly that block. Silencing gates prose only -- the PreToolUse enforcement hook never consults it.
+Each directive declares its *ground* as a regex in its leading metadata block (`# ground: ...`, line 2 by convention). Before injecting a block, the hook greps that pattern across the repo's own conventions surfaces -- root `CLAUDE.md`, `.claude/rules/*.md`, and `rules[]` in `.dev-conventions.json`. Covered ground means that block stays silent, per block: a CLAUDE.md that only describes module layout silences nothing; a repo that states its own package-manager rule silences exactly that block. Silencing gates prose only -- the PreToolUse enforcement hook never consults it.
 
 To make the conventions local in the first place, `/dev-conventions:init` scaffolds tailored convention lines into the repo's own files (skipping ground already covered), after which the blocks are silent here automatically -- and the scaffolded text reaches every collaborator's Claude through normal context loading, including people who never installed this plugin.
 
@@ -55,7 +55,7 @@ The manual override, for ground the coverage pattern cannot see (a local rule ph
 { "directives": { "tdd": false, "doc-conventions": false } }
 ```
 
-Muting trims the shipped defaults only -- the repo's own `rules[]` still load even with every directive muted. The injected block opens with a standing supersession line: a repo-local rule covering the same ground wins over any shipped block.
+Muting trims the shipped defaults only -- the repo's own `rules[]` still load even with every directive muted. The inverse override also exists: an explicit `true` force-loads a block, skipping coverage -- the escape for a ground pattern that over-matches and wrongly silences a block the repo never stated. An absent key means coverage decides, which is the default. The injected block opens with a standing supersession line: a repo-local rule covering the same ground wins over any shipped block.
 
 ## skills
 
@@ -68,4 +68,4 @@ Muting trims the shipped defaults only -- the repo's own `rules[]` still load ev
 
 ## how it works
 
-When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, `*.py`, `bun.lock`). It first checks the project root, then falls back to scanning up to 2 levels deep for monorepo layouts (e.g., `backend/pyproject.toml`, `web/frontend-app/package.json`). Skips `node_modules`, `.venv`, `.git`, `dist`, `build`, `.next`, `.output`. For each detected marker, the hook reads the corresponding directive file from `hooks/directives/` and concatenates the results into a single `additionalContext` block -- no manual invocation needed. For full conversion tables or detailed methodology, invoke the skills directly.
+When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, `*.py`, `bun.lock`). It first checks the project root, then falls back to scanning up to 2 levels deep for monorepo layouts (e.g., `backend/pyproject.toml`, `web/frontend-app/package.json`). Skips `node_modules`, `.venv`, `.git`, `dist`, `build`, `.next`, `.output`. For each detected marker, the hook reads the corresponding directive file from `hooks/directives/`, drops any block whose ground the repo's own files already cover (or that the repo muted), and concatenates what remains into a single `additionalContext` block -- no manual invocation needed. A repo that states all its own conventions gets complete silence. For full conversion tables or detailed methodology, invoke the skills directly.

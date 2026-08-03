@@ -85,30 +85,35 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTEXT=""
 
-# Per-repo directive gating. A repo whose own rules supersede a shipped block
-# turns it off by filename in .dev-conventions.json:
-#   { "directives": { "tdd": false, "doc-conventions": false } }
+# Per-repo directive gating via .dev-conventions.json. Three states per
+# directive filename: absent/"" (ground coverage decides), false (muted,
+# never loads), true (FORCE-load: coverage is skipped). Explicit true exists
+# because a ground pattern that over-matches silences a block wrongly, and
+# mute can only force silence — without a force-on, a wrongly-silenced
+# convention is simply lost for that repo.
+#   { "directives": { "tdd": false, "python": true } }
 # Same has() guard as the PreToolUse hook's enforced(): jq's `//` treats a
 # stored `false` as absent, so the key is tested explicitly.
 CFG="$CWD/.dev-conventions.json"
-directive_enabled() {
-  [ -f "$CFG" ] || return 0
-  command -v jq >/dev/null 2>&1 || return 0
-  local v
-  v=$(jq -r --arg k "$1" \
-      'if (.directives? | type) == "object" and (.directives | has($k))
-       then (.directives[$k] | tostring) else "" end' "$CFG" 2>/dev/null)
-  [ "$v" != "false" ]
+directive_state() {
+  [ -f "$CFG" ] || { echo ""; return; }
+  command -v jq >/dev/null 2>&1 || { echo ""; return; }
+  jq -r --arg k "$1" \
+     'if (.directives? | type) == "object" and (.directives | has($k))
+      then (.directives[$k] | tostring) else "" end' "$CFG" 2>/dev/null
 }
 
 # Ground coverage: a block whose GROUND the repo's own always-loaded files
 # already cover stays silent — per block, not per file. A repo whose CLAUDE.md
 # only describes its module layout still gets every block; a repo that states
 # its own package-manager rule silences exactly that block and no other. Each
-# directive declares its ground as an ERE on line 2 ("# ground: ..."); no
-# ground line means the block always loads (fail-open to broadcast, so a
-# custom directive without one keeps yesterday's behavior). The surfaces
-# checked are the repo's conventions carriers: root CLAUDE.md,
+# directive declares its ground as an ERE in its leading metadata block
+# ("# ground: ...", line 2 by convention); no ground line means the block
+# always loads (fail-open to broadcast, so a custom directive without one
+# keeps pre-0.15.0 behavior). The patterns demand rule-shaped context, not
+# bare token mentions — "never use npm" covers the ground, "distributed via
+# npm" does not (reviewed specimens are pinned in the test suite). The
+# surfaces checked are the repo's conventions carriers: root CLAUDE.md,
 # .claude/rules/*.md, and rules[] in .dev-conventions.json. Silencing gates
 # PROSE only — the PreToolUse enforcement hook never consults this.
 ground_covered() {
@@ -124,10 +129,22 @@ ground_covered() {
   return 1
 }
 
+# ground_of / directive_body: the leading run of "# key: value" lines is
+# metadata as a CLASS — honored only at the head, stripped only at the head.
+# A body line that happens to start with "# ground: " (a directive
+# documenting the syntax) survives into the output, and a future metadata
+# key neither leaks into sessions nor gets silently eaten from bodies.
+ground_of() {
+  awk '/^# [a-z-]+: /{ if (sub(/^# ground: /, "")) { print; exit } next } { exit }' "$1"
+}
+directive_body() {
+  awk 'body { print; next } /^# [a-z-]+: /{ next } { body = 1; print }' "$1"
+}
+
 for f in "$SCRIPT_DIR"/directives/*.md; do
   [ -f "$f" ] || continue
-  directive_enabled "$(basename "$f" .md)" || continue
-  ground_covered "$(sed -n '2s/^# ground: //p' "$f")" && continue
+  # Cheapest check first: the trigger match is pure bash; jq and grep run
+  # only for directives that survive it.
   trigger=$(head -1 "$f" | sed 's/^# trigger: //')
   case "$trigger" in
     python)     [ "$HAS_PYTHON" = true ] || continue ;;
@@ -136,9 +153,13 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
     any)        ;;
     *)          continue ;;
   esac
+  state=$(directive_state "$(basename "$f" .md)")
+  [ "$state" = "false" ] && continue
+  if [ "$state" != "true" ]; then
+    ground_covered "$(ground_of "$f")" && continue
+  fi
   [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
-  # Strip the metadata lines (trigger, ground) — everything else is content.
-  CONTEXT+=$(grep -v '^# trigger: ' "$f" | grep -v '^# ground: ')
+  CONTEXT+=$(directive_body "$f")
 done
 
 # Per-repo house rules, appended to the shipped defaults. Always-loaded text,

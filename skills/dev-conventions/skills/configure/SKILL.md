@@ -7,7 +7,7 @@ description: >-
   conventions here", "add a rule", "disable the pip block", "this repo uses npm",
   "turn off the lockfile guard", "mute the TDD block", "drop the doc conventions
   here", "customise dev conventions for this project", or "/dev-conventions:configure".
-argument-hint: "[show|allow|deny|add|remove|mute|unmute] [rule, directive, or text]"
+argument-hint: "[show|allow|deny|add|remove|mute|unmute|force] [rule, directive, or text]"
 arguments:
   - action
   - target
@@ -73,11 +73,16 @@ overridden. If the file is absent, say so and show what the defaults are.
 Valid rules: `python-package-manager`, `js-package-manager`, `lockfile-edits`.
 Create the file if needed, preserving any existing keys.
 
-**`mute <directive>` / `unmute <directive>`** — set `directives.<name>` to
-`false` / `true`. Valid names: `python`, `javascript`, `tdd`, `doc-conventions`.
-Before muting, confirm the repo actually has a superseding local rule (CLAUDE.md
-or `.claude/rules/`) covering the same ground, and say which file it is — muting
-a block nothing replaces is losing the convention, not trimming a duplicate.
+**`mute <directive>` / `unmute <directive>` / `force <directive>`** — a
+directive key has three states: `false` (muted, never loads), absent (ground
+coverage decides — the default), `true` (force-load, coverage skipped). So:
+`mute` sets `false`; `unmute` *removes* the key, returning the block to
+coverage-decided; `force` sets `true`, for when a ground pattern over-matches
+and wrongly silences a block the repo never stated. Valid names: `python`,
+`javascript`, `tdd`, `doc-conventions`. Before muting, confirm the repo
+actually has a superseding local rule (CLAUDE.md or `.claude/rules/`) covering
+the same ground, and say which file it is — muting a block nothing replaces is
+losing the convention, not trimming a duplicate.
 
 **`add <text>`** — append a one-line rule to `rules[]`. Before writing it, apply
 the tier test: if the rule is mechanically checkable, say so and offer a hook

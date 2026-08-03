@@ -1,6 +1,6 @@
 # postmortem
 
-*Last updated: 2026-07-26*
+*Last updated: 2026-08-03*
 
 Evidence-grounded retrospectives. One skill runs a postmortem of finished work
 — a session, a feature, or a span of sessions mined from git history, session
@@ -26,7 +26,7 @@ the same run's verification lessons.
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently" | Verdicted retrospective of finished work; session mode (the conversation) or span mode (git history, session logs, changelogs, plan docs). Output is always a durable file. |
-| `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden. |
+| `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
 
 ## Invocation

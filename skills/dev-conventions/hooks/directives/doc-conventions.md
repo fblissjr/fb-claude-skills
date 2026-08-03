@@ -1,5 +1,5 @@
 # trigger: docs
-# ground: session log|last.updated|internal/log|doc(umentation)? convention|freshness marker
+# ground: session log|last.updated date|\binternal/log\b|doc(umentation)? convention|freshness marker
 ## Documentation conventions (auto-loaded)
 - Last updated date (YYYY-MM-DD) at top of docs/READMEs you create or modify. Classes a repo deliberately exempts (changelogs, dated records that carry their date in content or filename) stay exempt.
 - Lowercase filenames, no spaces, no camelCase. Separator follows the repo's existing convention; underscores when there is none.
