@@ -255,6 +255,48 @@ rather than solved it.
   content — `check_path_privacy` exists because five leaked paths survived 157
   days and a full docs triage behind clean diffs.
 
+## Bracket-the-hook
+
+Field-tested in a sibling repo's claims-reminder apparatus (2026-08-03): a hook
+that classifies tool calls and speaks or stays silent is itself check-shaped,
+so it gets its own control — a small script that pipes synthetic hook payloads
+through the real hook binary and asserts on the JSON out. Without one, the hook
+is the least-checked artifact in the plugin: correct when written, silently
+wrong after the first edit.
+
+The arms that earn their place, each pinning a specific rot mode:
+
+- **A speaks arm per class** — the only proof the hook ever fires at all. Assert
+  the message *content* (a regex), not just presence; a hook emitting the wrong
+  class's message passes a presence check.
+- **The dedup arm** — same payload twice, second must be silent. Record it red
+  against a dedup-stripped mutant before trusting it: without that, deleting the
+  state-file check leaves every arm green while the hook wallpapers every edit.
+- **Edge-pinning silence arms** — payloads just *outside* each class (a tool
+  file, a plain command) must stay silent. These go red first when a pattern
+  widens by accident. Pin a second path per multi-path class, or accidental
+  *narrowing* goes red nowhere.
+- **Malformed-stdin arm** — garbage in must produce a clean allow and exit 0. A
+  hook that crashes on bad input is worse than one that says nothing.
+- **Cited-examples-resolve arm** — if the hook's messages teach from commit shas
+  or file paths, assert they still resolve. A reminder citing a dangling example
+  reads as archaeology and stops being believed; this is how the control's
+  *pedagogy* rots while its logic stays green.
+- **State-lifecycle arms** where state exists — e.g. fire, clear (the
+  PostCompact path), fire again.
+
+Delivery semantics worth knowing when writing the hook under test (verified
+against the 2026-07-21 upstream snapshot): PreToolUse `additionalContext` is
+delivered *next to the tool result* — the model reads it one half-step after
+the action, not before it. Mid-session injections are replayed verbatim on
+`--resume`, not re-run. And compaction can summarize a delivered reminder out
+of context while the hook's dedup state survives — pair any once-per-session
+reminder with a PostCompact state clear or its second half runs unguarded.
+
+The authoring checklist for the hook itself (header sections, measured FP rate,
+retirement trigger, factual-statement phrasing) lives in
+`skill-maintainer`'s best-practices reference under "control authoring".
+
 ## Per-repo plugin config
 
 A plugin that needs per-repo overrides ships its own root-level

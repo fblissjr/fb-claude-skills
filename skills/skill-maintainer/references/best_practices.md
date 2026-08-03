@@ -1,4 +1,4 @@
-last updated: 2026-07-24
+last updated: 2026-08-03
 
 # best practices checklist
 
@@ -195,6 +195,46 @@ Subagents are a separate surface from skills, with their own frontmatter. Only
 
 - [ ] Delegate to isolate high-volume output (test runs, doc fetches, log processing) and for parallel independent investigations
 - [ ] Stay in the main conversation for iterative back-and-forth, shared multi-phase context, quick targeted edits, and latency-sensitive work
+
+## control authoring (hooks, checks, reminders)
+
+<!-- source: field-tested in a sibling repo's claims-reminder apparatus, 2026-08-03 -->
+
+Applies to anything check-shaped a plugin ships: a hook that classifies and
+speaks or stays silent, a validator, a reminder. The failure mode these guard
+against is a control that is trusted because it exists, not because anything
+watches it.
+
+- [ ] **The header carries four sections**: WHY NOT the obvious alternative
+      (the tool you rejected, with the disqualifying fact); the measured
+      false-positive rate with its sample ("fires on 15 of 25 commits,
+      undeduped"); WHAT IT DOES NOT DO, said plainly; and a RETIREMENT TRIGGER
+      named at install -- the observable condition under which the control gets
+      deleted rather than tuned. A control that cannot say when it should die
+      outlives its usefulness by default
+- [ ] **A subordination rule where classes are involved**: any class the
+      control covers that later becomes mechanically checkable gets a real
+      check, and the control drops that class. Reminders are the bottom tier,
+      not a destination
+- [ ] **Reminder-tier output is deduplicated and measured.** An undeduplicated
+      reminder firing on most actions is wallpaper -- people learn to scroll
+      past it, which trains dismissal of the whole channel. Measure the fire
+      rate on real history before shipping
+- [ ] **Model-facing text is factual statements, not imperatives.** Hook
+      `additionalContext` framed as out-of-band commands can trip prompt-injection
+      defenses and get surfaced to the user's terminal instead of read by the
+      model -- which silently converts a model-facing control into a user-facing
+      one. State facts and name where the procedure lives
+- [ ] **A green states its scope.** A check whose success output cannot be
+      distinguished from a run that checked nothing is the recurring silent
+      killer (zero files scanned, report `ok`). Print the derived count of what
+      was covered
+- [ ] **Prefer a fixture that cannot collide over one that probably will not.**
+      A control right 97% of the time teaches people to re-run it until it
+      agrees, which is worse than not having it
+- [ ] **Bracket the control itself** (see the bracket-the-hook pattern in this
+      repo's plugin-patterns doc): prove it can go red, pin its silent edges,
+      and check that any examples its messages cite still resolve
 
 ## spec compliance
 

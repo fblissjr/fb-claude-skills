@@ -27,6 +27,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [tiered_authorization.md](internals/tiered_authorization.md) | Gating expensive or external calls by tier: UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny |
 | [model_routing_flywheel.md](internals/model_routing_flywheel.md) | Why the delegation feedback layer was a report rather than a loop; schema, grain and cost fixes |
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
+| [claim_audit_design.md](internals/claim_audit_design.md) | Spec for the claim-audit skill (diff prose audited by execution, instrument-yield routing) — designed 2026-08-03, NOT started |
 
 ## package documentation
 
