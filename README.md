@@ -14,7 +14,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; a small SessionStart directive carries only what no hook can enforce; skills hold what Claude cannot derive. Per-repo overrides in a tracked `.dev-conventions.json`. |
+| [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; SessionStart directives carry what no hook can enforce and silence themselves per block where the repo's own files cover the same ground; `/dev-conventions:init` scaffolds the conventions into the repo's own files so they reach every collaborator, plugin installed or not. Per-repo overrides in a tracked `.dev-conventions.json`. |
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas. A skill you invoke when designing a schema -- the SessionStart hook was removed, since the principles are needed at a decision point rather than before every session. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. Both split into a short body plus `references/`. |
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. Filed as standalone dated files in a per-repo resolved location, optionally rendered to a self-contained HTML file. `postmortem-index` — a generated browsable page over them, answering "has anything been written about this file". `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. |
@@ -177,6 +177,7 @@ Once installed, invoke as namespaced slash commands:
 /dimensional-modeling          # Star schema design patterns
 
 /dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
+/dev-conventions:init           # Scaffold the conventions into this repo's own files, once
 /dev-conventions:configure      # Per-repo convention overrides
 /dev-conventions:dep-audit     # Full bun conversion tables
 /dev-conventions:doc-conventions # Documentation standards

@@ -38,7 +38,7 @@ Each plugin with behavioral content has a `hooks/` directory with:
 
 - `hooks.json` — event-to-command registration
 - `session-start.sh` — detection logic + directive assembly
-- `directives/*.md` — composable directive files, each declaring `# trigger: <signal>` on line 1
+- `directives/*.md` — composable directive files, each declaring `# trigger: <signal>` on line 1. As of dev-conventions 0.15.0 a directive may also declare `# ground: <ERE>` on line 2 — the hook greps that pattern across the repo's own conventions surfaces (root CLAUDE.md, `.claude/rules/*.md`, config `rules[]`) and silences the block where covered, per block. Shipped directives must declare ground; a missing line fails open to broadcast so custom directives keep working.
 
 Adding a new convention = dropping a `.md` file in `directives/`. No shell editing.
 
@@ -51,6 +51,36 @@ Detection logic in `session-start.sh` orders cheap checks (file/dir stat) before
 - `env-forge`: `envforge`
 
 Plugins using this pattern: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `env-forge`, `path-privacy`.
+
+## Scaffolder, not broadcaster
+
+First instance shipped 2026-08-03 (dev-conventions 0.15.0); the pattern is
+provisional until a second plugin adopts it or fleet evidence lands (a
+consumer repo's pre-registered measurement reports 2026-08-24).
+
+Broadcast prose has four structural friction properties: generic by necessity
+(so it states forms, which collide with mature local practice), paid every
+session, unownable by the repo (mute is rent reduction on a two-party
+structure, not dissolution), and coupled to plugin updates. The inversion,
+for any plugin whose value is "inject conventions":
+
+1. **Enforce facts centrally** — mechanical rules stay hooks, updated by the
+   plugin, zero ambient cost. This is the one tier where central updates are
+   correct.
+2. **Scaffold preferences locally** — an init skill writes tailored
+   convention lines into the repo's own files, once. The load-bearing fact:
+   scaffolded text reaches every collaborator's Claude through normal context
+   loading; broadcast only ever reached installers.
+3. **Silence by ground coverage, per block** — each directive declares its
+   ground pattern; the hook stays quiet exactly where the repo's own files
+   cover it. Per block, not per file-existence: an architecture-only
+   CLAUDE.md covers nothing and silences nothing.
+4. **The remaining ambient tier trends toward one self-extinguishing
+   pointer** for repos with no conventions at all (deliberately not yet
+   shipped — gated on the consumer-repo evidence).
+
+Candidates when next touched: `dimensional-modeling`, `mece-decomposer` —
+both disabled in this repo for exactly the broadcast reason.
 
 ## Agent vs. skill
 

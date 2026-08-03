@@ -132,11 +132,13 @@ The fix: don't include numbers in prose. Say "domain reports" rather than a hard
 
 ## SessionStart hooks from our own plugins are disabled here
 
-Three plugins are disabled in this repo only, via `enabledPlugins: false` in `.claude/settings.json`: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`. (`env-forge` is deprecated, not disabled — the `renames` map in `marketplace.json` handles its removal. An `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.) Their SessionStart hooks inject roughly 3,500 characters of directive text per session — conventions this repo already has written down in `.claude/rules/general.md` and in the user's global CLAUDE.md. Loading both is pure duplication with no benefit.
+Three plugins are disabled in this repo only, via `enabledPlugins: false` in `.claude/settings.json`: `dev-conventions`, `dimensional-modeling`, `mece-decomposer`. (`env-forge` is deprecated, not disabled — the `renames` map in `marketplace.json` handles its removal. An `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.) Their SessionStart hooks inject directive text into every session — conventions this repo already has written down in `.claude/rules/general.md` and in the user's global CLAUDE.md. Loading both is pure duplication with no benefit.
 
 The hooks are not removed from the plugins themselves. They exist for repos that have nothing written down yet — a fresh clone of some other project has no `.claude/rules/general.md`, so the injected directive is doing real work there. This repo is the exception, not the rule the plugins are designed around.
 
 A future session should not "helpfully" re-enable these plugins to restore consistency with other repos. The setting is intentional and repo-specific; if it looks like an oversight, check `.claude/settings.json` and this section before touching it.
+
+**Premise change, 2026-08-03 — recorded, not acted on.** dev-conventions 0.15.0 silences each directive per block wherever the repo's own files cover its ground, and a test arm runs the hook against this repo live: complete silence, all four grounds covered. So for dev-conventions specifically, the duplication this disable prevents no longer occurs, and the disable's remaining effect is losing the PreToolUse enforcement hooks (pip/npm/lockfile blocks). Re-enabling dev-conventions here would now cost zero ambient text and restore enforcement. That flip is the owner's decision — this paragraph exists so the next session weighs the current facts instead of the 2026-07 ones. The rationale still holds unchanged for `dimensional-modeling` and `mece-decomposer`, which have no coverage detection.
 
 
 ## Removing a frontmatter field can break the pre-commit hook
