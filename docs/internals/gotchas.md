@@ -53,6 +53,17 @@ The hook source lives in the Python package at `tools/skill-maintainer/src/skill
 
 The hook uses `jq` for JSON parsing (not python3/orjson) since it runs outside the project venv. Bash 3.2 portability rules apply (see [plugin-patterns.md](plugin-patterns.md)).
 
+### Local secret gate in pre-commit.local (this machine only)
+
+`.git/hooks/pre-commit.local` carries a gitleaks stage (section 1c) added 2026-08-03. Rationale: GitHub push protection does not cover `google_api_key` or `google_gemini_api_key` (alerts only, per GitHub's supported-patterns table), and the one real secret handled around this repo is a Gemini key — so a leaked key would push successfully and only alert after it was public. The stage scans the staged diff with gitleaks 8.30.1, pinned at `<HOME>/.local/bin/gitleaks`, installed by hand with its sha256 verified against the release checksums file. Default ruleset, no config: measured against this repo's tree and full history, it produces zero findings, so there is no allowlist to maintain. Fails closed when the binary is missing.
+
+Two things to know:
+
+- **It is machine-local and untracked**, like everything in `.git/hooks/`. A fresh clone gets nothing until the stage is re-added and the binary reinstalled.
+- **`skill-maintain init --force-hook` clobbers it**: that flag preserves the *current* `pre-commit` as `pre-commit.local`, overwriting the existing `.local` file — which is where the gitleaks stage lives. Re-add the stage after any forced hook reinstall.
+
+Deliberately NOT shipped in the skill-maintainer hook template: that would impose a fail-closed binary dependency on every repo using the plugin. An adversarial review (2026-08-03, session log) concluded CI scanners (gitleaks or betterleaks) add little over GitHub's native scanning for this repo; the pre-commit stage exists solely to close the Google-key push-protection gap.
+
 ## path-privacy interaction
 
 The path-privacy plugin's pre-commit and commit-msg hooks hard-block any commit whose staged content, message, or branch name references an absolute path outside the repo root. This includes `~`, `$HOME`, and `/Users/<name>/...` shapes.  <!-- path-privacy: ignore -->
