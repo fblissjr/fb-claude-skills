@@ -1,6 +1,6 @@
 {
   "name": "path-privacy",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
   "author": {
     "name": "Fred Bliss"

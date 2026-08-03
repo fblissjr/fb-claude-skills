@@ -57,7 +57,12 @@ def record(
     credential_kind: str,
     error: str | None = None,
     allow_prompt_secrets: bool = False,
-    prompt_scanned: bool = True,
+    # Defaults to False -- absent means "assume not scanned". The field exists
+    # because unscanned runs were being positively mislabelled as scanned, and
+    # a True default rebuilds that bug one forgotten kwarg from now: the row
+    # would claim scanned and hide the run from the exact audit filter the
+    # README points at. A caller that DID scan says so explicitly.
+    prompt_scanned: bool = False,
     interaction_id: str | None = None,
 ) -> Path:
     """Append one call record. Never raises -- logging must not break the call."""

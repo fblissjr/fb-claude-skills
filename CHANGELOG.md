@@ -1,5 +1,12 @@
 # changelog
 
+## 1.2.7
+
+### fixed
+- **`path-privacy` 0.16.0 → 0.16.1 — a NUL byte could forge a closing fence to the shell engine.** Found by an adversarial review of 1.2.6, whose 4,000-body differential fuzz otherwise confirmed the two engines agree. BSD awk ends its *record* at a NUL, so a ` ``` ` line with a NUL tail reached the fence function as a bare run — a valid closer — while the Python twin saw the non-blank tail and kept the fence open: the split-engine class 1.2.6 existed to eliminate, reopened through bytes no honestly-authored text file carries. A `tr '\000' '\001'` in front of the awk keeps the forged tail visible, which is both the agreeing and the fail-closed direction. Scoping note recorded in the test: the *scanner* never reaches fence logic for NUL-bearing files — they take its pre-existing binary detour ("not scanned, check by hand", exit 0) — so the fix and its test live at the library level, where the PreToolUse hook and the scrub call directly. Mutation-checked: removing the `tr` turns the new fixture red — after the first mutation run was itself caught being a no-op (a quoting layer swallowed the needle; the retry asserts the needle exists before claiming anything).
+
+- **`gemini-bridge` 0.6.0 → 0.6.1 — `ledger.record`'s `prompt_scanned` default flipped to False.** Same review: defaulting the new field to True rebuilds 0.6.0's bug one forgotten kwarg from now — a future call site omitting it would mislabel an unscanned run as scanned, hiding it from the exact audit filter the README points at. Absent now means "assume not scanned"; a caller that did scan says so explicitly. Both call sites already pass it, so nothing was live.
+
 ## 1.2.6
 
 ### fixed

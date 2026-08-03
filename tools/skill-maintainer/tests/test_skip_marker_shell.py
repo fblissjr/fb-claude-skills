@@ -168,6 +168,36 @@ def test_unicode_blank_before_a_fence_is_not_a_fence_in_either_engine(tmp_path, 
     assert python_exempt, "not a fence, so the leading marker is live"
 
 
+def _lib_head_has_marker(path: Path) -> bool:
+    """The library function itself, not the scanner: pp_head_has_skip_marker.
+
+    The scanner short-circuits NUL-bearing files into its binary detour
+    ("not scanned, check by hand", exit 0) before any marker logic runs, so
+    scanner-level tests cannot see the fence tracker's byte handling. The
+    PreToolUse hook and the scrub call this function directly, so its
+    behaviour is load-bearing on its own.
+    """
+    r = subprocess.run(
+        ["bash", "-c", f'. "{LIB}"; pp_head_has_skip_marker "$1"', "_", str(path)],
+        capture_output=True, text=True,
+    )
+    return r.returncode == 0
+
+
+def test_nul_byte_cannot_forge_a_closing_fence(tmp_path):
+    """BSD awk ends its record at NUL, so a ``` line with a NUL tail read as a
+    bare closer to the shell -- closing the fence and exposing the marker --
+    while Python saw a non-blank tail and kept the fence open. The split-engine
+    class again, through bytes no honestly-authored text file carries. Both
+    engines must refuse the forged closer: fence stays open, marker stays
+    hidden. (The tr in pp_strip_fenced is what makes the shell side hold.)
+    """
+    body = "```\n```\x00\n# path-privacy: skip-file\nleak " + LEAK + "\n"
+    f = _write(tmp_path, body)
+    assert not _lib_head_has_marker(f), "shell treated a NUL-tailed run as a closer"
+    assert not _has_skip_marker(body), "python treated a NUL-tailed run as a closer"
+
+
 def test_shell_ignores_marker_below_the_window(tmp_path):
     body = "\n".join(["filler"] * 40 + ["# path-privacy: skip-file", f"leak {LEAK}"])
     f = _write(tmp_path, body + "\n")
@@ -209,6 +239,10 @@ def test_shell_and_python_agree(tmp_path):
         f"{ws}```\n# path-privacy: skip-file\n{ws}```\nleak {LEAK}\n"
         for ws in UNICODE_BLANKS
     ]
+    # NUL bodies are deliberately absent here: the scanner routes NUL-bearing
+    # files into its binary detour before marker logic runs, so scanner-vs-
+    # audit agreement legitimately does not hold for them. The library-level
+    # agreement is pinned by test_nul_byte_cannot_forge_a_closing_fence.
     disagreements = []
     for body in bodies:
         f = _write(tmp_path, body, name="agree.md")

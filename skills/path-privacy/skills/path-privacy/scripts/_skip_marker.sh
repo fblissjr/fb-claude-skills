@@ -124,8 +124,16 @@ pp_is_skip_marker_line() {
 # Procedural rather than regex because the portable middle ground does not
 # exist: interval expressions like {0,3} are missing from older mawk and
 # one-true-awk, and this library runs on whatever awk the host has.
+# The tr in front of the awk closes a byte-level engine split: BSD awk ends
+# its RECORD at a NUL, so a ``` line with a NUL tail reached pp_fence as a
+# bare run -- a valid closer -- while the Python twin saw the tail, kept the
+# fence open, and the two gates disagreed about the file. Mapping NUL to a
+# non-blank control byte before awk keeps the forged tail visible: not a
+# closer in either engine, which is also the fail-closed direction. \001 in
+# any other position changes nothing that mattered -- it was already not a
+# space, not a fence character, and not legal inside the marker.
 pp_strip_fenced() {
-  LC_ALL=C awk '
+  LC_ALL=C tr '\000' '\001' | LC_ALL=C awk '
     # pp_fence(line): 1 when the line is a fence -- at most three spaces of
     # indent, then a run of three or more backticks or tildes. Sets FCH to the
     # fence character, FLEN to the run length, and FCLOSE to 1 when nothing
