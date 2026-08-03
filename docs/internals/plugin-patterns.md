@@ -88,11 +88,16 @@ pair: a bare package-manager token in a tooling list ("Tooling: bun,
 three@0.185.1 + playwright-core@1.61.1 (both pinned)") is a genuine
 declaration that matches nothing, while a fenced command invocation
 ("bun run <script> --parity-only") matched despite being an example, not a
-rule. The originally-recorded verdict here ("right verdict, wrong line
-read") was wrong, corrected by the consumer's own measurement: the trigger
-gate short-circuits coverage, so on a fresh clone the coverage verdict was
-never consulted (moot), and on the one machine where coverage ran, the repo
-genuinely lacked the ground (wrong). Moot or wrong — never right.
+rule. The verdict on that specimen settled in three steps, worth keeping because
+each was a measurement: first "right verdict, wrong line read" (recorded
+here); then the consumer's correction — the trigger gate short-circuits
+coverage, so the coverage verdict was moot on any clone and, on the one
+machine where it ran, rested on a bogus line; then their own partial
+walk-back — the block is manifest-management advice and that repo has no
+root manifest (bun as runtime, not as package), so the *outcome* was
+defensible even though the *mechanism* was wrong. The durable sentence:
+judge the gate and the outcome separately — a control can be right for a
+bogus reason, and both facts belong in the record.
 
 What shipped against it: **fence-stripping** (coverage greps prose only —
 the rule-vs-command discriminator is positional, not lexical; the strip can
