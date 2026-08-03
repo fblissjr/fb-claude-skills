@@ -41,9 +41,15 @@ All injected content lives in `hooks/directives/` as standalone `.md` files. The
 
 To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/dev-conventions-session-start.sh`.
 
+### ground coverage: blocks silence themselves where local rules exist
+
+Each directive declares its *ground* as a regex on line 2 (`# ground: ...`). Before injecting a block, the hook greps that pattern across the repo's own conventions surfaces -- root `CLAUDE.md`, `.claude/rules/*.md`, and `rules[]` in `.dev-conventions.json`. Covered ground means that block stays silent, per block: a CLAUDE.md that only describes module layout silences nothing; a repo that states its own package-manager rule silences exactly that block. Silencing gates prose only -- the PreToolUse enforcement hook never consults it.
+
+To make the conventions local in the first place, `/dev-conventions:init` scaffolds tailored convention lines into the repo's own files (skipping ground already covered), after which the blocks are silent here automatically -- and the scaffolded text reaches every collaborator's Claude through normal context loading, including people who never installed this plugin.
+
 ### per-repo muting
 
-A repo whose own rules supersede a shipped block mutes it by filename in the tracked `.dev-conventions.json` (`/dev-conventions:configure mute tdd`, or by hand):
+The manual override, for ground the coverage pattern cannot see (a local rule phrased in repo-specific vocabulary). Mute by filename in the tracked `.dev-conventions.json` (`/dev-conventions:configure mute tdd`, or by hand):
 
 ```json
 { "directives": { "tdd": false, "doc-conventions": false } }
@@ -58,6 +64,7 @@ Muting trims the shipped defaults only -- the repo's own `rules[]` still load ev
 | `python-tooling` | `/dev-conventions:python-tooling` | Full uv conversion tables, pinning strategy, lock file workflow (detailed reference) |
 | `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, dependency change tracking, document the "why" |
 | `dep-audit` | `/dev-conventions:dep-audit` | Dependency security audit: uv audit, bun audit, transitive analysis, remediation workflow |
+| `init` | `/dev-conventions:init` | Scaffold the conventions into the repo's own files, once -- detects the stack, skips covered ground, writes tailored lines; the ambient blocks then silence themselves here |
 
 ## how it works
 

@@ -52,9 +52,13 @@ next session respectively.
   everything everywhere for that one call.
 - `directives.*` — mute a shipped SessionStart block for this repo, keyed by
   directive filename: `python`, `javascript`, `tdd`, `doc-conventions`. Omitted
-  keys default to `true`. This is for repos whose own rules supersede a generic
-  block — two overlapping rules for one behavior cost reconciliation on every
-  use, so the sharper local rule should be the only one loaded.
+  keys default to `true`. Usually unnecessary: the hook silences a block
+  automatically when the repo's own files (root `CLAUDE.md`, `.claude/rules/`,
+  `rules[]` here) cover that block's ground — each directive declares its
+  ground pattern on line 2. Mute is the manual override for ground the pattern
+  cannot see (a local rule phrased in repo-specific vocabulary). To make the
+  conventions local in the first place, `/dev-conventions:init` scaffolds them
+  into the repo's own files, which silences the blocks as a side effect.
 - `rules[]` — extra house rules appended to the SessionStart directive for this
   repo only. Keep them to one line each; this is always-loaded text and every
   line is paid on every session, including after each compaction.

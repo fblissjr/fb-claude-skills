@@ -1,5 +1,10 @@
 # changelog
 
+## 1.6.0
+
+### added
+- **`dev-conventions` 0.14.0 → 0.15.0 — scaffolder, not broadcaster.** The load-bearing fact: scaffolded text reaches every collaborator's Claude through normal context loading; broadcast only ever reached installers. So the ambient tier inverts. New `/dev-conventions:init` scaffolds tailored convention lines into the repo's own files, once — detects the stack, skips ground the repo already covers, applies the would-the-model-do-it-anyway exclusion to every line, tailors to the repo's actual state (an npm repo gets offered the migration, not a rule contradicting its lockfile), shows the diff, never auto-commits. And the SessionStart hook now silences each block automatically wherever the repo's own files cover that block's *ground* — per block, not per file: each directive declares its ground as a regex on line 2, and the hook greps root CLAUDE.md, `.claude/rules/*.md`, and config `rules[]` before injecting. The granularity was the one substantive review flag from the consumer repo, and it is what keeps 0.14.0's guardrail: an architecture-only CLAUDE.md silences nothing (pinned by a test arm), while a repo stating its own package-manager rule silences exactly that block. Coverage gates prose only — the PreToolUse enforcement hook never consults it. Muting (0.14.0) remains as the manual override for ground the pattern cannot see. Bracketed per the pattern this repo canonized yesterday: nine pytest arms in the repo suite, including metadata-never-leaks and every-shipped-directive-declares-ground. Broadcast remains the default for repos with no coverage at all; the arc's next step (a one-line self-extinguishing pointer for bare repos) is deliberately not in this release.
+
 ## 1.5.0
 
 ### added

@@ -101,9 +101,33 @@ directive_enabled() {
   [ "$v" != "false" ]
 }
 
+# Ground coverage: a block whose GROUND the repo's own always-loaded files
+# already cover stays silent — per block, not per file. A repo whose CLAUDE.md
+# only describes its module layout still gets every block; a repo that states
+# its own package-manager rule silences exactly that block and no other. Each
+# directive declares its ground as an ERE on line 2 ("# ground: ..."); no
+# ground line means the block always loads (fail-open to broadcast, so a
+# custom directive without one keeps yesterday's behavior). The surfaces
+# checked are the repo's conventions carriers: root CLAUDE.md,
+# .claude/rules/*.md, and rules[] in .dev-conventions.json. Silencing gates
+# PROSE only — the PreToolUse enforcement hook never consults this.
+ground_covered() {
+  local pat="$1" r
+  [ -n "$pat" ] || return 1
+  [ -f "$CWD/CLAUDE.md" ] && grep -qiE "$pat" "$CWD/CLAUDE.md" 2>/dev/null && return 0
+  for r in "$CWD"/.claude/rules/*.md; do
+    [ -f "$r" ] && grep -qiE "$pat" "$r" 2>/dev/null && return 0
+  done
+  if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
+    jq -r '.rules[]?' "$CFG" 2>/dev/null | grep -qiE "$pat" && return 0
+  fi
+  return 1
+}
+
 for f in "$SCRIPT_DIR"/directives/*.md; do
   [ -f "$f" ] || continue
   directive_enabled "$(basename "$f" .md)" || continue
+  ground_covered "$(sed -n '2s/^# ground: //p' "$f")" && continue
   trigger=$(head -1 "$f" | sed 's/^# trigger: //')
   case "$trigger" in
     python)     [ "$HAS_PYTHON" = true ] || continue ;;
@@ -113,7 +137,8 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
     *)          continue ;;
   esac
   [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
-  CONTEXT+=$(tail -n +2 "$f")
+  # Strip the metadata lines (trigger, ground) — everything else is content.
+  CONTEXT+=$(grep -v '^# trigger: ' "$f" | grep -v '^# ground: ')
 done
 
 # Per-repo house rules, appended to the shipped defaults. Always-loaded text,
