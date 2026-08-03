@@ -140,6 +140,15 @@ one of them is wrong. It also keeps the frontmatter honest under the no-citation
 no-finding rule — a findings-bearing postmortem with an empty `artifacts` list
 is a contradiction, not a formatting slip.
 
+**Resolve each path against the tree while assembling the list; do not write it
+from memory.** The list is built at the end of the work, which is the distance at
+which recall is least reliable, and a path one directory off reads as correct to
+any review that reads rather than resolves. It then fails twice downstream: the
+by-artifact view gains a row for a file nobody examined, and the file that *was*
+examined shows nothing written about it. An entry that will not resolve is either
+wrong or it names something that is not a path — a commit, a command — and the
+field allows both, so decide which rather than leaving it ambiguous.
+
 Paths are repo-relative. An absolute path in a postmortem leaks the machine it
 was written on.
 

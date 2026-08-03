@@ -51,6 +51,15 @@ from "the tool did not understand it". The filename carries `date`, `mode` and
 `scope` on its own, which is the portable part of the naming rule; recover those,
 leave the rest blank, and mark the entry as partially indexed.
 
+**Artifact entries that do not resolve in the tree are marked, not dropped.**
+Check each path-shaped entry against the working tree; entries naming a commit or
+a command are not paths and are not checked. An unresolved path is not
+necessarily wrong — a postmortem is historical, and a file examined a year ago
+may have been renamed since — so the mark reads *not in the tree today*, which
+makes it a staleness signal rather than an error. Dropping them instead would
+reintroduce the failure the previous paragraph names, one level down: a
+by-artifact view that silently lists fewer artifacts than were examined.
+
 ## The page
 
 `references/index-page.md` has the template, styling, and the filter script.
@@ -61,7 +70,10 @@ Two views of the same data, on one page:
    shown dimmed and labelled — a stale conclusion a reader can see is stale is
    useful, and one that has been hidden is a trap.
 2. **By artifact**, alphabetical. Each artifact lists the dates that examined it.
-   This is the view `artifacts` was designed to serve.
+   This is the view `artifacts` was designed to serve. Artifacts marked as not in
+   the tree today appear here too, carrying the mark — this view is where the
+   distinction between a renamed file and a mistyped one actually costs a reader
+   something.
 
 Write it to `index.html` in the resolved directory unless `--out=<dir>` says
 otherwise. Report the path and the file count.

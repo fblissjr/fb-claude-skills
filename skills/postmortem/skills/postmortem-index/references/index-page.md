@@ -36,6 +36,7 @@ Same as the postmortem document, with one deliberate exception.
 | `artifacts` | `<a class="artifact">` each, clickable to filter |
 | `supersedes` target | `class="pm superseded"` on the older entry |
 | Missing frontmatter | `class="pm partial"` plus a `.badge` saying so |
+| Artifact not in the tree | `class="artifact absent"` plus `title="not in the tree today"` |
 | By-artifact view | `<section id="by-artifact">` with one `<div class="art-row">` per artifact |
 
 `data-search` is a lowercased space-joined concatenation of date, mode, scope,
@@ -103,6 +104,8 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   padding: 0.12rem 0.4rem; color: var(--muted); cursor: pointer;
 }
 .artifact:hover { color: var(--fg); border-color: var(--accent); }
+.artifact.absent { border-style: dashed; }
+.absent { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--muted); }
 .badge {
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0.1rem 0.4rem;
@@ -161,7 +164,10 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
       <span class="badge">superseded by 2026-07-26</span>
     </div>
     <p class="summary">&hellip;</p>
-    <div class="artifacts"><span class="artifact">skills/ruff-diagnostics/</span></div>
+    <div class="artifacts">
+      <span class="artifact">skills/ruff-diagnostics/</span>
+      <span class="artifact absent" title="not in the tree today">scripts/ruff-trial.sh</span>
+    </div>
   </article>
 
   <article class="pm partial" data-search="2026-03-14 session setup">
@@ -183,6 +189,10 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   <div class="art-row" data-search="changelog.md">
     <code>CHANGELOG.md</code>
     <span class="art-dates">2026-07-26 · 2026-05-30</span>
+  </div>
+  <div class="art-row" data-search="scripts/ruff-trial.sh">
+    <code class="absent" title="not in the tree today">scripts/ruff-trial.sh</code>
+    <span class="art-dates">2026-06-14</span>
   </div>
 </section>
 
@@ -255,3 +265,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
 - Entry count in the page matches the number of files in the directory.
 - Every file in the directory appears, including ones with no frontmatter.
 - No entry is hidden in the initial HTML — `.hidden` is applied only by script.
+- Every artifact in every postmortem's frontmatter appears in the by-artifact
+  view, `.absent` ones included. A path that failed to resolve must still be a
+  row; the mark is the whole point, and an absent artifact that is also missing
+  from the view is indistinguishable from one nobody ever wrote about.
