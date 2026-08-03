@@ -205,6 +205,9 @@ def test_explain_counts_matches_beyond_the_first(repo: Path):
     ).stdout
     python_line = next(l for l in out.splitlines() if l.startswith("python"))
     assert "+1 more matching line" in python_line
+    # The count's own limit is disclosed in the output: it measures matching
+    # lines, not independent rules (a rule and its epitaph count alike).
+    assert "not independent rules" in out
     (repo / "CLAUDE.md").write_text("Use uv, never pip.\n")
     out = subprocess.run(
         ["bash", str(HOOK), "--explain", str(repo)],

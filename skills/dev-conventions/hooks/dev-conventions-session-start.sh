@@ -180,6 +180,12 @@ ground_covered() { ground_match "$1" >/dev/null; }
 # 135 lines down, and only a hand-run counterfactual proved the gate was not
 # silencing off its own epitaph. The count makes that legible: "+N more"
 # means deleting the shown line does not open the gate.
+# WHAT THE COUNT DOES NOT MEASURE (consumer-measured, same day): independence.
+# It counts matching lines, and a rule and a sentence about the rule count
+# alike — "+1 more" can be two rules or one rule plus its epitaph. No
+# positional discriminator separates those the way fences separated commands
+# from rules, and chasing it lexically is whack-a-mole; the explain output
+# states the limit instead.
 ground_match_total() {
   local pat="$1" r c n=0
   [ -n "$pat" ] || { echo 0; return; }
@@ -243,6 +249,7 @@ if [ "$EXPLAIN" = 1 ]; then
       printf '%-16s LOADS   trigger fired, ground not covered\n' "$name"
     fi
   done
+  printf '\nnote: coverage counts are matching lines, not independent rules — a rule and a sentence about the rule count alike.\n'
   exit 0
 fi
 

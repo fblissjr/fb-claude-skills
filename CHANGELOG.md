@@ -1,5 +1,10 @@
 # changelog
 
+## 1.6.4
+
+### fixed
+- **`dev-conventions` 0.15.3 → 0.15.4 — `--explain` discloses what its count does not measure.** The consumer's follow-up on the count feature, an hour after it shipped: the count measures redundancy, not independence — a rule and a sentence *about* the rule count alike, so "+1 more" can be two rules or one rule plus its epitaph. No positional discriminator separates those the way fences separated commands from rules, and chasing it lexically is the whack-a-mole this arc already refused twice; per the control-authoring checklist's what-it-does-not-do discipline, the limit is stated in the output itself — one footer line on every explain run, pinned by the count test. First-match understated robustness; the count could overstate it, for the mirror-image reason; the disclosure closes the pair.
+
 ## 1.6.3
 
 ### fixed
