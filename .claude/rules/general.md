@@ -18,6 +18,13 @@ JavaScript/TypeScript: always `bun`. Never use `npm` or `yarn`.
 - Init: `bun init`
 - Version pinning: always specify versions. Applications: exact (`bun add pkg@1.2.3`). Libraries: caret (`bun add pkg@^1.2.3`). When unsure, pin exact.
 
+## TDD
+
+Write the failing test first, then implement. A new test's claim -- what
+breaks if it is deleted -- must be recoverable: a per-test comment, or a
+file-level convention (header claim plus per-case rationale) that pins each
+case.
+
 ## JSON
 
 Use `orjson` for all Python JSON serialization and deserialization.
