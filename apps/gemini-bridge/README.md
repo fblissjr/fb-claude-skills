@@ -1,4 +1,4 @@
-last updated: 2026-08-01
+last updated: 2026-08-03
 
 # gemini-bridge
 
@@ -151,13 +151,21 @@ call rewrites it, and nothing announces that window. `gemini-bridge doctor`
 reports whether the marker is currently in place. The tool does not edit your
 `.gitignore` for you.
 
-One ledger field is worth knowing about. `allow_prompt_secrets` is true when the
-prompt scan was **bypassed** — meaning the outgoing text was never checked, not
-that a secret was confirmed present. Those run directories hold that text in
-plaintext locally, and since the interaction cannot be deleted through the API,
-the copy at Google is permanent. Filtering the ledger on that field is the only
-way to find them without grepping every `prompt.md`, which means reading the
-content the flag was used to send.
+Two ledger fields are worth knowing about. `prompt_scanned` is false when the
+outgoing text was **never checked**, whatever the route — the
+`--allow-prompt-secrets` flag on that call, or a project config with
+`scan_prompt = false`. That is the field to filter on when auditing for
+unscanned runs: it does not mean a secret was confirmed present, it means
+nobody looked, the run directory holds that text in plaintext locally, and
+since the interaction cannot be deleted through the API, the copy at Google is
+permanent. Filtering the ledger is the only way to find those runs without
+grepping every `prompt.md`, which means reading the very content the bypass
+was used to send. `allow_prompt_secrets` records the route: true when the flag
+was passed on that call, so a deliberate one-off bypass is distinguishable
+from a standing config opt-out. (Before `prompt_scanned` existed, the config
+route produced rows saying `allow_prompt_secrets: false` for runs that were
+never scanned — rows older than that field carry no `prompt_scanned` key and
+should be read with that in mind.)
 
 ## Recipes
 

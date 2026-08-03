@@ -57,6 +57,7 @@ def record(
     credential_kind: str,
     error: str | None = None,
     allow_prompt_secrets: bool = False,
+    prompt_scanned: bool = True,
     interaction_id: str | None = None,
 ) -> Path:
     """Append one call record. Never raises -- logging must not break the call."""
@@ -82,12 +83,19 @@ def record(
         # only disclosure surface a user has. Not a secret: an opaque pointer to
         # data already sent, already on disk in the run dir's `interaction.id`.
         "interaction_id": interaction_id,
-        # True means the scan was BYPASSED, so the outgoing text was never
-        # checked -- not that a secret was confirmed present. Either way the run
-        # directory holds that text in plaintext locally and the interaction at
-        # Google cannot be deleted, which makes these the runs worth finding
-        # later. Recorded because the alternative is grepping every prompt.md,
-        # i.e. reading the content the flag was used to send.
+        # False means the outgoing text was NEVER CHECKED, whatever the route
+        # -- the CLI flag or a project config with scan_prompt = false. This is
+        # the field to filter on when hunting unscanned runs: the flag below
+        # records only the CLI route, and for a release the config route
+        # produced rows saying allow_prompt_secrets: false for runs that were
+        # never scanned -- the audit field pointing away from the runs it
+        # exists to find. False does not mean a secret was present; it means
+        # nobody looked, the run dir holds the text in plaintext locally, and
+        # the interaction at Google cannot be deleted.
+        "prompt_scanned": prompt_scanned,
+        # Which route: True when --allow-prompt-secrets was passed on this
+        # call. Kept alongside prompt_scanned because a deliberate one-off
+        # bypass and a standing config opt-out are different facts about a run.
         "allow_prompt_secrets": allow_prompt_secrets,
         "attachments": [
             {k: a.get(k) for k in ("kind", "mime_type", "size_bytes", "resolution")}

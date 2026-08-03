@@ -97,6 +97,20 @@ FENCED = [
     "```sh\n# path-privacy: skip-file -- regex source\n```",
     "~~~\n<!-- path-privacy: skip-file -->\n~~~",
     "Write it like this:\n\n```\n# path-privacy: skip-file\n```\n",
+    # A fence closes only with the character that opened it. The first fence
+    # pass toggled on ``` OR ~~~ interchangeably, so the ~~~ line below flipped
+    # the state OFF and the marker -- inside a code block to any markdown
+    # renderer and any human -- was live to the scanner.
+    "```\n~~~\n# path-privacy: skip-file\n```",
+    "~~~\n```\n<!-- path-privacy: skip-file -->\n~~~",
+    # ...and only with a run at least as long: a ```` block demonstrating a
+    # ``` example must not be closed by the example.
+    "````\n```\n# path-privacy: skip-file\n```\n````",
+    # An unclosed fence swallows to EOF -- fail-closed, like markdown itself.
+    "```\n# path-privacy: skip-file",
+    # A closing fence takes no info string, so ```sh cannot close; the marker
+    # after it is still inside the block.
+    "```\nexample\n``` sh\n# path-privacy: skip-file",
 ]
 
 
@@ -117,6 +131,41 @@ def test_marker_after_a_closed_fence_still_exempts(tmp_path):
     """Fence tracking must not swallow a real marker that follows an example."""
     f = _write(tmp_path, f"```\nexample\n```\n# path-privacy: skip-file\nleak {LEAK}\n")
     assert _scan_file(f, tmp_path)
+
+
+def test_marker_after_a_longer_closing_run_still_exempts(tmp_path):
+    """A closing run LONGER than the opener still closes, per markdown."""
+    f = _write(tmp_path, f"```\nexample\n`````\n# path-privacy: skip-file\nleak {LEAK}\n")
+    assert _scan_file(f, tmp_path)
+
+
+def test_closing_fence_with_trailing_blanks_still_closes(tmp_path):
+    """Trailing spaces on a closing fence are blanks, not an info string."""
+    f = _write(tmp_path, f"```\nexample\n```   \n# path-privacy: skip-file\nleak {LEAK}\n")
+    assert _scan_file(f, tmp_path)
+
+
+# Unicode blanks markdown does not treat as indentation. The point is not which
+# way these classify -- a NBSP-prefixed ``` is a paragraph, not a fence, so the
+# marker after it is live and the file exempt, same as any unfenced quotation.
+# The point is that BOTH engines say so: the fence indent used to be [[:space:]]
+# under LC_ALL=C on the shell side (ASCII-only) and \s on the Python side
+# (Unicode), so this exact file was exempt to the commit gate while
+# _has_skip_marker returned False -- which kept check_marker_denylist, the
+# loud-recurrence backstop, silent about a file the gate was waving through.
+UNICODE_BLANKS = ["\u00a0", "\u2028", "\u3000"]  # NBSP, LINE SEP, IDEOGRAPHIC SPACE
+
+
+@pytest.mark.parametrize("ws", UNICODE_BLANKS)
+def test_unicode_blank_before_a_fence_is_not_a_fence_in_either_engine(tmp_path, ws):
+    body = f"{ws}```\n# path-privacy: skip-file\n{ws}```\nleak {LEAK}\n"
+    f = _write(tmp_path, body)
+    shell_exempt = _scan_file(f, tmp_path)
+    python_exempt = _has_skip_marker(body)
+    assert shell_exempt == python_exempt, (
+        f"engines disagree for {ws!r}: shell={shell_exempt} python={python_exempt}"
+    )
+    assert python_exempt, "not a fence, so the leading marker is live"
 
 
 def test_shell_ignores_marker_below_the_window(tmp_path):
@@ -154,6 +203,11 @@ def test_shell_and_python_agree(tmp_path):
     bodies += [
         "```\nexample\n```\n# path-privacy: skip-file\nleak " + LEAK + "\n",
         "\n".join(["filler"] * 40 + ["# path-privacy: skip-file", f"leak {LEAK}"]),
+    ]
+    # The divergence class: fence-shaped lines only one engine used to see.
+    bodies += [
+        f"{ws}```\n# path-privacy: skip-file\n{ws}```\nleak {LEAK}\n"
+        for ws in UNICODE_BLANKS
     ]
     disagreements = []
     for body in bodies:

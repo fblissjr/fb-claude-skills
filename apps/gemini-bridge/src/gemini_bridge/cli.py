@@ -69,7 +69,13 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # files. The path guard says nothing about it, so a secret pasted into a
     # question used to be sent unchecked -- and a sent interaction cannot be
     # recalled.
-    if cfg.scan_prompt and not args.allow_prompt_secrets:
+    #
+    # Computed once and recorded in the ledger: the scan can be off via the
+    # CLI flag OR via project config, and recording only the flag left config
+    # runs labelled allow_prompt_secrets=false -- the audit field pointing
+    # away from the unscanned runs it exists to find.
+    prompt_scanned = bool(cfg.scan_prompt and not args.allow_prompt_secrets)
+    if prompt_scanned:
         # Both halves of the outgoing text. The recipe body becomes the
         # system_instruction and is sent verbatim on every call -- it was
         # unscanned by anything, and `--recipe /some/path.md` accepts an
@@ -184,6 +190,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
             thinking_level=request.get("generation_config", {}).get("thinking_level"),
             credential_kind=creds.kind, error=str(exc),
             allow_prompt_secrets=args.allow_prompt_secrets,
+            prompt_scanned=prompt_scanned,
         )
         return _fail(f"{type(exc).__name__}: {exc}\n  run: {run.path}")
 
@@ -223,6 +230,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         thinking_level=request.get("generation_config", {}).get("thinking_level"),
         credential_kind=creds.kind,
         allow_prompt_secrets=args.allow_prompt_secrets,
+        prompt_scanned=prompt_scanned,
         interaction_id=interaction_id,
     )
 

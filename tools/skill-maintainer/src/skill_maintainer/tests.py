@@ -377,7 +377,35 @@ _HOME_PATH = re.compile(r"(?:/Users|/home)/([A-Za-z0-9._-]+)(?:/|\b)")
 # UTF-8 locale, which had made the commit gate quietly more permissive than this
 # audit, and made the shell side differ between machines.
 _SKIP_MARKER = re.compile(r"^ {0,3}(<!--|#|//|--|;)?[ \t]*path-privacy: skip-file")
-_FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def _fence_line(line: str) -> tuple[str, int, bool] | None:
+    """(char, run length, closable) when the line is a code fence, else None.
+
+    Markdown's own rules, mirrored line-for-line in pp_strip_fenced: at most
+    three spaces of indent, then a run of three or more backticks or tildes.
+    `closable` is True when nothing but blanks follows the run -- the only
+    shape allowed to CLOSE a fence, since a closing fence takes no info string.
+
+    Indent is 0-3 ASCII spaces tested as characters, not `\\s`: the shell twin
+    runs its awk under LC_ALL=C where whitespace classes are ASCII-only, and a
+    `\\s` here made a NBSP-prefixed fence a fence to this engine and not that
+    one. Any string the engines disagree about is a file one of them exempts
+    and the other does not. Markdown does not treat NBSP as indentation either,
+    so the byte test is the semantics, not an approximation of it.
+    """
+    i = 0
+    while i < len(line) and line[i] == " ":
+        i += 1
+    if i > 3 or i >= len(line) or line[i] not in "`~":
+        return None
+    ch = line[i]
+    n = 0
+    while i + n < len(line) and line[i + n] == ch:
+        n += 1
+    if n < 3:
+        return None
+    return ch, n, line[i + n:].strip(" \t\r") == ""
 
 
 def _has_skip_marker(text: str) -> bool:
@@ -387,15 +415,30 @@ def _has_skip_marker(text: str) -> bool:
     example inside ``` is byte-identical to a real one, so telling them apart
     needs state carried between lines, not a better regex.
 
+    A fence closes only with the character that opened it, in a run at least
+    as long. The first version toggled on either character, so a ~~~ line
+    inside a ``` block flipped the state off and a marker rendering as an
+    example to a human was live to the scanner -- the bypass this pass exists
+    to close, reopened by the pass itself.
+
     Fail-closed by construction: skipping lines only ever removes matches, so
     this can turn an exempt file into an audited one and never the reverse.
+    Closing is strict and opening liberal for the same reason -- an over-eager
+    open hides a marker (loud false positive), an over-eager close un-hides
+    one (silent exemption) -- and an unclosed fence swallows to end of window.
     """
-    fenced = False
+    fence_ch, fence_len = "", 0
     for line in text.split("\n")[:30]:
-        if _FENCE.match(line):
-            fenced = not fenced
+        fence = _fence_line(line)
+        if fence_len:
+            if (fence and fence[2] and fence[0] == fence_ch
+                    and fence[1] >= fence_len):
+                fence_ch, fence_len = "", 0
             continue
-        if not fenced and _SKIP_MARKER.match(line):
+        if fence:
+            fence_ch, fence_len = fence[0], fence[1]
+            continue
+        if _SKIP_MARKER.match(line):
             return True
     return False
 

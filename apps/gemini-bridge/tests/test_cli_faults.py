@@ -120,14 +120,37 @@ def test_scan_bypass_is_recorded_in_the_ledger(project, monkeypatch):
         project, monkeypatch,
         extra=["--allow-prompt-secrets"], question=f"is {secret} visible here",
     ) == 0
-    assert read_ledger(project)[0]["allow_prompt_secrets"] is True
+    entry = read_ledger(project)[0]
+    assert entry["allow_prompt_secrets"] is True
+    assert entry["prompt_scanned"] is False
 
 
 def test_ordinary_calls_record_the_bypass_as_false(project, monkeypatch):
     """False, not absent -- a filter for risky runs must not depend on a key
     that only exists on the risky ones."""
     assert run_ask(project, monkeypatch) == 0
-    assert read_ledger(project)[0]["allow_prompt_secrets"] is False
+    entry = read_ledger(project)[0]
+    assert entry["allow_prompt_secrets"] is False
+    assert entry["prompt_scanned"] is True
+
+
+def test_config_disabled_scan_is_recorded_as_unscanned(project, monkeypatch):
+    """scan_prompt = false in project config must not masquerade as scanned.
+
+    The flag field records only the CLI route. Before prompt_scanned existed,
+    a project config with the scan off produced ledger rows saying
+    allow_prompt_secrets: false -- and the README pointed auditors at exactly
+    that field as the only way to find unscanned runs. The audit trail was
+    positively reassuring about the runs it existed to expose.
+    """
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[privacy]\nscan_prompt = false\n"
+    )
+    secret = "ghp_" + "b" * 36
+    assert run_ask(project, monkeypatch, question=f"is {secret} visible") == 0
+    entry = read_ledger(project)[0]
+    assert entry["prompt_scanned"] is False
+    assert entry["allow_prompt_secrets"] is False
 
 
 def test_bypass_is_recorded_even_when_the_call_fails(project, monkeypatch):
@@ -149,6 +172,7 @@ def test_bypass_is_recorded_even_when_the_call_fails(project, monkeypatch):
     entries = read_ledger(project)
     assert entries and entries[0]["status"] == "failed"
     assert entries[0]["allow_prompt_secrets"] is True
+    assert entries[0]["prompt_scanned"] is False
 
 
 # -- write failures ---------------------------------------------------------

@@ -310,3 +310,24 @@ def test_marker_after_a_closed_fence_still_exempts(tmp_path):
     r = _repo(tmp_path / "d", "doc.md",
               "```\nexample\n```\n# path-privacy: skip-file\nleak /Users/realpersonname/x\n")
     assert not _failed(check_path_privacy(r))
+
+
+def test_mismatched_fence_character_cannot_close_a_fence(tmp_path):
+    """A ~~~ line inside a ``` block is content, not a closing fence.
+
+    The first fence pass toggled on either character, so this exact file --
+    whose marker renders as a code example to any markdown renderer -- was
+    exempt: the ~~~ flipped the state off and the marker went live. That is
+    the bypass the fence pass exists to close, reopened by the pass itself.
+    """
+    r = _repo(tmp_path, "doc.md",
+              "```\n~~~\n# path-privacy: skip-file\n```\nleak /Users/realpersonname/x\n")
+    assert _failed(check_path_privacy(r))
+
+
+def test_shorter_run_cannot_close_a_longer_fence(tmp_path):
+    """An inner ``` must not close an outer ```` that is demonstrating it."""
+    r = _repo(tmp_path / "d", "doc.md",
+              "````\n```\n# path-privacy: skip-file\n```\n````\n"
+              "leak /Users/realpersonname/x\n")
+    assert _failed(check_path_privacy(r))
