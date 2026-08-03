@@ -189,6 +189,31 @@ def test_explain_names_the_gate_per_directive(repo: Path):
     assert "LOADS" in tdd_line
 
 
+def test_explain_counts_matches_beyond_the_first(repo: Path):
+    # Consumer specimen, one level up from the founding one: the diagnostic
+    # can point at a real match that isn't the reason. Their tdd coverage
+    # displayed a meta-sentence ABOUT the silence while the load-bearing rule
+    # sat further down, and only a hand-run counterfactual proved the gate
+    # wasn't silencing off its own epitaph. With two covering lines, the
+    # explain line must carry the count; with one, it must not.
+    (repo / "CLAUDE.md").write_text(
+        "Use uv, never pip.\nPython packages: always uv add, pinned exact.\n"
+    )
+    out = subprocess.run(
+        ["bash", str(HOOK), "--explain", str(repo)],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    python_line = next(l for l in out.splitlines() if l.startswith("python"))
+    assert "+1 more matching line" in python_line
+    (repo / "CLAUDE.md").write_text("Use uv, never pip.\n")
+    out = subprocess.run(
+        ["bash", str(HOOK), "--explain", str(repo)],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    python_line = next(l for l in out.splitlines() if l.startswith("python"))
+    assert "more matching line" not in python_line
+
+
 def test_this_repo_stays_fully_covered():
     # The re-enable premise pin cited by docs/internals/gotchas.md: run the
     # hook against THIS repo live and require complete silence. If a rewording

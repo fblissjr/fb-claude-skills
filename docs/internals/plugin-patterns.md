@@ -99,6 +99,19 @@ defensible even though the *mechanism* was wrong. The durable sentence:
 judge the gate and the outcome separately — a control can be right for a
 bogus reason, and both facts belong in the record.
 
+Two companion sentences from the same exchange, both consumer-authored and
+worth keeping verbatim. On overrides: *"Config says 'we decided'; prose
+edits say 'make the grep agree.' Same silence, opposite epistemics"* — a
+declared override in tracked config is a recorded decision, while editing
+the measured surface to produce the same silence is check-passing; the two
+acts differ even when their output is identical. On diagnostics: *"the
+diagnostic can point at a real match that isn't the reason"* — first-match
+display made a coverage gate look like it was silencing off its own
+epitaph (the shown match was a sentence describing the silence) when a
+load-bearing rule independently held it; `--explain` now prints a
+matching-line count with the first match so deletion-robustness is legible
+(0.15.3).
+
 What shipped against it: **fence-stripping** (coverage greps prose only —
 the rule-vs-command discriminator is positional, not lexical; the strip can
 only remove coverage, erring toward the recoverable direction), **force

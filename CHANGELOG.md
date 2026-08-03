@@ -1,5 +1,10 @@
 # changelog
 
+## 1.6.3
+
+### fixed
+- **`dev-conventions` 0.15.2 → 0.15.3 — `--explain` now prints a matching-line count with the first match.** The consumer's first real run surfaced the founding specimen one level up: the diagnostic can point at a real match that isn't the reason. Their tdd coverage displayed a meta-sentence *describing the silence* as the match, making a reader reasonably suspect the gate was silencing off its own epitaph — when the load-bearing rule independently held it, provable only by a hand-run counterfactual. The explain line now appends "+N more matching line(s) — deleting the shown line does not open the gate" whenever coverage rests on more than one line, so deletion-robustness is legible without the counterfactual. Pinned both ways: two covering lines must show the count, one must not. Display-only; the silent path is untouched.
+
 ## 1.6.2
 
 ### fixed

@@ -174,6 +174,27 @@ ground_match() {  # prints "path:line:text" of the first prose match
 }
 ground_covered() { ground_match "$1" >/dev/null; }
 
+# Explain-only: total matching lines across all surfaces. First-match display
+# under-represents robustness — the consumer's tdd coverage showed a
+# meta-sentence ABOUT coverage as the match while the load-bearing rule sat
+# 135 lines down, and only a hand-run counterfactual proved the gate was not
+# silencing off its own epitaph. The count makes that legible: "+N more"
+# means deleting the shown line does not open the gate.
+ground_match_total() {
+  local pat="$1" r c n=0
+  [ -n "$pat" ] || { echo 0; return; }
+  for r in "$CWD/CLAUDE.md" "$CWD"/.claude/rules/*.md; do
+    [ -f "$r" ] || continue
+    c=$(prose_of "$r" | grep -icE "$pat" 2>/dev/null) || c=0
+    n=$((n + c))
+  done
+  if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
+    c=$(jq -r '.rules[]?' "$CFG" 2>/dev/null | grep -icE "$pat") || c=0
+    n=$((n + c))
+  fi
+  echo "$n"
+}
+
 # ground_of / directive_body: the leading run of "# key: value" lines is
 # metadata as a CLASS — honored only at the head, stripped only at the head.
 # A body line that happens to start with "# ground: " (a directive
@@ -213,8 +234,11 @@ if [ "$EXPLAIN" = 1 ]; then
       printf '%-16s silent  muted in .dev-conventions.json\n' "$name"
     elif [ "$fired" = "no" ]; then
       printf '%-16s silent  trigger "%s" did not fire\n' "$name" "$trigger"
-    elif m=$(ground_match "$(ground_of "$f")"); then
-      printf '%-16s silent  ground covered by %s\n' "$name" "$m"
+    elif g=$(ground_of "$f") && m=$(ground_match "$g"); then
+      extra=""
+      n=$(ground_match_total "$g")
+      [ "$n" -gt 1 ] && extra=" (+$((n-1)) more matching line(s) — deleting the shown line does not open the gate)"
+      printf '%-16s silent  ground covered by %s%s\n' "$name" "$m" "$extra"
     else
       printf '%-16s LOADS   trigger fired, ground not covered\n' "$name"
     fi
