@@ -141,6 +141,18 @@ A future session should not "helpfully" re-enable these plugins to restore consi
 **Premise change, 2026-08-03 — recorded, not acted on.** dev-conventions 0.15.x silences each directive per block wherever the repo's own files cover its ground, and a test arm (`test_this_repo_stays_fully_covered` in `tools/skill-maintainer/tests/test_dev_conventions_directives.py`) runs the hook against this repo live on every suite run: complete silence, all four grounds covered — if a rewording of CLAUDE.md or `.claude/rules/` ever slips past the ground patterns, that arm goes red before a re-enabled plugin starts broadcasting here. So for dev-conventions specifically, the duplication this disable prevents no longer occurs, and the disable's remaining effect is losing the PreToolUse enforcement hooks (pip/npm/lockfile blocks). Re-enabling dev-conventions here would now cost zero ambient text and restore enforcement. That flip is the owner's decision — this paragraph exists so the next session weighs the current facts instead of the 2026-07 ones. The rationale still holds unchanged for `dimensional-modeling` and `mece-decomposer`, which have no coverage detection.
 
 
+## Bare `pytest` from the repo root does not work; run per package
+
+`uv run pytest` with no path collects everything, including the `coderef/`
+symlinked foreign clones and `research/`, and dies with ~165 collection
+errors before reaching any real test. There is no root `testpaths` config —
+the house practice is per-package runs: `uv run pytest tools/skill-maintainer/tests/`
+is the repo-wide suite (version alignment, changelog claims, path privacy,
+the dev-conventions hook bracket). Related: a fresh or stale venv fails
+imports (`No module named 'mcp'`) until `uv sync --all-packages`. Both cost a
+detour on 2026-08-03; recorded here so the next session greps this instead of
+rediscovering.
+
 ## Removing a frontmatter field can break the pre-commit hook
 
 Hit for real on 2026-07-21, when `metadata.version` was removed from all SKILL.md files. The pre-commit hook extracted the version with a pipeline shaped like:
