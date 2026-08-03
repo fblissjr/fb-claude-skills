@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-03
 
 # dev-conventions
 
@@ -40,6 +40,16 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
 All injected content lives in `hooks/directives/` as standalone `.md` files. The hook concatenates whichever directives match and returns them as a single `additionalContext` block.
 
 To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/dev-conventions-session-start.sh`.
+
+### per-repo muting
+
+A repo whose own rules supersede a shipped block mutes it by filename in the tracked `.dev-conventions.json` (`/dev-conventions:configure mute tdd`, or by hand):
+
+```json
+{ "directives": { "tdd": false, "doc-conventions": false } }
+```
+
+Muting trims the shipped defaults only -- the repo's own `rules[]` still load even with every directive muted. The injected block opens with a standing supersession line: a repo-local rule covering the same ground wins over any shipped block.
 
 ## skills
 

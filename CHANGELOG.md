@@ -1,5 +1,13 @@
 # changelog
 
+## 1.3.0
+
+### added
+- **`dev-conventions` 0.13.0 → 0.14.0 — ambient directive blocks are now mutable per repo.** Field report from a repo running the plugin alongside its own mature conventions: the generic TDD block's letter ("one line on what breaks if it is deleted") differed from the repo's sharper local rule (header claim plus per-case rationale, enforced by its own checks), and the repo paid reconciliation cost on every test it wrote — twice disclosing a "shortfall" against a form its own stronger rule doesn't use. The only prior escape was disabling the whole plugin, which is exactly how this repo itself runs it (invariant 6) — all-or-nothing where the wanted operation was a trim. `.dev-conventions.json` gains a `directives` map keyed by directive filename (`python`, `javascript`, `tdd`, `doc-conventions`); the SessionStart hook skips muted blocks with the same explicit `has()` guard the PreToolUse hook uses for `enforce.*`, and the configure skill gains `mute`/`unmute` actions that require naming the superseding local rule before muting — muting a block nothing replaces is losing the convention, not trimming a duplicate. Fixed in the same pass: a repo muting every shipped directive kept losing its own `rules[]`, because the empty-context exit ran before rules were appended — caught by testing the all-muted arm before shipping, moved the append above the exit.
+
+### changed
+- **Two directive rules restated as properties instead of forms.** The TDD claim-per-test line now names the property (every test's claim must be recoverable) with the one-line comment as default form and a file-level header convention as an accepted alternative. The doc block's "every doc" dating rule now respects classes a repo deliberately exempts (changelogs, dated records), and the filename rule defers separator choice to the repo's existing convention. Both changes came from the same field report: a generic rule stating a form turns a repo's deliberate, better-guarded practice into an apparent violation. The injected block also now opens with a standing supersession line — a repo-local rule covering the same ground wins — so the escape is stated once instead of reconciled per block.
+
 ## 1.2.7
 
 ### fixed

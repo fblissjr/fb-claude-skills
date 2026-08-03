@@ -2,11 +2,12 @@
 name: configure
 description: >-
   Add, remove, or change this repo's dev conventions -- which package-manager and
-  lockfile rules are enforced, and what extra house rules load each session. Use when
-  the user says "change the dev conventions here", "add a rule", "disable the pip
-  block", "this repo uses npm", "turn off the lockfile guard", "customise dev
-  conventions for this project", or "/dev-conventions:configure".
-argument-hint: "[show|allow|deny|add|remove] [rule or text]"
+  lockfile rules are enforced, which ambient directive blocks load each session, and
+  what extra house rules load with them. Use when the user says "change the dev
+  conventions here", "add a rule", "disable the pip block", "this repo uses npm",
+  "turn off the lockfile guard", "mute the TDD block", "drop the doc conventions
+  here", "customise dev conventions for this project", or "/dev-conventions:configure".
+argument-hint: "[show|allow|deny|add|remove|mute|unmute] [rule, directive, or text]"
 arguments:
   - action
   - target
@@ -34,6 +35,10 @@ next session respectively.
     "js-package-manager": true,
     "lockfile-edits": true
   },
+  "directives": {
+    "tdd": false,
+    "doc-conventions": false
+  },
   "rules": [
     "Migrations are forward-only; never edit a shipped migration.",
     "Public API changes need a CHANGELOG entry in the same commit."
@@ -41,10 +46,15 @@ next session respectively.
 }
 ```
 
-- `enforce.*` — turn an individual block off for this repo. Omitted keys default
-  to `true`. This is the honest way to say "this repo really does use npm",
-  rather than reaching for `DEV_CONVENTIONS_ALLOW=1`, which disables everything
-  everywhere for that one call.
+- `enforce.*` — turn an individual PreToolUse block off for this repo. Omitted
+  keys default to `true`. This is the honest way to say "this repo really does
+  use npm", rather than reaching for `DEV_CONVENTIONS_ALLOW=1`, which disables
+  everything everywhere for that one call.
+- `directives.*` — mute a shipped SessionStart block for this repo, keyed by
+  directive filename: `python`, `javascript`, `tdd`, `doc-conventions`. Omitted
+  keys default to `true`. This is for repos whose own rules supersede a generic
+  block — two overlapping rules for one behavior cost reconciliation on every
+  use, so the sharper local rule should be the only one loaded.
 - `rules[]` — extra house rules appended to the SessionStart directive for this
   repo only. Keep them to one line each; this is always-loaded text and every
   line is paid on every session, including after each compaction.
@@ -58,6 +68,12 @@ overridden. If the file is absent, say so and show what the defaults are.
 **`allow <rule>` / `deny <rule>`** — set `enforce.<rule>` to `false` / `true`.
 Valid rules: `python-package-manager`, `js-package-manager`, `lockfile-edits`.
 Create the file if needed, preserving any existing keys.
+
+**`mute <directive>` / `unmute <directive>`** — set `directives.<name>` to
+`false` / `true`. Valid names: `python`, `javascript`, `tdd`, `doc-conventions`.
+Before muting, confirm the repo actually has a superseding local rule (CLAUDE.md
+or `.claude/rules/`) covering the same ground, and say which file it is — muting
+a block nothing replaces is losing the convention, not trimming a duplicate.
 
 **`add <text>`** — append a one-line rule to `rules[]`. Before writing it, apply
 the tier test: if the rule is mechanically checkable, say so and offer a hook

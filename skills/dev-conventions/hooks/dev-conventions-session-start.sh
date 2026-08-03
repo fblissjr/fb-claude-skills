@@ -85,8 +85,25 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTEXT=""
 
+# Per-repo directive gating. A repo whose own rules supersede a shipped block
+# turns it off by filename in .dev-conventions.json:
+#   { "directives": { "tdd": false, "doc-conventions": false } }
+# Same has() guard as the PreToolUse hook's enforced(): jq's `//` treats a
+# stored `false` as absent, so the key is tested explicitly.
+CFG="$CWD/.dev-conventions.json"
+directive_enabled() {
+  [ -f "$CFG" ] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  local v
+  v=$(jq -r --arg k "$1" \
+      'if (.directives? | type) == "object" and (.directives | has($k))
+       then (.directives[$k] | tostring) else "" end' "$CFG" 2>/dev/null)
+  [ "$v" != "false" ]
+}
+
 for f in "$SCRIPT_DIR"/directives/*.md; do
   [ -f "$f" ] || continue
+  directive_enabled "$(basename "$f" .md)" || continue
   trigger=$(head -1 "$f" | sed 's/^# trigger: //')
   case "$trigger" in
     python)     [ "$HAS_PYTHON" = true ] || continue ;;
@@ -99,24 +116,30 @@ for f in "$SCRIPT_DIR"/directives/*.md; do
   CONTEXT+=$(tail -n +2 "$f")
 done
 
-[ -z "$CONTEXT" ] && exit 0
-
-# Attribution marker. hook_additional_context records name only the EVENT,
-# so without this an injected block cannot be traced back to its plugin.
 # Per-repo house rules, appended to the shipped defaults. Always-loaded text,
 # so the configure skill pushes back on anything enforceable or already known.
-CFG="$CWD/.dev-conventions.json"
+# Appended BEFORE the empty-context exit: a repo that mutes every shipped
+# directive still gets its own rules[] — muting trims the defaults, never the
+# repo's own conventions.
 if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
   EXTRA=$(jq -r '.rules[]? | "- " + .' "$CFG" 2>/dev/null)
   if [ -n "$EXTRA" ]; then
-    CONTEXT="${CONTEXT}
-## This repo's own conventions
+    [ -n "$CONTEXT" ] && CONTEXT+=$'\n'
+    CONTEXT+="## This repo's own conventions
 ${EXTRA}
 "
   fi
 fi
 
-JSON_CONTEXT=$(printf '[plugin:dev-conventions]\n%s' "$CONTEXT" | jq -Rs '.')
+[ -z "$CONTEXT" ] && exit 0
+
+# Attribution marker. hook_additional_context records only the EVENT name,
+# so without this an injected block cannot be traced back to its plugin.
+
+# The supersession line exists because generic defaults shadowing a sharper
+# repo-local rule cost reconciliation on every use — the friction is recorded,
+# so the escape is stated once here instead of argued per block.
+JSON_CONTEXT=$(printf '[plugin:dev-conventions]\nA repo-local rule (CLAUDE.md, .claude/rules/) covering the same ground supersedes any block below; repos can also mute blocks via .dev-conventions.json.\n%s' "$CONTEXT" | jq -Rs '.')
 
 cat <<EOF
 {
