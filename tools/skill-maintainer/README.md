@@ -1,4 +1,4 @@
-last updated: 2026-07-25
+last updated: 2026-08-03
 
 # skill-maintainer (CLI package)
 
@@ -264,14 +264,37 @@ skill-maintain measure --output report.md   # write to file
 
 Red/green test suite with three categories: skills, plugins, repo hygiene.
 
-Repo hygiene includes `check_version_alignment`, which walks every entry in `.claude-plugin/marketplace.json` against the `plugin.json` it points to, in both directions: a marketplace entry whose plugin doesn't exist on disk, and a plugin on disk that isn't listed in the marketplace. This is a repo-wide check, unlike the pre-commit hook's version check, which only inspects plugins touched by the current commit -- a marketplace entry can otherwise drift for releases at a time with nothing noticing. Returns no findings when the repo has no `marketplace.json`, since that's a legitimate shape for a plugin repo.
-
 ```bash
 skill-maintain test
 skill-maintain test --category skills
 skill-maintain test --category repo
 skill-maintain test --verbose
 ```
+
+Two repo-hygiene checks guard version drift from opposite sides. It's worth knowing which one is talking when a run goes red.
+
+**Do the manifests agree with each other?** (`check_version_alignment`) walks every entry in `.claude-plugin/marketplace.json` against the `plugin.json` it points to, in both directions: a marketplace entry whose plugin doesn't exist on disk, and a plugin on disk that isn't listed in the marketplace. It also compares a `pyproject.toml` version where the unit has one. This is repo-wide, unlike the pre-commit hook's version check, which only inspects plugins touched by the current commit -- a marketplace entry can otherwise drift for releases at a time with nothing noticing. Returns no findings when the repo has no `marketplace.json`, since that's a legitimate shape for a plugin repo.
+
+**Do the manifests agree with the changelog?** (`check_changelog_claims`) reads the top section of `CHANGELOG.md`, pulls out every `` `name` 0.1.0 → 0.2.0 `` claim, and checks the target against the versions that name actually carries. A failure looks like:
+
+```
+FAIL  repo/postmortem   changelog claims (changelog claims postmortem 0.6.0 but manifest reads 0.5.0)
+```
+
+That means you wrote the changelog entry and forgot the manifest bump, or bumped and mistyped one of them. The check doesn't care which direction is wrong -- fix whichever it is. This catches what the first check structurally can't: manifests that agree perfectly with each other and disagree with what you told your readers shipped. Both halves have real consumers, since `marketplace update` resolves the manifest while a person reads the changelog to know a fix landed.
+
+Only the **top section** is read, on purpose. Older entries describe the state at their own release and are supposed to disagree with today's manifests; sweeping them would light up every historical entry and turn the check into a wall people mute. Two consequences worth knowing:
+
+- A name can hold two versions at once and both are accepted. In this repo `skill-maintainer` is a plugin and a CLI that version independently by design, so a claim matching either passes rather than the check guessing which you meant.
+- A claim that stays unsatisfied until the *next* section lands escapes permanently. The check guards the window, not the history -- so fix a red before writing the next section.
+
+Names the repo doesn't version -- retired units, upstream dependencies -- are reported rather than failed, and the count rides along with the pass:
+
+```
+PASS  repo   changelog claims (3/4 top-section claims resolved to a versioned unit; not versioned here: env-forge)
+```
+
+Read that count. A green that resolved 0 of 4 claims checked nothing, and looks identical to one that checked everything.
 
 ### upstream
 
@@ -311,6 +334,24 @@ skill-maintain log --tail 5
 skill-maintain log --days 7
 skill-maintain log --type upstream_check
 ```
+
+## ad-hoc queries (`queries/`)
+
+Some questions get asked rarely enough that a subcommand would cost more than it returns: a flag to document and keep working, and a `duckdb` dependency on a tool that otherwise has none. Those live as plain `.sql` files in `queries/` and get run by hand.
+
+`upstream_churn.sql` answers **how fast does each tracked upstream page actually move?** from `.skill-maintainer/state/changes.jsonl`. That question has a consumer: `review_interval_days` is tiered 30 / 90 / 365 by how fast a skill's source moves, and until someone runs this, those tiers are set from intuition while the evidence sits unread in a gitignored file.
+
+Run it from the repo root:
+
+```bash
+uv run --with duckdb python -c "import duckdb; print(duckdb.sql(open('tools/skill-maintainer/queries/upstream_churn.sql').read()))"
+```
+
+DuckDB reads the JSONL in place, so there's no import step and no second copy of the log to keep in sync. Drop `--with duckdb` if it's already in the environment.
+
+Two cautions the query's own header repeats: `changes` counts only the checks that *found* a change, so the interval it implies is an upper bound on quiet periods rather than a release cadence; and the character deltas aren't comparable across the whole window, because the log changed shape mid-history and only later entries carry them. Rank on `changes`.
+
+If one of these starts getting run every maintenance pass, that's the evidence for promoting it to a subcommand. Until then it stays a file.
 
 ## configuration
 
