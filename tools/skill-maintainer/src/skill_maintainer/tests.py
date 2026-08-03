@@ -741,6 +741,147 @@ def check_changelog_version(root: Path) -> list[Result]:
                    f"pyproject={pyver} but top CHANGELOG heading={heading.group(1)}")]
 
 
+CLAIM_RE = re.compile(
+    r"`([a-z0-9][a-z0-9._-]*)`\s+(\d+\.\d+\.\d+)\s*(?:→|->)\s*(\d+\.\d+\.\d+)"
+)
+
+
+def _version_candidates(root: Path) -> dict[str, set[str]]:
+    """Map every name a changelog might use for a versioned unit to its versions.
+
+    A name can legitimately carry two versions at once. `skill-maintainer` is both
+    a plugin (marketplace source ./skills/skill-maintainer, no code) and a Python
+    package (tools/skill-maintainer) that version independently by design, so the
+    map holds a SET and a claim matching either is accepted. Resolving the
+    ambiguity would mean guessing which one an entry meant; accepting either keeps
+    the check exact about the thing it can actually prove -- that the claimed
+    number exists somewhere it should.
+
+    Console-script names are aliases: the changelog says `skill-maintain` (the
+    command people run) where the directory says skill-maintainer.
+    """
+    out: dict[str, set[str]] = {}
+
+    def add(name: object, version: object) -> None:
+        if isinstance(name, str) and isinstance(version, str) and name and version:
+            out.setdefault(name, set()).add(version)
+
+    for plugin_dir in discover_plugins(root):
+        # A corrupt or non-object manifest is already a hard failure in
+        # check_version_alignment. Reporting it twice would train people to read
+        # one row and skip the other, so this map just stays quiet about it --
+        # the name then goes unresolved, which the scope note reports.
+        try:
+            data = orjson.loads((plugin_dir / ".claude-plugin" / "plugin.json").read_bytes())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        add(data.get("name"), data.get("version"))
+        add(plugin_dir.name, data.get("version"))
+
+    for pyproject in sorted(root.glob("*/*/pyproject.toml")):
+        # _pyproject_version already parsed this file and returned None for every
+        # shape without a static version, so reaching here means it parses.
+        version = _pyproject_version(pyproject)
+        if version is None:
+            continue
+        add(pyproject.parent.name, version)
+        try:
+            project = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("project")
+        except (OSError, ValueError):
+            continue
+        if not isinstance(project, dict):
+            continue
+        add(project.get("name"), version)
+        scripts = project.get("scripts")
+        if isinstance(scripts, dict):
+            for script_name in scripts:
+                add(script_name, version)
+
+    return out
+
+
+def check_changelog_claims(root: Path) -> list[Result]:
+    """Every ``name X.Y.Z -> A.B.C`` claim in the changelog's TOP section must
+    match that unit's manifest today.
+
+    check_version_alignment proves the manifests agree with each other. Nothing
+    proved they agree with what the changelog SAYS was released, and that is a
+    separate failure with a real consumer: the changelog is what a reader trusts
+    to know a fix shipped, while `marketplace update` resolves the manifest. A
+    2026-08-03 specimen made it concrete -- two sessions committing in parallel
+    landed a changelog entry claiming postmortem 0.6.0 while both manifests still
+    read 0.5.0, internally consistent and therefore green.
+
+    WHY NOT the obvious alternative -- sweeping every section: older entries
+    describe the state at their own release and MUST disagree with the manifests
+    today. All 85 claims in this repo's history would fire. Scoping to the top
+    section is what makes the check exact instead of a permanent red wall, which
+    is the direction that gets a check disabled rather than read.
+
+    FALSE POSITIVES, measured on this repo's whole changelog: the claim form
+    appears 85 times, 78 resolve to a versioned unit, and every one of the 7
+    misses names a retired unit (agent-state, agent-state-mcp, env-forge,
+    tui-design). Those take the report-don't-fail path, so the observed false
+    failure rate is 0. Firing requires an exact mismatch between a claimed target
+    and every version its name carries; there is no heuristic to mis-tune.
+
+    WHAT IT DOES NOT DO. It reads the top section only, so a claim that goes
+    unsatisfied until the NEXT section lands escapes permanently -- it guards the
+    window, not the history. It ignores the pre-arrow version, so a wrong "from"
+    is invisible. It does not check that the bump direction or semver step is
+    sensible. And an unresolvable name is reported, not failed: a changelog may
+    name a unit this repo does not version, and this runs against arbitrary repos
+    via --dir where nothing resolves. The count travels with the green so a pass
+    that checked nothing cannot be mistaken for a pass that checked everything.
+
+    RETIREMENT TRIGGER: if the repo moves to a generated changelog or drops the
+    ``name X.Y.Z -> A.B.C`` form, the resolved count falls toward 0/N and the
+    green goes vacuous while still reading green. Delete this rather than
+    teaching the regex new shapes -- at that point the generator owns the
+    guarantee. Equally, if check_version_alignment ever grows a changelog reader,
+    this folds into it rather than running beside it.
+    """
+    changelog = root / "CHANGELOG.md"
+    if not changelog.exists():
+        return []
+
+    text = changelog.read_text(encoding="utf-8")
+    headings = [m.start() for m in re.finditer(r"^## ", text, re.M)]
+    if not headings:
+        return []
+    top = text[headings[0]: headings[1]] if len(headings) > 1 else text[headings[0]:]
+
+    claims = CLAIM_RE.findall(top)
+    if not claims:
+        return [Result("repo", "", "changelog claims", True,
+                       "top section makes no version claims")]
+
+    known = _version_candidates(root)
+    results: list[Result] = []
+    unresolved: list[str] = []
+
+    for name, _, new in claims:
+        candidates = known.get(name)
+        if not candidates:
+            unresolved.append(name)
+            continue
+        ok = new in candidates
+        results.append(Result(
+            "repo", name, "changelog claims", ok,
+            "" if ok else
+            f"changelog claims {name} {new} but manifest reads {'/'.join(sorted(candidates))}",
+        ))
+
+    checked = len(claims) - len(unresolved)
+    note = f"{checked}/{len(claims)} top-section claims resolved to a versioned unit"
+    if unresolved:
+        note += f"; not versioned here: {', '.join(sorted(set(unresolved)))}"
+    results.append(Result("repo", "", "changelog claims", True, note))
+    return results
+
+
 def test_repo_hygiene(root: Path) -> list[Result]:
     """Run repo-level checks."""
     results = []
@@ -768,6 +909,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
 
     # Changelog heading vs repo version.
     results.extend(check_changelog_version(root))
+
+    # ...and the changelog's per-unit bump claims vs the manifests.
+    results.extend(check_changelog_claims(root))
 
     results.append(Result(
         "repo", "", "no blanket .claude/ gitignore",

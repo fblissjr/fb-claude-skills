@@ -1,5 +1,14 @@
 # changelog
 
+## 1.5.0
+
+### added
+- **`skill-maintain` 0.24.0 → 0.25.0 — the changelog's version claims are now checked against the manifests.** `check_version_alignment` proves `plugin.json`, `marketplace.json` and `pyproject.toml` agree with *each other*; nothing proved they agree with what the changelog SAYS shipped. Those are different guarantees with different consumers — the changelog is what a reader trusts to know a fix landed, while `marketplace update` resolves the manifest — and the gap produced a specimen the same day it was named: two sessions committing in parallel landed a 1.4.0 entry claiming `postmortem` 0.6.0 while both manifests still read 0.5.0. Internally consistent, therefore green, and 241 tests passed on it.
+
+  `check_changelog_claims` parses ``name X.Y.Z → A.B.C`` out of the **top section only** and requires the target to match a version that name actually carries. Scoping is the whole design: every one of the 85 claims in this repo's history would fire against today's manifests, because an old entry describing an old state is correct, and a check that reds permanently is a check that gets disabled. Names resolve through plugin manifests, `*/*/pyproject.toml`, and console-script aliases, and a name may legitimately hold two versions at once — `skill-maintainer` is a plugin at 0.18.0 and a CLI at 0.25.0 that version independently by design, so a claim matching either passes rather than the check guessing which was meant.
+
+  Measured before shipping: 78 of 85 historical claims resolve, and all 7 misses name retired units (`agent-state`, `agent-state-mcp`, `env-forge`, `tui-design`), which take the report-don't-fail path — observed false failure rate 0. Recorded red against the live defect first (manifests reverted to `HEAD`, check fired, naming both numbers), then green. The header carries what it does not do — top section only, so a claim unsatisfied until the next section lands escapes permanently; the pre-arrow version is unread — and its retirement trigger: a generated changelog drops the claim form, the resolved count falls toward 0/N, and the green goes vacuous while still reading green, at which point delete it rather than teaching the regex new shapes.
+
 ## 1.4.0
 
 ### added
