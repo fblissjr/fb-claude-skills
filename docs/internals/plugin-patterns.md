@@ -82,21 +82,56 @@ for any plugin whose value is "inject conventions":
 Candidates when next touched: `dimensional-modeling`, `mece-decomposer` —
 both disabled in this repo for exactly the broadcast reason.
 
-Known ground-pattern limits, with specimens (first consumer report,
-2026-08-03): a bare package-manager token in a tooling list ("Tooling: bun,
+Ground-pattern limits, measured by the first consumer report (2026-08-03),
+and what shipped against them in 0.15.2 the same day. The founding specimen
+pair: a bare package-manager token in a tooling list ("Tooling: bun,
 three@0.185.1 + playwright-core@1.61.1 (both pinned)") is a genuine
-declaration that matches nothing — bare tokens are exactly what 0.15.1
-stopped counting — while a documented command invocation ("bun run
-<script> --parity-only") matches `\b(bun|npm|yarn|pnpm) (add|install|run|ci)\b`
-despite being an example, not a rule. Net effect in the reporting repo:
-right verdict (silence), wrong line read. Tuning trigger: a second
-consumer specimen, or any wrong-direction case (a block silenced where the
-repo genuinely never stated its tooling). Until then the specimens
-accumulate here. Related diagnostic gap from the same report: the hook's
-silence has at least three causes (no cwd in stdin, no triggers matched,
-all ground covered) and nothing distinguishes them without `bash -x` — an
-opt-in `--explain` mode printing per-directive verdicts is the candidate
-fix, filed not built.
+declaration that matches nothing, while a fenced command invocation
+("bun run <script> --parity-only") matched despite being an example, not a
+rule. The originally-recorded verdict here ("right verdict, wrong line
+read") was wrong, corrected by the consumer's own measurement: the trigger
+gate short-circuits coverage, so on a fresh clone the coverage verdict was
+never consulted (moot), and on the one machine where coverage ran, the repo
+genuinely lacked the ground (wrong). Moot or wrong — never right.
+
+What shipped against it: **fence-stripping** (coverage greps prose only —
+the rule-vs-command discriminator is positional, not lexical; the strip can
+only remove coverage, erring toward the recoverable direction), **force
+overrides both gates** (a trigger miss from gitignored/deep markers was the
+second unrecoverable silence; force originally recovered only coverage),
+and **`--explain`** (three byte-identical causes of silence, now narrated
+per directive with the matched line — this is also the specimen-accumulation
+instrument: without it every specimen costs a manual `bash -x` dig, so any
+"tune after N specimens" trigger stays unreachable by construction). New
+specimens go into `test_token_mentions_do_not_silence`'s parametrize list —
+that test IS the specimen file.
+
+A second specimen was raised and withdrawn the same evening, and the
+withdrawal is the part worth keeping. The claim: the two hooks disagree
+about whether a mixed-language repo "is JS" (SessionStart's deep marker
+scan said yes via a gitignored fixture; the PreToolUse guard, tested from
+repo root, did not block npm). Measured properly — running the guard with
+cwd *inside* the fixture — the guard blocked npm and yarn there and allowed
+them at root: it walks up from cwd and resolves the managing lockfile
+per directory. The hooks ask different questions with different consequence
+profiles, and both scopes are correct: presence-of-language scans down
+(prose tier, cheap to be wrong), evidence-of-manager-choice walks up from
+the action (enforcement tier, expensive to be wrong). The reasoning hygiene
+that survives: trigger-vs-coverage and detection-vs-enforcement are
+non-interchangeable gates, and "tested from the wrong cwd" produced a
+confident false inconsistency. One noted limit stands, prose tier only:
+SessionStart marker detection sees gitignored files, so a directive trigger
+can be true on one machine and false on every clone — bounded blast radius
+(a few coverage-gated lines on the machine where the fixture exists), noted
+rather than filed as a defect.
+
+The strategic step, filed for the 0.16.0 round alongside the bare-repo
+pointer: the regex is lossy inference of a fact `/dev-conventions:init`
+could simply record. Init knows exactly what it wrote — have it declare
+coverage in `.dev-conventions.json` (tracked, so the declaration travels
+like the scaffolded prose), and the regex demotes to a fallback for repos
+that wrote their rules by hand, where `--explain` is what makes it
+debuggable.
 
 ## Agent vs. skill
 

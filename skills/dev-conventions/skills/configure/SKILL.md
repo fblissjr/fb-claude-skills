@@ -74,15 +74,22 @@ Valid rules: `python-package-manager`, `js-package-manager`, `lockfile-edits`.
 Create the file if needed, preserving any existing keys.
 
 **`mute <directive>` / `unmute <directive>` / `force <directive>`** — a
-directive key has three states: `false` (muted, never loads), absent (ground
-coverage decides — the default), `true` (force-load, coverage skipped). So:
-`mute` sets `false`; `unmute` *removes* the key, returning the block to
-coverage-decided; `force` sets `true`, for when a ground pattern over-matches
-and wrongly silences a block the repo never stated. Valid names: `python`,
-`javascript`, `tdd`, `doc-conventions`. Before muting, confirm the repo
-actually has a superseding local rule (CLAUDE.md or `.claude/rules/`) covering
-the same ground, and say which file it is — muting a block nothing replaces is
-losing the convention, not trimming a duplicate.
+directive key has three states: `false` (muted, never loads), absent (trigger
+then ground coverage decide — the default), `true` (force-load, overriding
+BOTH the trigger match and coverage). So: `mute` sets `false`; `unmute`
+*removes* the key, returning the block to the default; `force` sets `true`,
+for when a block is wrongly silenced — by an over-matching ground pattern, or
+by a trigger whose project markers are gitignored or sit below the scan
+depth. Valid names: `python`, `javascript`, `tdd`, `doc-conventions`. Before
+muting, confirm the repo actually has a superseding local rule (CLAUDE.md or
+`.claude/rules/`) covering the same ground, and say which file it is — muting
+a block nothing replaces is losing the convention, not trimming a duplicate.
+
+**`show` also explains the silence.** Run the plugin's SessionStart hook with
+`--explain <repo-root>` and include its per-directive table in the output.
+Three causes of silence (trigger never fired, muted, ground covered) are
+byte-identical in normal operation; the table names the gate that stopped
+each block and the exact line that matched.
 
 **`add <text>`** — append a one-line rule to `rules[]`. Before writing it, apply
 the tier test: if the rule is mechanically checkable, say so and offer a hook

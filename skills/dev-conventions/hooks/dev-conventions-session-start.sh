@@ -4,7 +4,21 @@
 # Reads hook input JSON from stdin, extracts cwd.
 # Outputs JSON with additionalContext if dev markers found, silent exit 0 otherwise.
 
-CWD=$(jq -r '.cwd // ""' 2>/dev/null)
+# --explain [dir]: diagnostic mode, run by hand. In normal operation three
+# causes of silence (trigger never fired, muted, ground covered) emit
+# byte-identical output — nothing — and the first consumer field report took
+# `bash -x` to tell them apart. Explain prints, per directive, which gate
+# stopped it and which line matched. It is also the instrument that makes
+# pattern-limit specimens cheap to accumulate: without it every specimen
+# costs the same manual dig, so any "tune after N specimens" trigger stays
+# out of reach by construction.
+EXPLAIN=0
+if [ "${1:-}" = "--explain" ]; then
+  EXPLAIN=1
+  CWD="${2:-$PWD}"
+else
+  CWD=$(jq -r '.cwd // ""' 2>/dev/null)
+fi
 
 if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
   exit 0
@@ -73,8 +87,10 @@ fi
 # A repo with no Python or JS marker still gets its own `rules[]` from
 # .dev-conventions.json -- the configure skill documents those as generic house
 # rules and promises they load next session, and a Go, Rust, or docs-only repo
-# would otherwise never see them because this guard runs first.
-if [ "$HAS_PYTHON" = false ] && [ "$HAS_JS" = false ]; then
+# would otherwise never see them because this guard runs first. Explain mode
+# bypasses the guard: a no-marker repo asked to explain should say so per
+# directive, not exit wordlessly.
+if [ "$EXPLAIN" = 0 ] && [ "$HAS_PYTHON" = false ] && [ "$HAS_JS" = false ]; then
   if [ ! -f "$CWD/.dev-conventions.json" ]; then
     exit 0
   fi
@@ -86,11 +102,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTEXT=""
 
 # Per-repo directive gating via .dev-conventions.json. Three states per
-# directive filename: absent/"" (ground coverage decides), false (muted,
-# never loads), true (FORCE-load: coverage is skipped). Explicit true exists
-# because a ground pattern that over-matches silences a block wrongly, and
-# mute can only force silence — without a force-on, a wrongly-silenced
-# convention is simply lost for that repo.
+# directive filename: absent/"" (trigger, then ground coverage decide),
+# false (muted, never loads), true (FORCE-load: overrides BOTH the trigger
+# match and coverage). Explicit true exists because a block gets wrongly
+# silenced two ways — an over-matching ground pattern, or a trigger whose
+# markers sit in gitignored fixtures or below the scan depth — and a force
+# that only skipped coverage recovered just one of them (consumer-verified,
+# 2026-08-03: trigger short-circuited before state was ever read).
 #   { "directives": { "tdd": false, "python": true } }
 # Same has() guard as the PreToolUse hook's enforced(): jq's `//` treats a
 # stored `false` as absent, so the key is tested explicitly.
@@ -116,18 +134,45 @@ directive_state() {
 # surfaces checked are the repo's conventions carriers: root CLAUDE.md,
 # .claude/rules/*.md, and rules[] in .dev-conventions.json. Silencing gates
 # PROSE only — the PreToolUse enforcement hook never consults this.
-ground_covered() {
-  local pat="$1" r
+# Ground is grepped over PROSE only: fenced code blocks are documentation-of-
+# a-command, not stated rules, and the rule-vs-command discriminator is
+# positional, not lexical — no alternation tuning finds that boundary
+# (consumer-measured, 2026-08-03: a fenced `bun run ...` parity command
+# silenced the javascript block in a repo with no npm prohibition and no
+# pinning policy). Fenced lines are BLANKED, not deleted, so reported line
+# numbers stay true. Inline code spans stay: "use `bun add`, never `npm
+# install`" is a rule with code in it. Properties that make this safe: the
+# strip can only REMOVE coverage, so it errs toward under-silencing — the
+# recoverable direction (mute exists); a naive open/close toggle mis-tracking
+# an exotic fence also errs the same way. The one regression class — a repo
+# stating conventions inside a fenced block — fails toward the block loading.
+prose_of() {
+  awk '/^[[:space:]]*(```|~~~)/ { f = !f; print ""; next }
+       f { print ""; next }
+       { print }' "$1"
+}
+
+# The single coverage implementation. ground_covered is a quiet wrapper so
+# the hook path and --explain cannot drift apart.
+ground_match() {  # prints "path:line:text" of the first prose match
+  local pat="$1" r m
   [ -n "$pat" ] || return 1
-  [ -f "$CWD/CLAUDE.md" ] && grep -qiE "$pat" "$CWD/CLAUDE.md" 2>/dev/null && return 0
-  for r in "$CWD"/.claude/rules/*.md; do
-    [ -f "$r" ] && grep -qiE "$pat" "$r" 2>/dev/null && return 0
+  for r in "$CWD/CLAUDE.md" "$CWD"/.claude/rules/*.md; do
+    [ -f "$r" ] || continue
+    if m=$(prose_of "$r" | grep -inm1 -E "$pat" 2>/dev/null); then
+      printf '%s:%s\n' "$r" "$m"
+      return 0
+    fi
   done
   if [ -f "$CFG" ] && command -v jq >/dev/null 2>&1; then
-    jq -r '.rules[]?' "$CFG" 2>/dev/null | grep -qiE "$pat" && return 0
+    if m=$(jq -r '.rules[]?' "$CFG" 2>/dev/null | grep -im1 -E "$pat"); then
+      printf '%s rules[]: %s\n' "$CFG" "$m"
+      return 0
+    fi
   fi
   return 1
 }
+ground_covered() { ground_match "$1" >/dev/null; }
 
 # ground_of / directive_body: the leading run of "# key: value" lines is
 # metadata as a CLASS — honored only at the head, stripped only at the head.
@@ -141,21 +186,58 @@ directive_body() {
   awk 'body { print; next } /^# [a-z-]+: /{ next } { body = 1; print }' "$1"
 }
 
+# --explain: the same gates, narrated. Byte-identical silence has three
+# causes (trigger never fired, muted, ground covered); this prints which
+# gate stopped each directive and the exact line that matched. It shares
+# directive_state/ground_match with the silent path below, so the
+# explanation cannot drift from the behavior.
+if [ "$EXPLAIN" = 1 ]; then
+  printf 'dev-conventions --explain  cwd=%s\n' "$CWD"
+  printf 'markers: python=%s js=%s session-log=%s\n\n' "$HAS_PYTHON" "$HAS_JS" "$HAS_SESSION_LOG"
+  for f in "$SCRIPT_DIR"/directives/*.md; do
+    [ -f "$f" ] || continue
+    name=$(basename "$f" .md)
+    trigger=$(head -1 "$f" | sed 's/^# trigger: //')
+    fired=yes
+    case "$trigger" in
+      python)     [ "$HAS_PYTHON" = true ] || fired=no ;;
+      javascript) [ "$HAS_JS" = true ] || fired=no ;;
+      docs)       [ "$HAS_SESSION_LOG" = true ] || fired=no ;;
+      any)        ;;
+      *)          fired=no ;;
+    esac
+    state=$(directive_state "$name")
+    if [ "$state" = "true" ]; then
+      printf '%-16s LOADS   force-loaded (overrides trigger and coverage)\n' "$name"
+    elif [ "$state" = "false" ]; then
+      printf '%-16s silent  muted in .dev-conventions.json\n' "$name"
+    elif [ "$fired" = "no" ]; then
+      printf '%-16s silent  trigger "%s" did not fire\n' "$name" "$trigger"
+    elif m=$(ground_match "$(ground_of "$f")"); then
+      printf '%-16s silent  ground covered by %s\n' "$name" "$m"
+    else
+      printf '%-16s LOADS   trigger fired, ground not covered\n' "$name"
+    fi
+  done
+  exit 0
+fi
+
 for f in "$SCRIPT_DIR"/directives/*.md; do
   [ -f "$f" ] || continue
-  # Cheapest check first: the trigger match is pure bash; jq and grep run
-  # only for directives that survive it.
-  trigger=$(head -1 "$f" | sed 's/^# trigger: //')
-  case "$trigger" in
-    python)     [ "$HAS_PYTHON" = true ] || continue ;;
-    javascript) [ "$HAS_JS" = true ] || continue ;;
-    docs)       [ "$HAS_SESSION_LOG" = true ] || continue ;;
-    any)        ;;
-    *)          continue ;;
-  esac
+  # State first so force can override a trigger miss; directive_state is a
+  # pure-bash no-op for the common no-config repo, so the default path still
+  # pays nothing before the trigger match.
   state=$(directive_state "$(basename "$f" .md)")
   [ "$state" = "false" ] && continue
   if [ "$state" != "true" ]; then
+    trigger=$(head -1 "$f" | sed 's/^# trigger: //')
+    case "$trigger" in
+      python)     [ "$HAS_PYTHON" = true ] || continue ;;
+      javascript) [ "$HAS_JS" = true ] || continue ;;
+      docs)       [ "$HAS_SESSION_LOG" = true ] || continue ;;
+      any)        ;;
+      *)          continue ;;
+    esac
     ground_covered "$(ground_of "$f")" && continue
   fi
   [ -n "$CONTEXT" ] && CONTEXT+=$'\n'

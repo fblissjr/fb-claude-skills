@@ -128,6 +128,28 @@ def test_token_mentions_do_not_silence(repo: Path, bait: str, must_survive: str)
     assert must_survive in headings(run_hook(repo))
 
 
+def test_fenced_command_examples_do_not_cover(repo: Path):
+    # The consumer-measured specimen (2026-08-03): a documented invocation in
+    # a fenced block is documentation-of-a-command, not a stated rule. Before
+    # fence-stripping, `bun run ...` here silenced the javascript block in a
+    # repo with no npm prohibition and no pinning policy — a wrong verdict,
+    # the unrecoverable direction. Prose-only grepping is positional, not
+    # lexical: no alternation tuning finds this boundary.
+    (repo / "CLAUDE.md").write_text(
+        "Build steps:\n\n```\nbun run scripts/build.js\nuv run tools/gen.py\n```\n"
+    )
+    h = headings(run_hook(repo))
+    assert "JavaScript/TypeScript conventions" in h
+    assert "Python conventions" in h
+
+
+def test_inline_code_rules_still_cover(repo: Path):
+    # The other half of the specimen pair: a rule with code IN it is still a
+    # rule. Only fenced blocks are stripped; inline spans stay.
+    (repo / "CLAUDE.md").write_text("Use `bun add`, never `npm install`.\n")
+    assert "JavaScript/TypeScript conventions" not in headings(run_hook(repo))
+
+
 def test_explicit_true_forces_load_over_coverage(repo: Path):
     # Mute can only force silence; explicit true is the force-on escape for a
     # ground pattern that over-matches. Without it a wrongly-silenced
@@ -138,6 +160,33 @@ def test_explicit_true_forces_load_over_coverage(repo: Path):
         json.dumps({"directives": {"python": True}})
     )
     assert "Python conventions" in headings(run_hook(repo))
+
+
+def test_force_overrides_a_trigger_miss(tmp_path: Path):
+    # The consumer-verified design gap (2026-08-03): a block is wrongly
+    # silenced two ways — coverage over-match OR a trigger whose markers are
+    # gitignored/deep — and force originally recovered only coverage. A repo
+    # with NO JS marker plus javascript:true must still get the block.
+    (tmp_path / "pyproject.toml").touch()
+    (tmp_path / "internal").mkdir()
+    (tmp_path / ".dev-conventions.json").write_text(
+        json.dumps({"directives": {"javascript": True}})
+    )
+    assert "JavaScript/TypeScript conventions" in headings(run_hook(tmp_path))
+
+
+def test_explain_names_the_gate_per_directive(repo: Path):
+    # Three causes of silence are byte-identical in hook mode; --explain must
+    # distinguish them and cite the matched line, sharing the same gate code.
+    (repo / "CLAUDE.md").write_text("Use uv, never pip.\n")
+    out = subprocess.run(
+        ["bash", str(HOOK), "--explain", str(repo)],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    python_line = next(l for l in out.splitlines() if l.startswith("python"))
+    assert "ground covered by" in python_line and "CLAUDE.md:1" in python_line
+    tdd_line = next(l for l in out.splitlines() if l.startswith("tdd"))
+    assert "LOADS" in tdd_line
 
 
 def test_this_repo_stays_fully_covered():

@@ -45,6 +45,10 @@ To add a new directive: drop a `.md` file in `hooks/directives/` and add a detec
 
 Each directive declares its *ground* as a regex in its leading metadata block (`# ground: ...`, line 2 by convention). Before injecting a block, the hook greps that pattern across the repo's own conventions surfaces -- root `CLAUDE.md`, `.claude/rules/*.md`, and `rules[]` in `.dev-conventions.json`. Covered ground means that block stays silent, per block: a CLAUDE.md that only describes module layout silences nothing; a repo that states its own package-manager rule silences exactly that block. Silencing gates prose only -- the PreToolUse enforcement hook never consults it.
 
+Coverage is grepped over prose only: fenced code blocks are stripped first (a documented command is not a stated rule; inline code spans stay, so "use `bun add`, never `npm install`" still counts). The strip can only remove coverage, so it errs toward a block loading -- the recoverable direction.
+
+Two gates decide each block, in order, and they are not interchangeable: the *trigger* (project markers) fires first and short-circuits; *ground coverage* runs only for blocks whose trigger fired. "Why is this block silent" therefore has two different answers, plus a third (muted). To see which applies, run the hook by hand: `hooks/dev-conventions-session-start.sh --explain <repo-root>` prints, per directive, the gate that stopped it and the exact line that matched. `force` (explicit `true` in the `directives` map) overrides both gates.
+
 To make the conventions local in the first place, `/dev-conventions:init` scaffolds tailored convention lines into the repo's own files (skipping ground already covered), after which the blocks are silent here automatically -- and the scaffolded text reaches every collaborator's Claude through normal context loading, including people who never installed this plugin.
 
 ### per-repo muting
