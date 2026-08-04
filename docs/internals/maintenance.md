@@ -209,3 +209,37 @@ First live datum, gathered the day of filing: two arms from the day's work
 subjects and green on revert. Sample of 2 from 228 — reported as such.
 Lands as a maintain change at skill-maintainer's next release, not a
 same-day bump.
+
+## Dates are look-triggers, not deciders
+
+Settled 2026-08-04 when the owner challenged the class ("is an arbitrary
+date really a good idea, for anything?"). The answer that survived:
+
+- **A fixed date has exactly one legitimate function: pre-commitment
+  against peeking.** Choosing the evaluation moment before the data exists
+  is what stops "evaluate when ready" from becoming "evaluate when the
+  numbers look favorable." That function needs the date to say WHEN TO
+  LOOK — never what to conclude.
+- **A date must not decide.** A rule of the form "on date X, if zero,
+  act" converts elapsed time into evidence, and time is not evidence —
+  exposure is. Both 08-24 checkpoints were amended into this shape the
+  same week they were examined: date says look, exposure says whether the
+  look can decide, underpowered looks extend.
+- **A calendar window is a proxy for source movement, and a lazy one where
+  movement is observable.** `review_interval_days` fired on content-triage
+  at 124 days; the review found zero drift because the skill's source is
+  in-repo code whose changes the version cascade already surfaces. Where
+  the source's change is observable (tracked code, upstream hashes we
+  already snapshot), the honest trigger is the change event; the calendar
+  window is the fallback for sources whose drift cannot be observed, and
+  should be understood as that fallback.
+- **Never invent soft dates.** A "check back by ~X" chosen from nothing is
+  the arbitrary class with none of the pre-commitment benefit; the honest
+  form is event-based ("at the next session", "when the report lands").
+  One such date was minted and retracted the same day (postmortem
+  2026-08-04, forward item 2 annotation).
+
+Candidate evolution, filed not built: skill freshness could become
+change-triggered where the source is tracked (source file hash beside
+`last_verified`, review prompted on mismatch), with the calendar interval
+retained only for skills whose sources live outside observation.
