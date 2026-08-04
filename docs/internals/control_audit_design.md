@@ -184,3 +184,29 @@ fragmentation reason as decision 3 below.
 - test-audit and this converge on shared machinery worth extracting — fold
   them into one audit skill with two subjects rather than maintaining
   parallel procedures.
+
+## Annotation 2026-08-04, post-ship: exposure-aware retirement triggers
+
+Filed the evening the denominator memo round-tripped from the consumer
+repo, for the next content release of the checklist and this skill — not a
+same-day bump, per the sequencing discipline this build already follows.
+
+The memo's lesson generalizes past its checkpoint: the vulnerable spot is
+any PRE-REGISTERED DECISION RULE that consumes a rate or count
+automatically. The consumer's claims-reminder retirement trigger ("if the
+correction rate matches the three weeks prior, delete") is delete-decided
+by a comparison whose exposure nobody has to state — a quiet window deletes
+the hook for free, the underpowered-zero failure in retirement clothing.
+This repo's control-authoring checklist mandates a retirement trigger at
+install but does not require it to state its exposure basis, so it can
+mint underpowered triggers today.
+
+Two upgrades, when their releases come around:
+
+- **best_practices control-authoring**: a retirement trigger that compares
+  rates or counts must state its exposure basis and a minimum sample below
+  which the trigger extends rather than fires.
+- **control-audit census**: when the retirement-condition slot holds a
+  rate- or count-shaped trigger with no stated exposure basis, that is a
+  reportable finding on the slot — currently the census would pass it as
+  filled.
