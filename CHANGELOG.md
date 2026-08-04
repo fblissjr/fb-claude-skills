@@ -1,5 +1,10 @@
 # changelog
 
+## 1.9.2
+
+### fixed
+- **`skill-maintain` 0.25.1 → 0.25.2 — the two filed tests.py refactors, plus the window defects they were hiding.** Both changelog checks now share one fence-aware section extractor (`_top_changelog_section` over `_mask_fences`, fence rules as the path-privacy 0.16.x work settled them), which closed two real escapes in `check_changelog_claims` on the way: a `## ` line inside a fenced code block used to end the top section early — so a real claim below the fence escaped unaudited while a claim-shaped string *inside* the quoted example was audited and could false-fire — and an `[Unreleased]` section on top used to *become* the window, so the newest release's claims were never read. The window is now the newest release section by shape, fences blanked. Both defects recorded red first; four new arms, tool suite at 152. And `_version_candidates` no longer parses each pyproject twice behind differently-spelled exception tuples: `_pyproject_project` is the single reader, with `_pyproject_version` folded on top. CLI-only release — the skill-maintainer plugin carries no code from `tools/`, so no plugin bump (invariant 1).
+
 ## 1.9.1
 
 ### fixed

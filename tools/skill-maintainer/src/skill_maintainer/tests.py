@@ -196,6 +196,22 @@ def test_plugins(root: Path) -> list[Result]:
 # ---------------------------------------------------------------------------
 
 
+def _pyproject_project(path: Path) -> dict | None:
+    """Return the `[project]` table, or None when there isn't a readable one.
+
+    The single parse behind every consumer of pyproject facts here. It used to
+    happen twice per file in the claims map -- once for the version, once for
+    the name and scripts, behind differently-spelled exception tuples -- which
+    is two chances for the tuples to drift apart.
+    """
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None
+    project = data.get("project") if isinstance(data, dict) else None
+    return project if isinstance(project, dict) else None
+
+
 def _pyproject_version(path: Path) -> str | None:
     """Return `[project].version`, or None when there isn't a static one.
 
@@ -204,14 +220,8 @@ def _pyproject_version(path: Path) -> str | None:
     `dynamic = ["version"]`, and a file this parser cannot read. Only a version
     that is present and disagrees with plugin.json is a finding.
     """
-    try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return None
-    project = data.get("project")
-    if not isinstance(project, dict):
-        return None
-    version = project.get("version")
+    project = _pyproject_project(path)
+    version = project.get("version") if project else None
     return version if isinstance(version, str) else None
 
 
@@ -703,12 +713,11 @@ def check_changelog_version(root: Path) -> list[Result]:
         pyver = None
 
     text = changelog.read_text(encoding="utf-8")
-    # Accept keep-a-changelog `## [1.2.3] - 2024-01-01` and prerelease suffixes
-    # too. This tool runs against arbitrary repos via --dir, where those are
-    # standard shapes; failing them as "no version heading" would be a false
-    # positive on a correct changelog.
-    heading = re.search(r"^## \[?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]?(?:\s+-\s+\S.*)?\s*$",
-                        text, re.M)
+    # The shared fence-aware extractor: this tool runs against arbitrary repos
+    # via --dir, where keep-a-changelog headings and fenced changelog examples
+    # are standard shapes; failing them as "no version heading" (or matching a
+    # heading inside a fence) would be a false positive on a correct changelog.
+    heading, _ = _top_changelog_section(text)
     if not heading:
         return [Result("repo", "", "changelog version", False,
                        "CHANGELOG.md has no `## X.Y.Z` heading")]
@@ -745,6 +754,69 @@ def check_changelog_version(root: Path) -> list[Result]:
 CLAIM_RE = re.compile(
     r"`([a-z0-9][a-z0-9._-]*)`\s+(\d+\.\d+\.\d+)\s*(?:→|->)\s*(\d+\.\d+\.\d+)"
 )
+
+# Accepts keep-a-changelog `## [1.2.3] - 2024-01-01` and prerelease suffixes;
+# shared by the version check and the claims window so the two cannot disagree
+# about what counts as a release heading.
+VERSION_HEADING_RE = re.compile(
+    r"^## \[?(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)\]?(?:\s+-\s+\S.*)?\s*$", re.M
+)
+
+
+def _mask_fences(text: str) -> str:
+    """The text with fenced code blocks blanked to spaces, offsets preserved.
+
+    Heading and claim detection must not read fenced examples: a `## ` line
+    inside a fence is content, not a section boundary, and a claim-shaped
+    string in a quoted example is not a claim. Fence rules follow markdown as
+    settled by the path-privacy 0.16.x work: open on three or more of the same
+    character at up to three spaces indent, close on the same character, at
+    least as long, nothing but whitespace after. Blanking (not deleting)
+    keeps every offset true for the caller's slicing.
+    """
+    out: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in text.splitlines(keepends=True):
+        stripped = line.lstrip(" ")
+        indented_ok = (len(line) - len(stripped)) <= 3
+        m = re.match(r"(`{3,}|~{3,})", stripped)
+        if fence is None:
+            if m and indented_ok:
+                fence = (m.group(1)[0], len(m.group(1)))
+                out.append(_blank_line(line))
+            else:
+                out.append(line)
+        else:
+            ch, n = fence
+            if (m and indented_ok and m.group(1)[0] == ch
+                    and len(m.group(1)) >= n
+                    and not stripped[len(m.group(1)):].strip()):
+                fence = None
+            out.append(_blank_line(line))
+    return "".join(out)
+
+
+def _blank_line(line: str) -> str:
+    body = line.rstrip("\r\n")
+    return " " * len(body) + line[len(body):]
+
+
+def _top_changelog_section(text: str) -> tuple[re.Match | None, str | None]:
+    """(first release heading, that section's text with fences blanked).
+
+    The one extractor both changelog checks share. The heading is the first
+    `## X.Y.Z` outside a fence -- which skips `## [Unreleased]` by shape, so
+    the window is the newest RELEASE, not whatever section happens to sit on
+    top. The section runs to the next `## ` heading outside a fence. Returns
+    (None, None) when there is no release heading; check_changelog_version
+    owns reporting that.
+    """
+    masked = _mask_fences(text)
+    heading = VERSION_HEADING_RE.search(masked)
+    if not heading:
+        return None, None
+    nxt = re.compile(r"^## ", re.M).search(masked, heading.end())
+    return heading, masked[heading.start(): nxt.start() if nxt else len(masked)]
 
 
 def _version_candidates(root: Path) -> dict[str, set[str]]:
@@ -796,18 +868,16 @@ def _version_candidates(root: Path) -> dict[str, set[str]]:
         if p.is_file() and not _skipped(p, root)
     ]
     for pyproject in sorted(pyprojects):
-        # _pyproject_version already parsed this file and returned None for every
-        # shape without a static version, so reaching here means it parses.
-        version = _pyproject_version(pyproject)
-        if version is None:
+        # One parse per file. Version, name, and scripts used to come from two
+        # separate parses of the same bytes behind differently-spelled
+        # exception tuples; _pyproject_project is now the only reader.
+        project = _pyproject_project(pyproject)
+        if project is None:
+            continue
+        version = project.get("version")
+        if not isinstance(version, str):
             continue
         add(pyproject.parent.name, version)
-        try:
-            project = tomllib.loads(pyproject.read_text(encoding="utf-8")).get("project")
-        except (OSError, ValueError):
-            continue
-        if not isinstance(project, dict):
-            continue
         add(project.get("name"), version)
         scripts = project.get("scripts")
         if isinstance(scripts, dict):
@@ -863,10 +933,15 @@ def check_changelog_claims(root: Path) -> list[Result]:
         return []
 
     text = changelog.read_text(encoding="utf-8")
-    headings = [m.start() for m in re.finditer(r"^## ", text, re.M)]
-    if not headings:
+    # The shared extractor scopes the window to the newest RELEASE section:
+    # fence-aware (a `## ` line in a quoted example is not a boundary, and a
+    # claim-shaped string inside a fence is not a claim) and Unreleased-
+    # skipping (an [Unreleased] section on top used to BE the window, so the
+    # newest release's claims were never read). No release heading at all is
+    # check_changelog_version's finding, not a second row here.
+    _, top = _top_changelog_section(text)
+    if top is None:
         return []
-    top = text[headings[0]: headings[1]] if len(headings) > 1 else text[headings[0]:]
 
     claims = CLAIM_RE.findall(top)
     if not claims:
