@@ -1,5 +1,10 @@
 # changelog
 
+## 1.11.3
+
+### fixed
+- **`skill-maintainer` 0.19.1 → 0.19.2 — the manual freshness fallback stops asserting a flat 30 days.** The maintain skill's CLI-less path told the checker "within 30 days of today" while the real system has been tiered by `metadata.review_interval_days` since the interval work; the fallback now states the per-skill window (default 30 only when the field is absent) and the reason the tiers exist — a flat window makes the board permanently red, and a permanently-red board is an ignored board.
+
 ## 1.11.2
 
 ### fixed

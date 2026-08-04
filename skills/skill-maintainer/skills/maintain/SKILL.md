@@ -66,7 +66,7 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 - SKILL.md under 500 lines
 
 ### Freshness
-- `metadata.last_verified` present and within 30 days of today
+- `metadata.last_verified` present and within that skill's own `metadata.review_interval_days` (default 30 when the field is absent). The windows are tiered by how fast each skill's source moves — a flat 30 days across the board makes the report permanently red, and a permanently-red board is an ignored board
 
 ### Description quality
 - Description contains a WHAT verb (handles, generates, validates, designs, checks, runs, creates, builds, manages, monitors, tracks, reports)
