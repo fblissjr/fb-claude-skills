@@ -125,18 +125,19 @@ installed or a recent audit exists.
 After the preceding phases:
 
 1. Read `references/best_practices.md` (bundled with this plugin) or `.skill-maintainer/best_practices.md` (if present in the repo)
-2. Review change details from Phases 1-3
+2. Review change details from Phases 1-5
 3. Determine whether `best_practices.md` needs updates based on:
    - New or changed upstream doc pages (Phase 2) that affect skill authoring rules
    - New patterns or conventions from pulled repo changes (Phase 1)
    - Quality report findings that suggest missing or outdated checklist items (Phase 3)
    - Behaviour findings from Phase 4 that point at a rule rather than a one-off
+   - Controls-audit findings from Phase 5 (empty guarded-by slots, header rot) that warrant a control-authoring rule
 4. If updates needed: list each proposed change with rationale. Wait for user approval before writing.
 5. If no updates needed: report "best_practices.md is current -- no changes needed"
 
 ## Rules
 
 - Never auto-write to `best_practices.md` -- always show proposed changes and wait for approval
-- Run all phases even if one reports no changes
+- Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, and 5 define theirs -- in particular, Phase 5's default on a routine pass is skip-and-note, never an unrequested live-fire)
 - If a phase fails, report the error and continue with remaining phases
-- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, best practices edits (if any)
+- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, controls-audit outcome (run or skipped, and why), best practices edits (if any)

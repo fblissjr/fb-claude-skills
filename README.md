@@ -1,4 +1,4 @@
-last updated: 2026-08-01
+last updated: 2026-08-04
 
 # fb-claude-skills
 

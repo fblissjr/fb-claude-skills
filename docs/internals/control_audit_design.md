@@ -89,6 +89,18 @@ Safety protocol, non-negotiable:
   violation reaching the control's input, not just the control's verdict.
 - Cleanup verified by `git status` before the run reports.
 
+> Correction (2026-08-04, post-ship review): two bullets above are stated
+> too loosely, and the shipped skill carries the precise form as of 0.8.1.
+> A scratch *branch* is not isolation — checking it out reuses the live
+> working tree and isolates only the commit graph; only a separate
+> worktree or clone satisfies "never the owner's working tree". And
+> `git status` cannot verify this cleanup — it is blind to branch, commit,
+> stash, and reflog residue — so verification runs against the run's own
+> artifact inventory. A third gap surfaced by the same review: for
+> pattern-anchored controls a marker prefix breaks the needle, so the
+> shipped skill reconciles the two rules (pattern-true dummy token,
+> fakery moved to the surroundings, token first on the inventory).
+
 ## What the census must enumerate (and disclose)
 
 Sources, in this repo's shapes but stated generally:

@@ -1,6 +1,6 @@
 {
   "name": "postmortem",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "The audit family: evidence-grounded postmortems of finished work with a browsable index, a test-suite audit (does each green test still mean anything), a controls audit (census and live-fire over hooks, validators, and reminders), and the adversarial-verify primitive with its control-builder agent that the audits dispatch to",
   "author": {
     "name": "Fred Bliss"

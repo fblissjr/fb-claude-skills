@@ -80,15 +80,27 @@ beyond that as budget allows.
 
 Safety protocol, non-negotiable:
 
-- Scratch branch or worktree; never the working tree the owner is using.
+- A separate scratch worktree (or throwaway clone) for anything that
+  touches files or history. A scratch *branch* is not isolation: checking
+  it out reuses the live working tree the owner is sitting in, and
+  isolates only the commit graph.
 - Synthetic violations are visibly fake (marker-prefixed key shapes, paths
   under a throwaway name) so a leaked artifact reads as a test, not a leak.
+  When the control anchors on a pattern the marker would break, the needle
+  rule wins at the matched token: use a pattern-true dummy (a provider's
+  documented example credential, where one exists), move the visible
+  fakery to everything around it — file content, path, commit message —
+  and put the token itself first on the cleanup inventory.
 - Never `--no-verify`; never disable one control to test another.
 - **A green must prove the needle was threaded** — record the violation
   reaching the control's input, not just the control's verdict. A firing
   that cannot show its needle is vacuous, and goes back for
   reconstruction, not into the tally.
-- Cleanup verified by `git status` before the run reports.
+- Cleanup is verified against the run's own inventory, not `git status`
+  alone: every artifact the run created — worktree, branch, stash, commit,
+  file — is enumerated and confirmed gone. `git status` cannot see branch,
+  commit, stash, or reflog residue, and reflog entries cannot be removed
+  at all, which is half the reason violations must be visibly fake.
 
 ## Report
 

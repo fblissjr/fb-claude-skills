@@ -21,11 +21,11 @@ is that move, stated once, as two separate judgments:
    contract.
 
 2. **Verify the needle was threaded.** Before trusting either outcome, prove
-   the attempted violation actually reached the subject's input: the file
-   changed, the mutation survived quoting, the dependency was really absent,
-   the perturbation reached the output path. A green whose needle never
-   threaded is worse than no test — it converts an open question into a
-   settled one.
+   the attempted violation actually reached the subject's input. The
+   recurring ways an attempt silently misses are listed in the agent's
+   step 4 — that list is the constructor's own checklist, maintained there
+   and only there. A green whose needle never threaded is the worst
+   outcome of all: an open question converted into a settled one.
 
 Constructor and verifier are separate judgments, kept separate on purpose:
 judge the gate and the outcome separately, because a control can be right
@@ -53,6 +53,7 @@ separation — and **vacuous**, when the needle never threaded, which sends
 the construction back rather than counting for either side.
 
 The siblings apply this protocol to their own subjects: `test-audit`'s spot
-mutation (per test), `claim-audit`'s adversarial arm (per diff), and
-`control-audit`'s live-fire (per hook or validator) are all dispatches to
-this primitive, not parallel procedures.
+mutation (per test) and `control-audit`'s live-fire (per hook or validator)
+are dispatches to this primitive. `claim-audit`'s adversarial arm states
+the same move independently today and gains its explicit pointer here at
+its next content release.

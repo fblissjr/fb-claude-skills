@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-08-04
 
 # Maintenance
 
@@ -35,6 +35,7 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Append-only audit log query | `skill-maintain log` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
+| Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`; listed as Phase 5 of `/skill-maintainer:maintain` so the cadence has an owner |
 
 ## Lower-level CLI
 

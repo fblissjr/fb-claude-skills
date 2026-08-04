@@ -1,4 +1,4 @@
-last updated: 2026-08-03
+last updated: 2026-08-04
 
 # Plugin patterns
 
