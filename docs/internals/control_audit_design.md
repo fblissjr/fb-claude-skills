@@ -1,6 +1,14 @@
 last updated: 2026-08-04
 
-# control-audit: design note (not started)
+# control-audit: design note (SHIPPED 2026-08-04 — historical record)
+
+**Status: both stages landed the same day this note settled.** The
+primitive shipped first in `postmortem` 0.7.0 (portable `control-builder`
+agent + `adversarial-verify` skill; test-audit's spot mutation became a
+dispatch), then the audit itself in 0.8.0
+(`skills/postmortem/skills/control-audit/`), with the maintain-phase
+listing in skill-maintainer 0.19.0 per decision 4. This note is the design
+record; for current behaviour read the shipped SKILL.md files.
 
 The census-and-fire instrument for controls: everything check-shaped that
 fires outside the test suite — git hooks, Claude Code hooks, CLI validators,
@@ -9,7 +17,7 @@ reminders. Per control, four slots are re-derived from the current code:
 **retirement-condition** (when it should be deleted rather than tuned),
 **disclosed-uncontrolled-edges** (what it admits it does not cover).
 "Nothing" in any slot is itself the reportable finding. Decisions settled
-with the owner 2026-08-04; build not started.
+with the owner 2026-08-04.
 
 Sibling instruments, deliberate boundaries: `claim-audit` audits prose,
 `postmortem:test-audit` audits tests, this audits controls. They partition;
