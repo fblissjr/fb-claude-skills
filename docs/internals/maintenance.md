@@ -183,3 +183,28 @@ only when a human watched the video and said it felt too fast.
 If a document states a numeric threshold that governs an artifact in this repo,
 something should compare the two. That is a consistency check, and we do not
 currently have a general one.
+
+## Filed, not built: a mutation sample in the maintenance pass
+
+Filed 2026-08-04, the day the owner asked "how do we know" of a fully green
+board. The gap it names: red-first at birth proves an oracle CAN fail on the
+day it is written, and nothing re-proves it after — a test drifts toward
+decorative as its subject moves, and the suite stays green either way.
+test-audit covers this on demand (spot mutation, now dispatched to
+adversarial-verify), but it has zero recorded runs on this repo's own
+suites, and an instrument nobody runs protects nobody.
+
+The proposed standing practice, sized to stay cheap: a MUTATION SAMPLE
+phase in `/skill-maintainer:maintain` — enumerate the arms whose subject
+modules changed since the last maintenance pass (git diff names the
+modules; the arms that pin them are the sample frame), mutate a handful of
+those subjects, confirm red, revert, and report mutations-run over
+arms-in-frame with the same exposure discipline as everything else this
+week. Scoping to recently-changed subjects targets exactly where drift
+concentrates; whole-suite mutation stays test-audit's job.
+
+First live datum, gathered the day of filing: two arms from the day's work
+(bypass-warning print, ledger chmod) both went red under mutation of their
+subjects and green on revert. Sample of 2 from 228 — reported as such.
+Lands as a maintain change at skill-maintainer's next release, not a
+same-day bump.
