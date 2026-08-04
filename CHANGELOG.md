@@ -1,5 +1,10 @@
 # changelog
 
+## 1.11.1
+
+### removed
+- **Repo-local `control-builder` agent deleted** — superseded by the portable copy the postmortem plugin ships as of 0.7.0. The pair had no mechanical mirror and no consumer the shipped copy cannot serve, and the two already diverged (the vacuous verdict existed only in the shipped protocol), so the home repo now dogfoods exactly what installs get. Its evidence specimens survive where they belong: the control-audit design note's evidence base and the originating sibling repo's own record. Repo-local config only — never part of any published plugin, so no plugin version or renames mapping is involved. Historical changelog and design-note mentions kept as history; the design note carries a status line pointing at the retirement.
+
 ## 1.11.0
 
 ### added

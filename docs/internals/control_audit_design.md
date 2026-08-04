@@ -8,7 +8,10 @@ agent + `adversarial-verify` skill; test-audit's spot mutation became a
 dispatch), then the audit itself in 0.8.0
 (`skills/postmortem/skills/control-audit/`), with the maintain-phase
 listing in skill-maintainer 0.19.0 per decision 4. This note is the design
-record; for current behaviour read the shipped SKILL.md files.
+record; for current behaviour read the shipped SKILL.md files. The
+repo-local agent this note describes as "unshipped" was retired the same
+day the portable copy landed — one copy, no unwatched pair; its evidence
+specimens live on below and in the sibling repo's record.
 
 The census-and-fire instrument for controls: everything check-shaped that
 fires outside the test suite — git hooks, Claude Code hooks, CLI validators,
