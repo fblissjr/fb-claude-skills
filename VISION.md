@@ -211,6 +211,26 @@ The second case is not a grudging exception to the first. It is the more common 
 
 The failure this rule prevents is a copy with no reader. A copy earns its place only if it has a consumer other than the check that confirms it is a copy -- the same test CLAUDE.md invariant 1b applies to versions and changelogs.
 
+### verify by construction
+
+A green result is evidence only if the thing it certifies could have gone
+red. Measured twice in a sibling repo and confirmed here: *reading* an
+artifact to review it yields approximately nothing, while *constructing*
+the input that would refute it finds the real defects. Census, reading,
+and reports are targeting; construction is the instrument.
+
+The audit family (claim-audit, test-audit, control-audit, and the
+adversarial-verify primitive they dispatch to) shares one structural
+commitment: **audits are runs, not artifacts.** They re-derive everything
+from current state on every run, persist nothing that can drift, never
+rewrite what they audit, and end by stating their own scope -- lines read,
+claims derived, mutations run over arms in frame -- because a green report
+indistinguishable from a run that read nothing is the exact class they
+exist to catch. Two corollaries with teeth: a test born green (a pin) gets
+one mutation at birth to prove it can fail, and any pre-registered
+decision rule that consumes a rate or count must state its exposure basis,
+because an underpowered zero decides nothing.
+
 ### feedback loops compound
 
 Each iteration of the compound system generates signal -- what gets created, what gets discarded, what succeeds, what fails. That signal feeds the next cycle. Coding agents are getting better because this loop exists.
@@ -232,4 +252,5 @@ These principles govern everything in fb-claude-skills:
 - **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
 - **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
 - **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (`readwise-reader`; the retired `agent-state` is the section's cautionary tale, not an example), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
+- **Verification**: greens must prove they can fail. Audits are runs, not artifacts -- re-derived per run, report-only, self-scoping; adversarial construction is the instrument and everything else is targeting (verify by construction).
 - **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).
