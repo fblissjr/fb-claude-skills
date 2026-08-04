@@ -1,6 +1,20 @@
-last updated: 2026-08-03
+last updated: 2026-08-04
 
-# claim-audit: design note (not started)
+# claim-audit: design note (BUILT 2026-08-04 — historical spec)
+
+**Status: shipped as the `claim-audit` plugin (0.1.0, `skills/claim-audit/`).**
+This note is now the design record; the skill file is the current behavior.
+The build session's decisions, against the open questions below:
+
+- **Packaging:** own plugin, as leaned — it runs pre-commit on any repo and
+  couples to neither `postmortem` nor `skill-maintainer`.
+- **Agent definition:** no shipped agent. The skill dispatches
+  general-purpose subagents for the adversarial-input arm, briefed per-run
+  with quoted claims — shapes, not state, per the `doc-claim-auditor`
+  priors-rot incident.
+- **Portability:** the mechanism and the claim-class table ship; the skill
+  instructs citing the installing repo's own drift record where one exists,
+  and a report-only first run to collect local examples where none does.
 
 A skill (likely plugin) that audits the *added prose* of a diff as untrusted
 claims — every count, status, and attribution re-derived by executing
