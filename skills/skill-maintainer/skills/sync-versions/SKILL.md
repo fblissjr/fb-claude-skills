@@ -12,7 +12,7 @@ description: >-
   Pass plugin name and target version as arguments.
 metadata:
   last_verified: "2026-07-21"
-  review_interval_days: "365"
+  freshness: "cascade"
 ---
 
 # Sync Versions

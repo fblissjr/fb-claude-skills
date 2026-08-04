@@ -14,6 +14,7 @@ from skill_maintainer.shared import (
     TOKEN_BUDGET_WARN,
     check_description_quality,
     discover_skills,
+    freshness_mode,
     get_last_verified,
     get_review_interval,
     measure_tokens,
@@ -66,6 +67,7 @@ def analyze_skill(skill_dir: Path) -> dict:
     result["last_verified"] = lv_str
     result["days_ago"] = days_ago
     result["review_interval"] = get_review_interval(metadata)
+    result["freshness_mode"] = freshness_mode(metadata)
 
     # Description quality
     description = metadata.get("description", "")
@@ -79,7 +81,14 @@ def analyze_skill(skill_dir: Path) -> dict:
 
 
 def _is_stale(r: dict) -> bool:
-    """Stale relative to the skill's own review interval, not a global window."""
+    """Stale relative to the skill's own review interval, not a global window.
+
+    Cascade-covered skills (metadata.freshness: "cascade") are never
+    calendar-stale -- their source is in-repo code whose drift the version
+    cascade surfaces; see shared.freshness_mode.
+    """
+    if r.get("freshness_mode") == "cascade":
+        return False
     return r["days_ago"] is not None and r["days_ago"] > r.get("review_interval", STALE_DAYS)
 
 

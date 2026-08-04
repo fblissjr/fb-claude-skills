@@ -20,6 +20,7 @@ from skill_maintainer.cc_schema import validate_cc as validate
 from skill_maintainer.config import best_practices_file
 from skill_maintainer.shared import (
     STALE_DAYS,
+    freshness_mode,
     get_review_interval,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
@@ -103,7 +104,18 @@ def test_skills(root: Path) -> list[Result]:
 
         lv_str, days_ago = get_last_verified(metadata)
         interval = get_review_interval(metadata)
-        if lv_str and days_ago is not None:
+        mode = freshness_mode(metadata)
+        if mode == "conflict":
+            results.append(Result(
+                "skill", name, "staleness", False,
+                "declares both freshness: cascade and review_interval_days; keep one",
+            ))
+        elif mode == "cascade" and lv_str and days_ago is not None:
+            results.append(Result(
+                "skill", name, "staleness", True,
+                f"cascade-covered (last human review {days_ago}d ago)",
+            ))
+        elif lv_str and days_ago is not None:
             results.append(Result(
                 "skill", name, "staleness",
                 days_ago <= interval,

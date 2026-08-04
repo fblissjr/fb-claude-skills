@@ -1,6 +1,6 @@
 {
   "name": "gemini-bridge",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Hand a task to Gemini and get a structured answer back -- perceptual image comparison, media extraction, or any ad-hoc question with model, thinking level, and schema set per call. Explicit, auditable, one run directory per call.",
   "author": {
     "name": "fbliss"

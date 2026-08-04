@@ -42,7 +42,7 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 ```bash
 skill-maintain validate --all                    # validate all skills
 skill-maintain measure                           # token budget report
-skill-maintain freshness                         # SKILL.md staleness check (uses metadata.last_verified + metadata.review_interval_days)
+skill-maintain freshness                         # SKILL.md staleness check (metadata.last_verified + review_interval_days; skills with metadata.freshness: "cascade" are calendar-exempt)
 skill-maintain init                              # initialize .skill-maintainer/ in a new repo
 uv run skill-maintain validate path/to/SKILL.md  # validate a single skill against the Claude Code schema (called by pre-commit; add --strict for portability)
 ```
@@ -54,7 +54,7 @@ All commands accept `--dir <path>` to target a different repo.
 - `.skill-maintainer/state/upstream_hashes.json` — page content hashes for upstream change detection (auto-generated, gitignored)
 - `.skill-maintainer/state/pages/<slug>.md` — per-page content snapshots for line/char delta computation (v0.4.0+, auto-generated)
 - `.skill-maintainer/state/changes.jsonl` — append-only audit log of quality reports, upstream checks, source pulls (consumed by `skill-maintain log`)
-- Each `SKILL.md`'s `metadata.last_verified` — date a human last reviewed the skill against its source. Not part of the version cascade: a version bump does not establish that a human checked the content, so nothing bumps this mechanically. Consumed by `skill-maintain freshness` together with `metadata.review_interval_days` (default 30) — the per-skill staleness window, tiered 30 days (content derived from Claude Code docs), 90 days (tracks a third-party SDK or API), or 365 days (methodology, or our own code). Replaces the old single global 30-day window.
+- Each `SKILL.md`'s `metadata.last_verified` — date a human last reviewed the skill against its source. Not part of the version cascade: a version bump does not establish that a human checked the content, so nothing bumps this mechanically. Consumed by `skill-maintain freshness` together with `metadata.review_interval_days` (default 30) — the per-skill staleness window, tiered 30 days (content derived from Claude Code docs), 90 days (tracks a third-party SDK or API), or 365 days (methodology). Replaces the old single global 30-day window. Skills whose source is code in this repo declare `metadata.freshness: "cascade"` instead of a window (migration step 1, 2026-08-04): the version cascade surfaces their drift, so elapsed time is not evidence there; `last_verified` remains as the record of the last human review. One mechanism per skill — declaring both is reported as a config error.
 
 ### The tiers are now measurable, and the 30-day one checks out
 
@@ -185,7 +185,11 @@ If a document states a numeric threshold that governs an artifact in this repo,
 something should compare the two. That is a consistency check, and we do not
 currently have a general one.
 
-## Filed, not built: a mutation sample in the maintenance pass
+## A mutation sample in the maintenance pass
+
+*Annotation 2026-08-04, later the same day: landed as Phase 6 of
+`/skill-maintainer:maintain` in plugin 0.20.0, per the release-time
+obligation below. The section stands as the design record.*
 
 Filed 2026-08-04, the day the owner asked "how do we know" of a fully green
 board. The gap it names: red-first at birth proves an oracle CAN fail on the
@@ -239,7 +243,12 @@ date really a good idea, for anything?"). The answer that survived:
   One such date was minted and retracted the same day (postmortem
   2026-08-04, forward item 2 annotation).
 
-Candidate evolution, filed not built: skill freshness could become
-change-triggered where the source is tracked (source file hash beside
-`last_verified`, review prompted on mismatch), with the calendar interval
-retained only for skills whose sources live outside observation.
+Migration status. Step 1 shipped 2026-08-04 (CLI 0.20.0): skills whose
+source is in-repo code declare `metadata.freshness: "cascade"` and leave
+the calendar window entirely — 14 SKILL.mds across six plugins converted
+(the content-triage case, 124 days elapsed with zero drift, is the
+evidence class). Steps 2 and 3 stay filed, not built: measure the 90-day
+tier's churn before letting its number survive, and change-triggered
+freshness for tracked sources (source file hash beside `last_verified`,
+review prompted on mismatch), with the calendar interval retained only for
+skills whose sources live outside observation.

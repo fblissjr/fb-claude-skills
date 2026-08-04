@@ -147,6 +147,30 @@ def get_review_interval(metadata: dict) -> int:
     return days if days > 0 else STALE_DAYS
 
 
+def freshness_mode(metadata: dict) -> str:
+    """How this skill's freshness is established: 'cascade', 'conflict', or 'calendar'.
+
+    `metadata.freshness: "cascade"` records that the skill's source is code in
+    this repo, whose changes the version cascade already surfaces -- elapsed
+    time is not evidence of drift there, so the calendar window is dropped
+    (dates-are-look-triggers migration, 2026-08-04). The calendar interval
+    remains the fallback for sources whose drift cannot be observed.
+
+    Declaring cascade AND review_interval_days together is 'conflict': one
+    skill, one mechanism -- a quiet precedence choice would let the pair drift.
+    Unknown mechanism values are ignored (calendar): frontmatter is user input,
+    and a typo must not silently grant an unbounded window.
+    """
+    meta = metadata.get("metadata")
+    if not isinstance(meta, dict):
+        return "calendar"
+    if meta.get("freshness") == "cascade":
+        if meta.get("review_interval_days") is not None:
+            return "conflict"
+        return "cascade"
+    return "calendar"
+
+
 # Verbs a description may lead with. Deliberately broad and non-exhaustive:
 # every entry below leads a real description in this repo, and the original
 # 10-item list contained only four of them. A narrow list does not enforce

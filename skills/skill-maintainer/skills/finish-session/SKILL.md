@@ -9,7 +9,7 @@ description: >-
   work session. Invoke with /skill-maintainer:finish-session.
 metadata:
   last_verified: "2026-07-21"
-  review_interval_days: "365"
+  freshness: "cascade"
 ---
 # Finish Session
 

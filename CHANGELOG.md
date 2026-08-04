@@ -1,5 +1,11 @@
 # changelog
 
+## 1.12.0
+
+### added
+- **`skill-maintain` 0.25.2 → 0.26.0 + a 14-skill sweep across six plugins — dates migration step 1: skills whose source is in-repo code leave the calendar.** New `metadata.freshness: "cascade"` declaration, honoured by all three staleness consumers (`freshness`, `quality`, `test`): a cascade-covered skill is never stale by elapsed time — its source is code in this repo, whose drift the version cascade already surfaces, so a calendar window there is a proxy adding noise (the evidence class: content-triage red at 124 days, reviewed, zero drift found). `last_verified` stays as the record of the last human review; declaring both mechanisms is reported as a config error; unknown mechanism values fall back to the calendar so a typo cannot grant an unbounded window. Six test arms, behavioral ones red first, the born-green pin mutation-proven at birth; the third consumer (`skill-maintain test`) was caught red by running the tool and its arm pinned before the fix. Converted (calendar → cascade, versions patch-bumped): `gemini-bridge` 0.7.1 → 0.7.2, `mece-decomposer` 0.6.0 → 0.6.1, `readwise-reader` 1.1.2 → 1.1.3, `skill-dashboard` 1.1.1 → 1.1.2, `path-privacy` 0.16.1 → 0.16.2. Methodology skills, `plugin-toolkit` (upstream-docs source), and `advisor` (third-party source) keep their windows — the calendar remains the honest fallback where drift cannot be observed. Steps 2 and 3 (measure the 90-day tier, change-triggered freshness by source hash) stay filed in `docs/internals/maintenance.md`.
+- **`skill-maintainer` 0.19.2 → 0.20.0 — maintain gains Phase 6, the mutation sample.** The release-time obligation filed 2026-08-04 fires with this release: each maintenance pass enumerates the test arms whose subject modules changed since the last pass, mutates a handful of subjects, confirms red, reverts, and reports mutations-run over arms-in-frame with exposure stated — re-proving on a rolling sample what red-first proved only at birth. Whole-suite mutation stays `test-audit`'s job. The old Phase 6 (review and propose) becomes Phase 7; maintain and quality skill docs also state the cascade freshness mechanism.
+
 ## 1.11.3
 
 ### fixed

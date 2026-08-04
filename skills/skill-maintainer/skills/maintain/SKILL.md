@@ -8,7 +8,7 @@ description: >-
   Invoke with /skill-maintainer:maintain.
 metadata:
   last_verified: "2026-07-21"
-  review_interval_days: "365"
+  freshness: "cascade"
 ---
 
 # Full Maintenance Pass
@@ -66,7 +66,7 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 - SKILL.md under 500 lines
 
 ### Freshness
-- `metadata.last_verified` present and within that skill's own `metadata.review_interval_days` (default 30 when the field is absent). The windows are tiered by how fast each skill's source moves — a flat 30 days across the board makes the report permanently red, and a permanently-red board is an ignored board
+- `metadata.last_verified` present and within that skill's own `metadata.review_interval_days` (default 30 when the field is absent). The windows are tiered by how fast each skill's source moves — a flat 30 days across the board makes the report permanently red, and a permanently-red board is an ignored board. Skills declaring `metadata.freshness: "cascade"` are exempt from the window: their source is code in the same repo, whose drift the version cascade surfaces — `last_verified` stays as the record of the last human review
 
 ### Description quality
 - Description contains a WHAT verb (handles, generates, validates, designs, checks, runs, creates, builds, manages, monitors, tracks, reports)
@@ -120,12 +120,32 @@ it — it is listed here so the cadence has an owner, deliberately without a
 scheduler (same reasoning as Phase 4). Skip and note when the plugin is not
 installed or a recent audit exists.
 
-## Phase 6: Review and propose updates
+## Phase 6: Mutation sample (scoped to changed subjects)
+
+Red-first proves an oracle can fail on the day it is written; nothing
+re-proves it after, and a test drifts toward decorative as its subject moves
+while the suite stays green either way. This phase re-proves a sample each
+pass:
+
+1. Enumerate the subject modules changed since the last maintenance pass
+   (git diff names the modules; the test arms that pin them are the sample
+   frame).
+2. Mutate a handful of those subjects — one guarded behavior each — confirm
+   the pinning arm goes red, revert.
+3. Report mutations-run over arms-in-frame, exposure stated: "3 of 12 arms
+   in frame mutated, 3 red" — never a bare "sampled some". No changed
+   subjects since the last pass is a skip-and-note, not a silent pass.
+
+Whole-suite mutation stays `postmortem:test-audit`'s job; this phase targets
+recently-changed subjects because that is where drift concentrates, at a
+cost small enough to run every pass.
+
+## Phase 7: Review and propose updates
 
 After the preceding phases:
 
 1. Read `references/best_practices.md` (bundled with this plugin) or `.skill-maintainer/best_practices.md` (if present in the repo)
-2. Review change details from Phases 1-5
+2. Review change details from Phases 1-6
 3. Determine whether `best_practices.md` needs updates based on:
    - New or changed upstream doc pages (Phase 2) that affect skill authoring rules
    - New patterns or conventions from pulled repo changes (Phase 1)
@@ -138,6 +158,6 @@ After the preceding phases:
 ## Rules
 
 - Never auto-write to `best_practices.md` -- always show proposed changes and wait for approval
-- Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, and 5 define theirs -- in particular, Phase 5's default on a routine pass is skip-and-note, never an unrequested live-fire)
+- Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, 5, and 6 define theirs -- in particular, Phase 5's default on a routine pass is skip-and-note, never an unrequested live-fire)
 - If a phase fails, report the error and continue with remaining phases
-- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, controls-audit outcome (run or skipped, and why), best practices edits (if any)
+- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, controls-audit outcome (run or skipped, and why), mutation sample (mutations-run over arms-in-frame, or the skip note), best practices edits (if any)

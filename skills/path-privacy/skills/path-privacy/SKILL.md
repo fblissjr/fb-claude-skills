@@ -11,7 +11,7 @@ description: >-
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
 metadata:
   last_verified: "2026-07-21"
-  review_interval_days: "365"
+  freshness: "cascade"
 allowed-tools: "Bash,Read,Edit"
 ---
 

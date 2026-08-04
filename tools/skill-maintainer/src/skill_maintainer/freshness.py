@@ -5,30 +5,50 @@ from pathlib import Path
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
 
-from skill_maintainer.shared import STALE_DAYS, discover_skills, get_review_interval
+from skill_maintainer.shared import STALE_DAYS, discover_skills, freshness_mode, get_review_interval
 from skill_maintainer.shared import get_last_verified as _get_last_verified
 
 
-def _read_last_verified(skill_dir: Path) -> tuple[str | None, int | None, int | None]:
-    """Read last_verified and the skill's own review interval from frontmatter."""
+def _read_last_verified(skill_dir: Path) -> tuple[str | None, int | None, int | None, str]:
+    """Read last_verified, review interval, and freshness mode from frontmatter."""
     skill_md = find_skill_md(skill_dir)
     if skill_md is None:
-        return None, None, None
+        return None, None, None, "calendar"
 
     try:
         content = skill_md.read_text()
         metadata, _ = parse_frontmatter(content)
     except Exception:
-        return None, None, None
+        return None, None, None, "calendar"
 
     lv_str, days_ago = _get_last_verified(metadata)
-    return lv_str, days_ago, get_review_interval(metadata)
+    return lv_str, days_ago, get_review_interval(metadata), freshness_mode(metadata)
 
 
 def check_skill(skill_dir: Path, threshold_days: int | None = None) -> dict:
     """Check freshness of a single skill."""
     name = skill_dir.name
-    lv_str, days_ago, interval = _read_last_verified(skill_dir)
+    lv_str, days_ago, interval, mechanism = _read_last_verified(skill_dir)
+
+    if mechanism == "conflict":
+        return {
+            "name": name,
+            "is_stale": True,
+            "last_verified": lv_str,
+            "days_ago": days_ago,
+            "mechanism": mechanism,
+            "message": f"{name}: declares both freshness: cascade and review_interval_days; keep one",
+        }
+
+    if mechanism == "cascade" and lv_str is not None and days_ago is not None:
+        return {
+            "name": name,
+            "is_stale": False,
+            "last_verified": lv_str,
+            "days_ago": days_ago,
+            "mechanism": mechanism,
+            "message": None,
+        }
     # An explicit --threshold is an override; otherwise honour the skill's own
     # declared interval, falling back to the global default.
     if threshold_days is None:
@@ -40,6 +60,7 @@ def check_skill(skill_dir: Path, threshold_days: int | None = None) -> dict:
             "is_stale": True,
             "last_verified": None,
             "days_ago": None,
+            "mechanism": mechanism,
             "message": f"{name}: no last_verified date in metadata",
         }
 
@@ -49,6 +70,7 @@ def check_skill(skill_dir: Path, threshold_days: int | None = None) -> dict:
             "is_stale": True,
             "last_verified": lv_str,
             "days_ago": None,
+            "mechanism": mechanism,
             "message": f"{name}: invalid last_verified date: {lv_str}",
         }
 
@@ -63,6 +85,7 @@ def check_skill(skill_dir: Path, threshold_days: int | None = None) -> dict:
         "is_stale": is_stale,
         "last_verified": lv_str,
         "days_ago": days_ago,
+        "mechanism": mechanism,
         "message": message,
     }
 
@@ -96,6 +119,10 @@ def main(args=None):
             if result.get("message"):
                 print(result["message"], file=sys.stderr)
         elif not parsed.quiet:
-            print(f"{result['name']}: OK (verified {result['days_ago']} days ago)", file=sys.stderr)
+            if result.get("mechanism") == "cascade":
+                print(f"{result['name']}: OK (cascade-covered; last human review {result['days_ago']} days ago)",
+                      file=sys.stderr)
+            else:
+                print(f"{result['name']}: OK (verified {result['days_ago']} days ago)", file=sys.stderr)
 
     sys.exit(0)
