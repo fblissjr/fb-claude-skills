@@ -15,8 +15,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 from os import environ
 from pathlib import Path
+from typing import Any
+
+import orjson
 
 from . import auth, client as call_mod, content, ledger, media, privacy, recipes, runs
 from .config import Config
@@ -50,12 +54,78 @@ def _fail(message: str) -> int:
     return 1
 
 
+def _effective_recipe(
+    args: argparse.Namespace, recipe_dirs: list[Path]
+) -> recipes.Recipe:
+    """The recipe the call actually runs with: CLI flag > recipe value > default.
+
+    With no -r, the call is `adhoc` -- a Recipe-shaped bundle with no stance
+    unless --system/--system-file supplied one. With -r, the stance flags are
+    refused: the run directory and ledger are labeled with the recipe's name,
+    and a swapped-out system instruction under that name mislabels the run.
+    """
+    system_text = args.system
+    if args.system_file:
+        try:
+            system_text = Path(args.system_file).read_text().strip()
+        except OSError as exc:
+            raise recipes.RecipeError(f"could not read {args.system_file}: {exc}")
+
+    if args.recipe:
+        if system_text is not None:
+            raise recipes.RecipeError(
+                "--system/--system-file cannot be combined with --recipe: the "
+                "run stays labeled with the recipe's name, so replacing its "
+                "stance would mislabel the record. Pass one or the other."
+            )
+        recipe = recipes.load(args.recipe, recipe_dirs)
+    else:
+        recipe = recipes.Recipe(name="adhoc", system_instruction=system_text or "")
+
+    schema = None
+    if args.schema_file:
+        try:
+            schema = orjson.loads(Path(args.schema_file).read_bytes())
+        except (OSError, orjson.JSONDecodeError) as exc:
+            raise recipes.RecipeError(
+                f"could not load schema from {args.schema_file}: {exc}"
+            )
+        if not isinstance(schema, dict):
+            raise recipes.RecipeError(
+                f"{args.schema_file}: a response schema must be a JSON object"
+            )
+
+    labels = dict(recipe.labels)
+    for raw in args.label:
+        key, sep, value = raw.partition("=")
+        if not sep or not key:
+            raise recipes.RecipeError(f"label {raw!r} is not KEY=VALUE")
+        labels[key] = value
+
+    overrides: dict[str, Any] = {}
+    if args.thinking_level:
+        overrides["thinking_level"] = args.thinking_level
+    if args.seed is not None:
+        overrides["seed"] = args.seed
+    if args.max_output_tokens is not None:
+        overrides["max_output_tokens"] = args.max_output_tokens
+    if args.service_tier:
+        overrides["service_tier"] = args.service_tier
+    if args.store:
+        overrides["stateful"] = True
+    if schema is not None:
+        overrides["schema"] = schema
+    if labels != recipe.labels:
+        overrides["labels"] = labels
+    return replace(recipe, **overrides) if overrides else recipe
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
     project_root = Path(args.project_root or Path.cwd()).resolve()
     cfg = Config.load(project_root)
 
     try:
-        recipe = recipes.load(args.recipe, _recipe_dirs(cfg))
+        recipe = _effective_recipe(args, _recipe_dirs(cfg))
     except recipes.RecipeError as exc:
         return _fail(str(exc))
 
@@ -76,15 +146,23 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # away from the unscanned runs it exists to find.
     prompt_scanned = bool(cfg.scan_prompt and not args.allow_prompt_secrets)
     if prompt_scanned:
-        # Both halves of the outgoing text. The recipe body becomes the
-        # system_instruction and is sent verbatim on every call -- it was
-        # unscanned by anything, and `--recipe /some/path.md` accepts an
-        # arbitrary file, so a recipe was a completely uncovered channel.
+        # Every outgoing text channel. The system instruction is sent verbatim
+        # (from a recipe body, --system, or --system-file -- all previously- or
+        # never-scanned routes), and schema descriptions and label values
+        # travel in the request too; the 0.6.x ledger fix taught that a channel
+        # left out of this list stays unscanned until someone names it.
+        outgoing = [("prompt", question)]
+        if recipe.system_instruction:
+            source = f"recipe {recipe.name!r}" if args.recipe else "system instruction"
+            outgoing.append((source, recipe.system_instruction))
+        if recipe.schema:
+            outgoing.append(("schema", orjson.dumps(recipe.schema).decode()))
+        if recipe.labels:
+            outgoing.append(
+                ("labels", " ".join(f"{k}={v}" for k, v in recipe.labels.items()))
+            )
         blocked = False
-        for label, text in (
-            ("prompt", question),
-            (f"recipe {recipe.name!r}", recipe.system_instruction),
-        ):
+        for label, text in outgoing:
             findings = content.scan(text)
             for f in findings:
                 print(f"{'BLOCKED' if f.blocking else 'WARNING'} {label} contains "
@@ -137,7 +215,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         return _fail(str(exc))
 
     if args.dry_run:
-        print(f"recipe      {recipe.name}  ({recipe.path})")
+        print(f"recipe      {recipe.name}  ({recipe.path or 'no recipe file'})")
         print(f"model       {request['model']}")
         print(f"thinking    {request.get('generation_config', {}).get('thinking_level')}")
         print(f"store       {request['store']}"
@@ -366,9 +444,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--key-command", help="command that prints the API key")
     sub = p.add_subparsers(dest="command", required=True)
 
-    ask = sub.add_parser("ask", help="run a recipe against files")
+    ask = sub.add_parser("ask", help="ask a question, with or without a recipe")
     ask.add_argument("question", nargs="?", default="")
-    ask.add_argument("-r", "--recipe", required=True)
+    ask.add_argument("-r", "--recipe",
+                     help="named stance to run under; omit for an ad-hoc call")
     ask.add_argument("-f", "--file", action="append", default=[],
                      help="subject file; repeatable")
     ask.add_argument("-c", "--context", action="append", default=[],
@@ -378,6 +457,24 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--resolution", choices=sorted(recipes.RESOLUTIONS))
     ask.add_argument("--context-resolution", choices=sorted(recipes.RESOLUTIONS))
     ask.add_argument("--continue-from", metavar="INTERACTION_ID")
+    stance = ask.add_mutually_exclusive_group()
+    stance.add_argument("--system", metavar="TEXT",
+                        help="system instruction for an ad-hoc call")
+    stance.add_argument("--system-file", metavar="PATH",
+                        help="read the system instruction from a file")
+    ask.add_argument("--thinking-level", choices=sorted(recipes.THINKING_LEVELS))
+    ask.add_argument("--seed", type=int)
+    ask.add_argument("--max-output-tokens", type=int)
+    ask.add_argument("--service-tier", choices=sorted(recipes.SERVICE_TIERS))
+    ask.add_argument(
+        "--store", action="store_true",
+        help="store the interaction server-side to allow --continue-from later "
+             "(stored interactions CANNOT be deleted)",
+    )
+    ask.add_argument("--schema-file", metavar="PATH",
+                     help="JSON Schema file; the reply comes back as JSON")
+    ask.add_argument("--label", action="append", default=[], metavar="KEY=VALUE",
+                     help="request label; repeatable")
     ask.add_argument(
         "--allow-prompt-secrets", action="store_true",
         help="send even if the prompt looks like it contains a secret",

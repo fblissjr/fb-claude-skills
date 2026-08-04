@@ -1,6 +1,6 @@
 ---
 name: gemini-multimodal
-description: Send images or other media to a Gemini model and get a structured answer back, for perceptual work Claude cannot do directly. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", "what does Gemini see", or names Gemini alongside an image or screenshot. Every call is an explicit, billed external request that leaves a run directory on disk.
+description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", "what does Gemini see", "get Gemini's take", or names Gemini alongside a question, image, or screenshot. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
 metadata:
   last_verified: "2026-08-01"
   review_interval_days: "30"
@@ -69,6 +69,36 @@ Useful flags:
 
 `gemini-bridge recipes` lists what is available. `gemini-bridge doctor` checks
 credentials and config. `gemini-bridge stats` summarizes past calls.
+
+## Recipe-free calls
+
+`-r` is optional. When no shipped recipe fits — a text-only question, a
+one-off stance, a schema invented for this task — call ad-hoc:
+
+```bash
+gemini-bridge ask --model gemini-3.6-pro --thinking-level high \
+  "Critique this design: ..."
+
+gemini-bridge ask --system-file stance.md --schema-file verdict.json \
+  -f page.png "Does this match the spec?"
+```
+
+Every recipe parameter is a flag: `--thinking-level`, `--seed`,
+`--max-output-tokens`, `--service-tier`, `--schema-file`, `--label k=v`,
+`--store`. Precedence is CLI flag > recipe value > default. The run is labeled
+`adhoc` in the run directory and ledger.
+
+Three things to keep straight:
+
+- **Thinking still defaults to `minimal`.** Raising it is an explicit,
+  per-call decision — say why when you do.
+- **`--store` is the opt-in to server-side storage** (required for
+  `--continue-from`); stored interactions cannot be deleted, so do not pass it
+  for one-shot questions.
+- **`--system`/`--system-file` do not combine with `-r`** — a run labeled with
+  a recipe's name must actually carry that recipe's stance. If an ad-hoc
+  stance proves itself twice, promote it to a recipe file so it is versioned
+  and reproducible instead of retyped.
 
 ## Choosing a resolution
 

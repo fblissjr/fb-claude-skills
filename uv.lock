@@ -427,7 +427,7 @@ wheels = [
 
 [[package]]
 name = "gemini-bridge"
-version = "0.6.1"
+version = "0.7.0"
 source = { editable = "apps/gemini-bridge" }
 dependencies = [
     { name = "google-genai" },

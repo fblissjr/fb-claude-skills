@@ -1,13 +1,15 @@
-last updated: 2026-08-03
+last updated: 2026-08-04
 
 # gemini-bridge
 
-Hand a multimodal task to a Gemini model when Claude cannot do it directly, and
-get a structured answer back — without copy-pasting between two chat windows.
+Hand a task to a Gemini model and get a structured answer back — without
+copy-pasting between two chat windows.
 
 Built for one problem first: comparing two renders of the same scene and
 reporting what a person would actually notice. Claude can measure images with
-code but cannot reliably see the difference between them; Gemini can.
+code but cannot reliably see the difference between them; Gemini can. Since
+0.7.0 the bridge is not vision-only: any call that does not need a saved
+recipe can be made ad-hoc, with every parameter set from the command line.
 
 ## Installation
 
@@ -64,6 +66,31 @@ gemini-bridge stats                # token totals per recipe from the ledger
 gemini-bridge stored               # interactions held server-side
 gemini-bridge doctor               # config, credentials, recipes, guards
 ```
+
+`-r` is optional. Without it the call runs as `adhoc` — no system instruction
+unless you pass one — and every parameter a recipe could set is a flag:
+
+```bash
+# text-only question, no recipe, deeper thinking
+gemini-bridge ask --model gemini-3.6-pro --thinking-level high \
+  "Poke holes in this migration plan: ..."
+
+# ad-hoc stance plus structured output
+gemini-bridge ask --system-file stance.md --schema-file verdict.schema.json \
+  -f screenshot.png "Does this page match the spec?"
+
+# multi-turn: --store opts in to server-side storage (NOT deletable),
+# then --continue-from picks the interaction up
+gemini-bridge ask --store "First question..."
+gemini-bridge ask --store --continue-from v1_abc123 "Follow-up..."
+```
+
+Also settable: `--seed`, `--max-output-tokens`, `--service-tier`,
+`--label key=value`. Precedence is CLI flag > recipe value > built-in default.
+Thinking defaults to `minimal` either way — an unset level is the expensive
+path, so raising it is always an explicit act. `--system`/`--system-file`
+cannot be combined with `-r`: the run is labeled with the recipe's name, and
+swapping the stance under that name would mislabel the record.
 
 ## What gets checked before anything is sent
 

@@ -106,12 +106,16 @@ def build_request(
     request: dict[str, Any] = {
         "model": model_override or recipe.model,
         "input": content,
-        "system_instruction": recipe.system_instruction,
         # Storage is the only privacy lever that exists: interactions.delete
         # returns 501 Not Implemented, so anything stored is stored for the
         # full project retention window and cannot be purged.
         "store": recipe.stateful,
     }
+
+    # Ad-hoc calls carry no stance. The field is interaction-scoped and its
+    # tokens are billed, so an empty string is omitted rather than sent.
+    if recipe.system_instruction:
+        request["system_instruction"] = recipe.system_instruction
 
     generation_config = recipe.generation_config()
     if generation_config:
