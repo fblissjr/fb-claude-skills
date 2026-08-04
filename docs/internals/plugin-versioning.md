@@ -1,4 +1,4 @@
-last updated: 2026-07-21
+last updated: 2026-08-04
 
 # Plugin versioning
 
@@ -12,9 +12,18 @@ Anything inside a plugin directory (e.g., `skills/<plugin>/`, `apps/<plugin>/`) 
 - Agent files in `<plugin>/agents/`
 - Sub-skill SKILL.md bodies
 - The plugin's `.claude-plugin/plugin.json` (description, etc.)
-- Source code under `tools/<plugin>/src/...` for plugins with a CLI counterpart
+- A skill plugin's shipped subdirs — `templates/`, `references/`, `examples/` — not just SKILL.md prose. Specimen: the 2026-07-21 explainer-video 0.5.1→0.6.0 bump was mostly template and reference work (references + templates ≈ 1,600 changed lines vs. 195 in SKILL.md), and required the full cascade. (The plugin has since been retired; the specimen stands.)
+- Source code under `tools/<plugin>/src/...` — but only **when the plugin bundles that tool**; see below.
 
 If you change any of the above, `marketplace update` won't refresh the cache for installed users until the plugin version bumps.
+
+The boundary is what the marketplace `source` actually ships, so check the
+`source` entry before cascading. `skill-maintainer`'s source is
+`./skills/skill-maintainer`, which carries no code from
+`tools/skill-maintainer` — a CLI change there reaches nobody through a plugin
+bump, so plugin and CLI version independently (plugin 0.17.0 / CLI 0.19.0 as
+of 2026-08-01, correctly). When the plugin does bundle the tool, a
+`tools/<plugin>/src/` edit is plugin content and triggers the cascade.
 
 ## The cascade
 
@@ -43,6 +52,12 @@ package version.
 - **`metadata.version` in any SKILL.md.** Removed. Do not re-add it. The
   pre-commit hook still validates it *if present* (`[ -n "$sk_ver" ]`), so a
   stray re-addition gets caught rather than silently drifting.
+- **`metadata.author` in any SKILL.md.** Removed 2026-07-24 (all 30 remaining
+  instances swept in one pass). The whole SKILL.md, frontmatter included,
+  loads into context when the skill activates, so an author name there is
+  standing context cost with no runtime use. Attribution lives in
+  `plugin.json` and the plugin README, which are never context-loaded. Do not
+  re-add it.
 - **`metadata.last_verified`.** It means "a human checked this is still
   correct", which a version bump does not establish. Bumping eight plugins for
   a mechanical hook change on 2026-07-21 would have marked 17 unreviewed skills
@@ -73,6 +88,49 @@ which is now exactly the wrong thing to copy.
 - **Malformed changelog insert.** `check_changelog_version` validates that the top `## X.Y.Z` heading is well-formed and that no entry landed above it. It compares against a root version only when the root declares one; the virtual root does not, so here the check is format and insert-integrity only.
 - **Editing `tools/<plugin>/` source without bumping plugin version.** The hook only warns (no version-bearing file is staged inside the plugin directory), so it's easy to miss. Treat `tools/<plugin>/` source as plugin content.
 - **Major bump without a CHANGELOG entry.** No mechanical block; reviewer catches it. Always pair the version bump with the changelog narrative.
+
+## Copies: the two-question test
+
+Some duplication is load-bearing (the cascade itself synchronizes three real
+copies of a version). The test for any duplicated field or component, settled
+2026-08-04 when the repo-local `control-builder` agent was retired in favor of
+the copy the postmortem plugin ships: **name the copy's consumer, and name
+what watches the pair — if either answer is "nothing", delete the copy or
+demote it to data the shipped mechanism cites at dispatch.** The earlier
+one-question form — a copy earns its place only if it has a consumer other
+than the check that confirms it is a copy — is the first half of the same
+test.
+
+How the known pairs scored:
+
+- `plugin.json` and `marketplace.json` versions **pass**: each has a real
+  consumer (deterministic install resolution; marketplace cache refresh) and
+  a pre-commit check watches the pair.
+- SKILL.md `metadata.version` **failed** the consumer question — its only
+  reader was the check confirming it matched `plugin.json`. Removed
+  2026-07-21.
+- Per-unit `CHANGELOG.md` files **failed both**, hence the one-changelog rule
+  (root only). `apps/readwise-reader` was the only first-party exception, and
+  it drifted five versions behind its own `pyproject.toml` before anyone
+  noticed. Removed 2026-07-26.
+
+Every pair that legitimately remains passes one of three ways:
+
+1. **Mechanical mirror** — something watches the pair by construction.
+   `.skill-maintainer/best_practices.md` is the working copy; a PostToolUse
+   hook mirrors it into `skills/skill-maintainer/references/best_practices.md`
+   (repo invariant 3).
+2. **Designed handoff** — the local copy is authoritative and the shipped one
+   self-silences. dev-conventions' ambient blocks detect ground coverage in
+   `.claude/rules/` and stay quiet in this repo (repo invariant 6).
+3. **Data vs. mechanism** — local evidence is quoted into a dispatch of the
+   shipped mechanism at use time, never welded into a second copy of the
+   mechanism itself.
+
+Local copies of components this repo's own plugins ship (agents, skills,
+procedure prose) get the test with full force: an unwatched local variant
+splits dogfooding from what installs actually run, so defects in the shipped
+copy stop being noticed here first.
 
 ## Why the cascade exists
 
