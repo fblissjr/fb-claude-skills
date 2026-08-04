@@ -111,6 +111,16 @@ Additional arms this repo's version adds beyond the source skill:
   reportable in any slot); claim-audit is the prose instrument. Do not merge
   them — different subjects, different cadence.
 
+## Annotation 2026-08-04, post-ship: the deferred primitive pointer must degrade
+
+When the adversarial arm gains its pointer to `postmortem`'s
+adversarial-verify / control-builder (deferred to the next content release
+by the control-audit build's sequencing), remember the packaging decision
+above: claim-audit is standalone by design. The pointer must read "where
+available", with the current general-purpose dispatch as the fallback — a
+hard reference would make a plugin chosen for coupling to nothing depend on
+the one plugin it deliberately did not join.
+
 ## What would revise this note
 
 - The build session finds the procedure does not transfer outside a repo with

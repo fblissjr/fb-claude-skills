@@ -168,3 +168,24 @@ Under `set -euo pipefail`, a `grep` that matches nothing exits non-zero, and wit
 The trap: tolerating an absent field in a *comparison* (`if [ -z "$version" ]; then skip; fi`) is not the same as tolerating it in the *extraction* that feeds the comparison. The extraction ran first and killed the script before any tolerant comparison logic got a chance to run.
 
 Fixed by appending `|| true` to the end of the whole command substitution — `sk_ver=$(sed ... | grep ... | head -1 | sed ... || true)` — so a no-match yields an empty string instead of aborting, leaving the downstream logic to handle it. Putting it on the `grep` alone also works, but the substitution-level form covers every step in the chain. Any hook step built on `grep`/`sed` chains under `pipefail` needs the same treatment whenever the thing being matched can legitimately be absent — check other extraction pipelines in the hook for the same pattern before removing another field from frontmatter.
+
+## A retired unit's directory can outlive its retirement
+
+Three specimens on 2026-08-04 alone: `skills/explainer-video/` (retired in
+changelog 0.91.0) still existed on disk holding `.DS_Store` files and a
+stray skill-maintainer state log, and `apps/agent-state-mcp/` (retired
+`54ada95`) held only ruff caches and `__pycache__`. Both listed in `ls`
+like live units and misled a session into treating one as an active plugin.
+
+The mechanism: `git rm -r` removes tracked files only. Untracked build
+debris — caches, `.DS_Store`, gitignored state — survives, and the
+surviving directory is invisible to every tracked-content sweep by
+construction (`git grep`, `git ls-files`, the retire skill's verification
+all read the index, not the disk). So the one place the leftovers show up
+(`ls`, tab-completion, a session's mental model) is exactly where they lie.
+
+Practice: after any retirement, `rm -rf` the directory itself once
+`git ls-files <dir>` returns empty, and glance at what falls — debris
+deletes silently; anything surprising gets looked at first. Filed for
+dangling-refs' next release: add this as an explicit final step in the
+retire procedure (its current verify section stops at tracked content).
