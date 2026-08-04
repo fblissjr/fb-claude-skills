@@ -179,13 +179,14 @@ reports whether the marker is currently in place. The tool does not edit your
 `.gitignore` for you.
 
 Two ledger fields are worth knowing about. `prompt_scanned` is false when the
-outgoing text was **never checked**, whatever the route — the
+scan **did not gate the send**, whatever the route — the
 `--allow-prompt-secrets` flag on that call, or a project config with
 `scan_prompt = false`. That is the field to filter on when auditing for
-unscanned runs: it does not mean a secret was confirmed present, it means
-nobody looked, the run directory holds that text in plaintext locally, and
-since the interaction cannot be deleted through the API, the copy at Google is
-permanent. Filtering the ledger is the only way to find those runs without
+ungated runs: it does not mean a secret was confirmed present. (Since 0.7.1
+the flag route still scans and prints its findings — only the block is
+waived; the config route skips the scan entirely.) Either way the run
+directory holds that text in plaintext locally, and since the interaction
+cannot be deleted through the API, the copy at Google is permanent. Filtering the ledger is the only way to find those runs without
 grepping every `prompt.md`, which means reading the very content the bypass
 was used to send. `allow_prompt_secrets` records the route: true when the flag
 was passed on that call, so a deliberate one-off bypass is distinguishable

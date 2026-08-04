@@ -1,5 +1,10 @@
 # changelog
 
+## 1.9.1
+
+### fixed
+- **`gemini-bridge` 0.7.0 → 0.7.1 — the three low-severity items from the 2026-08-03 review, closed.** `--allow-prompt-secrets` now waives the block, not the look: the scan still runs and prints its findings, followed by an explicit "sending despite the finding(s) above" line — the flag used to skip scanning entirely, which removed the one moment a real secret could still be stopped on exactly the runs that needed it. The config route (`scan_prompt = false`) still skips the scan altogether: it is a standing project opt-out, not a false-positive claim, and the distinction is now pinned by a test each way. The ledger's `prompt_scanned` field keeps its value semantics (False = the scan did not gate the send, either route) so existing audit filters keep working; its comment and the README paragraph now say "did not gate" rather than "never checked", which the flag route made untrue. `ledger.jsonl` is now chmod 0o600 like every run file beside it — it carries model, recipe, session id, and interaction ids, and default umask left it as the one world-readable record of all that. And `probe.py`'s header no longer claims it "deletes every interaction it stores": probe 8's own settled finding is that the delete returns 501, so the header now says what the cleanup actually achieves — files removed, interactions permanent. Two new arms recorded red first plus one pin; suite at 228.
+
 ## 1.9.0
 
 ### removed

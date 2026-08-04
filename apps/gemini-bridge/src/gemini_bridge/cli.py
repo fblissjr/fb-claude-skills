@@ -144,8 +144,19 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # CLI flag OR via project config, and recording only the flag left config
     # runs labelled allow_prompt_secrets=false -- the audit field pointing
     # away from the unscanned runs it exists to find.
+    # The flag waives the BLOCK, not the LOOK: scanning still runs under
+    # --allow-prompt-secrets so the finding is on screen while the call can
+    # still be stopped. It used to skip the scan entirely, which removed that
+    # one moment for exactly the runs that needed it. Only the config opt-out
+    # (scan_prompt = false) skips scanning altogether -- it says "this project
+    # does not scan", not "this finding is a false positive".
+    #
+    # prompt_scanned still records enforcement, computed once for the ledger:
+    # False means the scan did not gate the send, whichever route -- the flag
+    # on this call or the standing config opt-out -- so bypass runs stay
+    # findable by the audit filter the README names.
     prompt_scanned = bool(cfg.scan_prompt and not args.allow_prompt_secrets)
-    if prompt_scanned:
+    if cfg.scan_prompt:
         # Every outgoing text channel. The system instruction is sent verbatim
         # (from a recipe body, --system, or --system-file -- all previously- or
         # never-scanned routes), and schema descriptions and label values
@@ -168,11 +179,18 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 print(f"{'BLOCKED' if f.blocking else 'WARNING'} {label} contains "
                       f"what looks like a {f}", file=sys.stderr)
             blocked = blocked or bool(content.blocking(findings))
-        if blocked:
+        if blocked and not args.allow_prompt_secrets:
             return _fail(
                 "refusing to send: secret-shaped content found. Remove it, or "
                 "pass --allow-prompt-secrets if these are false positives. "
                 "Sent interactions cannot be deleted through the API."
+            )
+        if blocked:
+            print(
+                "WARNING sending despite the finding(s) above: "
+                "--allow-prompt-secrets is active. A sent interaction cannot "
+                "be deleted through the API.",
+                file=sys.stderr,
             )
 
     # The path guard runs BEFORE media inspection, on the raw arguments.

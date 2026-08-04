@@ -88,15 +88,17 @@ def record(
         # only disclosure surface a user has. Not a secret: an opaque pointer to
         # data already sent, already on disk in the run dir's `interaction.id`.
         "interaction_id": interaction_id,
-        # False means the outgoing text was NEVER CHECKED, whatever the route
-        # -- the CLI flag or a project config with scan_prompt = false. This is
-        # the field to filter on when hunting unscanned runs: the flag below
+        # False means the scan DID NOT GATE THE SEND, whatever the route --
+        # the CLI flag or a project config with scan_prompt = false. This is
+        # the field to filter on when hunting ungated runs: the flag below
         # records only the CLI route, and for a release the config route
         # produced rows saying allow_prompt_secrets: false for runs that were
         # never scanned -- the audit field pointing away from the runs it
-        # exists to find. False does not mean a secret was present; it means
-        # nobody looked, the run dir holds the text in plaintext locally, and
-        # the interaction at Google cannot be deleted.
+        # exists to find. False does not mean a secret was present. Since
+        # 0.7.1 the flag route still scans and prints findings (only the
+        # block is waived); the config route skips the scan entirely. Either
+        # way the run dir holds the text in plaintext locally, and the
+        # interaction at Google cannot be deleted.
         "prompt_scanned": prompt_scanned,
         # Which route: True when --allow-prompt-secrets was passed on this
         # call. Kept alongside prompt_scanned because a deliberate one-off
@@ -114,6 +116,10 @@ def record(
     try:
         with path.open("ab") as fh:
             fh.write(orjson.dumps(entry) + b"\n")
+        # Owner-only, like every file in the run directories beside it: the
+        # ledger carries model, recipe, session id, and interaction ids, and
+        # default umask left it as the one world-readable record of all that.
+        path.chmod(0o600)
     except OSError:
         pass  # a failed log must never fail a call
     return path

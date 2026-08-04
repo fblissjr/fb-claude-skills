@@ -16,7 +16,10 @@ tracked documents instructed readers to run it.
 Settles the live unknowns that no amount of doc reading resolves. Each probe is
 isolated: a failure reports and moves on, so one 400 does not hide the rest.
 
-Deletes every interaction it stores. Total spend is a few cents.
+Attempts to delete every interaction it stores, but the delete is known to
+fail: probe 8's own settled finding is that `interactions.delete` returns 501,
+so anything stored persists for the project retention window. Only the
+uploaded files are actually removed. Total spend is a few cents.
 
     export GEMINI_API_KEY=...            # or: --op-ref op://Vault/Item/field
     ./gemini_probe.py

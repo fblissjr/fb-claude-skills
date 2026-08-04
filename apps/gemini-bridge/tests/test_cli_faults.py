@@ -285,3 +285,55 @@ def test_override_flag_allows_a_flagged_prompt(project, monkeypatch):
         "-f", str(project.image), "--allow-prompt-secrets",
         "key sk-" + "a" * 32,
     ]) == 0
+
+
+def test_bypass_still_prints_what_it_found(project, monkeypatch, capsys):
+    """--allow-prompt-secrets means "send anyway", not "don't look".
+
+    The flag exists for false positives, but it used to skip the scan
+    entirely -- so a real secret sent under it produced no output at all, and
+    the one moment the user could still stop (the finding on screen, the call
+    not yet made) was silently removed. Findings must print; only the block
+    is waived.
+    """
+    import sys
+    monkeypatch.setitem(sys.modules, "google", SimpleNamespace(genai=fake_genai()))
+    code = cli.main([
+        "--project-root", str(project.root), "ask", "-r", "demo",
+        "-f", str(project.image), "--allow-prompt-secrets",
+        "key sk-" + "a" * 32,
+    ])
+    assert code == 0, "the bypass must still send"
+    err = capsys.readouterr().err
+    assert "looks like a" in err, "the finding must still be shown"
+    assert "sending despite" in err, "the waiver itself must be stated"
+
+
+def test_config_off_scan_stays_off(project, monkeypatch, capsys):
+    """scan_prompt = false is the standing opt-out; it prints nothing.
+
+    Distinct from the flag: the config route says "this project does not
+    scan", the flag says "this finding is a false positive". Only the second
+    implies there is something to show."""
+    import sys
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[privacy]\nscan_prompt = false\n"
+    )
+    monkeypatch.setitem(sys.modules, "google", SimpleNamespace(genai=fake_genai()))
+    assert cli.main([
+        "--project-root", str(project.root), "ask", "-r", "demo",
+        "-f", str(project.image), "key sk-" + "a" * 32,
+    ]) == 0
+    assert "looks like a" not in capsys.readouterr().err
+
+
+def test_ledger_file_is_owner_only(project, monkeypatch):
+    """The ledger carries the same provenance class as the run files.
+
+    Run directories and their contents are chmod 0o600/0o700; the ledger
+    beside them records model, recipe, session id, and interaction ids, and
+    was left at default umask -- sweepable into any backup the run files were
+    protected from."""
+    assert run_ask(project, monkeypatch) == 0
+    ledger_path = project.root / runs.RUNS_DIRNAME / ledger.LEDGER_NAME
+    assert ledger_path.stat().st_mode & 0o777 == 0o600
