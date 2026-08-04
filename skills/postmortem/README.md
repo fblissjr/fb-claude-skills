@@ -2,14 +2,17 @@
 
 *Last updated: 2026-08-04*
 
-Evidence-grounded retrospectives, and the adversarial primitive their audits
-run on. One skill runs a postmortem of finished work — a session, a feature,
-or a span of sessions mined from git history, session logs, and changelogs.
-Another audits an existing test suite for meaning and drift: whether each
-green test still verifies what its authors believed. The `adversarial-verify`
-skill and `control-builder` agent package the verification move both lean on:
-build the experiment that would refute a claim, then separately prove the
-attempt actually reached its subject.
+The audit family, and the adversarial primitive its audits run on. One skill
+runs a postmortem of finished work — a session, a feature, or a span of
+sessions mined from git history, session logs, and changelogs. `test-audit`
+audits an existing test suite for meaning and drift: whether each green test
+still verifies what its authors believed. `control-audit` does the same for
+controls — everything check-shaped that fires outside the test suite (git
+hooks, Claude Code hooks, CLI validators, reminders) — by census and
+live-fire. The `adversarial-verify` skill and `control-builder` agent package
+the verification move they all lean on: build the experiment that would
+refute a claim, then separately prove the attempt actually reached its
+subject.
 
 The skills share one discipline: findings are claims, claims need citations,
 and empty sections are valid output. The postmortem format (what went well /
@@ -33,6 +36,7 @@ the same run's verification lessons.
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
 | `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
+| `control-audit` | "audit the controls", "do our hooks actually fire", "is anything watching this check" | Census of everything check-shaped outside the test suite — four slots per control (fires-via, guarded-by, retirement-condition, disclosed-uncontrolled-edges), each derived or transcribed — plus mandatory live-fire of controls nothing watches, dispatched to `adversarial-verify` under a strict safety protocol. Report-only; a run, not an artifact. |
 
 ## Agents
 
@@ -50,10 +54,12 @@ the same run's verification lessons.
 /postmortem:postmortem-index          # browsable index over all of them
 /postmortem:test-audit                # audit the current repo's suite
 /postmortem:adversarial-verify <claim>  # refute-by-construction, needle verified
+/postmortem:control-audit             # census + live-fire the repo's controls
 ```
 
 Or trigger naturally: "run a postmortem on the auth migration", "which of our
-tests are dead weight", "prove this check can actually fail".
+tests are dead weight", "prove this check can actually fail", "do our hooks
+actually fire".
 
 ## Design notes
 
@@ -62,7 +68,7 @@ tests are dead weight", "prove this check can actually fail".
 - Postmortems are append-corrected: later evidence gets a dated annotation
   under the original finding, never a silent rewrite.
 - The escapes section (bugs vs. the tests that should have caught them) is the
-  bridge between the two skills: repeated green-but-blind escapes in
+  bridge between postmortem and test-audit: repeated green-but-blind escapes in
   postmortems are the trigger for a full test-audit.
 - Test deletions are recommended with evidence, never applied unasked.
 - A postmortem is a standalone file, never a section appended to a plan doc.

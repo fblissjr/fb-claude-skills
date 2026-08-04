@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-04
 
 # skill-maintainer
 

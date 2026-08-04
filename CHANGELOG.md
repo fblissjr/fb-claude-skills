@@ -1,5 +1,11 @@
 # changelog
 
+## 1.11.0
+
+### added
+- **`postmortem` 0.7.0 → 0.8.0 — `control-audit`, the third audit; the plugin is now the audit family.** Census and live-fire over everything check-shaped that fires outside the test suite: git hooks, Claude Code hooks (including ones disabled by env or config — a control that had to be turned off is a census row, not an omission), CLI validators, ambient reminders. Per control, four slots re-derived from current code — fires-via, guarded-by, retirement-condition, disclosed-uncontrolled-edges — each marked derived or transcribed, with "nothing" in a slot as the reportable finding. Live-fire is mandatory for controls nothing watches and dispatches to `adversarial-verify`, under the safety protocol from the design note: scratch branch, visibly-fake violations, never `--no-verify`, a green counts only with its needle shown, cleanup verified before reporting. Report-only, no standing meta-checks, headers re-derived not trusted — a run, not an artifact, so there is no new layer to drift. Plugin description widens from retrospectives to the audit family per the packaging decision in `docs/internals/control_audit_design.md`.
+- **`skill-maintainer` 0.18.1 → 0.19.0 — controls audit listed as maintenance phase 5.** Per the control-audit cadence decision (on-demand plus a listed step, nothing automatic): the maintain skill now names the periodic controls audit where the postmortem plugin is installed, so the cadence has an owner without a scheduler.
+
 ## 1.10.0
 
 ### added

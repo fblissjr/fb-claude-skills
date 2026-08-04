@@ -53,6 +53,6 @@ separation — and **vacuous**, when the needle never threaded, which sends
 the construction back rather than counting for either side.
 
 The siblings apply this protocol to their own subjects: `test-audit`'s spot
-mutation (per test), `claim-audit`'s adversarial arm (per diff), and a
-controls audit's live-fire (per hook or validator) are all dispatches to
+mutation (per test), `claim-audit`'s adversarial arm (per diff), and
+`control-audit`'s live-fire (per hook or validator) are all dispatches to
 this primitive, not parallel procedures.

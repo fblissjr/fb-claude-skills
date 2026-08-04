@@ -110,9 +110,19 @@ What to act on:
   verdict. Plugin *code* cannot drift — it installs once per user — so this is
   the only place staleness hides.
 
-## Phase 5: Review and propose updates
+## Phase 5: Controls audit (periodic, on-demand)
 
-After all three phases:
+Where the `postmortem` plugin is installed, run `/postmortem:control-audit`
+periodically: a census of everything check-shaped outside the test suite
+(git hooks, Claude Code hooks, CLI validators, reminders), with live-fire
+violation of any control nothing watches. Not every maintenance pass needs
+it — it is listed here so the cadence has an owner, deliberately without a
+scheduler (same reasoning as Phase 4). Skip and note when the plugin is not
+installed or a recent audit exists.
+
+## Phase 6: Review and propose updates
+
+After the preceding phases:
 
 1. Read `references/best_practices.md` (bundled with this plugin) or `.skill-maintainer/best_practices.md` (if present in the repo)
 2. Review change details from Phases 1-3
