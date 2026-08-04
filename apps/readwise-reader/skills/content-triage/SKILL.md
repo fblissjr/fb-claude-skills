@@ -2,8 +2,8 @@
 name: content-triage
 description: Manages the read-it-later lifecycle with decision frameworks for inbox triage. Use when the user wants to process their reading inbox, batch-triage saved items, or assess inbox health metrics.
 metadata:
-  last_verified: "2026-04-02"
-  review_interval_days: "90"
+  last_verified: "2026-08-04"
+  review_interval_days: "365"
 ---
 
 # Content Triage

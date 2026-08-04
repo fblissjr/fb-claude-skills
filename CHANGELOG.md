@@ -1,5 +1,10 @@
 # changelog
 
+## 1.9.3
+
+### fixed
+- **`readwise-reader` 1.1.1 → 1.1.2 — content-triage reviewed against its source; the 124-day staleness red cleared honestly.** The review, not just the stamp: the skill's lifecycle (new → later / archive / delete) was checked against `tools/triage.py` (`triage_get_inbox` reads `location='new'`; the accepted actions are exactly `later`/`archive`/`delete`, single and batch) and `api/models.py`. It matches. The API model also carries `feed`, which the triage tools deliberately do not touch, so the skill's silence about it is correct scope, not drift; the rest of the file is decision-framework opinion with no code claims to drift. `last_verified` bumped to today per invariant 1 (written only after an actual review — this was one), and `review_interval_days` widened 90 → 365: the skill's source is this plugin's own triage tools, which change through this repo where the cascade already prompts a review, not on an external cadence worth a quarterly alarm.
+
 ## 1.9.2
 
 ### fixed
