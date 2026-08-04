@@ -1,6 +1,6 @@
 {
   "name": "@fb-claude-skills/mece-decomposer-mcp-app",
-  "version": "0.1.0",
+  "private": true,
   "type": "module",
   "description": "MCP App for interactive MECE decomposition tree visualization",
   "license": "MIT",

@@ -237,6 +237,49 @@ def _pyproject_version(path: Path) -> str | None:
     return version if isinstance(version, str) else None
 
 
+_PACKAGE_JSON_SKIP = {"node_modules", "dist", "build", ".backup"}
+"""Directories whose package.json files belong to someone else.
+
+`node_modules` holds thousands of foreign versions and `dist`/`build` hold
+copies of our own emitted by a bundler. Reporting any of them as drift is the
+false-positive rate that teaches people to skim past a checker, which costs more
+than the check was ever worth.
+"""
+
+
+def _package_json_drift(
+    plugin_dir: Path, source: str, name: str, real: str
+) -> list[Result]:
+    """Report authored package.json files whose version disagrees with plugin.json.
+
+    A package.json with no `version` key returns nothing: that is the shape both
+    MCP apps now ship, and nagging about a deliberately deleted duplicate would
+    reinstate it.
+    """
+    results = []
+    for pkg in sorted(plugin_dir.rglob("package.json")):
+        rel = pkg.relative_to(plugin_dir)
+        if any(part in _PACKAGE_JSON_SKIP for part in rel.parts):
+            continue
+        try:
+            declared = orjson.loads(pkg.read_bytes()).get("version")
+        except Exception as e:
+            # Same reasoning as the corrupt-plugin.json branch below: staying
+            # silent about a file this check cannot read reports green for a
+            # copy whose state is unknown.
+            results.append(Result(
+                "repo", name, "version alignment", False,
+                f"unreadable {source}/{rel.as_posix()}: {e}",
+            ))
+            continue
+        if isinstance(declared, str) and declared != real:
+            results.append(Result(
+                "repo", name, "version alignment", False,
+                f"plugin.json={real} vs {source}/{rel.as_posix()}={declared}",
+            ))
+    return results
+
+
 def check_version_alignment(root: Path) -> list[Result]:
     """Compare every plugin.json version against its marketplace.json entry.
 
@@ -330,6 +373,15 @@ def check_version_alignment(root: Path) -> list[Result]:
                     "repo", name, "version alignment", False,
                     f"plugin.json={real} vs {source}/pyproject.toml={declared}",
                 ))
+
+        # A unit bundling a Node app carries a FOURTH copy, in package.json.
+        # Unlike pyproject's, this one has no consumer -- nothing imports it and
+        # no build reads it -- so the field is simply deleted rather than
+        # maintained. That makes this branch a tripwire, not a comparison it
+        # expects to do work: absent is the correct state and is silent, while a
+        # version that reappears and disagrees is reported. Both MCP-App plugins
+        # had drifted before it existed (0.1.0 against 0.6.1, five minor versions).
+        results.extend(_package_json_drift(root / source, source, name, real))
 
     # A plugin on disk that nobody can install is the same class of bug, seen
     # from the other side.

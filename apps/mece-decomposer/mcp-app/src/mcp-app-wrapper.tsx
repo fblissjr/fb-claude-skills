@@ -54,7 +54,7 @@ function McpAppWrapper() {
   const [hostContext, setHostContext] = useState<McpUiHostContext | null>(null);
 
   const { app, error } = useApp({
-    appInfo: { name: "MECE Decomposer", version: "0.1.0" },
+    appInfo: { name: "MECE Decomposer", version: __APP_VERSION__ },
     capabilities: {},
     onAppCreated: (app) => {
       // Complete tool input (streaming finished)

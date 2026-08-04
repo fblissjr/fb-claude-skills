@@ -91,6 +91,37 @@ export function discoverSkills(root: string): string[] {
     .map((p) => path.dirname(p));
 }
 
+// Directories whose package.json belongs to someone else: node_modules holds
+// thousands of foreign versions, dist/build hold bundler copies of our own.
+// walkDir already skips node_modules and dist; `build` is named here so this
+// matches skill-maintainer's _PACKAGE_JSON_SKIP rather than quietly diverging
+// from the Python check it is supposed to agree with.
+const PACKAGE_JSON_SKIP = new Set(["node_modules", "dist", "build", ".backup"]);
+
+/**
+ * Authored package.json versions under a plugin, keyed by path relative to it.
+ *
+ * Returns nothing for a package.json with no `version` key. That is the shape
+ * the MCP apps ship on purpose -- the field has no consumer, so it was deleted
+ * rather than maintained -- and a copy that does not exist cannot drift.
+ */
+function authoredPackageVersions(pluginDir: string): [string, string][] {
+  const out: [string, string][] = [];
+  for (const p of walkDir(pluginDir, /^package\.json$/)) {
+    const rel = path.relative(pluginDir, p);
+    if (rel.split(path.sep).some((part) => PACKAGE_JSON_SKIP.has(part))) continue;
+    try {
+      const version = JSON.parse(fs.readFileSync(p, "utf-8")).version;
+      if (typeof version === "string") out.push([rel, version]);
+    } catch {
+      // Unreadable is a finding, not a skip: staying silent about a file this
+      // check cannot parse reports green for a copy whose state is unknown.
+      out.push([rel, "unreadable"]);
+    }
+  }
+  return out;
+}
+
 export function discoverPlugins(root: string): string[] {
   return walkDir(root, /^plugin\.json$/, { enterDotDirs: true })
     .filter((p) => {
@@ -663,7 +694,13 @@ export function checkRepoHygiene(root: string): RepoCheckResult[] {
     });
   }
 
-  // 6. Version alignment across plugin.json, marketplace.json, SKILL.md, pyproject.toml
+  // 6. Version alignment across plugin.json, marketplace.json, pyproject.toml,
+  //    and any authored package.json.
+  //
+  //    SKILL.md's metadata.version used to be read here. It is a removed class
+  //    -- the version cascade deliberately excludes SKILL.md -- so the branch
+  //    could only ever fire on a field that is not supposed to exist, reporting
+  //    "drift" whose correct fix is deleting the field it read.
   const pluginDirs = discoverPlugins(root);
   const marketplaceVersions = loadMarketplaceVersions(root);
   const misaligned: string[] = [];
@@ -683,17 +720,12 @@ export function checkRepoHygiene(root: string): RepoCheckResult[] {
     const mpVersion = marketplaceVersions[name];
     if (mpVersion) versions["marketplace"] = mpVersion;
 
-    // SKILL.md metadata.version -- only check the "primary" skill (same name as plugin dir)
-    const primarySkillMd = path.join(pluginDir, "skills", name, "SKILL.md");
-    if (fs.existsSync(primarySkillMd)) {
-      try {
-        const content = fs.readFileSync(primarySkillMd, "utf-8");
-        const parsed = matter(content);
-        const meta = parsed.data?.metadata as Record<string, unknown> | undefined;
-        if (meta?.version) {
-          versions["SKILL.md"] = String(meta.version);
-        }
-      } catch { /* skip */ }
+    // Any authored package.json. Unlike the others this copy has no consumer
+    // -- nothing imports it, no build reads it -- so absent is the correct
+    // state and only a version that exists and disagrees is a finding. Both
+    // MCP-App plugins had one drift silently before this was checked.
+    for (const [rel, ver] of authoredPackageVersions(pluginDir)) {
+      versions[rel] = ver;
     }
 
     // pyproject.toml version (if exists at plugin root)

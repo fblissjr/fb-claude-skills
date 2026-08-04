@@ -11,6 +11,7 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | SKILL.md spec compliance | Pre-commit git hook (skills-ref) | On commit |
 | Plugin version alignment (per-plugin: plugin.json vs. marketplace.json version string) | Pre-commit git hook | On commit (hard block) |
 | Plugin↔marketplace listing alignment (`check_version_alignment`: marketplace entries with no plugin on disk, plugins on disk missing from marketplace) | `skill-maintain quality` / repo-hygiene suite | On demand |
+| Every other copy of a version that can drift — `pyproject.toml`, and any authored `package.json` (`node_modules`, `dist`, `build` excluded) — compared against its `plugin.json` | `check_version_alignment`, same suite | On demand |
 | Unbumped content changes | Pre-commit git hook | On commit (warning only) |
 | CLAUDE.md size creep | Pre-commit git hook | On commit (warning only) |
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |

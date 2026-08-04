@@ -716,7 +716,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.6.1"
+version = "0.6.2"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
@@ -1293,7 +1293,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.26.0"
+version = "0.27.0"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

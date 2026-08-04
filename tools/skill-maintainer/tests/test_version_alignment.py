@@ -151,3 +151,80 @@ def test_plugin_without_a_name_is_reported(tmp_path):
     (d / "plugin.json").write_bytes(orjson.dumps({"version": "1.0.0"}))
     failed = [x for x in check_version_alignment(r) if not x.passed]
     assert any("no 'name'" in x.detail for x in failed)
+
+
+# --- package.json, the fourth copy -------------------------------------------
+#
+# Both MCP-App plugins carried a version in `mcp-app/package.json` that nothing
+# read and nothing checked: skill-dashboard sat at 1.1.0 against a plugin.json
+# of 1.1.2, mece-decomposer at 0.1.0 against 0.6.1 -- five minor versions of
+# silent drift. The field itself is now gone from both (no consumer, so no copy), and
+# these pin the checker that fires if anyone reintroduces it.
+
+
+def _write_node_app(root, plugin_name, subdir, package_json):
+    d = root / plugin_name / subdir
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "package.json").write_bytes(orjson.dumps(package_json))
+    return d
+
+
+def test_package_json_version_behind_plugin_json_is_reported(tmp_path):
+    """The mece-decomposer shape: nested package.json five minor versions behind."""
+    e = _write_plugin(tmp_path, "alpha", "0.6.1")
+    _write_marketplace(tmp_path, [e])
+    _write_node_app(tmp_path, "alpha", "mcp-app", {"name": "@x/a", "version": "0.1.0"})
+    failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
+    assert len(failed) == 1, [r.detail for r in failed]
+    assert "0.1.0" in failed[0].detail and "0.6.1" in failed[0].detail
+    assert "mcp-app/package.json" in failed[0].detail, \
+        f"detail must name which package.json drifted: {failed[0].detail}"
+
+
+def test_package_json_without_a_version_is_not_a_finding(tmp_path):
+    """The shape both apps now ship: a private app that declares no version.
+
+    A copy that does not exist cannot drift. Reporting its absence would
+    reinstate by nagging the duplicate that was deliberately deleted.
+    """
+    e = _write_plugin(tmp_path, "alpha", "1.2.3")
+    _write_marketplace(tmp_path, [e])
+    _write_node_app(tmp_path, "alpha", "mcp-app", {"name": "@x/a", "private": True})
+    results = check_version_alignment(tmp_path)
+    assert all(r.passed for r in results), [r.detail for r in results if not r.passed]
+
+
+def test_package_json_agreeing_with_plugin_json_passes(tmp_path):
+    e = _write_plugin(tmp_path, "alpha", "1.2.3")
+    _write_marketplace(tmp_path, [e])
+    _write_node_app(tmp_path, "alpha", "mcp-app", {"name": "@x/a", "version": "1.2.3"})
+    results = check_version_alignment(tmp_path)
+    assert all(r.passed for r in results), [r.detail for r in results if not r.passed]
+
+
+def test_dependency_package_json_is_not_read_as_a_copy(tmp_path):
+    """node_modules and dist hold thousands of foreign versions.
+
+    Without the skip this check reports every installed dependency as drift,
+    which is the failure mode that trains people to ignore a checker.
+    """
+    e = _write_plugin(tmp_path, "alpha", "1.2.3")
+    _write_marketplace(tmp_path, [e])
+    _write_node_app(tmp_path, "alpha", "mcp-app/node_modules/react",
+                    {"name": "react", "version": "19.2.0"})
+    _write_node_app(tmp_path, "alpha", "mcp-app/dist",
+                    {"name": "@x/a", "version": "0.0.1"})
+    results = check_version_alignment(tmp_path)
+    assert all(r.passed for r in results), [r.detail for r in results if not r.passed]
+
+
+def test_unreadable_package_json_is_reported_not_skipped(tmp_path):
+    """Same reasoning as the corrupt-plugin.json case: silence here reads green."""
+    e = _write_plugin(tmp_path, "alpha", "1.2.3")
+    _write_marketplace(tmp_path, [e])
+    d = tmp_path / "alpha" / "mcp-app"
+    d.mkdir(parents=True)
+    (d / "package.json").write_text("{ not valid json")
+    failed = [r for r in check_version_alignment(tmp_path) if not r.passed]
+    assert any("package.json" in r.detail for r in failed), \
+        f"corrupt package.json was silently skipped: {[r.detail for r in failed]}"
