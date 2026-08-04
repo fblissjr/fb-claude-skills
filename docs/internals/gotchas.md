@@ -1,4 +1,4 @@
-last updated: 2026-08-03
+last updated: 2026-08-04
 
 # Gotchas
 
@@ -130,9 +130,11 @@ The fix: don't include numbers in prose. Say "domain reports" rather than a hard
 
 `skill-maintain lint` enforces this. It scans `README.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for count assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem reality. Soft finding (exit 0); not a CI block.
 
-## SessionStart hooks from our own plugins are disabled here
+## SessionStart hooks from our own plugins were disabled here (fully retired 2026-08-04)
 
-Two plugins are disabled in this repo only, via `enabledPlugins: false` in `.claude/settings.json`: `dimensional-modeling`, `mece-decomposer`. (`env-forge` is deprecated, not disabled — the `renames` map in `marketplace.json` handles its removal. An `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.) Their SessionStart hooks inject directive text into every session — conventions this repo already has written down in `.claude/rules/general.md` and in the user's global CLAUDE.md. Loading both is pure duplication with no benefit.
+**This section is history.** All three disables are gone — dev-conventions re-enabled 2026-08-03, the other two retired 2026-08-04; see the dated resolutions below. The prose in between is the record of why each disable existed and how its premise expired.
+
+Two plugins were disabled in this repo only, via `enabledPlugins: false` in `.claude/settings.json`: `dimensional-modeling`, `mece-decomposer`. (`env-forge` is deprecated, not disabled — the `renames` map in `marketplace.json` handles its removal. An `enabledPlugins` entry for it would be auto-deleted by Claude Code, mutating a tracked file.) Their SessionStart hooks inject directive text into every session — conventions this repo already has written down in `.claude/rules/general.md` and in the user's global CLAUDE.md. Loading both is pure duplication with no benefit.
 
 The hooks are not removed from the plugins themselves. They exist for repos that have nothing written down yet — a fresh clone of some other project has no `.claude/rules/general.md`, so the injected directive is doing real work there. This repo is the exception, not the rule the plugins are designed around.
 
@@ -141,6 +143,8 @@ A future session should not "helpfully" re-enable these plugins to restore consi
 **Resolved 2026-08-03, same day: the owner approved the re-enable.** `dev-conventions` is out of the disable list; its enforcement hooks are active here again and its ambient blocks stay silent via ground coverage. The paragraph below is the premise record that drove the decision, kept for history:
 
 **Premise change, 2026-08-03 — recorded, not acted on.** dev-conventions 0.15.x silences each directive per block wherever the repo's own files cover its ground, and a test arm (`test_this_repo_stays_fully_covered` in `tools/skill-maintainer/tests/test_dev_conventions_directives.py`) runs the hook against this repo live on every suite run: complete silence, all four grounds covered — if a rewording of CLAUDE.md or `.claude/rules/` ever slips past the ground patterns, that arm goes red before a re-enabled plugin starts broadcasting here. So for dev-conventions specifically, the duplication this disable prevents no longer occurs, and the disable's remaining effect is losing the PreToolUse enforcement hooks (pip/npm/lockfile blocks). Re-enabling dev-conventions here would now cost zero ambient text and restore enforcement. That flip is the owner's decision — this paragraph exists so the next session weighs the current facts instead of the 2026-07 ones. The rationale still holds unchanged for `dimensional-modeling` and `mece-decomposer`, which have no coverage detection.
+
+**Resolved 2026-08-04: the remaining two disables retired; the whole section is now history.** The premise expired for the other pair too, differently — not by coverage detection but by removal at the source: dimensional-modeling's SessionStart hook was dropped in `e3a8044` and mece-decomposer's in `09d455d`, both 2026-07-26, so since then the `enabledPlugins: false` entries disabled plugins that ship no hooks. Nothing watched that pair (the disable's rationale vs. the hooks it named); the first control-audit census caught it (finding S1, `internal/postmortems/2026-08-04_control-audit-census.md`), and the owner chose retirement over re-rationalizing. `.claude/settings.json` now carries no `enabledPlugins` key; both plugins' skills are available here again, which matches the dogfooding policy (the home repo runs what installs get). The env-forge caution stands: never add an `enabledPlugins` entry for a plugin in the `renames` map — Claude Code auto-deletes it, mutating a tracked file.
 
 
 ## Bare `pytest` from the repo root does not work; run per package

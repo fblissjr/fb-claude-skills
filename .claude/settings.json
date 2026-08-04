@@ -1,9 +1,5 @@
 {
   "env": {
     "ENABLE_SECURITY_REMINDER": "0"
-  },
-  "enabledPlugins": {
-    "dimensional-modeling@fb-claude-skills": false,
-    "mece-decomposer@fb-claude-skills": false
   }
 }
