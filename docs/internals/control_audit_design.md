@@ -107,6 +107,37 @@ live-fired, and the machine-dependence disclosure for untracked hooks. A
 green census that cannot be told from a run that read nothing is the class
 the family exists to catch.
 
+## The shared primitive: ship adversarial-verify first
+
+Decided with the owner, same day, after the design settled: the adversarial
+move this audit's live-fire tier needs is not this audit's to describe. It
+already exists as this repo's local `control-builder` agent (build the
+refutation, run it, report which way it went) — unshipped, so the sibling
+repo re-grew its own copy by hand, and restated in prose by claim-audit's
+adversarial arm and test-audit's spot mutation. Three restatements of one
+discipline is the drift shape this repo keeps paying for.
+
+The build order is therefore: **postmortem first ships the primitive, then
+this audit references it.**
+
+- A portable `control-builder` agent in the postmortem plugin: mechanism
+  and shape examples only — the local agent's evidence section is the
+  sibling repo's record and stays out, per the priors-rot rule; installing
+  repos supply their own specimens (same portability decision as
+  claim-audit).
+- A small `adversarial-verify` skill stating the two-step protocol the
+  owner named: construct the refutation, then verify the attempt actually
+  exercised the subject (the needle-threaded rule) before trusting either
+  outcome. Constructor and verifier are separate judgments — the
+  judge-the-gate-separately settlement in plugin-patterns.md.
+- This audit's tier 2, and test-audit's spot-mutation step, become
+  dispatches to that primitive rather than parallel prose. claim-audit's
+  adversarial arm gains a pointer at its next content release.
+
+Own-plugin packaging was considered (the primitive is useful
+mid-development, not only in audits) and declined for the same
+fragmentation reason as decision 3 below.
+
 ## Decisions taken (owner, 2026-08-04)
 
 1. **Scope**: controls = check-shaped things firing outside the test
