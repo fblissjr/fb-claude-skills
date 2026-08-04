@@ -56,7 +56,16 @@ Plugins using this pattern: `dev-conventions`, `dimensional-modeling`, `mece-dec
 
 First instance shipped 2026-08-03 (dev-conventions 0.15.0); the pattern is
 provisional until a second plugin adopts it or fleet evidence lands (a
-consumer repo's pre-registered measurement reports 2026-08-24).
+consumer repo's pre-registered measurement reports 2026-08-24). How to read
+that report when it arrives — the registration was amended 2026-08-04 on
+this repo's denominator memo, verified in the consumer's working plan:
+results come as violations over opportunities PER CLASS (TDD, doc), not a
+bare count; a class with fewer than 10 opportunities EXTENDS to the next
+checkpoint rather than deciding, and the ambient-tier deprecation question
+extends with it. Only an adequately-exposed zero (0/N, N >= 10) is the
+deprecation evidence; a bare or underpowered zero decides nothing. The
+consumer's claims-reminder evaluation shares the date and is a separate
+instrument — do not read its result as this gate's.
 
 Broadcast prose has four structural friction properties: generic by necessity
 (so it states forms, which collide with mature local practice), paid every
