@@ -25,6 +25,11 @@ breaks if it is deleted -- must be recoverable: a per-test comment, or a
 file-level convention (header claim plus per-case rationale) that pins each
 case.
 
+A test that pins existing behavior is born green and skips the fallibility
+proof red-first gives every other arm -- so prove it once at birth: mutate
+the pinned behavior, confirm red, revert. A pin that cannot go red is
+decoration (specimen: 2026-08-04, one of eighteen arms).
+
 ## JSON
 
 Use `orjson` for all Python JSON serialization and deserialization.
