@@ -44,7 +44,10 @@ Skills here run in Claude Code, so they follow Claude Code's skill schema -- a s
 
 ## Non-destructive
 
-Always validate before writing. Create backups when modifying state. Never auto-commit.
+Always validate before writing. Create backups when modifying state. Tools
+and hooks never commit on their own; Claude committing per the owner's
+global rule (fine without asking, never push unasked) is not what this
+forbids.
 
 ## Logs
 
