@@ -1,5 +1,10 @@
 # changelog
 
+## 1.9.0
+
+### removed
+- **`apps/heylook-monitor` deleted.** The MCP App dashboard for the external heylookitsanllm server, frozen since 2026-02-13 — every touch since was sweep collateral, no tests, TypeScript outside the workspace so no repo check ever exercised it. It was never a marketplace plugin (README row only, clone-and-build distribution), so no installed copies exist, no `renames` mapping is needed, and this is not a breaking change for any plugin user. Its deletion also closes the 2026-08-03 egress-sweep follow-up by removal rather than patch: the `0.0.0.0` bind with open CORS and unvalidated `HEYLOOK_URL` is gone instead of fixed. Recoverable from git history if the heylookitsanllm repo ever wants it. Deliberately left in place: the historical changelog entries describing its addition and lockfile migration, and the `skill-maintain tune --project heylook` CLI example, which names the external server repo, not this app.
+
 ## 1.8.0
 
 ### added

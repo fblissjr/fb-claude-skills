@@ -63,7 +63,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Module | Description |
 |--------|-------------|
-| [heylook-monitor](apps/heylook-monitor/) | MCP App dashboard for heylookitsanllm local LLM server |
 
 ### installable as a package (not a Claude plugin)
 
