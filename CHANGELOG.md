@@ -1,5 +1,10 @@
 # changelog
 
+## 1.10.0
+
+### added
+- **`postmortem` 0.6.1 → 0.7.0 — the adversarial primitive, shipped once instead of restated three times.** The plugin now carries a portable `control-builder` agent (state the claim precisely enough to be wrong, describe the positive result first, remove exactly one variable, verify the control actually ran, measure both sides) and an `adversarial-verify` skill stating the two-step protocol as two separate judgments: construct the refutation, then have a fresh pass — not the constructor — verify the needle was threaded before either outcome counts. A fourth verdict, vacuous, covers the green that never reached its subject. The agent ships mechanism and failure shapes only; the originating repo's evidence section stays local per the priors-rot rule, and installing repos are told to grow their own specimen record. `test-audit`'s spot-mutation step is now a dispatch to this primitive rather than parallel prose. Built from `docs/internals/control_audit_design.md`, which records why the primitive ships before the control-audit skill that needs it.
+
 ## 1.9.3
 
 ### fixed

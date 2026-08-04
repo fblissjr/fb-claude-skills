@@ -1,7 +1,7 @@
 {
   "name": "postmortem",
-  "version": "0.6.1",
-  "description": "Evidence-grounded retrospectives: session and span postmortems of finished work, a browsable HTML index over them, plus a test-suite audit that checks whether green tests still mean anything",
+  "version": "0.7.0",
+  "description": "Evidence-grounded retrospectives: session and span postmortems of finished work, a browsable HTML index over them, a test-suite audit that checks whether green tests still mean anything, plus the adversarial-verify primitive (construct the refutation, verify it reached the subject) with the control-builder agent the audits dispatch to",
   "author": {
     "name": "Fred Bliss"
   },

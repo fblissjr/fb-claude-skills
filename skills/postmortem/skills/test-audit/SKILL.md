@@ -64,8 +64,10 @@ verify the oracle by breaking the thing it guards: introduce a deliberate,
 targeted defect in the code under test, run the test, confirm red, revert.
 A test that stays green under mutation of its own subject is decorative,
 whatever its claim says. Work on a throwaway branch or stash; never leave a
-mutation in place. Delegate the break-and-confirm loop to a subagent where one
-is available (in repos that ship a `control-builder` agent, that is its job).
+mutation in place. This step is a dispatch to the `adversarial-verify`
+protocol (shipped in this plugin): the break-and-confirm loop goes to the
+`control-builder` agent, and a red — or a suspicious green — counts only
+after a separate pass confirms the mutation actually reached the subject.
 Full mutation tooling (mutmut, Stryker) is an escalation for suites where spot
 checks keep failing, not the default.
 

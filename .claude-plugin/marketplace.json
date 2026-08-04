@@ -100,8 +100,8 @@
     {
       "name": "postmortem",
       "source": "./skills/postmortem",
-      "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files in a per-repo resolved location, optionally rendered to a self-contained HTML file with --html), a generated browsable index over them answering 'has anything been written about this file', plus a test-suite audit that checks each test's claim, oracle, and reachability envelope, with keep/rewrite/delete verdicts",
-      "version": "0.6.1"
+      "description": "Evidence-grounded retrospectives: session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files in a per-repo resolved location, optionally rendered to a self-contained HTML file with --html), a generated browsable index over them answering 'has anything been written about this file', a test-suite audit that checks each test's claim, oracle, and reachability envelope with keep/rewrite/delete verdicts, plus the adversarial-verify primitive (construct the refutation, then separately verify it reached the subject) and the control-builder agent the audits dispatch to",
+      "version": "0.7.0"
     },
     {
       "name": "ruff-diagnostics",

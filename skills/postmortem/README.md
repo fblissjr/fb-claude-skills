@@ -1,13 +1,17 @@
 # postmortem
 
-*Last updated: 2026-08-03*
+*Last updated: 2026-08-04*
 
-Evidence-grounded retrospectives. One skill runs a postmortem of finished work
-— a session, a feature, or a span of sessions mined from git history, session
-logs, and changelogs. The other audits an existing test suite for meaning and
-drift: whether each green test still verifies what its authors believed.
+Evidence-grounded retrospectives, and the adversarial primitive their audits
+run on. One skill runs a postmortem of finished work — a session, a feature,
+or a span of sessions mined from git history, session logs, and changelogs.
+Another audits an existing test suite for meaning and drift: whether each
+green test still verifies what its authors believed. The `adversarial-verify`
+skill and `control-builder` agent package the verification move both lean on:
+build the experiment that would refute a claim, then separately prove the
+attempt actually reached its subject.
 
-Both skills share one discipline: findings are claims, claims need citations,
+The skills share one discipline: findings are claims, claims need citations,
 and empty sections are valid output. The postmortem format (what went well /
 what did not / deviations table / escapes / forward items, annotate-don't-
 rewrite) was distilled from a real run postmortem in this repo that caught its
@@ -28,6 +32,13 @@ the same run's verification lessons.
 | `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently" | Verdicted retrospective of finished work; session mode (the conversation) or span mode (git history, session logs, changelogs, plan docs). Output is always a durable file. |
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
+| `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
+
+## Agents
+
+| Agent | Role |
+|-------|------|
+| `control-builder` | Takes one claim and tries to falsify it by construction: single-variable control, proof the control took effect, both measurements, verdict. Deliberately inherits the session model — designing a refutation is not down-tier work. Ships mechanism only; installing repos grow their own evidence record. |
 
 ## Invocation
 
@@ -38,10 +49,11 @@ the same run's verification lessons.
 /postmortem:postmortem --html         # markdown plus a readable HTML file
 /postmortem:postmortem-index          # browsable index over all of them
 /postmortem:test-audit                # audit the current repo's suite
+/postmortem:adversarial-verify <claim>  # refute-by-construction, needle verified
 ```
 
 Or trigger naturally: "run a postmortem on the auth migration", "which of our
-tests are dead weight".
+tests are dead weight", "prove this check can actually fail".
 
 ## Design notes
 
