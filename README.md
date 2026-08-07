@@ -145,8 +145,6 @@ claude plugin update dev-conventions@fb-claude-skills
 
 ## where things work
 
-> **New to MCP?** See [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) for a field guide to the full MCP ecosystem -- protocols, transports, tools, apps, connectors, and how they all relate.
-
 Plugins from this repo work across multiple Claude surfaces, but capabilities differ by surface:
 
 | Surface | Skills (slash commands) | MCP App UI | Transport |
@@ -295,10 +293,8 @@ The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources 
 See [docs/README.md](docs/README.md) for the full documentation index.
 
 Highlights:
-- [MCP Ecosystem Field Guide](docs/mcp-ecosystem.md) -- protocol, tools, apps, connectors, and how they relate
 - [docs/internals/](docs/internals/) -- repo-specific operating reference (version cascade, plugin patterns, maintenance commands, gotchas)
 - Upstream Claude Code docs are **not** vendored here — `skill-maintain upstream` fetches them to `.skill-maintainer/state/pages/` (gitignored)
-- [docs/analysis/](docs/analysis/) -- what survived the 2026-07-21 triage: the agent-state decision record (now closed: the package was retired 2026-08-02), the MCP protocol reference, and the decision log explaining what went and why
 - Each plugin has its own README with detailed usage
 
 ## credits

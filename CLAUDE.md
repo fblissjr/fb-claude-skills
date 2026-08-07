@@ -50,8 +50,6 @@ These bite on the first edit if you don't know them.
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
 | Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
-| MCP orientation (start here) | [docs/mcp-ecosystem.md](docs/mcp-ecosystem.md) |
-| MCP protocol | [docs/analysis/mcp_protocol_and_servers.md](docs/analysis/mcp_protocol_and_servers.md) (verified current) |
 | Current upstream Claude Code docs | `skill-maintain upstream`, then `.skill-maintainer/state/pages/` (gitignored). Nothing upstream is copied into this repo |
 | DuckDB schema (readwise-reader) | `apps/readwise-reader/CLAUDE.md` |
 | Repo layout, plugins table, install commands | [README.md](README.md) |

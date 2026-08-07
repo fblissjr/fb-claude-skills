@@ -28,4 +28,5 @@ Or trigger automatically by asking about JSON extraction, searching JSON files, 
 
 Based on independent benchmark evaluation of [jsongrep](https://github.com/micahkepe/jsongrep) claims. jsongrep compiles JSON path queries into DFAs for single-pass tree traversal, achieving 3-7x speedups over jq on files >1MB.
 
-Full benchmark data: `research/schema-processing/REPORT.md`
+Full benchmark data: report removed from the tree on 2026-08-07, recoverable at
+`git show cc12498:research/schema-processing/REPORT.md`.

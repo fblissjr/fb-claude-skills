@@ -87,8 +87,6 @@ Staged retrieval:
 - **L2** (skill body): loaded on match. Full instructions for the active workflow.
 - **L3** (deep context): loaded on demand. References and scripts when needed.
 
-![Loading hierarchy diagram](docs/loading-hierarchy.svg)
-
 ## principles
 
 ### 1. optimize for relevant context at the right time

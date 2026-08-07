@@ -13,6 +13,25 @@ would otherwise sit permanently red -- an unpublished plugin legitimately fails
 "listed in marketplace.json". The entry is left out rather than kept "just in
 case", so a directory reappearing under that name is scanned like any other.
 """
+SKIP_PATH_PREFIXES = ((".claude", "worktrees"),)
+"""Relative path prefixes never scanned, matched as whole components.
+
+`.claude/worktrees/` is where Claude Code puts a git worktree for
+`isolation: worktree` and `EnterWorktree`. A worktree is a *second checkout of
+the same repo*, so scanning it doubles every skill and plugin and makes the
+duplicate-name check fail listing nearly everything. Specimen 2026-08-07: a
+locked worktree left by a parallel session took `skill-maintain test` from
+265 passed / 3 failed to 499 passed / 6 failed.
+
+This is a path rule rather than a `SKIP_DIRS` name entry on purpose. Banning the
+bare name `worktrees` would hide a plugin or directory legitimately called that,
+anywhere in the tree. Only the documented location is skipped.
+
+Deliberately NOT "skip everything git-ignores". That sounds more principled and
+is more dangerous: a repo that gitignores its own skills directory would scan
+nothing and report green, which is the exact failure `_skipped` already warns
+about below.
+"""
 TOKEN_BUDGET_WARN = 4000
 TOKEN_BUDGET_CRITICAL = 8000
 STALE_DAYS = 30
@@ -36,6 +55,8 @@ def _skipped(path: Path, root: Path) -> bool:
     # code expressed this as a separate substring test; folding it in here keeps
     # both rules in one place instead of one of them getting dropped in a
     # refactor, which is exactly what happened.
+    if any(rel.parts[: len(p)] == p for p in SKIP_PATH_PREFIXES):
+        return True
     return any(part in SKIP_DIRS or part.endswith(".backup") for part in rel.parts)
 
 

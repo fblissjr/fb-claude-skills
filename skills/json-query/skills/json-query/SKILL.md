@@ -103,11 +103,14 @@ Benchmarked on 10MB files across 7 schema types (flat, nested, deep, array-heavy
 | Array wildcard | 53ms | 198ms | 92ms | 3.7x |
 | Deep path (15 levels) | 37ms | 155ms | 59ms | 4.2x |
 
-Full benchmark data: `research/schema-processing/REPORT.md`
+These numbers come from an independent benchmark run whose report was removed
+from the tree on 2026-08-07. It stays recoverable at
+`git show cc12498:research/schema-processing/REPORT.md` — cite that rather than
+treating the table as self-warranting.
 
 ## References
 
 - Query syntax details: see `references/syntax_guide.md`
-- Full benchmark report: `research/schema-processing/REPORT.md`
+- Full benchmark report: removed from the tree; `git show cc12498:research/schema-processing/REPORT.md`
 - jsongrep GitHub: https://github.com/micahkepe/jsongrep
 - Blog post: https://micahkepe.com/blog/jsongrep/

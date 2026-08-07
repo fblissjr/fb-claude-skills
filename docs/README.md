@@ -4,13 +4,7 @@ last updated: 2026-08-07
 
 Authoritative index for all documentation in this repository.
 
-## guides
-
-| Document | Description |
-|----------|-------------|
-| [mcp-ecosystem.md](mcp-ecosystem.md) | Field guide to the full MCP ecosystem: protocol, tools, resources, apps, connectors, extensions, and how they relate |
-
-See also the root [README.md](../README.md) for plugin installation, surface compatibility, and usage instructions.
+See the root [README.md](../README.md) for plugin installation, surface compatibility, and usage instructions.
 
 ## internals (`internals/`)
 
@@ -29,26 +23,16 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
 | [claim_audit_design.md](internals/claim_audit_design.md) | Spec for the claim-audit skill (diff prose audited by execution, instrument-yield routing) — designed 2026-08-03, NOT started |
 | [best_practices_maintenance.md](internals/best_practices_maintenance.md) | Why `best_practices.md` drifts: three kinds of knowledge (harness / model / craft) on one calendar clock. Source keep-add-remove verdicts, the hash-join proposal, ordered build list — analysed 2026-08-07, NOT started |
+| [context-cost.md](internals/context-cost.md) | Where context cost actually goes; the tier test for a rule; built-in introspection not to rebuild; transcript-mining traps |
+| [control_audit_design.md](internals/control_audit_design.md) | Design record for control-audit: census plus live-fire over hooks, validators, reminders; why the adversarial primitive shipped first |
+| [agent_state_population.md](internals/agent_state_population.md) | Why `agent-state` was retired rather than populated: every candidate duplicated a file, and effectiveness needs a controlled A/B |
+| [postmortem_output_formats.md](internals/postmortem_output_formats.md) | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started |
 
 ## package documentation
 
 | Document | Description |
 |----------|-------------|
 | [skill-maintainer README](../tools/skill-maintainer/README.md) | CLI reference, data flow, workflow, configuration |
-
-## domain reports (`analysis/`)
-
-Design documents and research created during development. Cover the full Claude extension ecosystem.
-
-| Document | Description |
-|----------|-------------|
-| [mcp_protocol_and_servers.md](analysis/mcp_protocol_and_servers.md) | MCP protocol, primitives, transports, SDKs, registry |
-| [data_centric_agent_state_research.md](analysis/data_centric_agent_state_research.md) | Research on data-centric LLM agent state management |
-
-## synthesis (`reports/`)
-
-| Document | Description |
-|----------|-------------|
 
 ## upstream Claude Code docs
 
