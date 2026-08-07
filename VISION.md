@@ -124,9 +124,13 @@ When the model needs domain knowledge, prefer retrieving it from a skill or refe
 
 A skill is versioned, inspectable, updatable, and testable. When you find yourself relying on the model's innate knowledge repeatedly for the same domain, that's a signal to create a skill.
 
+The boundary matters as much as the rule. This applies to knowledge that is versioned, project-specific, contested, or newer than the model. It does not apply to general competence: a skill that restates what the model already does well spends context to compete with it. Ask before writing, not after it underperforms -- **what does this supply that the model cannot derive?** If the answer is nothing, it is friction rather than retrieval. See "the model is a variable" in the architecture section.
+
 ### 6. human feedback closes the loop
 
 Retrieval quality cannot be fully automated. Whether a skill triggered at the right time, whether the loaded context was helpful, whether the result was accurate -- these require human judgment. The maintenance workflow (`/maintain`, test suite, best practices review) keeps a human in the loop for quality decisions that can't be reduced to property checks.
+
+The loop reopens on events, not on a schedule: an upstream harness change, an audit finding, and -- the one with no mechanical detector today -- a model family release, which can invalidate a rule without changing a single byte of this repo.
 
 ## the architecture
 
@@ -177,6 +181,42 @@ External wrappers can't optimize at the level the AI lab can. They break when th
 Build inside the harness. Guide it with data and structure -- skills, rules, metadata, retrieval indexes. New behavior is new data, not new code.
 
 Corollary: don't be model-agnostic for most use cases. The harness optimizes for specific model capabilities. Model-agnostic design sacrifices the tight coupling that makes the system work.
+
+### the model is a variable
+
+The section above frames model and harness as one compound system. The model
+side of that pair changes on its own schedule, and when it does, two things
+change with it: what a skill needs to say, and what shape it needs to take.
+
+**Capability absorbs content.** Knowledge a newer model carries makes the skill
+that supplied it redundant -- and worse than redundant, because an instruction
+restating general competence competes with a better plan the model already had.
+The cost is not only the tokens. It is the friction of overriding something the
+model does well by default.
+
+**Operating mode changes shape.** A generation that works from constraints on
+one side and an explicit definition of good -- metrics, gates -- on the other
+does not need the step decomposition an earlier one required. Constraints and
+gates travel across generations. Scaffolding does not.
+
+Three questions, asked per instruction rather than per skill:
+
+1. Does it carry what the model cannot derive -- versioned facts, project
+   conventions, measured findings, a threshold with evidence behind it? Keep.
+2. Does it override a default the model would otherwise follow? Keep, and state
+   which default and why. An unjustified override is indistinguishable from
+   noise and gets reasoned around rather than followed.
+3. Does it restate general competence -- output formats, step decompositions of
+   tasks the model plans better itself, "be specific", "handle errors"? Delete.
+
+The trigger is the release, not the calendar. A model family ships; the pass
+runs. Elapsed time says nothing about whether the model changed, and a rule
+written for a limitation that no longer exists does not announce itself -- it
+charges rent on every activation instead.
+
+The honest falsifier is a with-and-without comparison, not an opinion about
+which instructions feel necessary. The three questions narrow what is worth
+measuring; they do not settle it.
 
 ### context isolation over context accumulation
 
@@ -251,6 +291,7 @@ These principles govern everything in fb-claude-skills:
 - **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
 - **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
 - **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
+- **Model generations**: a model family release triggers a redundancy-and-friction pass over skill instructions -- keep what the model cannot derive, justify what overrides a default, delete what restates competence. Design record: [docs/internals/best_practices_maintenance.md](docs/internals/best_practices_maintenance.md) (the model is a variable).
 - **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (`readwise-reader`; the retired `agent-state` is the section's cautionary tale, not an example), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
 - **Verification**: greens must prove they can fail. Audits are runs, not artifacts -- re-derived per run, report-only, self-scoping; adversarial construction is the instrument and everything else is targeting (verify by construction).
 - **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).

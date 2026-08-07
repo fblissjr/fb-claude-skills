@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-07
 
 # Upstream drift backlog
 
@@ -74,6 +74,12 @@ rediscovered expensively.
 - frontmatter allow-list gained `disallowed-tools`, `arguments`
 - new `## agent authoring` section
 - `args` / exec form for hooks — all 10 hook entries across 8 plugins converted (2026-07-21)
+- Four surface differences, absorbed 2026-08-07 into `best_practices.md`'s new
+  `### surface differences` section, carrying the 2026-07-26 read date rather
+  than today's: user-scope skills unread in Cowork and cloud sessions;
+  `context: fork` with `agent: Explore` or `agent: Plan` does not load CLAUDE.md;
+  project skills load from every parent `.claude/skills/` up to the repo root;
+  `--add-dir` loads them and `permissions.additionalDirectories` does not
 
 ## Not yet absorbed
 
@@ -100,12 +106,8 @@ rediscovered expensively.
 - Inline `` !`cmd` `` only fires at line start or after whitespace; substitution runs once and output is not re-scanned
 - Re-invoking an identical skill appends an "already loaded" note rather than a second copy (v2.1.202+)
 - `skillOverrides` (`on` / `name-only` / `user-invocable-only` / `off`), `disableBundledSkills`
-- `context: fork` with `agent: Explore` or `agent: Plan` does NOT load CLAUDE.md; other agent types do
-- Project skills load from `.claude/skills/` in every parent dir up to repo root
 - Name clashes stay available under a directory-qualified name (`/apps/web:deploy`)
 - Skill dirs may be symlinks (followed, de-duplicated)
-- `--add-dir` loads `.claude/skills/`; the `permissions.additionalDirectories` setting does not
-- Cowork/cloud sessions do not read the user-scope skills directory
 - Skill stacking (`/a /b 123`): first skill plus up to five more
 - `skill-creator` plugin provides a documented with/without-skill eval harness — a concrete method for our unmeasured "quality signals" section
 

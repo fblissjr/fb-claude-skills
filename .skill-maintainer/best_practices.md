@@ -1,305 +1,528 @@
-last updated: 2026-08-03
+last updated: 2026-08-07
 
-# best practices checklist
+# best practices: building skills and plugins for Claude
 
-Machine-parseable best practices extracted from the Anthropic skills guide (PDF), official Claude Code docs, Agent Skills spec, and this repo's design principles (see `VISION.md`). Used by skill-maintainer scripts and the test suite to validate skills and detect drift.
+For anyone shipping a skill, plugin, or marketplace that runs in Claude Code and
+related Claude products. Not specific to any one skill, plugin, or repo.
 
-## context hygiene
+The *why* behind all of this — attention as the scarce resource, precision as the
+constraint, descriptions as reverse queries, progressive disclosure as the
+mechanism — is not repeated here. It lives in `VISION.md` alongside this file in
+the source repo, and it changes on a different clock than anything below.
 
-These checks enforce the retrieval principles in `VISION.md`. The context window is attention, not memory. Every loaded item competes for the model's focus.
+## how to read this
 
-### token budget
+Three parts, because three different things are being asked of you:
 
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+| Part | What it is | What you do with it |
+|---|---|---|
+| **Constraints** | What must not happen, and what breaks when it does | Check your work against it. Violations are defects |
+| **Gates** | How you know the thing is good | Run the named command. A gate with no command is not a gate |
+| **Reference** | How the platform behaves | Look it up. Do not "verify" it |
 
-Budget thresholds apply to SKILL.md only (always-loaded when skill triggers). Reference files (`references/`, other `.md`) are on-demand and tracked separately -- they do not count against the budget. This prevents penalizing skills for having thorough reference material, which is exactly what progressive disclosure encourages.
+Constraints and gates carry checkboxes because they are verifiable. Reference
+does not, because there is nothing to verify — a field either exists or it does
+not, and you look. A line that cannot be put in one of the three parts does not
+belong in this file.
 
-- [ ] SKILL.md under 4,000 tokens (2% of 200k context window). Estimation: chars / 4
-- [ ] SKILL.md under 8,000 tokens (hard ceiling -- above this degrades attention on other context)
-- [ ] SKILL.md body under 500 lines
-- [ ] Heavy reference material in `references/` directory, not inline in SKILL.md
-- [ ] Reference tokens tracked and reported but do not trigger budget warnings
-- [ ] Token estimation is approximate (chars / 4). Real tokenization varies by content type. Treat as a budget heuristic, not exact measurement
-- [ ] On auto-compaction, only the first 5,000 tokens of each re-attached skill are kept; all re-attached skills share a combined 25,000-token budget. SKILL.md over ~5,000 tokens gets truncated when it survives compaction
+Each section carries an evidence class, which determines when it gets rechecked:
 
-### description precision
+- `harness` — a fact about the runtime. Rechecked when the source page moves.
+- `model` — a claim about what the model needs. Rechecked on a model family
+  release, and settled only by a with-and-without comparison.
+- `craft` — learned from building. Rechecked when an audit produces a finding
+  that touches it.
 
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+Sections also state **what enforces them**. "Nothing" is the common answer and is
+stated rather than hidden, because a checklist that reads as uniformly authoritative
+hides which half of it anyone is actually checking.
 
-Descriptions are reverse queries. They determine when a skill loads. Vague descriptions cause overtriggering (low precision). Missing trigger phrases cause undertriggering (low recall).
+## authoring shape
 
-- [ ] Description includes WHAT the skill does (action verbs: handles, generates, validates, designs)
-- [ ] Description includes WHEN to use it (trigger phrases: "use when user says...", "when the user wants to...")
-- [ ] Combined `description` + `when_to_use` truncated at 1,536 characters in the skill listing. Front-load the core use case so it survives truncation
-- [ ] Description is specific enough to avoid matching unrelated queries
-- [ ] Description includes negative scope if needed ("do NOT use for...")
-- [ ] No duplicate or near-duplicate descriptions across skills (causes ambiguous routing)
+<!-- class: model | validated_against: Claude 5 generation | last_verified: 2026-08-07 -->
+
+**Enforced by: nothing mechanical.** The falsifier is a with-and-without
+comparison; `skill-creator` ships the harness.
+
+The shape of an instruction matters as much as its content, and the right shape
+changed with the Claude 5 generation. That generation is goal-oriented, working
+from constraints on one side and an explicit definition of good — metrics,
+gates — on the other. It also carries knowledge earlier models did not.
+
+Two consequences. **Capability absorbs content**: an instruction restating what
+the model already does well is not merely wasted tokens, it competes with a
+better plan the model had. **Operating mode changes shape**: step decomposition
+that an earlier generation needed is now scaffolding, and scaffolding does not
+travel across generations. Constraints and gates do.
+
+Apply per instruction, not per skill:
+
+- [ ] **Does it carry what the model cannot derive?** Versioned facts, project
+      conventions, measured findings, a threshold with evidence behind it. Keep
+- [ ] **Does it override a default the model would otherwise follow?** Keep, and
+      name the default and the reason. An unjustified override is
+      indistinguishable from noise and gets reasoned around rather than followed
+- [ ] **Does it restate general competence?** Output templates, step
+      decompositions of tasks the model plans better itself, "be specific",
+      "handle errors". Delete
+- [ ] Procedure still earns its place when the *order* is load-bearing for a
+      reason the model cannot see — "name the deriving command before running
+      anything" exists because a command chosen after seeing output drifts
+      toward confirming. That is a constraint overriding an instinct, not a step
+- [ ] Every step that survives states why it exists. A step whose omission
+      changes nothing is decoration
+- [ ] Examples earn their place by pinning a judgment boundary (this passes,
+      this does not), not by showing output format
+- [ ] State the negative scope: what this skill is *not* for, and which adjacent
+      skill owns that instead
+- [ ] Carry a scope caveat where the evidence behind a rule is narrow. A rule
+      measured in one setting should say so rather than generalise silently
+
+**Retrieval has a boundary.** Prefer a skill over the model's innate knowledge
+for knowledge that is versioned, project-specific, contested, or newer than the
+model. Do not write one for general competence. Ask before writing, not after it
+underperforms: what does this supply that the model cannot derive? If the answer
+is nothing, it is friction rather than retrieval.
+
+## part 1 — constraints
 
 ### always-loaded context
 
-<!-- source: https://code.claude.com/docs/en/memory | last_verified: 2026-04-19 -->
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/memory | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
 
-Everything in this list loads on every session. Each line is a fixed cost.
+**Enforced by:** the ambient-hook arm in `skill-maintain test` (matcher-less
+high-frequency hooks) and the token-budget gate below. The rest is unchecked.
 
-- [ ] CLAUDE.md: only operational instructions, no reference material
-- [ ] `.claude/rules/`: unconditional rules are minimal; use `paths` frontmatter to scope rules that don't apply everywhere
-- [ ] Skill descriptions (all installed): each must justify its presence in the 1% budget
-- [ ] `settings.json`: no ambient hooks that fire on high-frequency events without documented justification
-- [ ] Auto-memory `MEMORY.md`: under 200 lines OR 25KB, whichever comes first -- content past the cap is not loaded at session start. No session-specific or stale entries. Detailed topic files sit beside `MEMORY.md` and load on demand
-- [ ] If the repo has an `AGENTS.md`, the project `CLAUDE.md` should `@AGENTS.md` import it rather than duplicating content. Claude Code does not read `AGENTS.md` directly
-- [ ] `disableSkillShellExecution: true` in settings disables `` !`cmd` `` preprocessing in user/project/plugin/add-dir skills. Bundled/managed skills unaffected. Use when distributing skills where shell preprocessing is not safe
+Everything in this list loads on every session. Each line is a fixed cost paid
+whether or not it is used.
+
+- [ ] CLAUDE.md holds operational instructions only, never reference material
+- [ ] `.claude/rules/`: unconditional rules stay minimal; scope the rest with
+      `paths` frontmatter
+- [ ] Skill descriptions (all installed) each justify their share of the listing
+      budget
+- [ ] `settings.json`: no ambient hooks on high-frequency events without
+      documented justification
+- [ ] Auto-memory `MEMORY.md` stays under 200 lines OR 25KB, whichever comes
+      first — content past the cap is not loaded at all. Detailed topic files sit
+      beside it and load on demand
+- [ ] Where a repo has an `AGENTS.md`, the project CLAUDE.md `@AGENTS.md` imports
+      it rather than duplicating it. Claude Code does not read `AGENTS.md`
+      directly
+- [ ] A rule earns its tier: mechanically detectable violation belongs in a
+      `PreToolUse` block, a detectable condition in a `PostToolUse` notice, and
+      only what is neither becomes ambient prose. Cost is *emission*, not
+      registration — a hook that fires and stays silent is nearly free, while
+      `SessionStart` emits unconditionally and re-fires on resume, fork, clear
+      and compact
 
 ### hooks
 
-<!-- source: https://code.claude.com/docs/en/hooks | last_verified: 2026-04-19 -->
-<!-- source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-07-21 -->
 
-- [ ] No hooks that fire on every tool call, file read, or other high-frequency event without documented justification
-- [ ] Hook `type` is one of: `command`, `http`, `mcp_tool`, `prompt`, `agent`
-- [ ] Hook `timeout` is in **seconds**, not milliseconds. `3000` is fifty minutes. The upstream default is 600 for `command`, `http`, `mcp_tool`
-- [ ] What a **command** hook does when it times out is NOT documented. The only two timeout behaviours stated on the hooks page are the HTTP-hook one (fails open, but that section says it "differs from command hooks" and uses status codes "instead of exit codes") and the Agent SDK callback one (a `PreToolUse` timeout "blocks the tool call"). They disagree, and neither is a command hook. Quote sentences, not line numbers -- the snapshots are gitignored and renumber
-- [ ] A summarising fetch can never source a claim that the docs DON'T say something. Absence is exactly what summarisation discards, so its silence is not evidence. Grep the raw snapshot instead
-- [ ] Because the failure mode is unknown, pick the value so it cannot matter: for anything that **gates**, err long. Too-short + fails-open is a silent bypass; every other combination is a visible stall or a loud block. Measure the hook, then leave generous headroom
-- [ ] Hook `if` field used for argument-level filtering when possible (avoids unnecessary process spawning). `if` applies only to tool events: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied. `FileChanged` is NOT one of them. On any other event a hook with `if` set **never runs** -- it is not ignored, the hook is skipped entirely
-- [ ] `if` Bash matching is best-effort and **fails open** on unparseable commands. Use the permission system, not a hook, for hard allow/deny
-- [ ] `if` file patterns are rooted at the working directory: `Edit(src/**)` matches only top-level `src`. Use `Edit(**/src/**)` for any depth
-- [ ] Hook purpose and trigger documented in README or inline comments
-- [ ] Hook output is minimal (one-line stderr, not paragraphs of context)
-- [ ] Exit code semantics: exit 0 = **no decision reported** (JSON output processed). For PreToolUse this does NOT approve the call -- the normal permission flow still applies. Exit 2 = blocking error (stderr shown to user). Any other non-zero = non-blocking error. Do not use exit 1 to gate -- use exit 2
-- [ ] Per-event exceptions to the above: `WorktreeCreate` fails creation on ANY non-zero exit; `Setup` surfaces stderr as a hook error on any non-zero exit including 2
-- [ ] Hook output strings (`additionalContext`, `systemMessage`, stdout) are capped at 10,000 characters; overflow is spilled to a file and replaced with a preview plus path
-- [ ] Use **exec form** (set `args`) whenever a hook command references a path placeholder like `${CLAUDE_PLUGIN_ROOT}`. Shell form passes the whole string to `sh -c`, so a plugin root containing a space breaks the hook silently. Exec form passes each element as one argument with no shell involved
-- [ ] Exec form for a bundled shell script is `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]` -- NOT the script path as `command`. On Windows a `.sh` file is not a spawnable executable; naming the interpreter works on every platform (the docs make the same point with `node`)
-- [ ] Keep shell form when you actually need shell features (pipes, `&&`, redirects, globs)
-- [ ] `${user_config.*}` is rejected in shell-form plugin hook commands (v2.1.207+). Read `$CLAUDE_PLUGIN_OPTION_<KEY>` instead, or set `args` to switch to exec form
-- [ ] `once: true` in hook blocks is only honored inside **skill** frontmatter (auto-removes after first run). Ignored in `settings.json`, plugin `hooks.json`, AND agent frontmatter
+**Enforced by: nothing.** Every item here is authoring discipline. Several fail
+*silently* — marked (silent) — which is why they are constraints rather than
+guidance.
 
-### composable directive pattern
+- [ ] Hook `timeout` is in **seconds**, not milliseconds. `3000` is fifty
+      minutes. The upstream default is 600 for `command`, `http`, `mcp_tool`
+- [ ] What a **command** hook does when it times out is NOT documented. The only
+      two timeout behaviours stated on the hooks page are the HTTP-hook one
+      (fails open, but that section says it "differs from command hooks" and uses
+      status codes "instead of exit codes") and the Agent SDK callback one (a
+      `PreToolUse` timeout "blocks the tool call"). They disagree, and neither is
+      a command hook
+- [ ] Because that failure mode is unknown, pick the value so it cannot matter:
+      for anything that **gates**, err long. Too-short plus fails-open is a
+      silent bypass; every other combination is a visible stall or a loud block.
+      Measure the hook, then leave generous headroom
+- [ ] Exit code semantics: exit 0 = **no decision reported** (JSON output
+      processed). For `PreToolUse` this does NOT approve the call — the normal
+      permission flow still applies. Exit 2 = blocking error (stderr shown to
+      user). Any other non-zero = non-blocking error. Never use exit 1 to gate
+- [ ] Per-event exceptions: `WorktreeCreate` fails creation on ANY non-zero exit;
+      `Setup` surfaces stderr as a hook error on any non-zero exit including 2
+- [ ] Use **exec form** (set `args`) whenever a hook command references a path
+      placeholder like `${CLAUDE_PLUGIN_ROOT}`. Shell form passes the whole string
+      to `sh -c`, so a plugin root containing a space breaks the hook (silent)
+- [ ] Exec form for a bundled shell script names the interpreter:
+      `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]` — NOT the
+      script path as `command`. On Windows a `.sh` file is not spawnable, and
+      naming the interpreter works on every platform
+- [ ] Keep shell form only where shell features are actually needed (pipes,
+      `&&`, redirects, globs)
+- [ ] `if` applies only to tool events: `PreToolUse`, `PostToolUse`,
+      `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`. `FileChanged`
+      is NOT one of them. On any other event a hook with `if` set **never runs** —
+      it is not ignored, the hook is skipped entirely (silent)
+- [ ] `if` Bash matching is best-effort and **fails open** on unparseable
+      commands. Use the permission system, not a hook, for hard allow/deny (silent)
+- [ ] `if` file patterns are rooted at the working directory: `Edit(src/**)`
+      matches only top-level `src`. Use `Edit(**/src/**)` for any depth (silent)
+- [ ] `${user_config.*}` is rejected in shell-form plugin hook commands
+      (v2.1.207+). Read `$CLAUDE_PLUGIN_OPTION_<KEY>` instead, or set `args` to
+      switch to exec form
+- [ ] `once: true` is only honoured inside **skill** frontmatter (auto-removes
+      after first run). Ignored in `settings.json`, plugin `hooks.json`, AND agent
+      frontmatter (silent)
+- [ ] Hook output strings (`additionalContext`, `systemMessage`, stdout) are
+      capped at 10,000 characters; overflow spills to a file and is replaced with
+      a preview plus path. Cap your own output well below this
+- [ ] Hook output is minimal — one line of stderr, not paragraphs of context
+- [ ] Hook purpose and trigger are documented in the README or inline
+- [ ] Model-facing text is factual statements, not imperatives. `additionalContext`
+      framed as out-of-band commands can trip prompt-injection defenses and get
+      surfaced to the user's terminal instead of read by the model, silently
+      converting a model-facing control into a user-facing one
 
-For plugins with behavioral content that should persist across sessions:
+### agents and tool access
 
-- [ ] `hooks/` directory with `hooks.json` (event -> command) and `session-start.sh`
-- [ ] Directives in `hooks/directives/*.md`, each with `# trigger: <signal>` on line 1. Directives a repo can supersede also declare `# ground: <ERE>` in the leading metadata block (line 2 by convention) -- the pattern of a repo-local rule covering the same ground, which silences the block there. A directive without a ground line broadcasts unconditionally, which is the pre-ground behavior and usually not what you want for convention prose
-- [ ] Detection logic orders cheap checks (file/dir stat) before expensive checks (grep)
-- [ ] Adding a new convention = dropping a `.md` file in `directives/`, no shell editing
-- [ ] Behavioral content in hook directives; detailed reference in on-demand skills
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
 
-## skill structure
+**Enforced by: nothing.**
 
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
-<!-- source: https://agentskills.io | last_verified: 2026-04-19 -->
+- [ ] `tools` is an allowlist, `disallowedTools` a denylist. With both set the
+      denylist applies first; a tool in both is removed
+- [ ] Set `tools` explicitly on read-only agents. Omitting it inherits
+      everything, including Write/Edit and all MCP tools
+- [ ] If NO entry in `tools` resolves, the subagent refuses to launch rather than
+      starting tool-less
+- [ ] The `skills` field only preloads skills; it does not gate access. To block
+      skill invocation, omit `Skill` from `tools` or add it to `disallowedTools`
+- [ ] `allowed-tools` on a *skill* **grants pre-approval**; it does not restrict.
+      Every tool stays callable. `disallowed-tools` is the field that restricts.
+      Both are scoped to the invoking turn and clear on the next user message,
+      even though skill content stays in context. Both accept space- or
+      comma-separated strings, or YAML lists
+- [ ] `isolation: worktree` branches from the DEFAULT branch, not the parent
+      session's HEAD
+- [ ] Plugin-shipped agents silently ignore `hooks`, `mcpServers`, and
+      `permissionMode`
 
-Source: Anthropic skills guide (PDF, Jan 2026)
+### skill and plugin structure
 
-### file layout
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
 
-- [ ] SKILL.md file exists (exact case: `SKILL.md`)
-- [ ] Folder named in kebab-case
-- [ ] YAML frontmatter has `---` delimiters
-- [ ] No README.md inside skill folder (docs go in SKILL.md or references/)
-- [ ] Detailed docs moved to `references/` and linked from SKILL.md body
+**Enforced by:** `skill-maintain validate` (name rules, allowed fields,
+description constraints) and the repo-hygiene suite (marketplace listing,
+manifest fields). This is the best-covered section in the file.
 
-### frontmatter fields
+- [ ] `SKILL.md`, exact case, in a kebab-case folder whose name matches the
+      skill `name`
+- [ ] YAML frontmatter with `---` delimiters
+- [ ] No `README.md` inside a skill folder — docs go in SKILL.md or `references/`
+- [ ] Detailed docs live in `references/` and are linked from the body
+- [ ] `description` under 1024 characters, no angle brackets
+- [ ] No `metadata.author` and no `metadata.version` in SKILL.md. The whole file
+      loads into context on activation, so a name or version there is standing
+      cost with no runtime use. Attribution belongs in `plugin.json` and the
+      README; the version belongs in `plugin.json` alone, or N sub-skills need N
+      edits per bump and the only consumer is the check confirming the copies agree
+- [ ] No unexpected frontmatter fields (see the reference table)
+- [ ] Plugin listed in the marketplace manifest, with a README carrying install
+      instructions
+- [ ] Know which manifest fields are actually required before enforcing them.
+      Upstream requires only `name`, and the manifest itself is optional. A house
+      rule demanding `version`, `description`, `author`, and `repository` is a
+      convention worth having — but call it yours, not the platform's
 
-- [ ] `name` field: kebab-case, no spaces, no capitals, matches folder name
-- [ ] `name` field: max 64 characters
-- [ ] `name` field: does not contain "claude" or "anthropic" (reserved)
-- [ ] `description` field: under 1024 characters
-- [ ] `description` field: no XML angle brackets (< >)
-- [ ] `license` field: present if open source (MIT, Apache-2.0)
-- [ ] `compatibility` field: under 500 characters, lists env requirements
-- [ ] `metadata` field: key-value pairs only (last_verified, review_interval_days, mcp-server)
-- [ ] No `metadata.author` in SKILL.md: the whole file, frontmatter included, loads into context on activation, so a name there is standing context cost with no runtime use. Attribution lives in `plugin.json` and the plugin README, which are never context-loaded
-- [ ] No unexpected fields in frontmatter. Allowed by Agent Skills spec: name, description, license, allowed-tools, metadata, compatibility. Claude Code extensions: paths, model, effort, hooks, agent, argument-hint, shell, context, disable-model-invocation, user-invocable, when_to_use, disallowed-tools, arguments
-- [ ] `when_to_use` field (optional) is appended to `description` in the skill listing and counts toward the 1,536-character truncation cap
+### controls: hooks, checks, and reminders
 
-### instructions quality
+<!-- class: craft | source: field-tested in a sibling repo's claims-reminder apparatus | last_verified: 2026-08-03 -->
 
-- [ ] Instructions are specific and actionable (not vague)
-- [ ] Steps include expected commands with actual arguments
-- [ ] Error handling section included with common issues
-- [ ] Examples provided showing expected input/output
-- [ ] References to bundled files are clearly linked
-- [ ] No ambiguous language ("validate things properly" -> specific checks)
-- [ ] Critical instructions at the top, not buried
-- [ ] Bullet points and numbered lists preferred over prose
+**Enforced by:** `/postmortem:control-audit`, which censuses controls and
+live-fires the ones nothing watches.
 
-### progressive disclosure
-
-- [ ] First level (frontmatter): just enough for Claude to know when to load
-- [ ] Second level (SKILL.md body): full instructions when skill is relevant
-- [ ] Third level (linked files): additional detail loaded on demand
-
-## invocation control
-
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
-
-Source: Claude Code official docs
-
-- [ ] `disable-model-invocation: true` for side-effect workflows (deploy, commit)
-- [ ] `user-invocable: false` for background knowledge skills
-- [ ] `context: fork` for isolated execution (subagent)
-- [ ] `allowed-tools` **grants pre-approval**; it does not restrict. Every tool stays callable. The grant is scoped to the invoking turn and clears on the next user message, even though skill content stays in context
-- [ ] `disallowed-tools` is the field that restricts -- it removes tools from the pool while the skill is active, and also clears on the next message
-- [ ] Both accept space- or comma-separated strings, or YAML lists
-
-### string substitutions
-
-- [ ] `$ARGUMENTS` for all arguments passed to skill
-- [ ] `$ARGUMENTS[N]` or `$N` for positional arguments
-- [ ] `${CLAUDE_SESSION_ID}` for session tracking
-- [ ] `${CLAUDE_SKILL_DIR}` for the directory containing SKILL.md
-- [ ] Dynamic context via `!`command`` syntax (preprocessed)
-
-### distribution
-
-<!-- source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
-<!-- source: https://code.claude.com/docs/en/plugins | last_verified: 2026-04-19 -->
-
-- [ ] Personal skills: `~/.claude/skills/<name>/SKILL.md`
-- [ ] Project skills: `.claude/skills/<name>/SKILL.md`
-- [ ] Plugin skills: `<plugin>/skills/<name>/SKILL.md` (prefer `skills/` over legacy `commands/`)
-- [ ] Skill descriptions budget: 1% of the model's context window. Override via `skillListingBudgetFraction` (e.g. `0.02`) or `SLASH_COMMAND_TOOL_CHAR_BUDGET` (fixed char count). On overflow, descriptions are dropped starting with the LEAST-invoked skills
-- [ ] The 1,536-char per-entry description cap is configurable via `skillListingMaxDescChars`
-- [ ] Use `paths` frontmatter to scope skill auto-activation to relevant file types
-- [ ] Use `${CLAUDE_PLUGIN_DATA}` for persistent plugin state (survives updates); `${CLAUDE_PLUGIN_ROOT}` for bundled read-only assets
-
-## agent authoring
-
-<!-- source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
-
-Subagents are a separate surface from skills, with their own frontmatter. Only
-`name` and `description` are required.
-
-### frontmatter
-
-- [ ] Full field set: `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`
-- [ ] `model`: `sonnet` | `opus` | `haiku` | `fable` | a full model ID | `inherit` (default)
-- [ ] `effort`: `low` | `medium` | `high` | `xhigh` | `max`
-- [ ] `memory`: `user` | `project` | `local` (`project` is the documented default choice)
-- [ ] `isolation`: `worktree` only -- and it branches from the DEFAULT branch, not the parent session's HEAD
-- [ ] `name` is the identity (the filename need not match) and is what hooks receive as `agent_type`
-- [ ] There is no `when-to-use` field. Delegation triggers belong in `description`
-- [ ] Plugin-shipped agents silently ignore `hooks`, `mcpServers`, and `permissionMode`
-
-### tool restriction
-
-- [ ] `tools` is an allowlist, `disallowedTools` a denylist. If both are set, the denylist applies first; a tool in both is removed
-- [ ] Set `tools` explicitly on read-only agents. Omitting it inherits everything, including Write/Edit and all MCP tools
-- [ ] If NO entry in `tools` resolves, the subagent refuses to launch rather than starting tool-less
-- [ ] The `skills` field only preloads skills; it does not gate access. To block skill invocation, omit `Skill` from `tools` or add it to `disallowedTools`
-- [ ] Never available to subagents regardless: `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless `permissionMode: plan`), `ScheduleWakeup`, `WaitForMcpServers`
-
-### when an agent beats a skill
-
-- [ ] Delegate to isolate high-volume output (test runs, doc fetches, log processing) and for parallel independent investigations
-- [ ] Stay in the main conversation for iterative back-and-forth, shared multi-phase context, quick targeted edits, and latency-sensitive work
-
-## control authoring (hooks, checks, reminders)
-
-<!-- source: field-tested in a sibling repo's claims-reminder apparatus, 2026-08-03 -->
-
-Applies to anything check-shaped a plugin ships: a hook that classifies and
-speaks or stays silent, a validator, a reminder. The failure mode these guard
-against is a control that is trusted because it exists, not because anything
+Applies to anything check-shaped a plugin ships. The failure mode these guard
+against is a control trusted because it exists rather than because anything
 watches it.
 
-- [ ] **The header carries four sections**: WHY NOT the obvious alternative
-      (the tool you rejected, with the disqualifying fact); the measured
+- [ ] **The header carries four sections**: WHY NOT the obvious alternative (the
+      tool you rejected, with the disqualifying fact); the measured
       false-positive rate with its sample ("fires on 15 of 25 commits,
       undeduped"); WHAT IT DOES NOT DO, said plainly; and a RETIREMENT TRIGGER
-      named at install -- the observable condition under which the control gets
+      named at install — the observable condition under which the control gets
       deleted rather than tuned. A control that cannot say when it should die
       outlives its usefulness by default
-- [ ] **A subordination rule where classes are involved**: any class the
-      control covers that later becomes mechanically checkable gets a real
-      check, and the control drops that class. Reminders are the bottom tier,
-      not a destination
+- [ ] **A subordination rule where classes are involved**: any class the control
+      covers that later becomes mechanically checkable gets a real check, and the
+      control drops that class. Reminders are the bottom tier, not a destination
 - [ ] **Reminder-tier output is deduplicated and measured.** An undeduplicated
-      reminder firing on most actions is wallpaper -- people learn to scroll
-      past it, which trains dismissal of the whole channel. Measure the fire
-      rate on real history before shipping
-- [ ] **Model-facing text is factual statements, not imperatives.** Hook
-      `additionalContext` framed as out-of-band commands can trip prompt-injection
-      defenses and get surfaced to the user's terminal instead of read by the
-      model -- which silently converts a model-facing control into a user-facing
-      one. State facts and name where the procedure lives
+      reminder firing on most actions is wallpaper — people learn to scroll past
+      it, which trains dismissal of the whole channel. Measure the fire rate on
+      real history before shipping
 - [ ] **A green states its scope.** A check whose success output cannot be
       distinguished from a run that checked nothing is the recurring silent
       killer (zero files scanned, report `ok`). Print the derived count of what
       was covered
-- [ ] **Prefer a fixture that cannot collide over one that probably will not.**
-      A control right 97% of the time teaches people to re-run it until it
-      agrees, which is worse than not having it
-- [ ] **Bracket the control itself** (see the bracket-the-hook pattern in this
-      repo's plugin-patterns doc): prove it can go red, pin its silent edges,
+- [ ] **A proxy can reject; it cannot approve.** Give a heuristic authority only
+      over its confident region and make it *silent* elsewhere. A warning band
+      over the uncertain region is the worst option available: it trains people
+      to skim the output, destroying the loud case too
+- [ ] **Prefer a fixture that cannot collide over one that probably will not.** A
+      control right 97% of the time teaches people to re-run it until it agrees
+- [ ] **Bracket the control itself**: prove it can go red, pin its silent edges,
       and check that any examples its messages cite still resolve
 
-## spec compliance
+## part 2 — gates
 
-<!-- source: https://agentskills.io | last_verified: 2026-04-19 -->
+A gate names the command that produces its number. Anything here without one is
+not a gate — it is an opinion, and it either gets a command or gets deleted.
 
-Source: Claude Code skill schema, a superset of the Agent Skills spec (agentskills.io). Enforced by `skill-maintain validate`; `--strict` flags fields that are not portable to strict cross-vendor hosts.
+### token budget
 
-- [ ] name: required, non-empty string
-- [ ] name: lowercase only (Unicode letters + hyphens allowed)
-- [ ] name: no consecutive hyphens (--)
-- [ ] name: cannot start/end with hyphen
-- [ ] name: directory name must match skill name exactly
-- [ ] name: NFKC Unicode normalization applied
-- [ ] description: required, non-empty string
-- [ ] Only allowed fields in frontmatter: name, description, license, allowed-tools, metadata, compatibility
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
 
-## maintenance
+**Command:** `skill-maintain measure`
 
-- [ ] **Re-audit rules written for older models.** Upstream: "instructions that
-      worked around an older model's limitation may become overhead once a newer
-      model handles the case on its own." Most of this repo predates the Claude 5
-      generation. On each maintenance pass, pick at least one always-loaded rule
-      or skill instruction and ask whether the model still needs it, then delete
-      or demote what it does not. This is the one check with no mechanical
-      trigger -- freshness has `last_verified`, versions have an alignment test,
-      this has only the habit.
+Thresholds apply to SKILL.md only, which is always loaded once the skill
+triggers. Reference files are on-demand and tracked separately, so thorough
+reference material is not penalised — that is what progressive disclosure is for.
 
-- [ ] `metadata.last_verified` present in every SKILL.md frontmatter
-- [ ] `last_verified` is within the skill's own `metadata.review_interval_days` (default 30). Tier by how fast the source moves, not uniformly -- a single global window makes the board permanently red, and a permanently-red board is an ignored board
-- [ ] `last_verified` is written ONLY after a human reviewed the skill against its source. It is not part of a version cascade: a version bump says "bytes changed", not "someone checked this"
-- [ ] Do NOT store a version in SKILL.md frontmatter when the skill ships in a plugin. `plugin.json` is the single source; duplicating it into N sub-skills forces N edits per bump and the only consumer is the check verifying the copies agree
-- [ ] Plugin listed in root `marketplace.json` (if installable)
-- [ ] Plugin has a README.md with installation instructions
-- [ ] Plugin `plugin.json` has name, version, description, author, repository. NOTE: upstream requires only `name` (and the manifest itself is optional) -- the other four are a convention of THIS repo, enforced by our own test suite, not a Claude Code requirement
-- [ ] `best_practices.md` has a `last updated` date within 30 days
+- [ ] SKILL.md under 4,000 tokens (2% of a 200k window). Estimation: chars / 4
+- [ ] SKILL.md under 8,000 tokens — hard ceiling; above this degrades attention
+      on everything else in context
+- [ ] SKILL.md body under 500 lines
+- [ ] Heavy material in `references/`, not inline
+- [ ] Reference tokens reported but not budget-warned
+- [ ] Treat the estimate as a budget heuristic, not a measurement — real
+      tokenization varies by content type
+- [ ] Stay under ~5,000 tokens if the skill must survive auto-compaction: only
+      the first 5,000 tokens of each re-attached skill are kept, and all
+      re-attached skills share a combined 25,000-token budget
 
-## quality signals
+### description precision
 
-Source: Anthropic skills guide (PDF)
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
 
-### quantitative
+**Command:** `skill-maintain validate` (quality warnings), and `skill-creator`'s
+description-tuning harness for trigger accuracy.
 
-- Skill triggers on 90% of relevant queries
-- Completes workflow in X tool calls (compare with/without skill)
-- 0 failed API calls per workflow
+A description is a reverse query: it describes the set of user intents that
+should match. Vague descriptions overtrigger; missing trigger phrases
+undertrigger.
 
-### qualitative
+- [ ] States WHAT it does, with action verbs
+- [ ] States WHEN to use it, with trigger phrases users actually type
+- [ ] States negative scope where an adjacent skill could match instead
+- [ ] Specific enough not to match unrelated queries
+- [ ] No duplicate or near-duplicate descriptions across installed skills —
+      ambiguous routing is a precision failure with no error message
+- [ ] Front-loads the core use case: `description` plus `when_to_use` is
+      truncated at 1,536 characters in the listing
 
-- Users don't need to prompt Claude about next steps
-- Workflows complete without user correction
-- Consistent results across sessions
-- New user can accomplish task on first try with minimal guidance
+Diagnosing which way it is failing: skills that do not load when they should,
+users manually enabling them, and questions about when to use it are
+undertriggering — add trigger phrases. Skills loading for irrelevant queries,
+users disabling them, and confusion about purpose are overtriggering — add
+negative scope. Zero invocations is ambiguous between the two and needs the
+tuning harness to separate, not a guess.
 
-## iteration signals
+### freshness
 
-### undertriggering (low recall)
+<!-- class: craft | last_verified: 2026-08-04 -->
 
-- Skill doesn't load when it should
-- Users manually enabling it
-- Support questions about when to use it
-- Fix: add more detail and keywords to description
+**Command:** `skill-maintain freshness`
 
-### overtriggering (low precision)
+- [ ] Every SKILL.md carries `metadata.last_verified`
+- [ ] `last_verified` is written ONLY after a human reviewed the skill against
+      its source. A version bump says "bytes changed", not "someone checked this"
+- [ ] The window is `metadata.review_interval_days`, tiered by how fast the
+      source actually moves. A single global window makes the board permanently
+      red, and a permanently-red board is an ignored board
+- [ ] Where the source's movement is observable — in-repo code, tracked upstream
+      hashes — use the change event, not the calendar. A calendar window is a
+      proxy for source movement, and a lazy one where movement is observable
+- [ ] A date may pre-commit *when to look*. It must never decide what to
+      conclude: elapsed time is not evidence, exposure is
 
-- Skill loads for irrelevant queries
-- Users disabling it
-- Confusion about purpose
-- Fix: add negative triggers, be more specific, clarify scope
+### versioning and packaging
+
+<!-- class: craft | last_verified: 2026-08-04 -->
+
+**Command:** `skill-maintain quality` (version alignment), plus whatever
+pre-commit gate the repo installs.
+
+- [ ] A content change cascades to every copy of the version that can drift —
+      the plugin manifest, the marketplace entry, a changelog entry, and any
+      `pyproject.toml` or authored `package.json` under the plugin source
+- [ ] SKILL.md is deliberately NOT in that cascade
+- [ ] Without the bump, a marketplace update never reaches installed users
+- [ ] Check what the marketplace `source` actually ships before cascading — a
+      tool that ships separately versions independently from the plugin that
+      references it
+- [ ] One changelog, at the repo root. A second copy earns its place only if it
+      has a consumer other than the check confirming it is a copy
+
+## part 3 — reference
+
+Look these up. There is nothing here to verify.
+
+### skill frontmatter fields
+
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
+
+Agent Skills spec (portable): `name`, `description`, `license`, `allowed-tools`,
+`metadata`, `compatibility`.
+
+Claude Code extensions (not portable — `skill-maintain validate --strict` flags
+these): `paths`, `model`, `effort`, `hooks`, `agent`, `argument-hint`, `shell`,
+`context`, `disable-model-invocation`, `user-invocable`, `when_to_use`,
+`disallowed-tools`, `arguments`.
+
+| Field | Notes |
+|---|---|
+| `name` | kebab-case, max 64 chars, NFKC-normalized, no consecutive hyphens, cannot start or end with one, must match the directory. Cannot contain "claude" or "anthropic" |
+| `description` | under 1024 chars, no `<` or `>` |
+| `when_to_use` | appended to `description` in the listing; counts toward the 1,536-char cap |
+| `metadata` | key-value pairs only |
+| `compatibility` | under 500 chars |
+| `disable-model-invocation` | for side-effect workflows (deploy, commit). Also blocks subagent preloading and scheduled-task auto-run |
+| `user-invocable: false` | background knowledge skills |
+| `context: fork` | isolated execution in a subagent |
+| `paths` | scopes auto-activation to matching files |
+
+### agent frontmatter fields
+
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
+
+A separate surface from skills. Only `name` and `description` are required.
+
+Full set: `name`, `description`, `tools`, `disallowedTools`, `model`,
+`permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`,
+`background`, `effort`, `isolation`, `color`, `initialPrompt`.
+
+| Field | Values |
+|---|---|
+| `model` | `sonnet` \| `opus` \| `haiku` \| `fable` \| a full model ID \| `inherit` (default) |
+| `effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
+| `memory` | `user` \| `project` \| `local` (`project` is the documented default choice) |
+| `isolation` | `worktree` only |
+
+`name` is the identity — the filename need not match — and is what hooks receive
+as `agent_type`. There is no `when-to-use` field; delegation triggers belong in
+`description`.
+
+Never available to subagents regardless of configuration: `AskUserQuestion`,
+`EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless `permissionMode: plan`),
+`ScheduleWakeup`, `WaitForMcpServers`.
+
+**When an agent beats a skill:** delegate to isolate high-volume output (test
+runs, doc fetches, log processing) and for parallel independent investigations.
+Stay in the main conversation for iterative back-and-forth, shared multi-phase
+context, quick targeted edits, and latency-sensitive work.
+
+### hook types and events
+
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-07-21 -->
+
+`type` is one of `command`, `http`, `mcp_tool`, `prompt`, `agent`. Most hooks
+in the wild are `command`; `prompt` is LLM-evaluated and can judge what a shell
+script cannot pattern-match.
+
+Tool events (the only ones where `if` works): `PreToolUse`, `PostToolUse`,
+`PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`.
+
+### string substitutions
+
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+
+| Token | Expands to |
+|---|---|
+| `$ARGUMENTS` | all arguments passed to the skill |
+| `$ARGUMENTS[N]` / `$N` | positional arguments |
+| `${CLAUDE_SESSION_ID}` | session identifier |
+| `${CLAUDE_SKILL_DIR}` | directory containing SKILL.md |
+| `${CLAUDE_PLUGIN_ROOT}` | bundled read-only assets; changes on every plugin update |
+| `${CLAUDE_PLUGIN_DATA}` | persistent per-plugin state; survives updates |
+| `` !`cmd` `` | preprocessed shell output. Disabled repo-wide by `disableSkillShellExecution: true` for user/project/plugin/add-dir skills |
+
+### distribution and budgets
+
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/plugins | last_verified: 2026-07-21 -->
+
+| Scope | Location |
+|---|---|
+| Personal | `<HOME>/.claude/skills/<name>/SKILL.md` |
+| Project | `.claude/skills/<name>/SKILL.md` |
+| Plugin | `<plugin>/skills/<name>/SKILL.md` (prefer `skills/` over legacy `commands/`) |
+
+Skill descriptions get 1% of the model's context window. Override with
+`skillListingBudgetFraction` (e.g. `0.02`) or `SLASH_COMMAND_TOOL_CHAR_BUDGET`
+(fixed char count). **On overflow, descriptions are dropped starting with the
+LEAST-invoked skills.** The 1,536-char per-entry cap is configurable via
+`skillListingMaxDescChars`.
+
+### surface differences
+
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-26 -->
+
+The same skill does not behave identically everywhere. Absorbed from a
+multi-agent read of the upstream docs on 2026-07-26; re-verify against the live
+pages before relying on any of it for a released plugin.
+
+- Cowork and cloud sessions do not read the user-scope skills directory.
+- `context: fork` with `agent: Explore` or `agent: Plan` does NOT load CLAUDE.md.
+  Other agent types do.
+- Project skills load from `.claude/skills/` in every parent directory up to the
+  repo root.
+- `--add-dir` loads `.claude/skills/` from the added directory; the
+  `permissions.additionalDirectories` setting does not.
+
+### composable directive pattern
+
+<!-- class: craft | last_verified: 2026-07-26 -->
+
+For plugins with behavioural content that should persist across sessions:
+
+- `hooks/` holding `hooks.json` (event to command) and `session-start.sh`.
+- Directives in `hooks/directives/*.md`, each with `# trigger: <signal>` on line
+  one. A directive a repo can supersede also declares `# ground: <ERE>` — the
+  pattern of a repo-local rule covering the same ground, which silences the block
+  there. A directive without a ground line broadcasts unconditionally, which is
+  usually not what you want for convention prose.
+- Detection orders cheap checks (file or directory stat) before expensive ones
+  (grep).
+- Adding a convention means dropping a `.md` file in `directives/`, never editing
+  shell.
+
+### spec compliance
+
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
+
+The rules are the validator, not this file. Claude Code's skill schema is a
+superset of the cross-vendor Agent Skills spec; `skill-maintain validate`
+enforces it, and `--strict` flags fields that are not portable to strict
+cross-vendor hosts. Read `cc_schema.py` for the authoritative list rather than
+maintaining a prose copy that can disagree with it.
+
+## maintaining this file
+
+<!-- class: craft | last_verified: 2026-08-07 -->
+
+- [ ] A `harness` section is rechecked when its source page moves, not when a
+      calendar elapses. Correct the section's `last_verified` when you recheck it
+      — a file-level date says nothing about which section anyone looked at
+- [ ] A `model` section is rechecked on a model family release. Nothing else
+      triggers it, and elapsed time says nothing about whether the model changed
+- [ ] A `craft` section is rechecked when an audit produces a finding that
+      touches it
+- [ ] **Re-audit rules written for older models.** Instructions that worked
+      around an older model's limitation become overhead once a newer model
+      handles the case on its own. On each maintenance pass, take at least one
+      always-loaded rule or skill instruction and ask whether the model still
+      needs it, then delete or demote what it does not
+- [ ] Freshness does not catch wrongness. A document can be wrong on the day it
+      is written, and no staleness check will ever say so. Audit the added prose
+      of a change against what the code and the platform actually do
+- [ ] **A summarising fetch can never source a claim that the docs do NOT say
+      something.** Absence is exactly what summarisation discards, so its silence
+      is not evidence. Grep the raw page. And quote sentences rather than line
+      numbers — snapshots renumber
+- [ ] A rule with no source, no measurement, and no incident behind it is an
+      opinion. Opinions are allowed here, but they say so

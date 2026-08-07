@@ -70,7 +70,7 @@ The `skill-maintainer` Python package at `tools/skill-maintainer/` provides the 
 
 ## references
 
-- `references/best_practices.md` -- machine-parseable checklist used by the quality checks
+- `references/best_practices.md` -- portable best practices for building skills and plugins for Claude, in three parts: constraints (what must not happen), gates (each naming the command that measures it), and reference (lookup tables). Read by the `/maintain` skill's review phase and by authors directly; **not** parsed by any code. Each section states its evidence class and what enforces it, and "nothing" is a common and deliberate answer -- the hook and agent constraints have no mechanical check anywhere
 
 ## `tune` — observed behaviour, not declared behaviour
 
