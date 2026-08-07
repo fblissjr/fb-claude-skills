@@ -17,6 +17,8 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |
 | Plugin behaviour drift across repos (emission rates, unattributable hooks, artifact staleness) | `skill-maintain tune` | Phase 4 of `/skill-maintainer:maintain` |
 | Bundled best_practices.md drift | skill-maintainer PostToolUse hook (`skill-maintainer-sync-bundled-ref.sh`) | On Edit/Write of working copy |
+| best_practices.md section provenance — a cited upstream page moving past the hash its section was verified against (`best_practices provenance`) | `skill-maintain test`, and printed by `skill-maintain upstream` after every fetch | On demand |
+| Staleness of the hash state the join trusts (`upstream hash state fresh`) | `skill-maintain test` | On demand |
 | Forgotten session log | skill-maintainer Stop hook (`maybe-draft-session-log.sh`) | On session stop, when ≥3 substantive files touched and today's log not updated |
 
 The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git** — must be re-applied on fresh clones. See [gotchas.md](gotchas.md) for setup.

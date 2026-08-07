@@ -1,5 +1,18 @@
 # changelog
 
+## 1.18.0
+
+### added
+- **`skill-maintain` 0.28.0 → 0.29.0 — the provenance join, so section freshness is a hash comparison instead of a calendar.** New `skill_maintainer/provenance.py` parses the per-section annotations in `best_practices.md` and joins them against the page hashes `skill-maintain upstream` already stores. Sections gain an optional `verified_hash`: the page hash the section was last checked against. The join reports five buckets and prints all of them — **moved** (page changed since the section was verified), **current**, **unbound** (no `verified_hash`, so movement cannot be detected), **untracked source** (cited but never fetched), and **cited by nothing** (fetched every run, used by no section). First real run: 18 harness annotations, 14 current, 1 unbound, 3 untracked, and 6 tracked pages no section uses. `verified_hash` is deliberately not backfillable — a section never checked against a specific fetch reports unbound rather than current, because guessing a hash manufactures the exact false confidence the module exists to remove. Only `harness` sections are joined; `model` and `craft` have no upstream page by construction.
+- **Two repo arms replace one, because the join alone lies.** `best_practices provenance` fails when any section has moved and otherwise states its scope (`18 harness annotations: 14 current, 1 unbound, 3 untracked source`). But it reads *stored* hashes, so it reports a comfortable zero when nobody has fetched in months — so `upstream hash state fresh` dates the state the first arm trusts. Hash says what to conclude; date says when to go look, which is the 2026-08-04 dates doctrine applied to the one place a calendar is still honest. Both mutation-proven: corrupting a `verified_hash` produced `2 moved: hooks (hooks), hook types and events (hooks)`, and backdating `upstream_hashes.json` 45 days produced `fetched 45d ago > 30d`; both green on revert.
+
+### removed
+- **The `best_practices.md fresh` arm is retired.** It checked that the `last updated` line was within 30 days, which establishes that someone edited the file — not that anyone checked it against its source. On 2026-08-07 it read four days old and green while twelve of fourteen section annotations sat at 2026-04-19 and every cited page had moved twice. Editing is not checking, and the arm could not tell the difference.
+
+### fixed
+- **A fabricated finding, caught on the join's first live run.** `upstream_hashes.json` is shared state — `sources.py` writes tracked-repo HEAD SHAs into it under non-URL keys like `local_repos` — so the join reported both as "tracked pages cited by nothing". Callers now pass only watched URLs and the join refuses non-URL keys as a second line of defence. Arm added, red first.
+- **One of the module's own tests was decorative and mutation testing caught it.** `test_craft_sections_are_not_counted_as_gaps` used a craft annotation with no `source`, so dropping the class filter entirely left it green — it could not distinguish "excluded because craft" from "excluded because sourceless". The fixture now carries a prose `source`, which is the shape the real file uses (`field-tested in a sibling repo's claims-reminder apparatus`), and the arm fails under that mutation. Three mutations run against the module, three red.
+
 ## 1.17.0
 
 ### changed

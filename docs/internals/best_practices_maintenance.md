@@ -4,8 +4,28 @@ last updated: 2026-08-07
 
 Design record, filed 2026-08-07 when the owner asked whether the repo still
 treats `best_practices.md` as its north star and how drift in it gets caught.
-**Status: analysed, nothing built.** Every number below was derived this
-session; the commands are named so they can be re-run.
+Every number below was derived that session; the commands are named so they can
+be re-run.
+
+**Status, same day.** Steps 0-2 of the build list are SHIPPED; the analysis in
+sections 1-3 stands as the record of why.
+
+- Step 0 — `VISION.md` gained `### the model is a variable`, principle 5 its
+  boundary, principle 6 the model-release trigger.
+- Step 1 — the file was rebuilt as constraints / gates / reference with
+  `## authoring shape` replacing `### instructions quality`; the two unmeasured
+  signals sections and the prose spec-compliance list are gone.
+- Step 2 — **the hash join is built** (`skill_maintainer/provenance.py`,
+  CLI 0.29.0). Sections carry `verified_hash`; `skill-maintain upstream` prints
+  the join after every fetch; `skill-maintain test` carries two arms,
+  `best_practices provenance` and `upstream hash state fresh`, both
+  mutation-proven. The calendar arm on the file's first line is retired.
+- Also done out of order: the three false claims (section 2d) are corrected.
+
+Still unbuilt: release notes as a tracked source (step 3), mechanising the hooks
+section (step 5), reconciling the three source lists (step 6), and the
+model-facts A/B. Section 6's ordering below is the original; treat it as
+history, not as the current queue.
 
 The short version: the file has three different kinds of knowledge inside it,
 each with a different clock and a different falsifier, and one calendar date on

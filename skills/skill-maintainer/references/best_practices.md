@@ -88,8 +88,8 @@ is nothing, it is friction rather than retrieval.
 
 ### always-loaded context
 
-<!-- class: harness | source: https://code.claude.com/docs/en/memory | last_verified: 2026-08-07 -->
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/memory | verified_hash: 5892867364cbe366 | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 
 **Enforced by:** the ambient-hook arm in `skill-maintain test` (matcher-less
 high-frequency hooks) and the token-budget gate below. The rest is unchecked.
@@ -131,8 +131,8 @@ whether or not it is used.
 
 ### hooks
 
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-08-07 -->
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | verified_hash: 167d43c0d553ffd7 | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | verified_hash: 482854ea8980890f | last_verified: 2026-08-07 -->
 
 **Enforced by: nothing.** Every item here is authoring discipline. Several fail
 *silently* — marked (silent) — which is why they are constraints rather than
@@ -226,7 +226,7 @@ guidance.
 
 ### agents and tool access
 
-<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | verified_hash: 5b1893f5d9b84725 | last_verified: 2026-08-07 -->
 
 **Enforced by: nothing.**
 
@@ -273,7 +273,7 @@ guidance.
 
 ### skill and plugin structure
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch — this stamp cannot be refreshed mechanically -->
 <!-- class: craft | note: the no-README and references/ layout rules are house conventions | last_verified: 2026-08-07 -->
 
@@ -351,7 +351,7 @@ not a gate — it is an opinion, and it either gets a command or gets deleted.
 
 ### token budget
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 <!-- class: craft | note: the 4,000/8,000 token thresholds are a house convention, not upstream | last_verified: 2026-08-07 -->
 
 **Command:** `skill-maintain measure`
@@ -383,7 +383,7 @@ limits:
 
 ### description precision
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 <!-- class: craft | note: only the 1,536-char cap is upstream; the rest is authoring judgment | last_verified: 2026-08-07 -->
 
 **Command:** `skill-maintain validate` (quality warnings), and `skill-creator`'s
@@ -451,7 +451,7 @@ Look these up. There is nothing here to verify.
 
 ### skill frontmatter fields
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch -->
 
 Agent Skills spec (portable): `name`, `description`, `license`, `allowed-tools`,
@@ -482,7 +482,7 @@ subject to those rules.
 
 ### agent frontmatter fields
 
-<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | verified_hash: 5b1893f5d9b84725 | last_verified: 2026-08-07 -->
 
 A separate surface from skills. Only `name` and `description` are required.
 
@@ -525,7 +525,7 @@ context, quick targeted edits, and latency-sensitive work.
 
 ### hook types and events
 
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | verified_hash: 167d43c0d553ffd7 | last_verified: 2026-08-07 -->
 
 `type` is one of `command`, `http`, `mcp_tool`, `prompt`, `agent`. Most hooks
 in the wild are `command`; `prompt` is LLM-evaluated and can judge what a shell
@@ -536,7 +536,7 @@ Tool events (the only ones where `if` works): `PreToolUse`, `PostToolUse`,
 
 ### string substitutions
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 
 | Token | Expands to |
 |---|---|
@@ -563,7 +563,7 @@ cannot emit a placeholder for a later pass.
 
 ### distribution and budgets
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://code.claude.com/docs/en/plugins | last_verified: 2026-07-21 -->
 
 | Scope | Location |
@@ -587,7 +587,7 @@ set entirely.
 
 ### surface differences
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
 
 The same skill does not behave identically everywhere.
 

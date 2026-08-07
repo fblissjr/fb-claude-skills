@@ -17,7 +17,8 @@ import orjson
 from skills_ref.parser import find_skill_md, parse_frontmatter
 from skill_maintainer.cc_schema import validate_cc as validate
 
-from skill_maintainer.config import best_practices_file
+from skill_maintainer.config import best_practices_file, hashes_file, load_hashes
+from skill_maintainer.provenance import join_provenance, parse_annotations
 from skill_maintainer.shared import (
     STALE_DAYS,
     freshness_mode,
@@ -1147,29 +1148,53 @@ def test_repo_hygiene(root: Path) -> list[Result]:
         f"duplicates: {', '.join(sorted(dupes))}" if dupes else "",
     ))
 
-    # 5. best_practices.md freshness (if it exists)
+    # 5. best_practices.md provenance.
+    #
+    # This REPLACES a `last updated within 30 days` arm on the file's first
+    # line. That arm established only that someone edited the file: on
+    # 2026-08-07 it read four days old and green while twelve of fourteen
+    # section annotations sat at 2026-04-19 and every cited page had moved
+    # twice. Editing a file is not checking it.
+    #
+    # Two arms, because one of them alone lies. The join answers "has a cited
+    # page moved since its section was verified" -- but it reads STORED hashes,
+    # so it reports a comfortable zero when nobody has fetched in months. The
+    # second arm dates the state the first one trusts. Hash says what to
+    # conclude; date says when to go look.
     bp_path = best_practices_file(root)
     if bp_path.exists():
-        content = bp_path.read_text()
-        first_line = content.splitlines()[0] if content else ""
-        bp_date = None
-        if first_line.startswith("last updated:"):
-            try:
-                bp_date = date.fromisoformat(first_line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-        if bp_date:
-            days = (date.today() - bp_date).days
+        stored = {
+            u: h for u, h in load_hashes(root).items()
+            if u.startswith(("http://", "https://"))
+        }
+        join = join_provenance(parse_annotations(bp_path.read_text()), stored)
+        scope = (
+            f"{join.harness_sections} harness annotations: "
+            f"{len(join.current)} current, {len(join.unbound)} unbound, "
+            f"{len(join.untracked)} untracked source"
+        )
+        results.append(Result(
+            "repo", "", "best_practices provenance",
+            not join.moved,
+            scope if not join.moved
+            else f"{len(join.moved)} moved: "
+                 + ", ".join(f"{f.section} ({f.source.rsplit('/', 1)[-1]})" for f in join.moved),
+        ))
+
+        hf = hashes_file(root)
+        if hf.exists():
+            age = (date.today() - date.fromtimestamp(hf.stat().st_mtime)).days
             results.append(Result(
-                "repo", "", "best_practices.md fresh",
-                days <= STALE_DAYS,
-                f"{days}d" if days <= STALE_DAYS else f"{days}d > {STALE_DAYS}d",
+                "repo", "", "upstream hash state fresh",
+                age <= STALE_DAYS,
+                f"fetched {age}d ago" if age <= STALE_DAYS
+                else f"fetched {age}d ago > {STALE_DAYS}d -- run `skill-maintain upstream`",
             ))
         else:
             results.append(Result(
-                "repo", "", "best_practices.md fresh",
+                "repo", "", "upstream hash state fresh",
                 False,
-                "missing or unparseable 'last updated' date",
+                "no upstream_hashes.json -- the provenance join has nothing to compare against",
             ))
 
     # 6. best_practices.md copies in sync
