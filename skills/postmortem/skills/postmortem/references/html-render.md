@@ -1,8 +1,9 @@
 # Rendering a postmortem to HTML
 
-last updated: 2026-07-26
+last updated: 2026-08-07
 
-Read this only when `--html` was passed. A markdown-only run never needs it.
+Read this only when `--html` was passed, or when `--visuals` implied it. A
+markdown-only run never needs it.
 
 ## What this is and is not
 
@@ -40,7 +41,10 @@ Report both paths, repo-relative.
 
 - **Self-contained.** No external requests of any kind — no CDN stylesheet, no
   web font, no remote image, no script tag. The file must render identically
-  offline and when sent to someone who will never clone the repo.
+  offline and when sent to someone who will never clone the repo. **A relative
+  image link breaks this as thoroughly as a CDN link does**, so figures inline
+  as `data:` URIs even though the markdown beside them references the media
+  directory. That is the constraint doing its job, not an exception to it.
 - **No JavaScript.** Nothing here needs it, and a postmortem that requires a
   script to be readable is less durable than the markdown it came from.
 - **Empty sections stay visible.** "Nothing." is a result. Do not hide, collapse,
@@ -52,19 +56,28 @@ Report both paths, repo-relative.
   of append-correcting.
 - **No styler dependency.** There is no `--style` flag and no styler lookup. The
   stylesheet below is the whole design.
+- **A chart never replaces its numbers.** The table the chart renders stays in
+  the page. Dropping it for visual tidiness turns a checkable measurement into
+  an unfalsifiable picture, which is the same failure as dropping a citation.
+- **Charts are hand-authored inline SVG**, drawn with the CSS custom properties
+  below so they follow the page into dark mode. No chart library — the no-
+  JavaScript rule means anything rendering client-side renders nothing.
 
 ## Structure
 
 | Markdown | HTML |
 |---|---|
-| Frontmatter | `<header class="meta">` — the `summary` as a lead paragraph, then a definition list of mode, scope, date, range, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers and what it found. |
+| Frontmatter | `<header class="meta">` — the `summary` as a lead paragraph, then a definition list of mode, scope, date, range or version and task, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers and what it found. |
 | `# Postmortem: ...` | `<h1>` |
 | `## 1. What went well` … | `<section>` with `<h2>` |
 | Finding paragraphs | `<p>`; the citation stays inline in the sentence where it sits |
 | Deviations table | `<table>` with `<thead>` — Planned / Shipped / Verdict |
+| Expectation table (experience mode) | `<table>` with `<thead>` — Expected / Actual / What led me to expect it |
 | `Nothing.` | `<p class="nothing">Nothing.</p>` |
 | Dated annotation | `<aside class="annotation">` with the date in a `<strong>` |
 | Inline `code` / paths | `<code>` |
+| Image reference | `<figure>` with the image inlined as a `data:` URI and the caption in `<figcaption>` |
+| Chart data table | `<figure class="chart">` — the inline SVG, then `<figcaption>`, then the table it renders |
 
 Escape `&`, `<`, `>` in content. Paths and commit hashes appear in postmortems
 constantly and a raw `<` will silently eat the rest of a line.
@@ -136,10 +149,30 @@ th { font: 600 0.82rem/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--mu
 .annotation strong { color: var(--accent); }
 ul, ol { margin: 0 0 1rem; padding-left: 1.35rem; }
 li { margin: 0.3rem 0; }
+figure { margin: 1.5rem 0; }
+figure img {
+  display: block; max-width: 100%; height: auto;
+  border: 1px solid var(--rule); border-radius: 4px; background: var(--panel);
+}
+figure svg { display: block; max-width: 100%; height: auto; }
+figcaption {
+  margin-top: 0.55rem; color: var(--muted);
+  font: 0.85rem/1.5 ui-sans-serif, system-ui, sans-serif;
+}
+figcaption .how { display: block; margin-top: 0.25rem; font-size: 0.95em; opacity: 0.85; }
+.figrow { display: flex; flex-wrap: wrap; gap: 1rem; }
+.figrow figure { flex: 1 1 16rem; margin: 0; }
+.chart table { margin-top: 0.75rem; font-size: 0.88rem; }
+.chart svg text { fill: var(--muted); font: 11px ui-sans-serif, system-ui, sans-serif; }
+.chart svg .axis { stroke: var(--rule); }
+.chart svg .bar { fill: var(--accent); }
+.chart svg .bar-alt { fill: var(--muted); }
 @media (max-width: 34rem) {
   body { padding: 2rem 1rem 4rem; }
   .meta dl { grid-template-columns: 1fr; gap: 0.1rem; }
   .meta dt { margin-top: 0.5rem; }
+  .figrow { display: block; }
+  .figrow figure { margin: 0 0 1.25rem; }
 }
 </style>
 </head>
@@ -171,16 +204,86 @@ li { margin: 0.3rem 0; }
 </html>
 ```
 
-Drop `<dt>Range</dt>` for non-span modes and the `supersedes` row when absent —
+Drop `<dt>Range</dt>` for non-span modes, use `<dt>Version</dt>` and
+`<dt>Task</dt>` in experience mode, and drop the `supersedes` row when absent —
 omit rows that do not apply rather than rendering them empty. The `artifacts`
 block is never omitted; if the list is empty the postmortem has no findings, and
 that should be visible rather than hidden.
+
+## Figures
+
+Only under `--visuals`. A figure sits inside the section whose finding it
+belongs to, immediately after the paragraph making the claim — never gathered
+into a figures section, which would detach it from the finding that justifies
+it.
+
+```html
+<figure>
+  <img alt="Axis labels overlapping at 640px" src="data:image/png;base64,...">
+  <figcaption>
+    Below 640px the two rightmost axis labels overlap; 640px is the default in
+    the quickstart config.
+    <span class="how">mitate build --preview scenes/title-card.toml, v0.4.2</span>
+  </figcaption>
+</figure>
+```
+
+- **`alt` is required and says what the figure shows**, not what it is called.
+- The **caption carries the claim** and a `.how` line saying how the figure was
+  produced, so a developer can reproduce it rather than take it on faith.
+- A wrong-versus-intended pair goes in a `<div class="figrow">` so the two sit
+  side by side; that comparison is the point, and stacking them loses it.
+- A still sequence is a `.figrow` in order, each caption naming what changed
+  since the previous still.
+
+Inline every figure as a `data:` URI. Escape nothing inside the base64 payload,
+but do check the total: see the size guidance in
+`references/visual-evidence.md`.
+
+## Charts
+
+A chart is a `<figure class="chart">` holding hand-authored inline SVG, its
+caption, and **the table it renders** — in that order. The table is not
+optional and does not go in a `<details>`: a collapsed table is a table a
+reader will not check, and checkability is the only reason the numbers are on
+the page.
+
+```html
+<figure class="chart">
+  <svg viewBox="0 0 480 180" role="img" aria-label="Failed commands by error class">
+    <line class="axis" x1="40" y1="150" x2="470" y2="150"/>
+    <rect class="bar" x="56" y="40" width="48" height="110"/>
+    <text x="80" y="166" text-anchor="middle">timeout</text>
+    <text x="80" y="32" text-anchor="middle">11</text>
+  </svg>
+  <figcaption>Failed commands by error class across the run; timeouts are two
+  thirds of them and every one followed the same retry.</figcaption>
+  <table>
+    <thead><tr><th>Error class</th><th>Count</th></tr></thead>
+    <tbody><tr><td>timeout</td><td>11</td></tr></tbody>
+  </table>
+</figure>
+```
+
+- Give the `<svg>` a `role="img"` and an `aria-label`, and set `viewBox`
+  without fixed `width`/`height` so it scales.
+- Use the `.bar` / `.bar-alt` / `.axis` classes rather than literal colours, so
+  the chart follows the page into dark mode.
+- Label marks directly. A legend costs a lookup that labels do not.
+- Mark inferred series in the caption. A chart is believed more readily than
+  the sentence it came from, so an unlabelled estimate here launders an
+  inference into a measurement.
 
 ## Checking the result
 
 Before reporting, confirm on the written file:
 
-- No `http://` or `https://` in any `src`, `href`, or `@import`.
+- No `http://` or `https://` in any `src`, `href`, or `@import` — including
+  every `<img>`, which must be a `data:` URI and never a relative path.
 - No `<script>`.
 - Every section present, including the empty ones.
 - Every citation in the markdown appears in the HTML.
+- Every figure has an `alt` and a caption, and sits under a finding.
+- Every chart has its table, and the table's numbers match the marks drawn.
+- Every figure was cropped and redacted before it was inlined — no title bars,
+  sidebars, window titles, absolute paths, or tokens in the pixels.

@@ -1,6 +1,6 @@
 # postmortem
 
-*Last updated: 2026-08-04*
+*Last updated: 2026-08-07*
 
 The audit family, and the adversarial primitive its audits run on. One skill
 runs a postmortem of finished work — a session, a feature, or a span of
@@ -32,7 +32,7 @@ the same run's verification lessons.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently" | Verdicted retrospective of finished work; session mode (the conversation) or span mode (git history, session logs, changelogs, plan docs). Output is always a durable file. |
+| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work: session mode (the conversation), span/feature mode (git history, session logs, changelogs, plan docs), or experience mode (feedback to the developers of the system the work was done *with*). Output is always a durable file; `--visuals` adds figures and charts. |
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
 | `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
@@ -51,15 +51,69 @@ the same run's verification lessons.
 /postmortem:postmortem <feature|range|plan doc|"last N sessions">
 /postmortem:postmortem span auth-migration --out=docs/postmortems
 /postmortem:postmortem --html         # markdown plus a readable HTML file
+/postmortem:postmortem experience mitate --visuals   # feedback for that tool's devs, with figures
 /postmortem:postmortem-index          # browsable index over all of them
 /postmortem:test-audit                # audit the current repo's suite
 /postmortem:adversarial-verify <claim>  # refute-by-construction, needle verified
 /postmortem:control-audit             # census + live-fire the repo's controls
 ```
 
-Or trigger naturally: "run a postmortem on the auth migration", "which of our
-tests are dead weight", "prove this check can actually fail", "do our hooks
-actually fire".
+Or trigger naturally: "run a postmortem on the auth migration", "write up what
+it was like building with X for their devs", "which of our tests are dead
+weight", "prove this check can actually fail", "do our hooks actually fire".
+
+## Experience mode
+
+The first three modes ask *what did we build and what did it teach us*.
+Experience mode asks *what was it like to build with this thing*, and its reader
+is someone who maintains that thing and has never seen your repository. Six
+sections instead of five:
+
+| Section | What it holds |
+|---|---|
+| What worked | Affordances that paid off — the only signal a developer gets about what **not** to break. |
+| What did not | Friction, with a cost attached. Repeats are one finding with several citations, not several findings. |
+| Expectation vs. behaviour | Expected / Actual / **What led me to expect it**. The third column names the surface that misled, which is the thing to fix. |
+| Escapes: guidance and instrumentation | Per wrong turn, which surface should have prevented it: absent, present-but-not-found, or present-but-misleading. The structural twin of the test-escapes section. |
+| Built outside the system | What you had to make yourself, what it substitutes for, and whether it is a workaround (should stop existing) or a legitimate extension. Each row is a capability request shipping with a reference implementation. |
+| Forward items | Checkable, ordered by cost. The only section where a wish is allowed, and only if a finding above names the moment it was wanted. |
+
+Its evidence is friction, which is the first thing a successful session
+overwrites, so it is reconstructed from the session trace rather than from
+memory — "I was confused" is not a finding; the turn where you were confused,
+what you did next, and what it cost is. Two rules keep the output usable:
+**rank by cost, not annoyance**, and **separate "it is missing" from "I did not
+find it"** — the second is still a finding, but a discoverability one with a
+completely different fix.
+
+Frontmatter adds `version` (the build of the subject as it was used — feedback
+ages against releases) and `task` (what you were building while using it).
+
+Because this file is written to be sent outside the repo, redaction matters more
+here than anywhere else — including in pixels, which path-privacy's hooks cannot
+read.
+
+## Visuals
+
+`--visuals` adds figures and charts, and implies `--html`. Two rules bound the
+figure set from both sides: **no finding, no figure** — decoration is the visual
+form of the generic advice the skill bans — and, when a claim is about something
+visible, prose is a lossy citation, so show it.
+
+**No chart without its numbers.** The numbers live in a table in the markdown
+and the chart is a rendering of that table, exactly as the HTML is a rendering
+of the markdown; neither can contradict the other because there is one set of
+numbers. Charts therefore write no files, are hand-authored inline SVG (the page
+has no JavaScript, so nothing client-side would render), and only ever plot what
+was actually counted.
+
+Captured media — screenshots, frames, still sequences — goes in a sidecar
+directory with the same stem as the postmortem. The markdown references it
+relatively; the HTML inlines it as `data:` URIs, because a relative image link
+breaks "send this one file to someone" as thoroughly as a CDN link does. The
+media directory is why this is a flag rather than a judgment call: filing never
+silently creates a directory the repo did not choose, and the flag is the
+consent.
 
 ## Design notes
 
@@ -95,7 +149,7 @@ Without it, the location is inferred or proposed. Most repos never need it.
 
 Markdown is the postmortem and is always written. `--html` adds a second file
 beside it with the same stem — a transform of the markdown just written, not a
-second analysis, so the two cannot disagree.
+second analysis, so the two cannot disagree. `--visuals` implies it.
 
 The HTML is self-contained: embedded CSS, light and dark, no external requests
 of any kind and no JavaScript. It reads offline and survives being sent to

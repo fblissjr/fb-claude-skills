@@ -38,10 +38,15 @@ Same as the postmortem document, with one deliberate exception.
 | Missing frontmatter | `class="pm partial"` plus a `.badge` saying so |
 | Artifact not in the tree | `class="artifact absent"` plus `title="not in the tree today"` |
 | By-artifact view | `<section id="by-artifact">` with one `<div class="art-row">` per artifact |
+| `version` (experience mode) | `<span class="version">` beside the mode badge |
+| `task` (experience mode) | `<p class="task">`, above the summary |
 
 `data-search` is a lowercased space-joined concatenation of date, mode, scope,
-summary, and every artifact. The filter matches against that one attribute, so
-matching behaviour never depends on which element a term happened to come from.
+summary, every artifact, and — where present — `version` and `task`. The filter
+matches against that one attribute, so matching behaviour never depends on which
+element a term happened to come from. A term a reader can see on the page but
+cannot filter by reads as a broken filter, which is why the two experience-only
+fields join the string rather than only being displayed.
 
 Escape `&`, `<`, `>` in all content. Paths and hashes are everywhere in this
 data and a raw `<` silently eats the rest of a line.
@@ -92,6 +97,10 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
   border: 1px solid var(--rule); border-radius: 3px; padding: 0.1rem 0.4rem; color: var(--muted);
 }
+.version {
+  font: 0.72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+}
+.task { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.88rem; }
 .scope { font-weight: 600; }
 .scope a { color: inherit; text-decoration: none; }
 .scope a:hover { text-decoration: underline; }
@@ -153,6 +162,20 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
     <div class="artifacts">
       <span class="artifact">CHANGELOG.md</span>
       <span class="artifact">skills/ruff-diagnostics/</span>
+    </div>
+  </article>
+
+  <article class="pm" data-search="2026-08-07 experience mitate 0.4.2 a 12-second title-card animation timing is expressed in two units scenes/title-card.toml">
+    <div class="pm-head">
+      <span class="date">2026-08-07</span>
+      <span class="mode">experience</span>
+      <span class="version">0.4.2</span>
+      <span class="scope"><a href="2026-08-07_experience_mitate.md">mitate</a></span>
+    </div>
+    <p class="task">A 12-second title-card animation with two timed text reveals.</p>
+    <p class="summary">Timing is expressed in two units that read as one, and every wrong turn in the run traced to that.</p>
+    <div class="artifacts">
+      <span class="artifact">scenes/title-card.toml</span>
     </div>
   </article>
 

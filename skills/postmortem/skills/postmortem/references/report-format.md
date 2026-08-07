@@ -1,9 +1,15 @@
 # Postmortem report format
 
-last updated: 2026-07-26
+last updated: 2026-08-07
 
 The section-by-section shape of the output file, and where each kind of
 finding should be routed afterwards.
+
+**Experience mode uses a different section set** — six sections, in
+`references/experience-mode.md`, because its reader maintains the subject
+rather than the repo. Everything else in this file still applies to it: the
+per-finding shape, "Nothing." as valid output, and the routing table at the
+end.
 
 ## Format
 
@@ -44,6 +50,14 @@ Each forward item must be **checkable**: phrased so a future reader can mark
 it done, refuted, or wrong-premise. "Consider improving performance" fails
 that bar; "measure X on hardware Y; if under Z, the premise of item N was
 wrong" passes it. An item that cannot be refuted is an opinion — cut it.
+
+## Figures and charts
+
+Only under `--visuals`. A figure attaches to a finding in one of the sections
+above; there is no figures section, because a figure that has to be gathered
+into one has no finding to sit under. A chart's numbers live in a table in this
+document and the chart is a rendering of that table, so the markdown is never
+lossy. Full discipline: `references/visual-evidence.md`.
 
 ## Output: a file, always
 

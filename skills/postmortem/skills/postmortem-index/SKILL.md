@@ -42,7 +42,12 @@ is a house style, not a parse contract, and an index that depends on prose
 shape breaks the first time someone writes a section differently.
 
 Per file, read `mode`, `scope`, `date`, `summary`, `range`, `artifacts`, and
-`supersedes`.
+`supersedes`, plus `version` and `task` on experience-mode files. Render
+`version` beside the mode badge — feedback on a tool ages against that tool's
+releases, so a reader scanning a run of experience postmortems about one subject
+is deciding what is still live, and that is the field that answers it. Treat any
+frontmatter key not in this list as data the index does not display rather than
+as an error.
 
 **Files with missing or unparseable frontmatter still appear.** Postmortems
 written before this field set existed have none, and silently dropping them is

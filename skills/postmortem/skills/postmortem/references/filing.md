@@ -72,17 +72,35 @@ Rung 4 is the only rung that blocks. Rungs 1–3 write without asking.
   For a span, the date is the **start of the range**, not the day someone got
   round to writing it: `2026-07-01_span_lint-tooling.md`. The write date goes in
   frontmatter.
-- **Mode** is one of `session`, `span`, `feature`. `feature` is a span scoped to
-  a named feature rather than a date range; when a run could be called either,
-  the deciding question is what a reader would search for — a feature name or a
-  period of time.
+- **Mode** is one of `session`, `span`, `feature`, `experience`. `feature` is a
+  span scoped to a named feature rather than a date range; when a run could be
+  called either, the deciding question is what a reader would search for — a
+  feature name or a period of time. `experience` is feedback on the system the
+  work was done *with* rather than on the work.
 - **Slug** derived from the scope, not the date: `ruff-diagnostics`,
   `pyright-baseline`, `q3-migration`. Lowercase, hyphenated. This is the part a
   grep will match, so prefer the name the artifacts already use over a
-  descriptive phrase.
+  descriptive phrase. In experience mode the slug is the **subject's** name, not
+  the task's — a reader looking for it is looking for everything written about
+  that tool, and several runs against one subject then sort together.
 
 The naming is the portable part and holds in any repo. Only the directory is
 negotiable.
+
+## The media directory
+
+A run with `--visuals` writes captured media — screenshots, frames, recordings
+— to a sidecar directory with the same stem, so filing resolves once:
+
+```
+<resolved-dir>/2026-08-07_experience_mitate.md
+<resolved-dir>/2026-08-07_experience_mitate.html
+<resolved-dir>/2026-08-07_experience_mitate/fig-01-....png
+```
+
+Charts write nothing here: their numbers live in a table in the markdown and
+the chart is a rendering of that table. `references/visual-evidence.md` has the
+rest. Report the directory path alongside the file paths.
 
 ## Frontmatter
 
@@ -104,6 +122,23 @@ supersedes: 2026-06-14_feature_ruff-trial.md
 ---
 ```
 
+An experience-mode block, which swaps `range` for `version` and `task`:
+
+```yaml
+---
+mode: experience
+scope: mitate
+date: 2026-08-07
+version: 0.4.2
+task: A 12-second title-card animation with two timed text reveals.
+summary: Timing is expressed in two units that read as one, and every wrong turn in the run traced to that.
+artifacts:
+  - scenes/title-card.toml
+  - scripts/frame-diff.py
+  - "mitate build --preview"
+---
+```
+
 | Field | Required | Notes |
 |---|---|---|
 | `mode` | yes | Matches the filename token. |
@@ -111,8 +146,28 @@ supersedes: 2026-06-14_feature_ruff-trial.md
 | `date` | yes | When it was written. For a span this differs from the filename date; that is the point. |
 | `summary` | yes | One sentence: what this postmortem *concluded*, not what it examined. See below. |
 | `range` | span only | Exact git range or date range examined. |
+| `version` | experience only | The exact version or build of the subject **as it was used**. |
+| `task` | experience only | One line: what was being built while using the subject. |
 | `artifacts` | yes | Repo-relative paths, commits, or command names. May be empty only if the body has no findings. |
 | `supersedes` | no | Bare filename of an earlier postmortem this one revisits. |
+
+### `version` and `task` (experience mode)
+
+Both exist because the reader is someone who maintains the subject and has
+never seen this repo, and both answer a question that reader asks before
+anything else.
+
+`version` answers *does this still apply* — feedback ages against releases, and
+without it a developer cannot tell a fixed bug from a live one. Record what was
+actually running, not what the manifest pins; if the two can differ, say how it
+was resolved.
+
+`task` answers *does this apply to me* — the same friction is a blocker in one
+usage and irrelevant in another. It is not recoverable from `summary`, which
+carries the conclusion rather than the setting.
+
+Neither belongs in the other modes, where the repo *is* the subject and both
+answers are already in the git history.
 
 ### `summary`
 
@@ -149,8 +204,17 @@ examined shows nothing written about it. An entry that will not resolve is eithe
 wrong or it names something that is not a path — a commit, a command — and the
 field allows both, so decide which rather than leaving it ambiguous.
 
+**Figures are not `artifacts` entries.** The list records what was *examined*;
+a figure is evidence this run *produced*. What the figure depicts — the scene
+file, the command, the page — is the artifact, and that is what goes in the
+list. The media directory is discoverable from the stem and needs no field of
+its own.
+
 Paths are repo-relative. An absolute path in a postmortem leaks the machine it
-was written on.
+was written on. In experience mode this matters more than anywhere else,
+because the file is written to be sent to someone outside the repo — and a
+figure can carry an absolute path in pixels that no check here can read. See
+`references/visual-evidence.md`.
 
 `supersedes` is a single value. A long-running scope forms a chain by following
 the pointers; a stored chain would be a copy whose only consumer is the check
