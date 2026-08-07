@@ -1,5 +1,6 @@
 """Per-repo configuration and state directory management."""
 
+from datetime import date
 from pathlib import Path
 
 import orjson
@@ -54,6 +55,43 @@ def url_to_slug(url: str) -> str:
     """
     tail = url.rstrip("/").rsplit("/", 1)[-1]
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in tail)
+
+
+def fetch_marker(root: Path) -> Path:
+    """Records when upstream pages were last actually fetched.
+
+    Deliberately a separate file with exactly ONE writer (`upstream.py`, after a
+    successful fetch). `upstream_hashes.json` cannot answer this: `sources.py`
+    rewrites it on every run to store tracked-repo HEADs while fetching zero
+    pages, so its mtime dates the last git pull, not the last fetch. The
+    freshness arm read that mtime and reported `fetched 0d ago` immediately
+    after a `skill-maintain sources` run (2026-08-07) -- a green produced by an
+    operation that touched no documentation page.
+    """
+    return state_dir(root) / "last_fetch"
+
+
+def record_fetch(root: Path, when: date | None = None) -> None:
+    """Stamp a successful upstream fetch. Called only by `upstream.py`."""
+    p = fetch_marker(root)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text((when or date.today()).isoformat(), encoding="utf-8")
+
+
+def load_fetch_date(root: Path) -> date | None:
+    """Date of the last recorded fetch, or None if unknown.
+
+    Returns None rather than raising on a missing or unparseable marker: the
+    caller runs inside `test_repo_hygiene`, which has no exception boundary, so
+    raising here would take out every other repo arm instead of reporting one.
+    None means "unknown", which the arm must treat as not-fresh rather than
+    assuming the best.
+    """
+    p = fetch_marker(root)
+    try:
+        return date.fromisoformat(p.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
 
 
 def best_practices_file(root: Path) -> Path:

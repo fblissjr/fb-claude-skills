@@ -1,5 +1,13 @@
 # changelog
 
+## 1.22.0
+
+### fixed
+- **`skill-maintain` 0.31.1 → 0.32.0 — the freshness arm was dating the wrong event, and its green was an artifact.** `upstream hash state fresh` read the mtime of `upstream_hashes.json` to date the state the provenance join trusts. But `sources.py:206-207` rewrites that same file on every run to store tracked-repo HEADs, while fetching zero documentation pages. On 2026-08-07 the arm was shipped and its `fetched 0d ago` reported as evidence it worked — the number came from a `skill-maintain sources` run minutes earlier, which is nothing but git pulls. A control reporting green on an operation that never touched its subject is the exact class this repo exists to catch, and this one was self-inflicted. Replaced by `upstream fetch fresh`, reading a `state/last_fetch` marker with exactly **one writer**: `upstream.py`, after a successful fetch. Five arms; the separation itself is pinned (`test_marker_is_not_written_by_other_state_writes`), because that is the property that decays. Mutation-proven: backdating the marker 45 days produces `fetched 45d ago > 30d`. A missing marker now **fails** rather than assuming freshness — it went red on first run, as it should have.
+- **The provenance arm passed when nothing parsed.** Its condition was `not join.moved`, so a run that parsed zero annotations — a reformatted comment, a broken regex — reported PASS with `0 harness annotations`. That is verbatim the failure `JoinResult`'s own docstring names, in the arm that consumes it. A floor now fails the arm when the file has annotations and the parser returns none.
+- **The join was fed the whole hash state instead of the configured pages.** Nothing prunes a URL removed from `upstream_urls`, so its last hash sits in state forever and its sections would report `current` against a page no run will fetch again — live as of dropping `discover-plugins`, whose hash had to be deleted by hand. Now scoped to `get_upstream_urls`, agreeing with `upstream.py`, which already scoped to `watch_pages`.
+- **The arm's scope string omitted `unattributed`**, hiding the bucket with the highest measured real-defect rate (5 of 6) from the routine board and leaving it visible only in `skill-maintain upstream` output.
+
 ## 1.21.0
 
 ### fixed

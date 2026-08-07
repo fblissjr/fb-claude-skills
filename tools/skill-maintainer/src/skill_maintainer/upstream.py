@@ -22,6 +22,7 @@ from skill_maintainer.config import (
     get_upstream_urls,
     hashes_file,
     load_hashes,
+    record_fetch,
     pages_dir,
     save_hashes,
     url_to_slug,
@@ -222,6 +223,10 @@ def main(args=None):
             if url in changed_urls or not snapshot_path(root, url).exists():
                 save_snapshot(root, url, content)
         print(f"Page snapshots written to {pages_dir(root)}", file=sys.stderr)
+        # Stamp the fetch itself. `upstream_hashes.json`'s mtime cannot serve
+        # here -- `sources.py` rewrites that file on every git-pull-only run --
+        # so the freshness arm dates this marker instead.
+        record_fetch(root)
 
     if changed and not parsed.no_log:
         _log_event(root, changed)
