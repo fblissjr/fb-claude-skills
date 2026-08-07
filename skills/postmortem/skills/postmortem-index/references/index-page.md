@@ -39,17 +39,18 @@ Same as the postmortem document, with one deliberate exception.
 | Missing frontmatter | `class="pm partial"` plus a `.badge` saying so |
 | Artifact not in the tree | `class="artifact absent"` plus `title="not in the tree today"` |
 | By-artifact view | `<section id="by-artifact">` with one `<div class="art-row">` per artifact |
-| `version` (`experience` lens) | `<span class="version">` beside the lens badge |
-| `task` (`experience` lens) | `<p class="task">`, above the summary |
+| Any extra short scalar (e.g. `version`) | `<span class="extra">` after the lens badge, in declaration order |
+| Any extra longer string (e.g. `task`) | `<p class="extra-line">`, above the summary |
 | A rendering sharing the stem | `.scope` links the rendering; a `<a class="src">md</a>` links the markdown |
 
 `data-search` is a lowercased space-joined concatenation of date, lens, scope,
-summary, every artifact, and — where present — `version` and `task`. The filter
+summary, every artifact, and every extra field the file carries. The filter
 matches against that one attribute, so matching behaviour never depends on which
 element a term happened to come from. A term a reader can see on the page but
-cannot filter by reads as a broken filter, which is why the two lens-specific
-fields join the string rather than only being displayed. A lens that requires
-fields of its own joins on the same rule.
+cannot filter by reads as a broken filter, so **every** field joins the string,
+including ones this page has never heard of. That is the same rule that makes
+extra fields display by shape rather than by name — a lens a repo wrote must be
+as searchable as a built-in.
 
 Escape `&`, `<`, `>` in all content. Paths and hashes are everywhere in this
 data and a raw `<` silently eats the rest of a line.
@@ -106,7 +107,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
   border: 1px solid var(--rule); border-radius: 3px; padding: 0.1rem 0.4rem; color: var(--muted);
 }
-.version {
+.extra {
   font: 0.72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
 }
 .src {
@@ -114,7 +115,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   border: 1px solid var(--rule); border-radius: 3px; padding: 0.05rem 0.3rem;
 }
 .src:hover { color: var(--fg); }
-.task { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.88rem; }
+.extra-line { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.88rem; }
 .scope { font-weight: 600; }
 .scope a { color: inherit; text-decoration: none; }
 .scope a:hover { text-decoration: underline; }
@@ -183,11 +184,11 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
     <div class="pm-head">
       <span class="date">2026-08-07</span>
       <span class="lens">experience</span>
-      <span class="version">0.4.2</span>
+      <span class="extra">0.4.2</span>
       <span class="scope"><a href="2026-08-07_experience_mitate.html">mitate</a></span>
       <a class="src" href="2026-08-07_experience_mitate.md">md</a>
     </div>
-    <p class="task">A 12-second title-card animation with two timed text reveals.</p>
+    <p class="extra-line">A 12-second title-card animation with two timed text reveals.</p>
     <p class="summary">Timing is expressed in two units that read as one, and every wrong turn in the run traced to that.</p>
     <div class="artifacts">
       <span class="artifact">scenes/title-card.toml</span>

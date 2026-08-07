@@ -161,8 +161,15 @@ artifacts:
 ---
 ```
 
-**This table is the only enumeration of the field set.** `postmortem-index`
-reads it rather than keeping its own list; do not add a second one anywhere.
+**This table is the only enumeration of the *core* field set** — the fields
+every postmortem carries whatever lens wrote it. `postmortem-index` reads it
+rather than keeping its own list; do not add a second one anywhere.
+
+**A lens may require fields of its own on top of these.** Declare them in the
+lens file; nothing needs to be registered here, and the index displays them by
+shape without being taught their names. `version` and `task` below are not
+special — they are the `experience` lens's declared fields, listed here only
+because that lens ships in the box.
 
 | Field | Required | Notes |
 |---|---|---|
@@ -172,8 +179,8 @@ reads it rather than keeping its own list; do not add a second one anywhere.
 | `date` | yes | When it was written. For a span this differs from the filename date; that is the point. |
 | `summary` | yes | One sentence: what this postmortem *concluded*, not what it examined. See below. |
 | `range` | span only | Exact git range or date range examined. |
-| `version` | `experience` lens | The exact version or build of the subject **as it was used**. |
-| `task` | `experience` lens | One line: what was being built while using the subject. |
+| `version` | declared by `experience` | The exact version or build of the subject **as it was used**. |
+| `task` | declared by `experience` | One line: what was being built while using the subject. |
 | `artifacts` | yes | Repo-relative paths, commits, or command names. May be empty only if the body has no findings. |
 | `supersedes` | no | Bare filename of an earlier postmortem this one revisits. |
 
@@ -193,9 +200,13 @@ usage and irrelevant in another. It is not recoverable from `summary`, which
 carries the conclusion rather than the setting.
 
 Neither belongs under the `project` lens, where the repo *is* the subject and
-both answers are already in the git history. **A lens may require fields of its
-own this way** — declare them in the lens file, and the index will carry them
-without displaying them.
+both answers are already in the git history.
+
+They are worth reading as a **worked example of a lens declaring fields**: each
+one names the question a reader of that lens asks first, and neither is
+recoverable from the core set. That is the bar for adding one — not "this would
+be nice to record" but "a reader of this lens cannot triage the file without
+it".
 
 ### `summary`
 

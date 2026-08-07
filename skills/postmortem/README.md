@@ -19,9 +19,8 @@ and empty sections are valid output. The postmortem format (what went well /
 what did not / deviations table / escapes / forward items, annotate-don't-
 rewrite) was distilled from a real run postmortem in this repo that caught its
 own process errors, and now ships as the default `project` lens; the test-audit
-method (claim / oracle / envelope, spot
-mutation, "a green suite proves what its conditions can express") generalizes
-the same run's verification lessons.
+method (claim / oracle / envelope, spot mutation, "a green suite proves what its
+conditions can express") generalizes the same run's verification lessons.
 
 ## Installation
 
@@ -33,7 +32,7 @@ the same run's verification lessons.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work. Three independent axes: **evidence** (this conversation, or git history / session logs / changelogs / plan docs), **lens** (what gets asked and who reads it), **rendering** (`--html`, `--visuals`). Output is always a durable file. |
+| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work. Three independent axes: **evidence** (open — a conversation, git history, a log export, anything the work left behind), **lens** (what gets asked and who reads it), **rendering** (`--html`, `--visuals`). Output is always a durable file. |
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Files a dated `audit` artifact via the shared filing ladder. Per-architecture question packs in `references/architectures.md`. |
 | `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
@@ -68,7 +67,8 @@ weight", "prove this check can actually fail", "do our hooks actually fire".
 
 The three built-in axes are independent, which they were not before 2026-08-07:
 
-- **Evidence** — where to look. This session, a git range, a feature, a plan doc.
+- **Evidence** — where to look. **Open**: this session, a git range, a log export,
+  a support thread, anything the work left behind. A lens may name its own sources.
 - **Lens** — what to ask and who is reading.
 - **Rendering** — markdown always, plus `--html`, plus `--visuals`.
 
@@ -128,8 +128,10 @@ is. Two rules keep it usable: **rank by cost, not annoyance**, and **separate "i
 is missing" from "I did not find it"** — the second is still a finding, but a
 discoverability one with a different fix.
 
-Frontmatter adds `version` and `task`. **A lens may require fields of its own
-this way.** And because this file is written to be sent outside the repo,
+Frontmatter adds `version` and `task`, which the lens **declares** rather than
+being special-cased for: any lens can declare fields the same way, and the index
+renders them by shape — short scalars as badges, longer strings as a line — so a
+lens you write gets exactly the treatment a built-in gets. And because this file is written to be sent outside the repo,
 redaction matters more here than anywhere else — including in pixels, which
 path-privacy's hooks cannot read.
 

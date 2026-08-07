@@ -2,6 +2,9 @@
 lens: experience
 audience: The developers of the system you used. They maintain it and have never seen your repository.
 use-when: The subject is the tool, framework, API, harness, agent, or skill the work was done *with*, rather than the work itself.
+fields:
+  version: The exact version or build of the subject as it was used. Answers "does this still apply".
+  task: One line on what was being built while using the subject. Answers "does this apply to me".
 ---
 # Experience
 
@@ -93,9 +96,10 @@ Say which one it is. If you could not check, say that instead of guessing.
 ## Pin the version
 
 Feedback ages against releases, and a developer's first question is always
-whether it still applies. The frontmatter carries `version` (the exact version
-or build of the subject as it was used) and `task` (one line: what you were
-building while you used it) for this reason — see the plugin-level
+whether it still applies. This lens **declares two fields** in its frontmatter
+above — `version` and `task` — and every postmortem written through it carries
+them. Nothing special-cases them: any lens can declare fields the same way, and
+the index renders them by shape. See `README.md` here and the plugin-level
 `references/filing.md`.
 
 Where a finding depends on how the subject was invoked, put the invocation in

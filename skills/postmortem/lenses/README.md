@@ -13,7 +13,7 @@ A postmortem run picks one of each, independently:
 
 | Axis | What it decides | Set by |
 |---|---|---|
-| **Evidence** | where to look — this session, a git range, a feature, a suite | the positional argument |
+| **Evidence** | where to look — **open**: a conversation, a git range, a log export, a support thread, anything the work left behind | the positional argument, or the lens's `evidence` key |
 | **Lens** | what to ask and who is reading | `--lens=<name>`, repo default, or inference |
 | **Rendering** | markdown, plus HTML, plus figures | `--html`, `--visuals` |
 
@@ -49,6 +49,10 @@ Frontmatter, then a section per question you want asked:
 lens: incident
 audience: The on-call rotation and whoever owns the affected service.
 use-when: A production incident is resolved and the timeline is still recoverable.
+evidence: The alerting timeline, the incident channel, the deploy log for the window, and the dashboards for the affected service.
+fields:
+  severity: SEV level as declared at the time, not in hindsight.
+  detected-at: When a human first knew, which is rarely when it started.
 ---
 # Incident review
 
@@ -64,6 +68,22 @@ evidence for this kind of work.
 For every symptom, name the alert that should have fired and why it did not:
 absent, fired-but-ignored, or fired-too-late.
 ```
+
+Two optional frontmatter keys let a lens reach past its sections:
+
+- **`evidence`** names where this kind of work leaves traces. The core knows
+  about conversations and repository records; it does not know your alerting
+  stack, your design tool, or your support queue. A lens that says so is
+  followed, because it holds more specific knowledge than the core does.
+- **`fields`** declares frontmatter the lens requires on every postmortem
+  written through it. Nothing has to be registered anywhere: `postmortem-index`
+  renders extra fields **by shape** — short scalars as badges, longer strings as
+  a line — so a repo's lens gets exactly the treatment a built-in gets. The
+  built-in `experience` lens's `version` and `task` are declarations of this
+  kind, not privileges.
+
+  The bar for adding one is not "this would be nice to record" but **"a reader
+  of this lens cannot triage the file without it."**
 
 Three things make a lens good, and all three are about the prose under each
 heading rather than the headings themselves:
@@ -103,5 +123,10 @@ of postmortem is worse than writing none.
 | `project` | your future self, the next model | Work this repo did: what shipped, what it cost, what it taught. The default. |
 | `experience` | the developers of a system you used | What it was like to build with something. Sections are about friction, not features. |
 
-Two is not a taxonomy. Add lenses when a kind of work keeps not fitting, not in
-anticipation of one that might.
+Two is not a taxonomy, and it is not meant to become one. **The point is not
+that these two are the right lenses — it is that the next kind of work does not
+need permission from this plugin to exist.** A lens is a file; write it when a
+kind of work keeps not fitting, rather than in anticipation of one that might.
+
+If a lens you write needs something the format genuinely cannot express, that is
+a defect in the format worth reporting, not a reason to bend the work to fit.

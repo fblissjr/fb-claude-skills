@@ -29,7 +29,11 @@ which made most combinations unreachable.
 
 ### 1. Evidence — where to look
 
-Set by the positional argument.
+Set by the positional argument. **This is an open axis: evidence is whatever
+the work left behind.** The two below are the common cases, not the allowed set
+— a run may look at a log export, a directory of documents, an incident
+timeline, several sibling repos, a dataset, a support thread. If the work left a
+trace somewhere, that somewhere is evidence.
 
 - **This session** (no argument, or "this session"): the current conversation —
   decisions made, errors hit, detours taken, bugs found and fixed, commands that
@@ -41,8 +45,20 @@ Set by the positional argument.
   3. Session logs, wherever this repo keeps them.
   4. `CHANGELOG.md` entries in the range.
 
-Do the evidence pass **before** writing any finding. Read the record; do not
-reconstruct it from memory of it.
+**A lens may name its own sources**, because a lens that knows its domain knows
+where that domain leaves traces. When it does, follow it — that is more specific
+knowledge than this file has.
+
+Three rules hold whatever the source is, and they are the floor:
+
+1. **Do the evidence pass before writing any finding.** Read the record; do not
+   reconstruct it from memory of it.
+2. **Record what you looked at** in the `evidence` frontmatter field, in words
+   that let someone else look at the same thing.
+3. **Say what you could not reach.** A source that was unavailable, truncated,
+   or out of scope is stated, not silently omitted — otherwise a reader cannot
+   tell a clean record from a partial one, which is the failure this whole
+   family exists to prevent.
 
 ### 2. Lens — what to ask, and who is reading
 

@@ -1,5 +1,18 @@
 # changelog
 
+## 1.17.0
+
+### changed
+- **`postmortem` 0.11.0 → 0.12.0 — the two places where built-in lenses still had privileges a repo's lens could never get.** 0.11.0 split `mode` into three axes and made the middle one extensible; an audit against the stated principle — *we cannot anticipate the next use case, so the design must not require anticipating it* — found the other two axes had not been held to it.
+
+  **Evidence was a closed list of two, both git-repo-shaped.** A run could look at the current conversation or at the repository record, and nothing else was described. But evidence is whatever the work left behind: a log export, a directory of documents, an incident timeline, several sibling repos, a support thread. It is now an open axis, with the two former entries demoted to common cases. What survives as the floor is three rules that hold whatever the source is — do the pass before writing any finding, record what you looked at in `evidence`, and **say what you could not reach**, because a reader who cannot tell a clean record from a partial one is the failure this family exists to prevent. A lens may also name its own sources, since a lens that knows its domain knows where that domain leaves traces.
+
+  **`postmortem-index` hardcoded a display rule for `version`** — a field belonging to one specific built-in lens — while a custom lens's fields were merely "carried, not displayed". So the box-shipped lens rendered nicely and a repo's own lens could not, which is precisely the shape the lens mechanism exists to abolish. The index now renders extra fields **by shape rather than by name**: short scalars become badges, longer strings a line, structured values join `data-search` only. `version` renders as a badge because it is a short scalar, not because it is `version`. Deliberately *not* implemented as a lens lookup — the index resolves postmortems, not lenses, and teaching it to read both would couple a view to a mechanism it has no other reason to know about. Shape is enough, and it is enough precisely because it is the same rule for everyone.
+
+  Consequently the `experience` lens now **declares** `version` and `task` in its frontmatter rather than being special-cased, and the lens format gains two optional keys (`evidence`, `fields`) with a worked `incident` example. Filing's frontmatter table is re-scoped to the *core* set every postmortem carries, with lens-declared fields explicitly needing no registration anywhere. The bar for declaring one is stated as "a reader of this lens cannot triage the file without it", not "this would be nice to record".
+
+  The framing that generalizes past this release, now written into `lenses/README.md`: **the point is not that the two built-in lenses are the right ones — it is that the next kind of work does not need permission from this plugin to exist.** And if a lens someone writes needs something the format cannot express, that is a defect in the format worth reporting rather than a reason to bend the work to fit.
+
 ## 1.16.0
 
 ### changed

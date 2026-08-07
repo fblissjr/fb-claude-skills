@@ -48,20 +48,35 @@ Frontmatter only. Never parse the body — `../postmortem/references/report-form
 is a house style, not a parse contract, and an index that depends on prose
 shape breaks the first time someone writes a section differently.
 
-**The field set is defined in the plugin-level `../../references/filing.md`, and
-that table is the only enumeration of it.** Read every field it lists; do not
+**The core field set is defined in the plugin-level `../../references/filing.md`,
+and that table is the only enumeration of it.** Read every field it lists; do not
 keep a second list here. This skill previously carried its own copy, and the two
 drifted the first time a field was added — a field written into filing's table
 and never displayed is invisible in exactly the view that exists to surface it.
 
-Two display rules the field table does not carry, because they are this page's
-business rather than the record's:
+## Fields this page has never heard of
 
-- Render `version` beside the lens badge. Feedback on a tool ages against that
-  tool's releases, so a reader scanning several experience postmortems about one
-  subject is deciding what is still live, and that is the field that answers it.
-- Treat any frontmatter key not in the table as data this page does not display,
-  rather than as an error.
+**A lens may require frontmatter fields of its own, and this page cannot know
+what they are.** It must not need to: a lens is a file, repos write their own,
+and an index that only displays fields it was taught about would give built-in
+lenses a privilege no custom lens could ever have. That is the failure this rule
+exists to prevent.
+
+So **display every field, by shape rather than by name**:
+
+- Core fields keep their defined slots (`references/index-page.md`).
+- Any other **short scalar** renders as a badge after the lens badge, in the
+  order the file declares them.
+- Any other **longer string** renders as a line under the head, above the
+  summary.
+- Anything structured that has no sensible inline form is carried into
+  `data-search` and not displayed. Never treat an unknown key as an error.
+
+This is deliberately not a lookup of the lens file. The index resolves
+postmortems, not lenses, and making it read both would couple a view to a
+mechanism it has no other reason to know about. Shape is enough, and it is
+enough precisely because it is the same rule for everyone: `version` renders as
+a badge because it is a short scalar, not because it is `version`.
 
 ## Linking to the record
 
