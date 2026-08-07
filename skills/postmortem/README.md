@@ -211,6 +211,33 @@ number is informational, not complete.
   a stale HTML is a state the skill defines as wrong, so nothing may produce it
   silently.
 
+## Frontmatter choices, and two deliberate non-uses
+
+Checked against the Claude Code skills documentation on 2026-08-07.
+
+**`context: fork` is deliberately never set on `postmortem`.** A forked skill
+"won't have access to your conversation history" — and the current conversation
+*is* the evidence base for the most common run. Forking would not slow it down,
+it would silently produce a postmortem with nothing to cite, which the
+grounding rule would then correctly render as a page of "Nothing." Do not add
+it as an optimization. The audit skills read the repo rather than the
+conversation, so the same objection does not apply to them; they simply have no
+need for it.
+
+**No `allowed-tools` grant.** These skills would run smoother with read-only git
+pre-approved, but the field grants tool permission to whoever installs the
+plugin, and the documentation's own caution is that a skill can grant itself
+broad tool access. That is the installer's decision to make, not this plugin's.
+
+**No `arguments` declaration.** It exists for `$name` substitution in the body;
+nothing here substitutes, so the field was inert. Removed 2026-08-07 rather than
+kept as decoration — the same reasoning that keeps `metadata.version` out of
+every SKILL.md in this repo.
+
+Everything under `metadata` is this repo's own maintenance data (`last_verified`,
+`review_interval_days`, `freshness`) and avoids colliding with real frontmatter
+field names, per the documented constraint on that map.
+
 ## Configuration
 
 Optional, root-level, tracked. Only ever states exceptions:

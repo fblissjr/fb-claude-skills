@@ -1,8 +1,6 @@
 ---
 name: postmortem
 argument-hint: "[scope] [--lens=<name>] [--html] [--visuals] [--out=<dir>]"
-arguments:
-  - scope
 description: "Evidence-grounded postmortem of finished work. Every finding must cite a concrete artifact; empty sections are valid output. Use when the user says 'postmortem', 'run a postmortem', 'retrospective', 'what went well', 'what would you do differently', or wants a look back at a completed plan, task, bugfix, feature, or run of sessions. Evidence can be this session, a git range, a feature, or a plan doc. A lens picks what gets asked and who reads it: the default covers work this repo did, and the experience lens writes feedback to a tool's developers - 'what was confusing about using X', 'feedback for the devs', 'developer experience writeup', 'what do I wish it had'. Repos can add their own lenses. Add --visuals for figures and charts. Do NOT use for auditing a test suite (use test-audit) or for drafting a session log."
 metadata:
   last_verified: "2026-07-24"

@@ -1,6 +1,6 @@
 {
   "name": "postmortem",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "The audit family: evidence-grounded postmortems of finished work on three independent axes (evidence, lens, rendering), where a lens is one markdown file picking the sections so a repo adds its own without forking, optionally with figures and charts, plus a browsable index, a test-suite audit (does each green test still mean anything), a controls audit (census and live-fire over hooks, validators, and reminders), and the adversarial-verify primitive with its control-builder agent that the audits dispatch to",
   "author": {
     "name": "Fred Bliss"

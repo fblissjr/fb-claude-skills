@@ -1,5 +1,16 @@
 # changelog
 
+## 1.18.0
+
+### fixed
+- **`postmortem` 0.12.0 → 0.12.1 — audited against the current Claude Code skills documentation; one dead field removed, two non-uses written down.** `skill-maintain upstream` pulled all twelve watched pages fresh and the plugin was checked against the frontmatter reference rather than against memory of it.
+
+  **`arguments: [scope]` was inert and is removed.** Upstream defines `arguments` solely as named positional arguments for `$name` substitution in the skill body; a grep across the whole plugin found no `$ARGUMENTS`, `$scope`, `$0`, or any other substitution, and without one, arguments arrive appended as `ARGUMENTS: <value>` whether the field is declared or not. So it was a frontmatter field with no reader — the class this repo already removed once as `metadata.version`. Removing it also drops `postmortem` from two Claude Code-only fields to one under `validate --strict`.
+
+  **Two non-uses are now recorded in the plugin README rather than left to be rediscovered.** `context: fork` is the dangerous one: a forked skill "won't have access to your conversation history", and the current conversation *is* the evidence base for the most common run — so forking would not slow the skill down, it would silently produce a postmortem with nothing to cite, which the grounding rule would faithfully render as a page of "Nothing." That is exactly the shape of change a future maintainer adds as an optimization. No `allowed-tools` grant either: read-only git pre-approval would genuinely reduce friction, but the field grants tool permission to whoever installs the plugin and the documentation's own caution is that a skill can grant itself broad tool access — the installer's call, not the plugin's.
+
+  Checked and already correct: `metadata` keys (`last_verified`, `review_interval_days`, `freshness`) do not collide with real frontmatter field names, which the docs call out as a constraint on that map; the plugin uses `skills/` rather than the legacy `commands/`; and the plugin-root `lenses/` and `references/` directories collide with no reserved component directory in the standard layout, so the 0.10.0–0.12.0 structure is sound. Not changed, and why: splitting trigger phrases into the `when_to_use` field would be idiomatic, but this repo's shared `check_description_quality` reads `description` only, so the split would fail the WHEN check on every skill here — making it a repo-wide validator change rather than a postmortem fix, and trigger phrases in `description` match upstream's own examples.
+
 ## 1.17.0
 
 ### changed
