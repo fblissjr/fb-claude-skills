@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-08-07
 
 # Upstream drift backlog
 
@@ -11,6 +11,40 @@ quietly lost.
 
 Re-derive with: `skill-maintain upstream`, then diff
 `.skill-maintainer/state/pages/*.md` against the previous snapshot.
+
+## Identified 2026-08-07, not yet absorbed
+
+From a full `skill-maintain upstream` pull (12 pages) while auditing the
+`postmortem` plugin against the current `skills` page. What changed a decision
+was applied in `postmortem` 0.12.1; this is the remainder.
+
+**`when_to_use` is unused across every skill here, and our own check is why.**
+The field holds trigger phrases and example requests, is appended to
+`description` in the skill listing, and shares its 1,536-character cap. Splitting
+triggers out would leave `description` stating only WHAT, which is what the page
+recommends ("put the key use case first"). Blocked by our tooling, not by
+upstream: `check_description_quality` in
+`tools/skill-maintainer/src/skill_maintainer/shared.py` reads `description` only,
+so the split would fail the WHEN check on every skill in the repo at once. The
+fix is small — WHEN reads `description` + `when_to_use`, WHAT stays on
+`description` alone — plus a red-first arm. **Not a repair; an unlock.** Triggers
+inside `description` match upstream's own examples and violate nothing today.
+
+**Which unblocks a second item: widening a trigger surface without diluting the
+description.** Concrete instance, from this session: `postmortem` now accepts
+arbitrary repo-supplied lenses, so it can produce an incident review or a design
+critique — but it still only triggers on retrospective phrasing, so a user has to
+say "postmortem" to reach any of them. A long trigger list belongs in
+`when_to_use`. These two are one fix, and neither is worth doing alone.
+
+**Skill-listing budget is unmeasured here.** The listing shortens descriptions
+when it overflows (budget scales at 1% of the context window) and drops the
+least-invoked ones first, which silently strips matching keywords. `postmortem`
+alone contributes five descriptions at roughly 600–900 characters. `/doctor`
+reports the listing's cost and its biggest contributors, and `/context`'s Skills
+row reports the post-budget size. **Measure before changing anything** — an
+unmeasured threshold does not ship, and `skillListingBudgetFraction` /
+`skillListingMaxDescChars` are only worth touching against a real number.
 
 ## Identified 2026-07-26, not yet absorbed
 
@@ -158,3 +192,5 @@ split it into `last_changed` (mechanical) and `last_verified` (a human claim).
 - ~~`renames` — absent from `marketplace.json`.~~ **Resolved 2026-07-21**: added as `"renames": {"env-forge": null}` when env-forge was deprecated. Append-only history
 - `defaultEnabled: false` — candidates are the SessionStart-hook plugins that inject context every session (`dev-conventions`, `dimensional-modeling`, `mece-decomposer`, `pyright-autoconfig`). Would make ambient cost opt-in
 - Marketplace top-level `description` — we only set `metadata.description`; the validator warns on the top-level field
+- **`allowed-tools` on read-heavy skills** — `postmortem` would run smoother with read-only git pre-approved, and the audits with more. Declined for now in the plugin itself (recorded in its README with the reason): the field grants tool permission to whoever installs the plugin, and the page's own caution is that a skill can grant itself broad tool access. If adopted, scope it to `postmortem` and read-only git; the audit skills need a wider set, which is exactly when a blanket grant stops being narrow
+- **`.postmortem.json` `dir` is undecided for this repo** — no config and no `postmortems/` directory exist, so the filing ladder would infer `internal/postmortems/` as a sibling of `internal/log/`, which is **gitignored**. That makes any postmortem written here local scratch that does not survive a machine change. Decide tracked-vs-scratch *before* the first run, since rung 3 inherits the answer from a sibling and rung 4 exists precisely to force the question once
