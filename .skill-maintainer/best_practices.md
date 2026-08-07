@@ -88,8 +88,8 @@ is nothing, it is friction rather than retrieval.
 
 ### always-loaded context
 
-<!-- class: harness | source: https://code.claude.com/docs/en/memory | last_verified: 2026-04-19 -->
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/memory | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
 
 **Enforced by:** the ambient-hook arm in `skill-maintain test` (matcher-less
 high-frequency hooks) and the token-budget gate below. The rest is unchecked.
@@ -97,7 +97,14 @@ high-frequency hooks) and the token-budget gate below. The rest is unchecked.
 Everything in this list loads on every session. Each line is a fixed cost paid
 whether or not it is used.
 
-- [ ] CLAUDE.md holds operational instructions only, never reference material
+- [ ] Target **under 200 lines per CLAUDE.md file** — upstream's own number, on
+      the grounds that longer files consume more context *and reduce adherence*.
+      Size is not only a cost problem; a bloated instruction file is followed
+      less well
+- [ ] CLAUDE.md holds operational instructions only, never reference material.
+      Where it is growing, path-scoped rules beat imports: an imported file still
+      loads in full at launch, so splitting for tidiness moves the text without
+      moving the cost
 - [ ] `.claude/rules/`: unconditional rules stay minimal; scope the rest with
       `paths` frontmatter
 - [ ] Skill descriptions (all installed) each justify their share of the listing
@@ -266,8 +273,9 @@ guidance.
 
 ### skill and plugin structure
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch — this stamp cannot be refreshed mechanically -->
+<!-- class: craft | note: the no-README and references/ layout rules are house conventions | last_verified: 2026-08-07 -->
 
 **Enforced by:** `skill-maintain validate` (name rules, allowed fields,
 description constraints) and the repo-hygiene suite (marketplace listing,
@@ -276,9 +284,15 @@ manifest fields). This is the best-covered section in the file.
 - [ ] `SKILL.md`, exact case, in a kebab-case folder whose name matches the
       skill `name`
 - [ ] YAML frontmatter with `---` delimiters
-- [ ] No `README.md` inside a skill folder — docs go in SKILL.md or `references/`
-- [ ] Detailed docs live in `references/` and are linked from the body
-- [ ] `description` under 1024 characters, no angle brackets
+- [ ] `description` under 1024 characters, no angle brackets. **The 1024 figure
+      comes from the Agent Skills spec, which this repo does not fetch** — it
+      cannot be refreshed by the upstream check and is the oldest unverifiable
+      number in the file
+- [ ] Supporting files are a feature, not a smell: templates, example outputs,
+      scripts, and reference docs all belong beside SKILL.md. Reference them
+      from the body so the model knows what they hold and when to load them
+- [ ] *House convention:* no `README.md` inside a skill folder — docs go in
+      SKILL.md or `references/`. Upstream permits it; this keeps one entry point
 - [ ] No `metadata.author` and no `metadata.version` in SKILL.md. The whole file
       loads into context on activation, so a name or version there is standing
       cost with no runtime use. Attribution belongs in `plugin.json` and the
@@ -337,7 +351,8 @@ not a gate — it is an opinion, and it either gets a command or gets deleted.
 
 ### token budget
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: craft | note: the 4,000/8,000 token thresholds are a house convention, not upstream | last_verified: 2026-08-07 -->
 
 **Command:** `skill-maintain measure`
 
@@ -345,21 +360,31 @@ Thresholds apply to SKILL.md only, which is always loaded once the skill
 triggers. Reference files are on-demand and tracked separately, so thorough
 reference material is not penalised — that is what progressive disclosure is for.
 
+Upstream (`harness`):
+
+- [ ] SKILL.md body under **500 lines**. This one is upstream's own guidance;
+      move detailed reference material to separate files
+- [ ] Stay under ~5,000 tokens if the skill must survive auto-compaction: only
+      the first 5,000 tokens of each re-attached skill are kept, and all
+      re-attached skills share a combined 25,000-token budget, filled from the
+      most recently invoked. Invoke many skills in one session and the older
+      ones are dropped entirely
+
+House convention (`craft`) — defensible, but do not cite these as platform
+limits:
+
 - [ ] SKILL.md under 4,000 tokens (2% of a 200k window). Estimation: chars / 4
 - [ ] SKILL.md under 8,000 tokens — hard ceiling; above this degrades attention
       on everything else in context
-- [ ] SKILL.md body under 500 lines
 - [ ] Heavy material in `references/`, not inline
 - [ ] Reference tokens reported but not budget-warned
 - [ ] Treat the estimate as a budget heuristic, not a measurement — real
       tokenization varies by content type
-- [ ] Stay under ~5,000 tokens if the skill must survive auto-compaction: only
-      the first 5,000 tokens of each re-attached skill are kept, and all
-      re-attached skills share a combined 25,000-token budget
 
 ### description precision
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: craft | note: only the 1,536-char cap is upstream; the rest is authoring judgment | last_verified: 2026-08-07 -->
 
 **Command:** `skill-maintain validate` (quality warnings), and `skill-creator`'s
 description-tuning harness for trigger accuracy.
@@ -426,8 +451,8 @@ Look these up. There is nothing here to verify.
 
 ### skill frontmatter fields
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-21 -->
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch -->
 
 Agent Skills spec (portable): `name`, `description`, `license`, `allowed-tools`,
 `metadata`, `compatibility`.
@@ -538,7 +563,7 @@ cannot emit a placeholder for a later pass.
 
 ### distribution and budgets
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://code.claude.com/docs/en/plugins | last_verified: 2026-07-21 -->
 
 | Scope | Location |
@@ -552,6 +577,13 @@ Skill descriptions get 1% of the model's context window. Override with
 (fixed char count). **On overflow, descriptions are dropped starting with the
 LEAST-invoked skills.** The 1,536-char per-entry cap is configurable via
 `skillListingMaxDescChars`.
+
+Three levers when the budget is tight, in increasing order of how much you give
+up: trim `description` and `when_to_use` at the source with the key use case
+first; set low-priority entries to `"name-only"` in `skillOverrides` so they
+list without a description; or raise the fraction. `skillOverrides` also takes
+`off` and `user-invocable-only`, and `disableBundledSkills` removes the shipped
+set entirely.
 
 ### surface differences
 
@@ -605,7 +637,14 @@ For plugins with behavioural content that should persist across sessions:
 
 ### spec compliance
 
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch -->
+
+**Three sections in this file cite `agentskills.io`, and nothing fetches it.**
+Their stamps cannot be refreshed by `skill-maintain upstream`, so they will sit
+at their original date indefinitely — visible staleness rather than hidden, but
+staleness with no mechanism behind it. Either add the spec to the tracked
+sources or stop citing it; leaving it as the one unobservable source in a file
+organised around observable ones is the inconsistency to resolve.
 
 The rules are the validator, not this file. Claude Code's skill schema is a
 superset of the cross-vendor Agent Skills spec; `skill-maintain validate`

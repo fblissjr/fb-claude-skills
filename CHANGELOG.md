@@ -1,5 +1,14 @@
 # changelog
 
+## 1.17.0
+
+### changed
+- **`skill-maintainer` 0.22.0 → 0.23.0 — the reconcile finishes, and the sections that resisted it turned out to be misclassified rather than merely stale.** Nineteen of twenty-seven source annotations now carry 2026-08-07, up from eight. The remaining sections were not simply unchecked: several were tagged `harness` while holding house conventions, which is why re-deriving them against upstream kept finding nothing to derive. **`SKILL.md` under 500 lines is upstream** (`skills.md:387`, stated as a Tip). **The 4,000 and 8,000-token thresholds are ours**, as are `references/`-not-inline and the estimation heuristic; token budget now separates the two rather than presenting all six as platform limits. Same correction in skill-and-plugin-structure, where "no `README.md` inside a skill folder" is a house rule and upstream in fact encourages supporting files beside `SKILL.md` — templates, example outputs, scripts, reference docs — so that item is now labelled as the house preference it is. Description precision is likewise one upstream fact (the 1,536-char cap) wrapped in authoring judgment.
+- **Two upstream facts we did not have, both about always-loaded cost.** Upstream targets **under 200 lines per CLAUDE.md file**, and gives a reason worth more than the number: longer files consume more context *and reduce adherence* — size is not only a cost problem, a bloated instruction file is followed less well. And an imported file still loads in full at launch, so splitting CLAUDE.md for tidiness moves the text without moving the cost; path-scoped rules are the lever that actually reduces it. Import depth is four hops, and relative paths resolve against the importing file. Distribution gains the three budget levers in order of what they cost you: trim at the source, set low-priority entries to `"name-only"` in `skillOverrides`, or raise the fraction.
+- **The one unobservable source is now named as such.** Three sections cite `agentskills.io`, which is not in `upstream_urls`, so `skill-maintain upstream` cannot refresh them and their 2026-04-19 stamps will sit there indefinitely. That includes the 1024-character description limit — the oldest unverifiable number in the file. Each of the three carries the note, and spec compliance states the resolution: track the spec or stop citing it, because leaving one unobservable source in a file organised around observable ones is the inconsistency.
+
+Remaining after this pass: three `agentskills.io` annotations (structurally unrefreshable until the source is tracked), one `plugins` page annotation at 2026-07-21, and four `craft` sections whose stamps are already correct as records of last review.
+
 ## 1.16.0
 
 ### fixed
