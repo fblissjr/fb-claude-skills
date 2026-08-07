@@ -17,7 +17,7 @@ These rules load when working with plugin manifests and .claude-plugin/ director
 5. Update root `README.md`: plugins table, install list, invocation list
 6. Append session entry to `internal/log/log_YYYY-MM-DD.md`
 
-## Version cascade -- three files
+## Version cascade -- three files, plus the lockfiles where they exist
 
 A plugin content change bumps `<plugin>/.claude-plugin/plugin.json`, the root
 `marketplace.json` entry, and `CHANGELOG.md`. Plus `tools/<plugin>/pyproject.toml`

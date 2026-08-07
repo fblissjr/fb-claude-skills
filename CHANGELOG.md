@@ -1,5 +1,13 @@
 # changelog
 
+## 1.22.2
+
+### fixed
+- **`.claude/` audited as a unit for the first time; two rules were teaching things that are not true.** `rules/skills.md` gave `uv run python skill-maintainer/scripts/check_freshness.py` as the correct form — a path that has not existed since the CLI absorbed that check, sitting one line from the form that does work. A rule teaching a command that fails is worse than a rule with no example. And `rules/plugins.md`'s heading read "three files" while its own body correctly listed `pyproject.toml` and `uv lock` alongside them; the heading is the part that gets skimmed. Two further findings are recorded rather than acted on, because both need a judgment call: the local `fast-executor` and `task-coder` agents are byte-identical to templates `model-routing` ships, which is the legitimate template-then-install shape but has **nothing watching the pair**, so a template change would leave this repo's copies stale in silence; and `doc-claim-auditor`'s entire evidence base is specimens from `mitate`, which now lives in its own repo.
+
+### added
+- **A handoff section in `docs/internals/best_practices_maintenance.md`** — current queue, decisions waiting on the owner, the `.claude/` findings, and the things that will bite. Placed in a tracked document on purpose: the session log is gitignored and does not survive a fresh clone, so anything the next session actually needs is duplicated where it travels.
+
 ## 1.22.1
 
 ### fixed

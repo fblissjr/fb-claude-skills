@@ -22,10 +22,100 @@ sections 1-3 stands as the record of why.
   mutation-proven. The calendar arm on the file's first line is retired.
 - Also done out of order: the three false claims (section 2d) are corrected.
 
-Still unbuilt: release notes as a tracked source (step 3), mechanising the hooks
-section (step 5), reconciling the three source lists (step 6), and the
-model-facts A/B. Section 6's ordering below is the original; treat it as
-history, not as the current queue.
+Steps 0-2 shipped, plus the review fixes and reconcile that followed. Section
+6's ordering below is the original; treat it as history. **The current queue is
+the handoff at the end of this document.**
+
+## Handoff — state at 2026-08-07, end of session
+
+Written for whoever picks this up next. Everything below was derived at the
+time; re-derive before trusting any number, because most of today's findings
+were exactly this kind of number having gone quietly wrong.
+
+**Where things stand.** `main` is pushed and clean. `skill-maintain test` reads
+**269 passed, 0 failed** — green for the first time in the session, and the
+first time the board has had no standing red. `skill-maintain upstream` reports
+**23 harness annotations, 0 moved, 19 current, 4 unbound, 0 untracked source, 0
+unattributed**.
+
+**Do this first, and do not skip it: re-run `skill-maintain upstream` and
+`skill-maintain sources`.** Every conclusion in this document rests on hashes
+fetched on 2026-08-07. The `upstream fetch fresh` arm will tell you how old they
+are; it dates a real fetch now rather than any file a second writer touches.
+
+### Queue, highest value first
+
+1. **Release notes as a tracked source** (step 3). Still the best single
+   addition, and it likely *reduces* the maintenance pass rather than adding to
+   it: six of the drift backlog's items are version-gated (`v2.1.207+`,
+   `v2.1.214+`), and release notes state what changed instead of requiring a
+   +807-line diff to be read. Verify the canonical URL before wiring it.
+2. **Give the drift backlog a disposition field.** It sits at 40 unabsorbed and
+   cannot distinguish "not yet considered" from "considered and rejected", so it
+   can only grow. Three states — absorbed / rejected-with-reason / deferred-with-
+   trigger. Cheap, and it unblocks actually working the list.
+3. **Mechanise the hooks section** (step 5). Sixteen hook constraints and seven
+   agent ones are enforced by nothing, and they are the class that has already
+   produced real bugs here (the 1000x timeout, exit-0-approves). Several are
+   statically checkable against this repo's own `hooks.json` files.
+4. **Reconcile the source lists** (step 6, half done). `upstream_urls` is clean
+   at eleven. But there are **18 repos under `coderef/` and 10 in
+   `tracked_repos`** — eight clones are kept current by the update script and
+   silently ignored by `skill-maintain sources`. Decide each: track it or stop
+   cloning it.
+5. **The four unbound annotations.** Three cite `coderef/agentskills`, one the
+   `plugins` page. They go green only when someone reads the source and stamps a
+   `verified_hash`. Do not stamp without reading — that mistake was made and
+   caught within this session.
+6. **The model-facts A/B** via `skill-creator`'s harness. Highest value, least
+   scoped, and the only item needing a method this repo has not built. It is
+   what would settle whether `## authoring shape` is right.
+
+### Decisions waiting on the owner
+
+- **MCP 2026-07-28 migration** — see `mcp_spec_2026_07_28.md`. The prior
+  question is whether `readwise-reader` should move at all; it is a single-user
+  local STDIO server and most of what the stateless redesign buys, it does not
+  need. `skill-dashboard`'s `^1.24.0` waits on the same call.
+- **The postmortem branch** (`claude/generalized-postmortem-skill-bbqnks`) is
+  rebased, verified, and a clean fast-forward — 7 commits, unmerged.
+
+### `.claude/` staleness, audited 2026-08-07
+
+The directory had never been audited as a unit. Two defects fixed in this
+session, two findings left for judgment:
+
+- **Fixed:** `rules/skills.md` taught `uv run python
+  skill-maintainer/scripts/check_freshness.py`, a path that has not existed
+  since the CLI absorbed that check. A rule teaching a command that fails is
+  worse than a rule with no example.
+- **Fixed:** `rules/plugins.md`'s heading said "three files" while its own body
+  correctly listed the lockfiles too. The heading is what gets skimmed.
+- **Open — an unwatched pair.** `.claude/agents/fast-executor.md` and
+  `task-coder.md` are byte-identical to the templates `model-routing` ships in
+  `references/agents/`. That is the legitimate shape (template ships, repo
+  installs it), *not* the `control-builder` case retired in 1.11.1 — but
+  **nothing watches the pair**, so if the template moves, this repo's installed
+  copy goes stale in silence. Invariant 1b's second question has no answer here.
+  Either add an arm comparing them, or state in the skill that installed copies
+  are snapshots and are expected to drift.
+- **Open — priors that rot.** `.claude/agents/doc-claim-auditor.md`'s entire
+  evidence base is specimens from `style-3d.md` and `film-language.md`, files
+  belonging to `mitate`, which now lives in its own repo. The specimens are
+  history and read fine as prose, but a local agent whose every example comes
+  from a codebase no longer present is one the next maintainer cannot verify
+  against anything. Grow local specimens or say the evidence is inherited.
+
+### Things that will bite
+
+- **`skill-maintain sources` and `upstream` write the same state file.** That is
+  what made the old freshness arm lie. `state/last_fetch` has exactly one writer
+  by design; keep it that way.
+- **A stash predating this session** (`stash@{0}: WIP on main: 36100c3
+  path-privacy 0.7.0`). The stash stack is shared across worktrees — a stash
+  nobody remembers is the kind of thing that gets popped onto the wrong branch.
+- **The session log for 2026-08-07 is gitignored**, so it does not travel. Its
+  findings that matter are duplicated here on purpose.
 
 The short version: the file has three different kinds of knowledge inside it,
 each with a different clock and a different falsifier, and one calendar date on

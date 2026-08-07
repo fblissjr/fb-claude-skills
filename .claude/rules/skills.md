@@ -33,8 +33,12 @@ Metadata values are strings. The spec defines `metadata` as a string-to-string m
 
 All `uv run` commands in SKILL.md must use paths relative to the project root (where `uv run` is called from), not relative to the SKILL.md file.
 
-Correct: `skill-maintain freshness` or `uv run python skill-maintainer/scripts/check_freshness.py`
-Wrong: `uv run python scripts/check_freshness.py`
+Correct: `skill-maintain freshness`, or `uv run python tools/<pkg>/scripts/<script>.py` for a script that really is bundled.
+Wrong: `uv run python scripts/<script>.py` — resolved against the SKILL.md, which is not where `uv run` starts.
+
+The example here used to name `skill-maintainer/scripts/check_freshness.py`, a
+path that has not existed since the CLI absorbed that check. A rule teaching a
+command that fails is worse than a rule with no example.
 
 ## Body length limit
 
