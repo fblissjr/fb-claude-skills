@@ -127,16 +127,27 @@ whether or not it is used.
 guidance.
 
 - [ ] Hook `timeout` is in **seconds**, not milliseconds. `3000` is fifty
-      minutes. The upstream default is 600 for `command`, `http`, `mcp_tool`
-- [ ] What a **command** hook does when it times out is NOT documented. The only
-      two timeout behaviours stated on the hooks page are the HTTP-hook one
-      (fails open, but that section says it "differs from command hooks" and uses
-      status codes "instead of exit codes") and the Agent SDK callback one (a
-      `PreToolUse` timeout "blocks the tool call"). They disagree, and neither is
-      a command hook
-- [ ] Because that failure mode is unknown, pick the value so it cannot matter:
-      for anything that **gates**, err long. Too-short plus fails-open is a
-      silent bypass; every other combination is a visible stall or a loud block.
+      minutes. Defaults are per type and per event, not one number: 600 for
+      `command`, `http`, `mcp_tool`; 30 for `prompt`; 60 for `agent`.
+      `UserPromptSubmit` lowers the command/http/mcp_tool default to 30 and
+      `MessageDisplay` lowers it to 10. `SessionEnd` hooks share a 1.5-second
+      budget, raised to match a longer per-hook `timeout` up to 60 seconds
+- [ ] **Timeout behaviour is documented per event, and it is not uniform.** For
+      a *command* hook it is stated for exactly two events, and both fail open:
+      on `UserPromptSubmit` the hook is canceled and its output, including any
+      `additionalContext`, is discarded while the prompt proceeds without it
+      (a transcript notice names the hook and the timeout); on `MessageDisplay`
+      the original text is displayed. On every other event, what a command hook
+      does at timeout is still unstated
+- [ ] Agent SDK **callback** hooks are a different surface and fail *closed*: a
+      `UserPromptSubmit` callback timeout blocks the prompt, and a `PreToolUse`
+      callback timeout blocks the tool call. Do not reason from one surface to
+      the other
+- [ ] Because a gating command hook fails open where it is documented and is
+      unspecified everywhere else, pick the value so it cannot matter: for
+      anything that **gates**, err long. Too-short plus fails-open is a silent
+      bypass — the prompt continues, minus the context your hook was supposed to
+      supply. Every other combination is a visible stall or a loud block.
       Measure the hook, then leave generous headroom
 - [ ] Exit code semantics: exit 0 = **no decision reported** (JSON output
       processed). For `PreToolUse` this does NOT approve the call — the normal
@@ -524,5 +535,13 @@ maintaining a prose copy that can disagree with it.
       something.** Absence is exactly what summarisation discards, so its silence
       is not evidence. Grep the raw page. And quote sentences rather than line
       numbers — snapshots renumber
+- [ ] **Absence claims decay fastest, and nothing flags them.** "The docs do not
+      say X" is falsified by upstream adding one sentence, while a claim about
+      what the docs *do* say usually survives an edit. No diff-watcher reports
+      "a thing you called undocumented now exists". Where a gap must be recorded,
+      write what IS documented and where, then name the gap as the remainder —
+      that form fails loudly on recheck instead of silently. Specimen: this
+      file asserted for months that command-hook timeout behaviour was
+      undocumented; by 2026-08-07 it was documented for two events
 - [ ] A rule with no source, no measurement, and no incident behind it is an
       opinion. Opinions are allowed here, but they say so
