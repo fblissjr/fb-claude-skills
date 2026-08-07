@@ -31,9 +31,11 @@ import re
 from dataclasses import dataclass, field
 
 # `## x` or `### x`, capturing the title.
-_HEADING = re.compile(r"^#{2,3}\s+(.*?)\s*$")
+_HEADING = re.compile(r"^#{2,3}\s+(.*?)\s*$", re.MULTILINE)
 # An annotation comment; fields parsed separately so order never matters.
-_ANNOTATION = re.compile(r"<!--\s*(class:.*?)\s*-->")
+# DOTALL because an annotation may wrap across lines once it is long -- matched
+# against a whole section span (see parse_annotations), not a single line.
+_ANNOTATION = re.compile(r"<!--\s*(class:.*?)\s*-->", re.DOTALL)
 
 
 @dataclass(frozen=True)
@@ -115,27 +117,33 @@ def parse_annotations(text: str) -> list[Annotation]:
     A section may carry several annotations (two source pages, or a harness line
     plus a craft line). Each becomes its own Annotation so a mixed-class section
     is represented honestly rather than collapsed to whichever line came first.
+
+    Headings split the text into spans first; annotations are then matched
+    against a whole span rather than one line at a time, so a comment wrapped
+    across two lines is still found instead of silently vanishing.
     """
     annotations: list[Annotation] = []
-    section = ""
-    for line in text.splitlines():
-        heading = _HEADING.match(line)
-        if heading:
-            section = heading.group(1)
-            continue
-        m = _ANNOTATION.search(line)
-        if not m:
-            continue
-        fields = _parse_fields(m.group(1))
-        annotations.append(
-            Annotation(
-                section=section,
-                evidence_class=fields.get("class", ""),
-                source=fields.get("source"),
-                verified_hash=fields.get("verified_hash"),
-                last_verified=fields.get("last_verified"),
+    spans: list[tuple[str, str]] = []
+    prev_end = 0
+    prev_section = ""
+    for heading in _HEADING.finditer(text):
+        spans.append((prev_section, text[prev_end:heading.start()]))
+        prev_section = heading.group(1)
+        prev_end = heading.end()
+    spans.append((prev_section, text[prev_end:]))
+
+    for section, chunk in spans:
+        for m in _ANNOTATION.finditer(chunk):
+            fields = _parse_fields(m.group(1))
+            annotations.append(
+                Annotation(
+                    section=section,
+                    evidence_class=fields.get("class", ""),
+                    source=fields.get("source"),
+                    verified_hash=fields.get("verified_hash"),
+                    last_verified=fields.get("last_verified"),
+                )
             )
-        )
     return annotations
 
 
@@ -188,7 +196,7 @@ def join_provenance(
 
         cited.add(ann.source)
         finding = Finding(ann.section, ann.source, ann.verified_hash, current, ann.last_verified)
-        if ann.verified_hash is None:
+        if not ann.verified_hash:
             result.unbound.append(finding)
             continue
         if prefix_match:

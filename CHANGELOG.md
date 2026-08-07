@@ -1,5 +1,14 @@
 # changelog
 
+## 1.21.0
+
+### fixed
+- **`skill-maintain` 0.31.0 → 0.31.1 — three provenance-join bugs a multi-angle code review surfaced, each confirmed against this repo's own live state.** A blank-but-present `verified_hash` (`verified_hash: `) parsed to `""` rather than absent, and `"".startswith("")` is vacuously true, so a section never actually checked against anything reported **current**; the gate is now `if not ann.verified_hash`. An annotation comment wrapped across two lines matched nothing under the old per-line regex and silently vanished from every bucket; `parse_annotations` now splits the file into section spans first and matches each span as a whole, so a wrapped comment is still found instead of disappearing. A page missing from an `upstream` fetch (renamed or removed) kept its last-known hash forever — `new_hashes` was seeded from `old_hashes` and the NOT-FOUND branch never touched it — so the section it backed kept reading **current** with nothing left to verify it against; the hash is now dropped on NOT FOUND, so the section correctly falls into `untracked`. Also: `test_repo_hygiene`'s read of `best_practices.md` had no `encoding="utf-8"` where `upstream.py`'s equivalent read of the same file did — both now agree.
+- **`skill-dashboard` 1.1.3 → 1.2.0 — the TypeScript dashboard gets the provenance join, and stops double-counting a live worktree.** `checks.ts` still shipped the `best_practices.md fresh` date check the Python side retired in 0.29.0 for being misleading; it now runs a direct port of `join_provenance`/`parse_annotations`, verified byte-for-byte against this repo's actual state (`23 harness annotations: 19 current, 4 unbound, 0 untracked source`, matching `skill-maintain test` exactly). Separately, `discoverPlugins()` had no equivalent of Python's `SKIP_PATH_PREFIXES` worktree skip, so a live `.claude/worktrees/` checkout was scanned as a second copy of every plugin — verified live, this repo's own worktree was inflating the count from 19 to 38. Both gaps came out of the same code-review pass that found the Python bugs above; the same "current \|\| empty-string" mistake is fixed in the TS port from the start rather than ported over.
+
+### added
+- **`test_repo_hygiene_provenance.py`** — the provenance-join glue inside `test_repo_hygiene` (state loading, the `local_repos` namespace, mtime-based staleness, Result formatting) had no direct test; only the pure `join_provenance`/`parse_annotations` functions underneath were unit tested. Five tests now exercise the actual code path, mutation-proofed against the `local_repos` wiring specifically.
+
 ## 1.20.0
 
 ### changed

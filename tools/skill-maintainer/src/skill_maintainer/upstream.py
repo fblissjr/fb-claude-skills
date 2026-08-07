@@ -171,6 +171,11 @@ def main(args=None):
         content = sections.get(url)
         if content is None:
             print(f"  NOT FOUND in llms-full.txt: {url}", file=sys.stderr)
+            # Drop any stale hash rather than carry it forward: a page that
+            # can no longer be fetched must stop being reported "current" by
+            # the provenance join below, and removing it here is what makes
+            # it fall into that join's `untracked` bucket instead.
+            new_hashes.pop(url, None)
             continue
 
         new_hash = hash_content(content)

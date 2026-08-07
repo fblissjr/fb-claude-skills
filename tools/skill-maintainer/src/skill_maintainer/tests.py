@@ -1164,13 +1164,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
     bp_path = best_practices_file(root)
     if bp_path.exists():
         state = load_hashes(root)
-        stored = {
-            u: h for u, h in state.items()
-            if u.startswith(("http://", "https://"))
-        }
         join = join_provenance(
-            parse_annotations(bp_path.read_text()),
-            stored,
+            parse_annotations(bp_path.read_text(encoding="utf-8")),
+            state,
             repos=state.get("local_repos") or {},
         )
         scope = (
@@ -1187,8 +1183,12 @@ def test_repo_hygiene(root: Path) -> list[Result]:
         ))
 
         hf = hashes_file(root)
-        if hf.exists():
-            age = (date.today() - date.fromtimestamp(hf.stat().st_mtime)).days
+        try:
+            mtime = hf.stat().st_mtime
+        except FileNotFoundError:
+            mtime = None
+        if mtime is not None:
+            age = (date.today() - date.fromtimestamp(mtime)).days
             results.append(Result(
                 "repo", "", "upstream hash state fresh",
                 age <= STALE_DAYS,
