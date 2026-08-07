@@ -93,12 +93,12 @@ Report both paths, repo-relative.
 
 | Markdown | HTML |
 |---|---|
-| Frontmatter | `<header class="meta">` — the `summary` as a lead paragraph, then a definition list of mode, scope, date, range or version and task, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers and what it found. |
+| Frontmatter | `<header class="meta">` — the `summary` as a lead paragraph, then a definition list of lens, scope, date, evidence, range or version and task, supersedes, then the artifacts list. A person receiving the file alone needs this to know what it covers and what it found. |
 | `# Postmortem: ...` | `<h1>` |
 | `## 1. What went well` … | `<section>` with `<h2>` |
 | Finding paragraphs | `<p>`; the citation stays inline in the sentence where it sits |
 | Deviations table | `<table>` with `<thead>` — Planned / Shipped / Verdict |
-| Expectation table (experience mode) | `<table>` with `<thead>` — Expected / Actual / What led me to expect it |
+| Expectation table (`experience` lens) | `<table>` with `<thead>` — Expected / Actual / What led me to expect it |
 | `Nothing.` | `<p class="nothing">Nothing.</p>` |
 | Dated annotation | `<aside class="annotation">` with the date in a `<strong>` |
 | Inline `code` / paths | `<code>` |
@@ -244,8 +244,9 @@ The `:root` custom properties in this template are deliberately mirrored in
 embedded verbatim so each emits one self-contained file, which is why the block
 is duplicated rather than extracted. Change one palette, change the other.
 
-Drop `<dt>Range</dt>` for non-span modes, use `<dt>Version</dt>` and
-`<dt>Task</dt>` in experience mode, and drop the `supersedes` row when absent —
+Drop `<dt>Range</dt>` when the evidence is not a span, use `<dt>Version</dt>` and
+`<dt>Task</dt>` under the `experience` lens, and drop `supersedes` when absent —
+a lens that requires its own fields adds rows here the same way —
 omit rows that do not apply rather than rendering them empty. The `artifacts`
 block is never omitted; if the list is empty the postmortem has no findings, and
 that should be visible rather than hidden.

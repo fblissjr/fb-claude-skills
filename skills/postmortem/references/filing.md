@@ -78,26 +78,31 @@ Rung 4 is the only rung that blocks. Rungs 1–3 write without asking.
 ## Naming
 
 ```
-<resolved-dir>/YYYY-MM-DD_<mode>_<slug>.md
+<resolved-dir>/YYYY-MM-DD_<lens>_<slug>.md
 ```
 
 - **Date first** so lexical sort is chronological sort. Recency is the most
   common filter, and it is the same reason session logs are `log_YYYY-MM-DD.md`.
   For a span, the date is the **start of the range**, not the day someone got
-  round to writing it: `2026-07-01_span_lint-tooling.md`. The write date goes in
-  frontmatter.
-- **Mode** is one of `session`, `span`, `feature`, `experience`, `audit`.
-  `feature` is a span scoped to a named feature rather than a date range; when a
-  run could be called either, the deciding question is what a reader would
-  search for — a feature name or a period of time. `experience` is feedback on
-  the system the work was done *with* rather than on the work. `audit` is
-  `test-audit`'s output, where the slug names the suite audited.
+  round to writing it: `2026-07-01_project_lint-tooling.md`. The write date goes
+  in frontmatter.
+- **Lens** is the name of the lens the run used — `project`, `experience`, or
+  whatever a repo named its own. **Not a closed list**: it is a filename, and
+  the set grows when a repo adds a lens. This token tells a reader what kind of
+  thinking is inside, which is the higher-information choice when a repo uses
+  several lenses. Where the evidence came from goes in frontmatter instead.
+
+  **Files written before 2026-08-07 carry an evidence word here** — `session`,
+  `span`, `feature` — because the two axes were one token then. They are not
+  renamed: a postmortem is historical, and rewriting old filenames would break
+  every `supersedes` pointer and every link already sent to someone. They read
+  as what they are.
 - **Slug** derived from the scope, not the date: `ruff-diagnostics`,
   `pyright-baseline`, `q3-migration`. Lowercase, hyphenated. This is the part a
   grep will match, so prefer the name the artifacts already use over a
-  descriptive phrase. In experience mode the slug is the **subject's** name, not
-  the task's — a reader looking for it is looking for everything written about
-  that tool, and several runs against one subject then sort together.
+  descriptive phrase. Under the `experience` lens the slug is the **subject's**
+  name rather than the task's — a reader looking for it wants everything written
+  about that tool, and several runs against one subject then sort together.
 
 The naming is the portable part and holds in any repo. Only the directory is
 negotiable.
@@ -124,7 +129,8 @@ without reading it.
 
 ```yaml
 ---
-mode: span
+lens: project
+evidence: span
 scope: lint-and-type-tooling
 date: 2026-07-26
 range: 2026-07-01..2026-07-26
@@ -137,11 +143,12 @@ supersedes: 2026-06-14_feature_ruff-trial.md
 ---
 ```
 
-An experience-mode block, which swaps `range` for `version` and `task`:
+An `experience` block, which swaps `range` for `version` and `task`:
 
 ```yaml
 ---
-mode: experience
+lens: experience
+evidence: session
 scope: mitate
 date: 2026-08-07
 version: 0.4.2
@@ -159,17 +166,18 @@ reads it rather than keeping its own list; do not add a second one anywhere.
 
 | Field | Required | Notes |
 |---|---|---|
-| `mode` | yes | Matches the filename token. |
+| `lens` | yes | Matches the filename token. The lens the run used. |
+| `evidence` | yes | Where the run looked: `session`, `span`, `feature`, or what the lens defines. |
 | `scope` | yes | Matches the filename slug. |
 | `date` | yes | When it was written. For a span this differs from the filename date; that is the point. |
 | `summary` | yes | One sentence: what this postmortem *concluded*, not what it examined. See below. |
 | `range` | span only | Exact git range or date range examined. |
-| `version` | experience only | The exact version or build of the subject **as it was used**. |
-| `task` | experience only | One line: what was being built while using the subject. |
+| `version` | `experience` lens | The exact version or build of the subject **as it was used**. |
+| `task` | `experience` lens | One line: what was being built while using the subject. |
 | `artifacts` | yes | Repo-relative paths, commits, or command names. May be empty only if the body has no findings. |
 | `supersedes` | no | Bare filename of an earlier postmortem this one revisits. |
 
-### `version` and `task` (experience mode)
+### `version` and `task` (the `experience` lens)
 
 Both exist because the reader is someone who maintains the subject and has
 never seen this repo, and both answer a question that reader asks before
@@ -184,8 +192,10 @@ was resolved.
 usage and irrelevant in another. It is not recoverable from `summary`, which
 carries the conclusion rather than the setting.
 
-Neither belongs in the other modes, where the repo *is* the subject and both
-answers are already in the git history.
+Neither belongs under the `project` lens, where the repo *is* the subject and
+both answers are already in the git history. **A lens may require fields of its
+own this way** — declare them in the lens file, and the index will carry them
+without displaying them.
 
 ### `summary`
 
@@ -229,7 +239,7 @@ list. The media directory is discoverable from the stem and needs no field of
 its own.
 
 Paths are repo-relative. An absolute path in a postmortem leaks the machine it
-was written on. In experience mode this matters more than anywhere else,
+was written on. Under the `experience` lens this matters more than anywhere else
 because the file is written to be sent to someone outside the repo — and a
 figure can carry an absolute path in pixels that no check here can read. See
 `references/visual-evidence.md`.

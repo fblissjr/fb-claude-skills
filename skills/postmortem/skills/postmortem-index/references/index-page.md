@@ -1,6 +1,6 @@
 # The index page
 
-last updated: 2026-07-26
+last updated: 2026-08-07
 
 Template, styling, and filter script for the generated index.
 
@@ -34,20 +34,22 @@ Same as the postmortem document, with one deliberate exception.
 | One postmortem | `<article class="pm" data-search="...">` |
 | `summary` | `<p class="summary">` |
 | `artifacts` | `<a class="artifact">` each, clickable to filter |
+| `lens` (or `mode` on pre-2026-08-07 files) | `<span class="lens">`, verbatim, never translated |
 | `supersedes` target | `class="pm superseded"` on the older entry |
 | Missing frontmatter | `class="pm partial"` plus a `.badge` saying so |
 | Artifact not in the tree | `class="artifact absent"` plus `title="not in the tree today"` |
 | By-artifact view | `<section id="by-artifact">` with one `<div class="art-row">` per artifact |
-| `version` (experience mode) | `<span class="version">` beside the mode badge |
-| `task` (experience mode) | `<p class="task">`, above the summary |
+| `version` (`experience` lens) | `<span class="version">` beside the lens badge |
+| `task` (`experience` lens) | `<p class="task">`, above the summary |
 | A rendering sharing the stem | `.scope` links the rendering; a `<a class="src">md</a>` links the markdown |
 
-`data-search` is a lowercased space-joined concatenation of date, mode, scope,
+`data-search` is a lowercased space-joined concatenation of date, lens, scope,
 summary, every artifact, and — where present — `version` and `task`. The filter
 matches against that one attribute, so matching behaviour never depends on which
 element a term happened to come from. A term a reader can see on the page but
-cannot filter by reads as a broken filter, which is why the two experience-only
-fields join the string rather than only being displayed.
+cannot filter by reads as a broken filter, which is why the two lens-specific
+fields join the string rather than only being displayed. A lens that requires
+fields of its own joins on the same rule.
 
 Escape `&`, `<`, `>` in all content. Paths and hashes are everywhere in this
 data and a raw `<` silently eats the rest of a line.
@@ -100,7 +102,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
 .pm { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
 .pm-head { display: flex; gap: 0.7rem; align-items: baseline; flex-wrap: wrap; }
 .date { font: 0.86rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
-.mode {
+.lens {
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
   border: 1px solid var(--rule); border-radius: 3px; padding: 0.1rem 0.4rem; color: var(--muted);
 }
@@ -164,11 +166,11 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
 
 <section id="list">
 
-  <article class="pm" data-search="2026-07-26 span lint-and-type-tooling ruff and pyright diagnostics did not overlap changelog.md skills/ruff-diagnostics/">
+  <article class="pm" data-search="2026-07-26 project span lint-and-type-tooling ruff and pyright diagnostics did not overlap changelog.md skills/ruff-diagnostics/">
     <div class="pm-head">
       <span class="date">2026-07-26</span>
-      <span class="mode">span</span>
-      <span class="scope"><a href="2026-07-26_span_lint-and-type-tooling.md">lint-and-type-tooling</a></span>
+      <span class="lens">project</span>
+      <span class="scope"><a href="2026-07-26_project_lint-and-type-tooling.md">lint-and-type-tooling</a></span>
     </div>
     <p class="summary">Ruff and Pyright diagnostics did not overlap; the LSP registration collision was the real constraint.</p>
     <div class="artifacts">
@@ -180,7 +182,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   <article class="pm" data-search="2026-08-07 experience mitate 0.4.2 a 12-second title-card animation timing is expressed in two units scenes/title-card.toml">
     <div class="pm-head">
       <span class="date">2026-08-07</span>
-      <span class="mode">experience</span>
+      <span class="lens">experience</span>
       <span class="version">0.4.2</span>
       <span class="scope"><a href="2026-08-07_experience_mitate.html">mitate</a></span>
       <a class="src" href="2026-08-07_experience_mitate.md">md</a>
@@ -195,10 +197,13 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   <article class="pm superseded" data-search="2026-06-14 feature ruff-trial ...">
     <div class="pm-head">
       <span class="date">2026-06-14</span>
-      <span class="mode">feature</span>
+      <span class="lens">feature</span>
       <span class="scope"><a href="2026-06-14_feature_ruff-trial.md">ruff-trial</a></span>
       <span class="badge">superseded by 2026-07-26</span>
     </div>
+    <!-- pre-2026-08-07: `mode: feature` read into the lens slot verbatim.
+         Not translated, and not marked partial -- the field it has is the
+         field it had. -->
     <p class="summary">&hellip;</p>
     <div class="artifacts">
       <span class="artifact">skills/ruff-diagnostics/</span>
@@ -209,7 +214,7 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
   <article class="pm partial" data-search="2026-03-14 session setup">
     <div class="pm-head">
       <span class="date">2026-03-14</span>
-      <span class="mode">session</span>
+      <span class="lens">session</span>
       <span class="scope"><a href="2026-03-14_session_setup.md">setup</a></span>
       <span class="badge">partially indexed</span>
     </div>

@@ -1,7 +1,7 @@
 ---
 name: postmortem-index
 argument-hint: "[--from=<dir>] [--out=<dir>]"
-description: "Build a browsable HTML index of every postmortem in a repo — date, mode, scope, one-line conclusion, and the artifacts each one examined, plus a by-artifact view answering 'has anything been written about this file'. Reads frontmatter only; superseded postmortems are shown and marked, never hidden. Use when the user says 'browse postmortems', 'postmortem index', 'show me past postmortems', 'what have we written about X', 'list our retrospectives', or wants to find an earlier postmortem without knowing its filename. Do NOT use to run a postmortem (use postmortem) or to audit tests (use test-audit)."
+description: "Build a browsable HTML index of every postmortem in a repo — date, lens, scope, one-line conclusion, and the artifacts each one examined, plus a by-artifact view answering 'has anything been written about this file'. Reads frontmatter only; superseded postmortems are shown and marked, never hidden. Use when the user says 'browse postmortems', 'postmortem index', 'show me past postmortems', 'what have we written about X', 'list our retrospectives', or wants to find an earlier postmortem without knowing its filename. Do NOT use to run a postmortem (use postmortem) or to audit tests (use test-audit)."
 metadata:
   last_verified: "2026-07-26"
   review_interval_days: "365"
@@ -57,7 +57,7 @@ and never displayed is invisible in exactly the view that exists to surface it.
 Two display rules the field table does not carry, because they are this page's
 business rather than the record's:
 
-- Render `version` beside the mode badge. Feedback on a tool ages against that
+- Render `version` beside the lens badge. Feedback on a tool ages against that
   tool's releases, so a reader scanning several experience postmortems about one
   subject is deciding what is still live, and that is the field that answers it.
 - Treat any frontmatter key not in the table as data this page does not display,
@@ -79,9 +79,17 @@ not confirm exists.
 **Files with missing or unparseable frontmatter still appear.** Postmortems
 written before this field set existed have none, and silently dropping them is
 what makes an index untrustworthy — a reader cannot tell "nothing was written"
-from "the tool did not understand it". The filename carries `date`, `mode` and
-`scope` on its own, which is the portable part of the naming rule; recover those,
-leave the rest blank, and mark the entry as partially indexed.
+from "the tool did not understand it". The filename carries `date`, the middle
+token, and `scope` on its own, which is the portable part of the naming rule;
+recover those, leave the rest blank, and mark the entry as partially indexed.
+
+**`lens` falls back to `mode`.** Files written before 2026-08-07 carry `mode:`
+with an evidence word (`session`, `span`, `feature`) where `lens:` now sits, and
+their filenames carry that word too. Read `lens`, fall back to `mode`, and
+display whatever you found without translating it — those files really were
+written under one axis, and inventing a lens name for them would assert
+something about a document nobody re-read. They are not partially indexed; the
+field they have is the field they had.
 
 **Artifact entries that do not resolve in the tree are marked, not dropped.**
 Check each path-shaped entry against the working tree; entries naming a commit or
@@ -97,7 +105,7 @@ by-artifact view that silently lists fewer artifacts than were examined.
 `references/index-page.md` has the template, styling, and the filter script.
 Two views of the same data, on one page:
 
-1. **Chronological**, newest first. Each entry: date, mode, scope, the `summary`
+1. **Chronological**, newest first. Each entry: date, lens, scope, the `summary`
    sentence, and its artifacts. A postmortem named by another's `supersedes` is
    shown dimmed and labelled — a stale conclusion a reader can see is stale is
    useful, and one that has been hidden is a trap.

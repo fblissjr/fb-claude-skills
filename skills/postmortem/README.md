@@ -18,7 +18,8 @@ The skills share one discipline: findings are claims, claims need citations,
 and empty sections are valid output. The postmortem format (what went well /
 what did not / deviations table / escapes / forward items, annotate-don't-
 rewrite) was distilled from a real run postmortem in this repo that caught its
-own process errors; the test-audit method (claim / oracle / envelope, spot
+own process errors, and now ships as the default `project` lens; the test-audit
+method (claim / oracle / envelope, spot
 mutation, "a green suite proves what its conditions can express") generalizes
 the same run's verification lessons.
 
@@ -32,7 +33,7 @@ the same run's verification lessons.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work: session mode (the conversation), span/feature mode (git history, session logs, changelogs, plan docs), or experience mode (feedback to the developers of the system the work was done *with*). Output is always a durable file; `--visuals` adds figures and charts. |
+| `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work. Three independent axes: **evidence** (this conversation, or git history / session logs / changelogs / plan docs), **lens** (what gets asked and who reads it), **rendering** (`--html`, `--visuals`). Output is always a durable file. |
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
 | `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Files a dated `audit` artifact via the shared filing ladder. Per-architecture question packs in `references/architectures.md`. |
 | `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
@@ -49,9 +50,9 @@ the same run's verification lessons.
 ```
 /postmortem:postmortem                # this session
 /postmortem:postmortem <feature|range|plan doc|"last N sessions">
-/postmortem:postmortem span auth-migration --out=docs/postmortems
+/postmortem:postmortem auth-migration --out=docs/postmortems
 /postmortem:postmortem --html         # markdown plus a readable HTML file
-/postmortem:postmortem experience mitate --visuals   # feedback for that tool's devs, with figures
+/postmortem:postmortem mitate --lens=experience --visuals   # feedback for that tool's devs, with figures
 /postmortem:postmortem-index          # browsable index over all of them
 /postmortem:postmortem-index --from=docs/postmortems --out=build/
 /postmortem:test-audit                # audit the current repo's suite
@@ -63,36 +64,74 @@ Or trigger naturally: "run a postmortem on the auth migration", "write up what
 it was like building with X for their devs", "which of our tests are dead
 weight", "prove this check can actually fail", "do our hooks actually fire".
 
-## Experience mode
+## Lenses
 
-The first three modes ask *what did we build and what did it teach us*.
-Experience mode asks *what was it like to build with this thing*, and its reader
-is someone who maintains that thing and has never seen your repository. Six
-sections instead of five:
+The three built-in axes are independent, which they were not before 2026-08-07:
+
+- **Evidence** — where to look. This session, a git range, a feature, a plan doc.
+- **Lens** — what to ask and who is reading.
+- **Rendering** — markdown always, plus `--html`, plus `--visuals`.
+
+Previously these were one word (`mode`), which made most combinations
+unreachable: three of the five old modes asked identical questions and differed
+only in where they looked, so asking the feedback-for-developers questions across
+a span of sessions was impossible — not because it is a bad idea, but because
+nobody had minted a token for it.
+
+**A lens is one markdown file** holding the sections and the guidance under each.
+Built-ins live in `lenses/`; a repo adds its own the same way, and a repo lens
+shadows a built-in of the same name so `project` can be adapted without forking
+the plugin. Resolution: `--lens=<name>`, then `"lens"` in `.postmortem.json`,
+then a repo-local `lenses/` beside where postmortems are filed, then built-in
+`project`. A named lens that does not resolve is an error, never a silent
+fallback.
+
+| Built-in | Reader | For |
+|---|---|---|
+| `project` | your future self, the next model | Work this repo did. The default. |
+| `experience` | the developers of a system you used | What it was like to build with something. |
+
+### The line that makes this safe
+
+**A lens says what to ask. The core says what counts as an answer.**
+
+A lens picks sections and nothing else. It cannot weaken the rules every
+postmortem runs on — no citation no finding, empty sections are valid, annotate
+don't rewrite, always a file, `artifacts` is a projection of the citations. So
+the worst a bad lens can do is ask boring questions; it cannot produce an
+ungrounded document or quietly turn the discipline off.
+
+Writing one is prose, not config — which is the point. A list of section *names*
+would give you headings and throw away the method, and the method is where the
+value is: *"which test should have caught this, missing or green-but-blind?"*
+does the work that a heading called "Escapes" does not. `lenses/README.md` has
+the format.
+
+### The `experience` lens
+
+Its reader maintains the subject and has never seen your repository, and every
+format decision follows from that. Six sections:
 
 | Section | What it holds |
 |---|---|
 | What worked | Affordances that paid off — the only signal a developer gets about what **not** to break. |
-| What did not | Friction, with a cost attached. Repeats are one finding with several citations, not several findings. |
+| What did not | Friction, with a cost attached. Repeats are one finding with several citations. |
 | Expectation vs. behaviour | Expected / Actual / **What led me to expect it**. The third column names the surface that misled, which is the thing to fix. |
-| Escapes: guidance and instrumentation | Per wrong turn, which surface should have prevented it: absent, present-but-not-found, or present-but-misleading. The structural twin of the test-escapes section. |
-| Built outside the system | What you had to make yourself, what it substitutes for, and whether it is a workaround (should stop existing) or a legitimate extension. Each row is a capability request shipping with a reference implementation. |
+| Escapes: guidance and instrumentation | Per wrong turn: absent, present-but-not-found, or present-but-misleading. |
+| Built outside the system | What you had to make yourself — each row a capability request shipping with a reference implementation, split into workarounds and legitimate extensions. |
 | Forward items | Checkable, ordered by cost. The only section where a wish is allowed, and only if a finding above names the moment it was wanted. |
 
-Its evidence is friction, which is the first thing a successful session
-overwrites, so it is reconstructed from the session trace rather than from
-memory — "I was confused" is not a finding; the turn where you were confused,
-what you did next, and what it cost is. Two rules keep the output usable:
-**rank by cost, not annoyance**, and **separate "it is missing" from "I did not
-find it"** — the second is still a finding, but a discoverability one with a
-completely different fix.
+Its evidence is friction, which a successful session overwrites first, so it is
+reconstructed from the session trace rather than memory — "I was confused" is not
+a finding; the turn where you were confused, what you did next, and what it cost
+is. Two rules keep it usable: **rank by cost, not annoyance**, and **separate "it
+is missing" from "I did not find it"** — the second is still a finding, but a
+discoverability one with a different fix.
 
-Frontmatter adds `version` (the build of the subject as it was used — feedback
-ages against releases) and `task` (what you were building while using it).
-
-Because this file is written to be sent outside the repo, redaction matters more
-here than anywhere else — including in pixels, which path-privacy's hooks cannot
-read.
+Frontmatter adds `version` and `task`. **A lens may require fields of its own
+this way.** And because this file is written to be sent outside the repo,
+redaction matters more here than anywhere else — including in pixels, which
+path-privacy's hooks cannot read.
 
 ## Visuals
 
@@ -124,6 +163,7 @@ rather than inside whichever skill happened to need them first:
 | File | Read by |
 |------|---------|
 | `references/filing.md` | `postmortem` and `test-audit` (write), `postmortem-index` (locate) |
+| `lenses/*.md` | `postmortem`; a repo's own lenses shadow these |
 | `references/verification.md` | `adversarial-verify`, `test-audit`, `control-audit`, and the `control-builder` agent |
 
 There is no import mechanism in a plugin made of prose — a file is shared only
@@ -158,7 +198,7 @@ number is informational, not complete.
   The directory is resolved per repo rather than hardcoded — `--out=<dir>`, a
   root-level `.postmortem.json`, inference from where the repo already keeps
   prose about itself, else a proposal — and the run reports which rung it landed
-  on. Named `YYYY-MM-DD_<mode>_<slug>.md`, date first so lexical sort is
+  on. Named `YYYY-MM-DD_<lens>_<slug>.md`, date first so lexical sort is
   chronological. Frontmatter carries an `artifacts` list that must match the
   body's citations exactly, which is what makes "has anything been written about
   this file" a one-line grep and why there is deliberately no index file. Full

@@ -1,5 +1,22 @@
 # changelog
 
+## 1.16.0
+
+### changed
+- **`postmortem` 0.10.0 → 0.11.0 — `mode` was three things wearing one word; they are now three axes, and the middle one is a file.** The owner confirmed different kinds of work want different postmortems, which turns a hypothetical into a requirement. Splitting `mode` was the way to serve it: it had been silently carrying **where the evidence comes from**, **what gets asked and who reads it**, and **how it renders**. Three of the five old modes (`session`, `span`, `feature`) asked identical questions and differed only in where they looked, so most combinations were unreachable — asking the feedback-for-developers questions across a span of sessions was impossible, not because it is a bad idea but because nobody had minted a token for it.
+
+  Now: **evidence** is the positional argument, **lens** is `--lens=<name>`, **rendering** is `--html` / `--visuals`. A lens is one markdown file holding sections and the guidance under each. Built-ins live in `lenses/`; a repo drops its own beside where it files postmortems, and a repo lens **shadows a built-in of the same name**, which is how `project` gets adapted without forking the plugin. A named lens that does not resolve is an error, never a silent fallback — quietly writing the wrong kind of postmortem is worse than writing none.
+
+  **The line that makes it safe: a lens says what to ask; the core says what counts as an answer.** A lens picks sections and has no authority over no-citation-no-finding, empty-sections-are-valid, annotate-don't-rewrite, always-a-file, or `artifacts`-is-a-projection. The worst a bad lens can do is ask boring questions.
+
+  **Why prose files and not config keys**, which is the part that took two attempts to get right: a configurable list of section *names* gives you headings and throws away the method, and the method is the whole value — *"which test should have caught this, missing or green-but-blind?"* does work that a heading called "Escapes" does not. A lens file carries both. It also means shipped and custom lenses are the same representation, so there is no defaults-in-prose / customs-in-JSON split to drift. `.postmortem.json` gains exactly one key (`lens`, the repo default) rather than a schema.
+
+  The evidence that this was a variable all along: `experience` was added as a *second hardcoded section set* eight commits ago rather than as data. That was the fork this release undoes. `report-format.md` now holds only what every lens inherits — the finding shape, the file rule, annotation, figures — and the five sections move to `lenses/project.md`, the six to `lenses/experience.md`. Routing moves into the lenses too, since where a finding should go depends on who the lens is written for.
+
+  Filing: the filename token is now the **lens**, not the evidence word, because it tells a reader what kind of thinking is inside — the higher-information choice once a repo uses several lenses. Frontmatter carries `lens` and `evidence` as separate fields, and **a lens may require fields of its own** (`experience` requires `version` and `task`), which the index carries without displaying.
+
+  **Files written before this release are not renamed or reinterpreted.** They carry `mode:` with an evidence word, and their filenames carry that word too. `postmortem-index` reads `lens`, falls back to `mode`, and displays whatever it found **verbatim** — inventing a lens name for them would assert something about a document nobody re-read. They are explicitly *not* marked partially indexed: the field they have is the field they had. Renaming them would also break every `supersedes` pointer and every link already sent to someone.
+
 ## 1.15.0
 
 ### changed

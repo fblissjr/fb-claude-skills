@@ -96,7 +96,7 @@ suite-level findings and usually the most valuable output.
 
 **This audit writes a file.** Location, naming, and frontmatter come from the
 plugin-level `../../references/filing.md`, the same ladder `postmortem` uses,
-with mode token `audit` and the slug naming the suite or scope audited
+with lens token `audit` and the slug naming the suite or scope audited
 (`2026-08-07_audit_skill-maintainer.md`).
 
 Why this files when the sibling `control-audit` deliberately persists nothing:

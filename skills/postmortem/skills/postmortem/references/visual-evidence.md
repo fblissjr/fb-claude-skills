@@ -3,7 +3,7 @@
 last updated: 2026-08-07
 
 Read this when `--visuals` was passed. It covers figures, charts, and the media
-directory. Any mode may use it; experience mode uses it most.
+directory. Any lens may use it; `experience` uses it most.
 
 `--visuals` implies `--html`. A figure set whose only rendering is relative
 image links in a markdown file is half a deliverable — the point of showing

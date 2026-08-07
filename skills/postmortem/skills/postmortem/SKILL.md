@@ -1,10 +1,9 @@
 ---
 name: postmortem
-argument-hint: "[session|span|feature|experience] [scope] [--html] [--visuals] [--out=<dir>]"
+argument-hint: "[scope] [--lens=<name>] [--html] [--visuals] [--out=<dir>]"
 arguments:
-  - mode
   - scope
-description: "Evidence-grounded postmortem of finished work — a session, a feature, a span of sessions, or the experience of building with a system. Every finding must cite a concrete artifact; empty sections are valid output. Use when the user says 'postmortem', 'run a postmortem', 'retrospective', 'what went well', 'what would you do differently', or wants a look back at a completed plan, task, bugfix, feature, or run of sessions. Experience mode writes feedback to a tool's developers — 'what was confusing about using X', 'feedback for the devs', 'developer experience writeup', 'what did I have to build around it', 'what do I wish it had'. Span mode mines git history, session logs, and changelogs. Add --visuals for figures and charts when findings are about something visible or counted. Do NOT use for auditing a test suite (use test-audit) or for drafting a session log."
+description: "Evidence-grounded postmortem of finished work. Every finding must cite a concrete artifact; empty sections are valid output. Use when the user says 'postmortem', 'run a postmortem', 'retrospective', 'what went well', 'what would you do differently', or wants a look back at a completed plan, task, bugfix, feature, or run of sessions. Evidence can be this session, a git range, a feature, or a plan doc. A lens picks what gets asked and who reads it: the default covers work this repo did, and the experience lens writes feedback to a tool's developers - 'what was confusing about using X', 'feedback for the devs', 'developer experience writeup', 'what do I wish it had'. Repos can add their own lenses. Add --visuals for figures and charts. Do NOT use for auditing a test suite (use test-audit) or for drafting a session log."
 metadata:
   last_verified: "2026-07-24"
   review_interval_days: "365"
@@ -23,36 +22,54 @@ decision visible in the record. Generic advice ("could add more tests",
 findings, write "Nothing." — **an empty section is valid output, not a
 failure.** Never invent an item to fill a frame.
 
-## Scope: three modes
+## Three axes
 
-Chosen by the argument. The first two ask *what did we build and what did it
-teach us*; the third asks *what was it like to build with this thing*.
+A run picks one of each, independently. They used to be one word (`mode`),
+which made most combinations unreachable.
 
-- **Session mode** (no argument, or "this session"): the evidence base is the
-  current conversation — decisions made, errors hit, detours taken, bugs found
-  and fixed, commands that failed, assumptions that turned out wrong.
-- **Span mode** (an argument naming a feature, git range, plan doc, or "the
-  last N sessions"): the evidence base is the repository record. A span scoped
-  to a named feature rather than a date range files as mode `feature`; the
-  method is identical. Gather, in order of value:
-  1. The plan doc, if one exists (needed for the deviations table).
-  2. `git log` over the range — commits, messages, what was reverted or
-     re-fixed.
+### 1. Evidence — where to look
+
+Set by the positional argument.
+
+- **This session** (no argument, or "this session"): the current conversation —
+  decisions made, errors hit, detours taken, bugs found and fixed, commands that
+  failed, assumptions that turned out wrong.
+- **The repository record** (an argument naming a feature, git range, plan doc,
+  or "the last N sessions"). Gather, in order of value:
+  1. The plan doc, if one exists.
+  2. `git log` over the range — commits, messages, what was reverted or re-fixed.
   3. Session logs, wherever this repo keeps them.
   4. `CHANGELOG.md` entries in the range.
-- **Experience mode** (the user asks for feedback on a system rather than on
-  the work — "what was confusing about using X", "write this up for the devs",
-  "what do I wish it had"): the subject is the tool, framework, API, harness,
-  or skill the work was done *with*, and the reader is someone who maintains it
-  and has never seen this repository. Its evidence is friction, which is the
-  first thing a successful session overwrites, so it is reconstructed from the
-  session trace rather than from memory of it. Six sections instead of five, an
-  extra pair of frontmatter fields, and rules about redaction that the other
-  modes do not need: `references/experience-mode.md`. Read it before gathering
-  evidence, not after.
 
-Do the evidence pass **before** writing any finding. In span and experience
-mode, read the record first; do not reconstruct it from memory.
+Do the evidence pass **before** writing any finding. Read the record; do not
+reconstruct it from memory of it.
+
+### 2. Lens — what to ask, and who is reading
+
+A lens is one markdown file holding the sections and the guidance under each.
+Resolve in order, and **say which rung you landed on**:
+
+1. `--lens=<name>` on the invocation.
+2. `"lens"` in the repo's root-level `.postmortem.json`.
+3. A repo-local `lenses/` directory beside where postmortems are filed. A repo's
+   own lens shadows a built-in of the same name — that is how a repo adapts one
+   without forking the plugin.
+4. The built-in `project` lens.
+
+A named lens that does not resolve is an error, not a silent fallback: say what
+was asked for, list what is available, and stop.
+
+Built-ins are `../../lenses/project.md` (work this repo did — the default) and
+`../../lenses/experience.md` (feedback to the developers of a system you used).
+`../../lenses/README.md` has the format and how to write one.
+
+**Read the chosen lens before gathering evidence**, not after — it changes what
+counts as evidence.
+
+### 3. Rendering
+
+Markdown always. `--html` adds a rendering; `--visuals` adds figures and implies
+`--html`. Both are below.
 
 ## Ground rules
 
@@ -93,17 +110,15 @@ offer — do not capture unasked, and do not silently create the directory.
 
 ## Writing the report
 
-The section-by-section format and the table for routing each kind of finding
-afterwards are in `references/report-format.md`. Read it when you start
-writing, not when deciding whether to run one. Experience mode replaces its
-five sections with the six in `references/experience-mode.md`; everything else
-in it still applies.
+`references/report-format.md` holds what a finding looks like and what the file
+must be — the rules every lens inherits. The sections themselves come from the
+lens. Read both when you start writing, not when deciding whether to run one.
 
 **A postmortem is always a standalone file**, never a section appended to a
 plan doc. Where it goes is resolved per repo — an `--out=<dir>` flag, a
 root-level `.postmortem.json`, or inference from where that repo already keeps
 prose about itself — and with no signal at all you propose a location rather
-than creating one. The naming rule `YYYY-MM-DD_<mode>_<slug>.md` and the
+than creating one. The naming rule `YYYY-MM-DD_<lens>_<slug>.md` and the
 required frontmatter (including the `artifacts` list, which must match the
 body's citations exactly) are in `../../references/filing.md` — shared with
 the other skills in this plugin that write files. Read it before writing.
