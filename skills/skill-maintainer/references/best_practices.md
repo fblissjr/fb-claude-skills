@@ -109,7 +109,12 @@ whether or not it is used.
       beside it and load on demand
 - [ ] Where a repo has an `AGENTS.md`, the project CLAUDE.md `@AGENTS.md` imports
       it rather than duplicating it. Claude Code does not read `AGENTS.md`
-      directly
+      directly. `ln -s AGENTS.md CLAUDE.md` is the documented alternative, but the
+      import is the portable one — a symlink on Windows needs Administrator or
+      Developer Mode
+- [ ] Imports recurse to a maximum depth of **four** hops, and relative paths
+      resolve against the importing file, not the working directory. An import
+      chain deeper than that silently stops resolving
 - [ ] A rule earns its tier: mechanically detectable violation belongs in a
       `PreToolUse` block, a detectable condition in a `PostToolUse` notice, and
       only what is neither becomes ambient prose. Cost is *emission*, not
@@ -119,8 +124,8 @@ whether or not it is used.
 
 ### hooks
 
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-07-21 -->
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | last_verified: 2026-08-07 -->
 
 **Enforced by: nothing.** Every item here is authoring discipline. Several fail
 *silently* — marked (silent) — which is why they are constraints rather than
@@ -154,16 +159,33 @@ guidance.
       permission flow still applies. Exit 2 = blocking error (stderr shown to
       user). Any other non-zero = non-blocking error. Never use exit 1 to gate
 - [ ] Per-event exceptions: `WorktreeCreate` fails creation on ANY non-zero exit;
-      `Setup` surfaces stderr as a hook error on any non-zero exit including 2
-- [ ] Use **exec form** (set `args`) whenever a hook command references a path
-      placeholder like `${CLAUDE_PLUGIN_ROOT}`. Shell form passes the whole string
-      to `sh -c`, so a plugin root containing a space breaks the hook (silent)
-- [ ] Exec form for a bundled shell script names the interpreter:
+      `Setup` cannot block at all — any non-zero including 2 surfaces stderr as a
+      `<hook name> hook error` notice and execution continues
+- [ ] Exit 2 does not reach Claude on every event. For `SessionStart`, `Setup`,
+      and `SubagentStart` the stderr renders as a hook-error notice to the user
+      and Claude never sees it — so a hook trying to inject a correction on those
+      events via exit 2 is talking to the wrong audience. For `SubagentStart` the
+      notice lands in the subagent's transcript, not the parent's
+- [ ] `asyncRewake: true` runs the hook in the background and wakes Claude on
+      exit 2, surfacing stderr (or stdout when stderr is empty) as a system
+      reminder. Implies `async`. This is the supported shape for a long-running
+      check that must still be able to report a failure
+- [ ] A hook runs **exec form** when `args` is set and **shell form** when it is
+      omitted. Set `args` whenever the command references a path placeholder like
+      `${CLAUDE_PLUGIN_ROOT}`: exec form passes each element as one argument with
+      no quoting and no shell, so spaces and `$`, apostrophes and backticks pass
+      through verbatim on every platform
+- [ ] Shell form passes the string to a shell that varies by platform — `sh -c`
+      on macOS and Linux, Git Bash on Windows, PowerShell when Git Bash is not
+      installed. Set the `shell` field to choose explicitly rather than inheriting
+      that. Keep shell form only where pipes, `&&`, redirects, or globs are
+      genuinely needed
+- [ ] Exec form for a bundled script names the interpreter:
       `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]` — NOT the
-      script path as `command`. On Windows a `.sh` file is not spawnable, and
-      naming the interpreter works on every platform
-- [ ] Keep shell form only where shell features are actually needed (pipes,
-      `&&`, redirects, globs)
+      script path as `command`. On Windows exec form requires `command` to resolve
+      to a real executable, so a `.sh` file is not spawnable and neither are the
+      `.cmd`/`.bat` shims under `node_modules/.bin`. Naming the interpreter
+      (`bash`, or `node` plus the script path) works everywhere
 - [ ] `if` applies only to tool events: `PreToolUse`, `PostToolUse`,
       `PostToolUseFailure`, `PermissionRequest`, `PermissionDenied`. `FileChanged`
       is NOT one of them. On any other event a hook with `if` set **never runs** —
@@ -171,7 +193,14 @@ guidance.
 - [ ] `if` Bash matching is best-effort and **fails open** on unparseable
       commands. Use the permission system, not a hook, for hard allow/deny (silent)
 - [ ] `if` file patterns are rooted at the working directory: `Edit(src/**)`
-      matches only top-level `src`. Use `Edit(**/src/**)` for any depth (silent)
+      matches only top-level `src`. Use `Edit(**/src/**)` for any depth (silent).
+      This is v2.1.214+ behaviour; earlier versions matched at any depth, so a
+      pattern written before then quietly narrowed
+- [ ] `if` holds **exactly one** permission rule. There is no `&&`, `||`, or list
+      syntax — multiple conditions need one handler each (silent)
+- [ ] Plugin-bundled MCP tools need the scoped matcher form
+      `mcp__plugin_<plugin>_<server>__<tool>`. A matcher written against the bare
+      server key never fires for them (silent)
 - [ ] `${user_config.*}` is rejected in shell-form plugin hook commands
       (v2.1.207+). Read `$CLAUDE_PLUGIN_OPTION_<KEY>` instead, or set `args` to
       switch to exec form
@@ -190,7 +219,7 @@ guidance.
 
 ### agents and tool access
 
-<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-08-07 -->
 
 **Enforced by: nothing.**
 
@@ -198,10 +227,33 @@ guidance.
       denylist applies first; a tool in both is removed
 - [ ] Set `tools` explicitly on read-only agents. Omitting it inherits
       everything, including Write/Edit and all MCP tools
-- [ ] If NO entry in `tools` resolves, the subagent refuses to launch rather than
-      starting tool-less
-- [ ] The `skills` field only preloads skills; it does not gate access. To block
-      skill invocation, omit `Skill` from `tools` or add it to `disallowedTools`
+- [ ] **`tools` is not the last word — two filters run after it.** The first
+      removes a fixed list from every subagent (below) even when you list it.
+      The second applies to *background* subagents, which since v2.1.198 is the
+      **default**: apart from `Agent` and `ExitPlanMode`, a background subagent
+      keeps every MCP tool but only these built-ins — `Read`, `Grep`, `Glob`,
+      `Bash`, `PowerShell`, `Edit`, `Write`, `NotebookEdit`, `WebFetch`,
+      `WebSearch`, `TodoWrite`, `Skill`, `ToolSearch`, `EnterWorktree`,
+      `ExitWorktree`, `Monitor`, `TaskStop`, `SendMessage`, `Artifact`.
+      Everything else is removed whether inherited or explicitly listed, **and
+      the removal reports no error** unless it empties the list. The same
+      definition therefore resolves to different tools in foreground and
+      background. Set `background: false` where a tool outside that set is
+      load-bearing
+- [ ] Forks skip both filters and receive the main conversation's exact tool
+      pool. Agent-team teammates additionally keep `TaskCreate`, `TaskGet`,
+      `TaskList`, `TaskUpdate`, `CronCreate`, `CronDelete`, `CronList`
+- [ ] If NO entry in `tools` resolves, the subagent *usually* fails to launch
+      with an error naming the unresolved entries. Upstream hedges this word;
+      before v2.1.208 such a subagent launched tool-less and returned empty or
+      confusing results
+- [ ] The `skills` field only preloads skills — the full content, not just the
+      description — and does not gate access. Subagents can still invoke
+      unlisted project, user, and plugin skills through the Skill tool. To block
+      that, omit `Skill` from `tools` or add it to `disallowedTools`
+- [ ] An agent `name` cannot contain `:`, which is reserved for plugin-scoped
+      identifiers. A file whose name contains one is not loaded and the error
+      goes to the debug log only (v2.1.218+; earlier versions accepted it)
 - [ ] `allowed-tools` on a *skill* **grants pre-approval**; it does not restrict.
       Every tool stays callable. `disallowed-tools` is the field that restricts.
       Both are scoped to the invoking turn and clear on the next user message,
@@ -381,9 +433,15 @@ Agent Skills spec (portable): `name`, `description`, `license`, `allowed-tools`,
 `metadata`, `compatibility`.
 
 Claude Code extensions (not portable — `skill-maintain validate --strict` flags
-these): `paths`, `model`, `effort`, `hooks`, `agent`, `argument-hint`, `shell`,
-`context`, `disable-model-invocation`, `user-invocable`, `when_to_use`,
-`disallowed-tools`, `arguments`.
+these): `paths`, `model`, `effort`, `hooks`, `agent`, `background`,
+`argument-hint`, `shell`, `context`, `disable-model-invocation`,
+`user-invocable`, `when_to_use`, `disallowed-tools`, `arguments`.
+
+Narrower still: claude.ai skill uploads, the Skills API, and `package_skill.py`
+accept only `name`, `description`, `license`, `compatibility`, `metadata`, and
+`allowed-tools` — so `argument-hint` alone is enough to be rejected there. A
+personal skill enabled for Cowork or cloud sessions is uploaded to claude.ai and
+subject to those rules.
 
 | Field | Notes |
 |---|---|
@@ -399,28 +457,41 @@ these): `paths`, `model`, `effort`, `hooks`, `agent`, `argument-hint`, `shell`,
 
 ### agent frontmatter fields
 
-<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/sub-agents | last_verified: 2026-08-07 -->
 
 A separate surface from skills. Only `name` and `description` are required.
 
 Full set: `name`, `description`, `tools`, `disallowedTools`, `model`,
 `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`,
-`background`, `effort`, `isolation`, `color`, `initialPrompt`.
+`background`, `effort`, `isolation`, `color`, `initialPrompt`. The `--agents`
+JSON flag accepts the same set plus `prompt` for the system prompt.
 
 | Field | Values |
 |---|---|
 | `model` | `sonnet` \| `opus` \| `haiku` \| `fable` \| a full model ID \| `inherit` (default) |
-| `effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
-| `memory` | `user` \| `project` \| `local` (`project` is the documented default choice) |
-| `isolation` | `worktree` only |
+| `effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max`; available levels depend on the model |
+| `permissionMode` | `default` \| `acceptEdits` \| `auto` \| `dontAsk` \| `bypassPermissions` \| `plan` \| `manual` (alias for `default`, v2.1.200+) |
+| `memory` | `user` (across all projects) \| `project` (project-specific, version-controlled) \| `local` (project-specific, not checked in). No default is documented — choose by scope |
+| `isolation` | `worktree` only. Branches from the DEFAULT branch, not the parent session's `HEAD`; cleaned up automatically if the subagent makes no changes |
+| `background` | `true` forces background. Unset lets Claude choose, and since v2.1.198 it chooses background by default — which changes the tool set |
 
 `name` is the identity — the filename need not match — and is what hooks receive
 as `agent_type`. There is no `when-to-use` field; delegation triggers belong in
 `description`.
 
-Never available to subagents regardless of configuration: `AskUserQuestion`,
-`EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless `permissionMode: plan`),
-`ScheduleWakeup`, `WaitForMcpServers`.
+Ignored entirely for plugin-shipped subagents: `hooks`, `mcpServers`,
+`permissionMode`.
+
+Removed from every subagent regardless of configuration, even when listed in
+`tools`: `Agent` (at the depth limit), `AskUserQuestion`, `EndConversation`,
+`EnterPlanMode`, `ExitPlanMode` (unless `permissionMode: plan`), `ScheduleWakeup`,
+`TaskOutput`, `WaitForMcpServers`, `Workflow`. A second, larger filter applies to
+background subagents — see the constraint above, since background is the default.
+
+`Agent(agent_type)` allowlist syntax applies only to an agent running as the main
+thread via `claude --agent`. Inside a subagent definition, listing `Agent` in
+`tools` permits spawning within the depth limit, but any type list in parentheses
+is ignored.
 
 **When an agent beats a skill:** delegate to isolate high-volume output (test
 runs, doc fetches, log processing) and for parallel independent investigations.
@@ -429,7 +500,7 @@ context, quick targeted edits, and latency-sensitive work.
 
 ### hook types and events
 
-<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-07-21 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/hooks | last_verified: 2026-08-07 -->
 
 `type` is one of `command`, `http`, `mcp_tool`, `prompt`, `agent`. Most hooks
 in the wild are `command`; `prompt` is LLM-evaluated and can judge what a shell
@@ -440,17 +511,30 @@ Tool events (the only ones where `if` works): `PreToolUse`, `PostToolUse`,
 
 ### string substitutions
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-04-19 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
 
 | Token | Expands to |
 |---|---|
 | `$ARGUMENTS` | all arguments passed to the skill |
-| `$ARGUMENTS[N]` / `$N` | positional arguments |
+| `$ARGUMENTS[N]` / `$N` | positional arguments; `arguments` frontmatter names them for `$name` use |
 | `${CLAUDE_SESSION_ID}` | session identifier |
-| `${CLAUDE_SKILL_DIR}` | directory containing SKILL.md |
+| `${CLAUDE_SKILL_DIR}` | directory containing SKILL.md. **For a plugin skill this is the skill's subdirectory, not the plugin root** |
+| `${CLAUDE_PROJECT_DIR}` | project root; the same path hooks and MCP servers receive |
+| `${CLAUDE_EFFORT}` | `low` \| `medium` \| `high` \| `xhigh` \| `max`. Ultracode is not a distinct level and reports as `xhigh` |
 | `${CLAUDE_PLUGIN_ROOT}` | bundled read-only assets; changes on every plugin update |
 | `${CLAUDE_PLUGIN_DATA}` | persistent per-plugin state; survives updates |
 | `` !`cmd` `` | preprocessed shell output. Disabled repo-wide by `disableSkillShellExecution: true` for user/project/plugin/add-dir skills |
+
+`${CLAUDE_SKILL_DIR}` and `${CLAUDE_PROJECT_DIR}` are substituted in two places:
+the markdown body **and** Bash rules in `allowed-tools`. Using the same variable
+in both is the supported way to run a bundled script with no permission prompt —
+`allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/render.sh *)` matched against the
+exact command the body tells Claude to run.
+
+Inline `` !`cmd` `` is recognised **only** at line start or immediately after
+whitespace; `KEY=!`cmd`` is left as literal text and never runs. Substitution
+runs once over the original file and output is not re-scanned, so a command
+cannot emit a placeholder for a later pass.
 
 ### distribution and budgets
 
@@ -471,19 +555,36 @@ LEAST-invoked skills.** The 1,536-char per-entry cap is configurable via
 
 ### surface differences
 
-<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-07-26 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/skills | last_verified: 2026-08-07 -->
 
-The same skill does not behave identically everywhere. Absorbed from a
-multi-agent read of the upstream docs on 2026-07-26; re-verify against the live
-pages before relying on any of it for a released plugin.
+The same skill does not behave identically everywhere.
 
-- Cowork and cloud sessions do not read the user-scope skills directory.
-- `context: fork` with `agent: Explore` or `agent: Plan` does NOT load CLAUDE.md.
-  Other agent types do.
-- Project skills load from `.claude/skills/` in every parent directory up to the
-  repo root.
-- `--add-dir` loads `.claude/skills/` from the added directory; the
-  `permissions.additionalDirectories` setting does not.
+- **Cowork and cloud sessions do not read the user-scope skills directory**
+  (`<HOME>/.claude/skills/`). Both load the skills enabled for your claude.ai
+  account, synced at session start. Cloud sessions additionally load project
+  skills from the cloned repository's `.claude/skills/`, and plugins declared in
+  the repository's `.claude/settings.json` install at session start — plugins
+  enabled only in your user settings do not transfer.
+- **`context: fork` with `agent: Explore` or `agent: Plan` does not load
+  CLAUDE.md.** Those two built-ins skip CLAUDE.md and git status to keep context
+  small, so a forked skill using them sees only the SKILL.md content and the
+  agent's own system prompt. Other agent types do load it.
+- **Project skills load from `.claude/skills/` in the launch directory and every
+  parent up to the repository root**, so starting in a subdirectory still picks
+  up root skills. They also load from *nested* `.claude/skills/` below the
+  working directory when Claude reads or edits a file there — the monorepo case.
+- **`--add-dir` and `/add-dir` load `.claude/skills/` from the added directory;
+  the `permissions.additionalDirectories` setting does not.** Skills are the
+  documented exception to add-dir granting file access rather than configuration
+  discovery. CLAUDE.md from those directories is still not loaded unless
+  `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`.
+- **Precedence on a name clash:** enterprise over personal over project, and a
+  skill at any of those levels overrides a bundled skill of the same name. Plugin
+  skills are namespaced `plugin-name:skill-name` and cannot collide. Where a
+  skill and a legacy `.claude/commands/` file share a name, the skill wins.
+- **Live change detection** picks up edits to watched skill directories without a
+  restart — but a *newly created* top-level skills directory that did not exist
+  at session start is not watched until you restart.
 
 ### composable directive pattern
 
