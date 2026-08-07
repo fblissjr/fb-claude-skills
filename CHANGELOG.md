@@ -1,5 +1,15 @@
 # changelog
 
+## 1.19.0
+
+### changed
+- **`skill-maintain` 0.29.0 → 0.30.0 — the provenance join gains a second namespace, so a section can cite a tracked repo instead of a fetched page.** The Agent Skills spec is a git repo this project already clones (`coderef/agentskills`, a clone of `agentskills/agentskills`) and whose HEAD `skill-maintain sources` already records under `local_repos`. Its *website* is fetched by nothing, so the three sections citing `agentskills.io` were structurally unverifiable — the join could only report them as an untracked source forever. `join_provenance` now accepts `repos={path: head_sha}` alongside the page map, comparing by SHA prefix so the annotation can hold a readable short form while state holds the full forty characters. The three citations are repointed at the repo; **untracked source drops from 3 to 0**. Repos are deliberately excluded from the `cited by nothing` bucket: a tracked clone serves the whole project, so "no section cites it" says nothing about the repo.
+- **`skill-maintainer` 0.23.1 → 0.23.2** — the three spec citations in the bundled reference now name `coderef/agentskills`, and the prose that told readers to resolve the untracked-source problem is replaced by a description of the state they are actually in.
+- **`skill-maintain sources` run for the first time since 2026-05-04**, 95 days. The design record had flagged this arm as effectively dead while the docs arm stayed alive; the join needs current repo HEADs to mean anything, so refreshing it is now load-bearing rather than housekeeping.
+
+### fixed
+- **An unearned verification stamp, caught and removed before commit.** Repointing the citations initially wrote `verified_hash: 217be548` onto all three sections — asserting they had been checked against that commit, when this session never read the spec repo at all. That is precisely the false confidence `provenance.py`'s docstring says the optional hash exists to prevent, committed by the person who wrote the docstring. The stamps were removed and `last_verified` left at 2026-04-19, so the three now report **unbound**: correct source, never yet checked against a specific commit, and green only when someone actually reads it.
+
 ## 1.18.0
 
 ### added

@@ -117,16 +117,35 @@ def parse_annotations(text: str) -> list[Annotation]:
     return annotations
 
 
-def join_provenance(annotations: list[Annotation], tracked: dict[str, str]) -> JoinResult:
-    """Compare each harness annotation's source against fetched page hashes.
+def join_provenance(
+    annotations: list[Annotation],
+    tracked: dict[str, str],
+    repos: dict[str, str] | None = None,
+) -> JoinResult:
+    """Compare each harness annotation's source against observed state.
 
-    `tracked` is the `{url: hash}` state written by `skill-maintain upstream`.
+    Two namespaces, because a source is observable in two different ways:
+
+    - `tracked` — `{url: content_hash}` written by `skill-maintain upstream`,
+      for a fetched documentation page.
+    - `repos` — `{path: head_sha}` from the `local_repos` entry
+      `skill-maintain sources` writes, for a git repo cloned under `coderef/`.
+
+    The second exists because the Agent Skills spec is a repo this project
+    already clones, while its website is fetched by nothing. Three sections
+    cited the website and were therefore permanently unverifiable; citing the
+    repo makes them observable by the same mechanism, with a HEAD SHA standing
+    in for a content hash.
+
+    Repo hashes compare by PREFIX: state holds the full 40-character SHA and
+    the annotation holds a readable short form.
     """
     # `upstream_hashes.json` is shared state: `sources.py` writes tracked-repo
     # HEAD SHAs into the same file under non-URL keys such as `local_repos`.
     # Callers pass only watched URLs; filtering here too means a caller that
     # forgets cannot turn repo state into a fabricated "page cited by nothing".
     tracked = {u: h for u, h in tracked.items() if u.startswith(("http://", "https://"))}
+    repos = repos or {}
 
     result = JoinResult()
     cited: set[str] = set()
@@ -134,21 +153,31 @@ def join_provenance(annotations: list[Annotation], tracked: dict[str, str]) -> J
     for ann in annotations:
         if ann.evidence_class != "harness" or not ann.source:
             continue
-        if ann.source not in tracked:
+
+        if ann.source in tracked:
+            current, prefix_match = tracked[ann.source], False
+        elif ann.source in repos:
+            current, prefix_match = repos[ann.source], True
+        else:
             result.untracked.append(
                 Finding(ann.section, ann.source, ann.verified_hash, None, ann.last_verified)
             )
             continue
+
         cited.add(ann.source)
-        current = tracked[ann.source]
         finding = Finding(ann.section, ann.source, ann.verified_hash, current, ann.last_verified)
         if ann.verified_hash is None:
             result.unbound.append(finding)
-        elif ann.verified_hash != current:
-            result.moved.append(finding)
+            continue
+        if prefix_match:
+            matches = current.startswith(ann.verified_hash)
         else:
-            result.current.append(finding)
+            matches = current == ann.verified_hash
+        (result.current if matches else result.moved).append(finding)
 
+    # Only pages are reported as uncited. A tracked repo serves the whole
+    # project, not just this file, so "no section cites it" is not a finding
+    # about the repo.
     result.uncited = sorted(set(tracked) - cited)
     return result
 

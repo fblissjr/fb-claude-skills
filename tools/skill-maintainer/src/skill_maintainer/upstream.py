@@ -230,7 +230,9 @@ def main(args=None):
     if bp.exists():
         watched_hashes = {u: new_hashes[u] for u in watch_pages if u in new_hashes}
         result = join_provenance(
-            parse_annotations(bp.read_text(encoding="utf-8")), watched_hashes
+            parse_annotations(bp.read_text(encoding="utf-8")),
+            watched_hashes,
+            repos=new_hashes.get("local_repos") or {},
         )
         print()
         print(format_report(result))

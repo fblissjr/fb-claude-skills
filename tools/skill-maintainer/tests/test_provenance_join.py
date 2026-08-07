@@ -131,6 +131,52 @@ def test_non_url_state_keys_are_not_reported_as_pages():
     assert result.uncited == ["https://x.test/orphan"]
 
 
+REPO_DOC = """## spec
+
+<!-- class: harness | source: coderef/agentskills | verified_hash: 217be548 | last_verified: 2026-08-07 -->
+
+## spec moved
+
+<!-- class: harness | source: coderef/agentskills | verified_hash: 00000000 | last_verified: 2026-04-19 -->
+
+## spec unknown repo
+
+<!-- class: harness | source: coderef/not-tracked | last_verified: 2026-04-19 -->
+"""
+
+REPOS = {"coderef/agentskills": "217be548739f21d6008915c29aefe320ea1a90af"}
+
+
+def test_repo_source_binds_to_tracked_head():
+    """A section may cite a tracked repo instead of a fetched page.
+
+    The Agent Skills spec lives in a git repo this project already clones and
+    whose HEAD `skill-maintain sources` already records. Citing the website
+    made three sections permanently unverifiable, because nothing fetches it.
+    Citing the repo makes them observable by exactly the same mechanism as a
+    page, using a HEAD SHA in place of a content hash.
+
+    Delete this and the repo namespace silently stops being compared, which
+    looks identical to everything being current.
+    """
+    result = join_provenance(parse_annotations(REPO_DOC), {}, repos=REPOS)
+    assert [c.section for c in result.current] == ["spec"]
+    assert [m.section for m in result.moved] == ["spec moved"]
+    assert [u.section for u in result.untracked] == ["spec unknown repo"]
+
+
+def test_repo_hash_compares_by_prefix():
+    """A short SHA in the annotation must match a full SHA in state.
+
+    Storing the full 40-character SHA in the file would make every annotation
+    line unreadable; state stores the full value. Prefix comparison is what
+    lets the readable form stay honest.
+    """
+    result = join_provenance(parse_annotations(REPO_DOC), {}, repos=REPOS)
+    assert result.current[0].verified_hash == "217be548"
+    assert result.current[0].current_hash.startswith("217be548")
+
+
 def test_craft_sections_are_not_counted_as_gaps():
     """A craft section has no upstream by design and must not inflate any bucket.
 

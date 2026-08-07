@@ -274,7 +274,7 @@ guidance.
 ### skill and plugin structure
 
 <!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch — this stamp cannot be refreshed mechanically -->
+<!-- class: harness | source: coderef/agentskills | last_verified: 2026-04-19 -->
 <!-- class: craft | note: the no-README and references/ layout rules are house conventions | last_verified: 2026-08-07 -->
 
 **Enforced by:** `skill-maintain validate` (name rules, allowed fields,
@@ -452,7 +452,7 @@ Look these up. There is nothing here to verify.
 ### skill frontmatter fields
 
 <!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch -->
+<!-- class: harness | source: coderef/agentskills | last_verified: 2026-04-19 -->
 
 Agent Skills spec (portable): `name`, `description`, `license`, `allowed-tools`,
 `metadata`, `compatibility`.
@@ -637,14 +637,16 @@ For plugins with behavioural content that should persist across sessions:
 
 ### spec compliance
 
-<!-- class: harness | source: https://agentskills.io | last_verified: 2026-04-19 | note: source not tracked by upstream fetch -->
+<!-- class: harness | source: coderef/agentskills | last_verified: 2026-04-19 -->
 
-**Three sections in this file cite `agentskills.io`, and nothing fetches it.**
-Their stamps cannot be refreshed by `skill-maintain upstream`, so they will sit
-at their original date indefinitely — visible staleness rather than hidden, but
-staleness with no mechanism behind it. Either add the spec to the tracked
-sources or stop citing it; leaving it as the one unobservable source in a file
-organised around observable ones is the inconsistency to resolve.
+**The three sections deriving from the Agent Skills spec cite the repo, not the
+website.** `agentskills.io` is fetched by nothing, so citing it made those
+sections permanently unverifiable; `coderef/agentskills` is a clone this project
+already tracks, whose HEAD `skill-maintain sources` records, so the provenance
+join can compare them by SHA exactly as it compares a page by content hash.
+They currently report **unbound** — correct source, never yet checked against a
+specific commit — which is the honest state and the one that goes green only
+when someone actually reads the spec.
 
 The rules are the validator, not this file. Claude Code's skill schema is a
 superset of the cross-vendor Agent Skills spec; `skill-maintain validate`

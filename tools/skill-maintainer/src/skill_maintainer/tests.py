@@ -1163,11 +1163,16 @@ def test_repo_hygiene(root: Path) -> list[Result]:
     # conclude; date says when to go look.
     bp_path = best_practices_file(root)
     if bp_path.exists():
+        state = load_hashes(root)
         stored = {
-            u: h for u, h in load_hashes(root).items()
+            u: h for u, h in state.items()
             if u.startswith(("http://", "https://"))
         }
-        join = join_provenance(parse_annotations(bp_path.read_text()), stored)
+        join = join_provenance(
+            parse_annotations(bp_path.read_text()),
+            stored,
+            repos=state.get("local_repos") or {},
+        )
         scope = (
             f"{join.harness_sections} harness annotations: "
             f"{len(join.current)} current, {len(join.unbound)} unbound, "
