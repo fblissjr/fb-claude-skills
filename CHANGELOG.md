@@ -1,5 +1,13 @@
 # changelog
 
+## 1.22.1
+
+### fixed
+- **`dev-conventions` 0.15.4 → 0.15.5 — two skills were red for having no tier, not for being wrong.** `dep-audit` and `doc-conventions` both sat at `last_verified: 2026-07-05` with no `review_interval_days`, so both inherited the 30-day default and went red at 33 days. Reviewed against their actual sources rather than date-bumped: `dep-audit`'s command table was verified live — `uv audit`, `uv audit --frozen`, `bun audit`, and `bun audit --audit-level` all exist and behave as documented — and `doc-conventions`' claims match this repo's practice (last-updated headers, lowercase filenames, gitignored `internal/`, `internal/log/log_YYYY-MM-DD.md`). Both are accurate; neither had a window matching how fast its source moves. `dep-audit` gets 90 days (it wraps two third-party CLIs, the tier `advisor` already uses), `doc-conventions` gets 365 (house methodology with no external source). This is the tiering doctrine applied to the two skills that had been left out of it: a uniform window makes the board permanently red, and a permanently-red board is an ignored board.
+- **A tracked doc cited a gitignored file.** `docs/internals/gotchas.md` pointed at `internal/postmortems/2026-08-04_control-audit-census.md` for the control-audit finding that retired the last two `enabledPlugins` disables. The file exists locally but `internal/` is gitignored, so a fresh clone reads a citation it can never follow. The finding is now stated inline — the disable's stated reason named SessionStart hooks both plugins had already deleted, so it suppressed nothing and the rationale was all that kept it alive — which is the part a reader needed anyway.
+
+With these, `skill-maintain test` is **269 passed, 0 failed**.
+
 ## 1.22.0
 
 ### fixed

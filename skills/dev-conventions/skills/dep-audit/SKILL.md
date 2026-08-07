@@ -9,7 +9,8 @@ description: >-
   for a CVE check, a vulnerability scan, or a dependency security audit, and before
   any release, publish, or handoff. Covers Python and JS/TS in a single pass.
 metadata:
-  last_verified: "2026-07-05"
+  last_verified: "2026-08-07"
+  review_interval_days: "90"
 ---
 
 # Dependency Security Audit
