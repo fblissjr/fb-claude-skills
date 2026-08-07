@@ -79,7 +79,9 @@ def test_parse_finds_sections_and_fields():
     # exactly this shape ("field-tested in a sibling repo's claims-reminder
     # apparatus"). It must parse without being mistaken for a fetchable page.
     assert by_section["craft bit"].evidence_class == "craft"
-    assert by_section["craft bit"].source.startswith("field-tested")
+    craft_source = by_section["craft bit"].source
+    assert craft_source is not None
+    assert craft_source.startswith("field-tested")
 
 
 def test_moved_page_is_reported():
@@ -179,7 +181,9 @@ def test_repo_hash_compares_by_prefix():
     """
     result = join_provenance(parse_annotations(REPO_DOC), {}, repos=REPOS)
     assert result.current[0].verified_hash == "217be548"
-    assert result.current[0].current_hash.startswith("217be548")
+    current_hash = result.current[0].current_hash
+    assert current_hash is not None
+    assert current_hash.startswith("217be548")
 
 
 def test_craft_sections_are_not_counted_as_gaps():
