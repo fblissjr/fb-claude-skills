@@ -133,6 +133,8 @@ whether or not it is used.
 
 <!-- class: harness | source: https://code.claude.com/docs/en/hooks | verified_hash: 167d43c0d553ffd7 | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://code.claude.com/docs/en/hooks-guide | verified_hash: 482854ea8980890f | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/permissions | verified_hash: 89c6b6956bbea598 | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/mcp | verified_hash: 79ed1603ffb8c963 | last_verified: 2026-08-07 -->
 
 **Enforced by: nothing.** Every item here is authoring discipline. Several fail
 *silently* — marked (silent) — which is why they are constraints rather than
@@ -207,7 +209,8 @@ guidance.
       syntax — multiple conditions need one handler each (silent)
 - [ ] Plugin-bundled MCP tools need the scoped matcher form
       `mcp__plugin_<plugin>_<server>__<tool>`. A matcher written against the bare
-      server key never fires for them (silent)
+      server key never fires for them (silent). The scoped-name construction is
+      documented on the MCP page, not the hooks page
 - [ ] `${user_config.*}` is rejected in shell-form plugin hook commands
       (v2.1.207+). Read `$CLAUDE_PLUGIN_OPTION_<KEY>` instead, or set `args` to
       switch to exec form
@@ -430,6 +433,8 @@ tuning harness to separate, not a guess.
 ### versioning and packaging
 
 <!-- class: craft | last_verified: 2026-08-04 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/plugins-reference | verified_hash: 192ea4a63e04adbe | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/plugin-marketplaces | verified_hash: 6cb7e9b227d93560 | last_verified: 2026-08-07 -->
 
 **Command:** `skill-maintain quality` (version alignment), plus whatever
 pre-commit gate the repo installs.
@@ -564,6 +569,7 @@ cannot emit a placeholder for a later pass.
 ### distribution and budgets
 
 <!-- class: harness | source: https://code.claude.com/docs/en/skills | verified_hash: 07e165cddf652d35 | last_verified: 2026-08-07 -->
+<!-- class: harness | source: https://code.claude.com/docs/en/settings | verified_hash: 9518c46c0f08d743 | last_verified: 2026-08-07 -->
 <!-- class: harness | source: https://code.claude.com/docs/en/plugins | last_verified: 2026-07-21 -->
 
 | Scope | Location |

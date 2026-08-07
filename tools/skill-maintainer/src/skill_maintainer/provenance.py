@@ -67,7 +67,29 @@ class JoinResult:
     current: list[Finding] = field(default_factory=list)
     unbound: list[Finding] = field(default_factory=list)
     untracked: list[Finding] = field(default_factory=list)
-    uncited: list[str] = field(default_factory=list)
+    unattributed: list[str] = field(default_factory=list)
+    """Pages fetched every run that no section cites.
+
+    Named `unattributed`, not `uncited`, because the obvious reading of "cited
+    by nothing" — delete the page — is usually the WRONG action. The bucket has
+    two diagnoses with opposite remedies and identical output:
+
+    1. The page really is unused. Drop it from `upstream_urls`.
+    2. **The file asserts a fact this page documents while citing some other
+       page for it.** Fix the citation; dropping the page would delete a source
+       you are actually relying on and leave the bad attribution in place.
+
+    Measured 2026-08-07, the first time the bucket was acted on: six pages
+    reported, and five were case 2. `settings` is the canonical home of four
+    settings keys the file asserts; `plugins-reference` states the manifest rule
+    the file quotes; `plugin-marketplaces` holds the marketplace schema;
+    `permissions` defines the rule syntax the `if` field uses. Only
+    `discover-plugins` was case 1. A bucket whose obvious action is wrong five
+    times out of six needs a name that does not suggest that action.
+
+    Triage rule: for each page here, grep it for the terms the file asserts
+    before dropping anything.
+    """
 
     @property
     def harness_sections(self) -> int:
@@ -175,10 +197,10 @@ def join_provenance(
             matches = current == ann.verified_hash
         (result.current if matches else result.moved).append(finding)
 
-    # Only pages are reported as uncited. A tracked repo serves the whole
+    # Only pages are reported as unattributed. A tracked repo serves the whole
     # project, not just this file, so "no section cites it" is not a finding
     # about the repo.
-    result.uncited = sorted(set(tracked) - cited)
+    result.unattributed = sorted(set(tracked) - cited)
     return result
 
 
@@ -188,7 +210,7 @@ def format_report(result: JoinResult) -> str:
         f"Provenance join: {result.harness_sections} harness annotations, "
         f"{len(result.moved)} moved, {len(result.current)} current, "
         f"{len(result.unbound)} unbound, {len(result.untracked)} untracked source, "
-        f"{len(result.uncited)} tracked pages cited by nothing",
+        f"{len(result.unattributed)} fetched-but-unattributed",
     ]
     if result.moved:
         lines.append("\n  MOVED -- source changed since the section was verified:")
@@ -205,8 +227,12 @@ def format_report(result: JoinResult) -> str:
         lines.append("\n  UNTRACKED SOURCE -- cited but never fetched:")
         for f in result.untracked:
             lines.append(f"    {f.section}  ({f.source})")
-    if result.uncited:
-        lines.append("\n  CITED BY NOTHING -- fetched every run, used by no section:")
-        for url in result.uncited:
+    if result.unattributed:
+        lines.append(
+            "\n  UNATTRIBUTED -- fetched every run, cited by no section. Usually the\n"
+            "  citation is wrong, not the page: grep it for what the file asserts\n"
+            "  before dropping anything."
+        )
+        for url in result.unattributed:
             lines.append(f"    {url}")
     return "\n".join(lines)

@@ -23,8 +23,9 @@ Each test states what breaks if deleted:
 - `test_untracked_source_is_reported`: `agentskills.io` is cited by three
   sections and fetched by nothing. A join that ignores what it cannot see
   reports green over a blind spot.
-- `test_tracked_page_cited_by_nothing`: the inverse waste — pages fetched every
-  run that no section uses.
+- `test_tracked_page_unattributed`: the inverse — pages fetched every run that
+  no section cites. Named for the diagnosis, not the remedy: five of the six
+  real cases were miscitations, not dead sources.
 """
 
 from skill_maintainer.provenance import join_provenance, parse_annotations
@@ -111,10 +112,14 @@ def test_untracked_source_is_reported():
     assert [u.section for u in result.untracked] == ["spec"]
 
 
-def test_tracked_page_cited_by_nothing():
-    """Pages fetched every run that no section uses are reported waste."""
+def test_tracked_page_unattributed():
+    """A fetched page no section cites is reported -- as a citation question.
+
+    Named for the diagnosis, not the remedy: measured 2026-08-07, five of six
+    pages in this bucket were miscitations rather than dead sources.
+    """
     result = _join()
-    assert result.uncited == ["https://x.test/orphan"]
+    assert result.unattributed == ["https://x.test/orphan"]
 
 
 def test_non_url_state_keys_are_not_reported_as_pages():
@@ -128,7 +133,7 @@ def test_non_url_state_keys_are_not_reported_as_pages():
     """
     tracked = dict(TRACKED, local_repos="deadbeef", skills="cafebabe")
     result = _join(tracked=tracked)
-    assert result.uncited == ["https://x.test/orphan"]
+    assert result.unattributed == ["https://x.test/orphan"]
 
 
 REPO_DOC = """## spec

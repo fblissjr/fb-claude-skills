@@ -23,6 +23,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
 | [claim_audit_design.md](internals/claim_audit_design.md) | Spec for the claim-audit skill (diff prose audited by execution, instrument-yield routing) — designed 2026-08-03, NOT started |
 | [best_practices_maintenance.md](internals/best_practices_maintenance.md) | Why `best_practices.md` drifts: three kinds of knowledge (harness / model / craft) on one calendar clock. Source keep-add-remove verdicts, the hash-join proposal, ordered build list — analysed 2026-08-07, NOT started |
+| [mcp_spec_2026_07_28.md](internals/mcp_spec_2026_07_28.md) | What MCP's 2026-07-28 spec breaks (stateless, no handshake, mandatory `server/discover`), where this repo's two MCP units actually stand, and why moving is a migration rather than a bump — filed 2026-08-07, NOT started |
 | [context-cost.md](internals/context-cost.md) | Where context cost actually goes; the tier test for a rule; built-in introspection not to rebuild; transcript-mining traps |
 | [control_audit_design.md](internals/control_audit_design.md) | Design record for control-audit: census plus live-fire over hooks, validators, reminders; why the adversarial primitive shipped first |
 | [agent_state_population.md](internals/agent_state_population.md) | Why `agent-state` was retired rather than populated: every candidate duplicated a file, and effectiveness needs a controlled A/B |
@@ -49,11 +50,14 @@ Fetch current snapshots instead:
 skill-maintain upstream
 ```
 
-That writes `.skill-maintainer/state/pages/*.md` (gitignored) and reports a
-per-page line and character delta against the previous snapshot. Twelve pages
-are tracked, listed in `.skill-maintainer/config.json`: skills, plugins,
-plugins-reference, discover-plugins, plugin-marketplaces, hooks, hooks-guide,
-sub-agents, memory, settings, permissions, mcp.
+That writes `.skill-maintainer/state/pages/*.md` (gitignored), reports a
+per-page line and character delta against the previous snapshot, and then runs
+the provenance join described in [maintenance.md](internals/maintenance.md).
+Eleven pages are tracked, listed in `.skill-maintainer/config.json`: skills,
+plugins, plugins-reference, plugin-marketplaces, hooks, hooks-guide,
+sub-agents, memory, settings, permissions, mcp. `discover-plugins` was dropped
+on 2026-08-07 — no section of `best_practices.md` derived from it, which the
+join's `unattributed` bucket surfaced.
 
 Anything not tracked there is a link away at
 [code.claude.com/docs](https://code.claude.com/docs/en/overview) — read it live

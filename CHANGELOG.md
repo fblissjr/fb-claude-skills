@@ -1,5 +1,17 @@
 # changelog
 
+## 1.20.0
+
+### changed
+- **`skill-maintain` 0.30.0 → 0.31.0 — the `uncited` bucket is renamed `unattributed`, because its obvious action was wrong five times out of six.** "Cited by nothing" reads as "delete the page". Acting on it the first time showed the bucket has two diagnoses with opposite remedies and identical output: the page is genuinely unused, or **the file asserts a fact that page documents while citing some other page for it**. Of six reported, five were the second: `settings` is the canonical home of `skillListingBudgetFraction` (default `0.01`), `skillListingMaxDescChars` (default `1536`), `disableSkillShellExecution` and `skillOverrides`, all asserted in the file and all sourced to the skills page; `plugins-reference:444` states "If you include a manifest, `name` is the only required field", the exact claim the file quotes; `plugin-marketplaces` holds both required-field tables; `permissions:65` defines the `Tool(specifier)` syntax the `if` field uses. The report now says so in the output rather than leaving the reader to infer it, and the docstring carries the triage rule: grep the page for what the file asserts before dropping anything.
+- **`skill-maintainer` 0.23.2 → 0.23.3 — the four miscitations corrected, and `discover-plugins` dropped.** Those four pages are now cited by the sections that depend on them, verified and stamped against today's fetch. `discover-plugins` was the one genuine case-1: no fact in the file has its home there, so it leaves `upstream_urls` and its snapshot and hash are removed. The MCP page is attributed too — the scoped `mcp__plugin_<plugin>_<server>__<tool>` matcher is documented there rather than on the hooks page, which the item now says. **The join is clean for the first time: 23 harness annotations, 19 current, 4 unbound, 0 untracked source, 0 unattributed.**
+
+### added
+- **`docs/internals/mcp_spec_2026_07_28.md` — MCP's newest spec is a migration, not a bump, and this records the gap rather than papering over it.** The 2026-07-28 revision removes protocol-level sessions and the `Mcp-Session-Id` header, **removes the `initialize`/`notifications/initialized` handshake entirely** in favour of per-request `_meta`, makes `server/discover` mandatory, replaces the GET endpoint and `resources/subscribe` with `subscriptions/listen`, deletes `ping` and `logging/setLevel`, moves tasks into an extension, replaces server-initiated requests with the MRTR pattern, and requires `resultType` on every result. This repo implements none of it: `readwise-reader` locks `mcp` 1.28.1 and `skill-dashboard` has `@modelcontextprotocol/sdk` 1.27.1. Whether `readwise-reader` should move at all is an open question the doc states rather than assumes — it is a single-user local STDIO server, and most of what the stateless redesign buys, it does not need.
+
+### fixed
+- **`readwise-reader` 1.1.3 → 1.1.4 — a live footgun in the dependency pin.** It is an application and floor-pinned `mcp[cli]>=1.26.0`. The current SDK is **2.0.0**, whose `LATEST_PROTOCOL_VERSION` is `2026-07-28`, so any re-lock would have crossed a major boundary silently and pulled an SDK implementing a stateless protocol under code written for a stateful one. Now `==1.28.1`, matching what the lock already resolved and the house convention that applications pin exact. `skill-dashboard`'s `^1.24.0` is the milder version of the same drift — a caret cannot reach 2.x, so it is left pending the same scoping decision rather than changed silently.
+
 ## 1.19.0
 
 ### changed
