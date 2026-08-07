@@ -21,11 +21,10 @@ is that move, stated once, as two separate judgments:
    contract.
 
 2. **Verify the needle was threaded.** Before trusting either outcome, prove
-   the attempted violation actually reached the subject's input. The
-   recurring ways an attempt silently misses are listed in the agent's
-   step 4 — that list is the constructor's own checklist, maintained there
-   and only there. A green whose needle never threaded is the worst
-   outcome of all: an open question converted into a settled one.
+   the attempted violation actually reached the subject's input. The rule,
+   the recurring ways an attempt silently misses, and the verdict set live
+   in the plugin-level `../../references/verification.md` — one home, shared
+   with `test-audit`, `control-audit`, and the agent. Read it at dispatch.
 
 Constructor and verifier are separate judgments, kept separate on purpose:
 judge the gate and the outcome separately, because a control can be right
@@ -48,12 +47,10 @@ subject", not "was the verdict right".
 
 Relay the control-builder report (claim, control with proof it took effect,
 both measurements, verdict) plus the verifier's separate finding on the
-needle. Four verdicts are possible, not three: confirmed, refuted, no
-separation — and **vacuous**, when the needle never threaded, which sends
-the construction back rather than counting for either side.
+needle. The verdict set — four, not three — is in
+`../../references/verification.md`.
 
 The siblings apply this protocol to their own subjects: `test-audit`'s spot
 mutation (per test) and `control-audit`'s live-fire (per hook or validator)
-are dispatches to this primitive. `claim-audit`'s adversarial arm states
-the same move independently today and gains its explicit pointer here at
-its next content release.
+are dispatches to this primitive. `claim-audit` ships separately and states
+the same move in its own words; it is not routed through here.

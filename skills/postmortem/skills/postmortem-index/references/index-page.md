@@ -40,6 +40,7 @@ Same as the postmortem document, with one deliberate exception.
 | By-artifact view | `<section id="by-artifact">` with one `<div class="art-row">` per artifact |
 | `version` (experience mode) | `<span class="version">` beside the mode badge |
 | `task` (experience mode) | `<p class="task">`, above the summary |
+| A rendering sharing the stem | `.scope` links the rendering; a `<a class="src">md</a>` links the markdown |
 
 `data-search` is a lowercased space-joined concatenation of date, mode, scope,
 summary, every artifact, and — where present — `version` and `task`. The filter
@@ -55,6 +56,12 @@ data and a raw `<` silently eats the rest of a line.
 
 Embed verbatim. Repeat `<article class="pm">` per postmortem, newest first, and
 `<div class="art-row">` per artifact, alphabetical.
+
+The `:root` custom properties below are deliberately mirrored in
+`../../postmortem/references/html-render.md`. Both templates are meant to be
+embedded verbatim so each emits one self-contained file, which is why the block
+is duplicated rather than extracted into a shared stylesheet. Change one
+palette, change the other; `test_postmortem_palettes_match` pins the pair.
 
 ```html
 <!doctype html>
@@ -100,6 +107,11 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
 .version {
   font: 0.72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
 }
+.src {
+  font-size: 0.72rem; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.05rem 0.3rem;
+}
+.src:hover { color: var(--fg); }
 .task { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.88rem; }
 .scope { font-weight: 600; }
 .scope a { color: inherit; text-decoration: none; }
@@ -170,7 +182,8 @@ h1 { font-size: 1.6rem; margin: 0 0 0.35rem; letter-spacing: -0.01em; }
       <span class="date">2026-08-07</span>
       <span class="mode">experience</span>
       <span class="version">0.4.2</span>
-      <span class="scope"><a href="2026-08-07_experience_mitate.md">mitate</a></span>
+      <span class="scope"><a href="2026-08-07_experience_mitate.html">mitate</a></span>
+      <a class="src" href="2026-08-07_experience_mitate.md">md</a>
     </div>
     <p class="task">A 12-second title-card animation with two timed text reveals.</p>
     <p class="summary">Timing is expressed in two units that read as one, and every wrong turn in the run traced to that.</p>

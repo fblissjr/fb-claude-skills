@@ -1185,7 +1185,45 @@ def test_repo_hygiene(root: Path) -> list[Result]:
             "" if in_sync else f"{canonical_bp.relative_to(root)} != {bp_path.relative_to(root)}",
         ))
 
+    # 7. postmortem's two HTML templates share one palette, deliberately.
+    #    Claim: if this arm is deleted, the postmortem document and the
+    #    postmortem index can drift to different colours with nothing noticing.
+    #    The duplication is intentional -- each template must be embeddable
+    #    verbatim so it emits ONE self-contained file, so the palette is
+    #    mirrored rather than extracted. That trade is only honest while
+    #    something watches the pair; this is that something.
+    pm_tpl = root / "skills/postmortem/skills/postmortem/references/html-render.md"
+    idx_tpl = root / "skills/postmortem/skills/postmortem-index/references/index-page.md"
+    if pm_tpl.exists() and idx_tpl.exists():
+        pm_pal = _extract_palette(pm_tpl)
+        idx_pal = _extract_palette(idx_tpl)
+        if not pm_pal or not idx_pal:
+            results.append(Result(
+                "repo", "postmortem", "palette pair",
+                False,
+                "no custom properties found -- template or extraction changed shape",
+            ))
+        else:
+            results.append(Result(
+                "repo", "postmortem", "palette pair",
+                pm_pal == idx_pal,
+                f"{len(pm_pal)} tokens match" if pm_pal == idx_pal
+                else f"drift: {sorted(set(pm_pal) ^ set(idx_pal))[:4]}",
+            ))
+
     return results
+
+
+def _extract_palette(path: Path) -> list[tuple[str, str]]:
+    """Return the CSS custom-property declarations in a template, in order.
+
+    Matches `--name: value` declarations only. `var(--name)` usages have no
+    colon after the token, so they cannot match -- which is what keeps this
+    from picking up the chart rules that reference the palette.
+    """
+    import re
+
+    return re.findall(r"--([a-z-]+):\s*([^;}\n]+)", path.read_text())
 
 
 def _find_canonical_best_practices(root: Path) -> Path | None:

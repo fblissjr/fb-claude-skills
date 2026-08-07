@@ -94,7 +94,8 @@ Say which one it is. If you could not check, say that instead of guessing.
 Feedback ages against releases, and a developer's first question is always
 whether it still applies. The frontmatter carries `version` (the exact version
 or build of the subject as it was used) and `task` (one line: what you were
-building while you used it) for this reason — see `references/filing.md`.
+building while you used it) for this reason — see the plugin-level
+`references/filing.md`.
 
 Where a finding depends on how the subject was invoked, put the invocation in
 the finding, verbatim.

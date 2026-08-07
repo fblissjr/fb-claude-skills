@@ -25,6 +25,32 @@ file actually says — including any annotations added since — and do not
 re-derive findings from fresh evidence. To get a postmortem that reflects
 current evidence, run a new one.
 
+**Annotating is the exception, and it is mandatory rather than merely allowed.**
+A run that adds a dated annotation to an existing markdown file has that file in
+hand, so nothing is being guessed at: re-render every sibling rendering so the
+two stop disagreeing. The ladder for that case, including what to do when a
+faithful re-render is not possible, is in the plugin-level `references/filing.md`.
+
+## Provenance
+
+Every rendering says where it came from and when, in a line at the foot of the
+page:
+
+```html
+<footer class="provenance">
+  Rendered from <code>2026-08-07_experience_mitate.md</code> on 2026-08-07.
+  The markdown is the record; this file is derived and disposable.
+</footer>
+```
+
+It costs one line and it makes the failure self-describing. Regeneration keeps
+the normal path correct, but nothing stops someone editing a markdown file by
+hand outside this skill — and when that happens, a reader who can see the
+render date next to a later edit date can tell. A rendering with no provenance
+gives them nothing to notice.
+
+Use the markdown's filename, not a title, so the reader can find the record.
+
 ## The file
 
 Same directory and same stem as the markdown, so filing runs once rather than
@@ -167,6 +193,10 @@ figcaption .how { display: block; margin-top: 0.25rem; font-size: 0.95em; opacit
 .chart svg .axis { stroke: var(--rule); }
 .chart svg .bar { fill: var(--accent); }
 .chart svg .bar-alt { fill: var(--muted); }
+.provenance {
+  margin: 3.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--rule);
+  color: var(--muted); font: 0.8rem/1.5 ui-sans-serif, system-ui, sans-serif;
+}
 @media (max-width: 34rem) {
   body { padding: 2rem 1rem 4rem; }
   .meta dl { grid-template-columns: 1fr; gap: 0.1rem; }
@@ -199,10 +229,20 @@ figcaption .how { display: block; margin-top: 0.25rem; font-size: 0.95em; opacit
   <p class="nothing">Nothing.</p>
 </section>
 
+<footer class="provenance">
+  Rendered from <code>FILENAME.md</code> on YYYY-MM-DD.
+  The markdown is the record; this file is derived and disposable.
+</footer>
+
 </main>
 </body>
 </html>
 ```
+
+The `:root` custom properties in this template are deliberately mirrored in
+`../../postmortem-index/references/index-page.md`. Both templates are meant to be
+embedded verbatim so each emits one self-contained file, which is why the block
+is duplicated rather than extracted. Change one palette, change the other.
 
 Drop `<dt>Range</dt>` for non-span modes, use `<dt>Version</dt>` and
 `<dt>Task</dt>` in experience mode, and drop the `supersedes` row when absent —
@@ -287,3 +327,4 @@ Before reporting, confirm on the written file:
 - Every chart has its table, and the table's numbers match the marks drawn.
 - Every figure was cropped and redacted before it was inlined — no title bars,
   sidebars, window titles, absolute paths, or tokens in the pixels.
+- The provenance footer names the markdown file and today's date.

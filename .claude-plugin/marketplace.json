@@ -101,7 +101,7 @@
       "name": "postmortem",
       "source": "./skills/postmortem",
       "description": "The audit family: evidence-grounded session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files, optionally rendered to self-contained HTML), an experience mode writing developer-facing feedback on the system the work was done with (expectation-vs-behaviour table, guidance-and-instrumentation escapes, what had to be built outside it), optional figures and charts under a no-finding-no-figure rule with every chart carrying the table it renders, a generated browsable index over them all, a test-suite audit checking each test's claim, oracle, and reachability envelope with keep/rewrite/delete verdicts, a controls audit (census of everything check-shaped outside the test suite — hooks, validators, reminders — with live-fire violation of unwatched controls), and the adversarial-verify primitive (construct the refutation, then separately verify it reached the subject) with the control-builder agent the audits dispatch to",
-      "version": "0.9.0"
+      "version": "0.10.0"
     },
     {
       "name": "ruff-diagnostics",

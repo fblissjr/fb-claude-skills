@@ -1,13 +1,27 @@
-# Filing a postmortem
+# Filing
 
-last updated: 2026-07-26
+last updated: 2026-08-07
 
-Where the file goes, what it is called, and what its frontmatter must carry so
-that someone — more often, some model — can find it months later without
-reading everything.
+Where a filed artifact goes, what it is called, and what its frontmatter must
+carry so that someone — more often, some model — can find it months later
+without reading everything.
 
 A postmortem filed inside a plan doc is findable only by a reader who already
 knows which plan doc to open. That is the failure this exists to prevent.
+
+## Shared across this plugin
+
+This file lives at the plugin root, not inside a skill, because more than one
+skill depends on it: `postmortem` writes here, `test-audit` writes here, and
+`postmortem-index` reads the same ladder to find what to index. **Editing this
+file changes all three.**
+
+That is the whole reason for the location. There is no import mechanism in a
+plugin made of prose — a file is shared only because several skills name its
+path — so the path is the only signal a future editor gets about who depends on
+it. A field added to the table below without checking `postmortem-index` is
+invisible in exactly the view that exists to surface it; that has already
+happened once.
 
 ## Resolving the directory
 
@@ -72,11 +86,12 @@ Rung 4 is the only rung that blocks. Rungs 1–3 write without asking.
   For a span, the date is the **start of the range**, not the day someone got
   round to writing it: `2026-07-01_span_lint-tooling.md`. The write date goes in
   frontmatter.
-- **Mode** is one of `session`, `span`, `feature`, `experience`. `feature` is a
-  span scoped to a named feature rather than a date range; when a run could be
-  called either, the deciding question is what a reader would search for — a
-  feature name or a period of time. `experience` is feedback on the system the
-  work was done *with* rather than on the work.
+- **Mode** is one of `session`, `span`, `feature`, `experience`, `audit`.
+  `feature` is a span scoped to a named feature rather than a date range; when a
+  run could be called either, the deciding question is what a reader would
+  search for — a feature name or a period of time. `experience` is feedback on
+  the system the work was done *with* rather than on the work. `audit` is
+  `test-audit`'s output, where the slug names the suite audited.
 - **Slug** derived from the scope, not the date: `ruff-diagnostics`,
   `pyright-baseline`, `q3-migration`. Lowercase, hyphenated. This is the part a
   grep will match, so prefer the name the artifacts already use over a
@@ -138,6 +153,9 @@ artifacts:
   - "mitate build --preview"
 ---
 ```
+
+**This table is the only enumeration of the field set.** `postmortem-index`
+reads it rather than keeping its own list; do not add a second one anywhere.
 
 | Field | Required | Notes |
 |---|---|---|
@@ -230,6 +248,31 @@ Write a **new** file with `supersedes:` only when the scope was genuinely
 revisited as fresh work rather than corrected — a second migration attempt, a
 rebuilt feature. The test: if the old document's verdicts still stand and only
 one is now wrong, annotate. If its whole framing has been overtaken, supersede.
+
+### Annotating regenerates the derived renderings
+
+**After annotating a markdown file, re-render every sibling rendering that
+exists** — the `.html` beside it, and any other derived file sharing its stem.
+
+This is not optional tidying. `references/html-render.md` states that if the
+markdown and a rendering disagree, the rendering is wrong by definition; an
+annotation that updates only the markdown manufactures exactly that state, and
+it does so silently. The rendering is also the copy most likely to have been
+sent to someone, so it is the copy most likely to be read and the least likely
+to be re-fetched.
+
+Re-rendering *here* is not the same as the unsupported case in
+`html-render.md`. That warning is about rendering an arbitrary old file whose
+prose shape nothing guarantees. An annotating run has just read and edited the
+markdown, so it has the content in hand — transform what the file now says,
+annotations included, and re-derive nothing from fresh evidence.
+
+If a rendering exists that you cannot faithfully re-render, **delete it** and
+say so. A missing rendering is recoverable from the markdown; a stale one that
+looks current is not recoverable at all.
+
+Renderings are derived and disposable. Losing one costs nothing, which is why
+regenerating is always the cheap option and staleness never is.
 
 ## Cross-linking
 

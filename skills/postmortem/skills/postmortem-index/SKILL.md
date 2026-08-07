@@ -1,6 +1,6 @@
 ---
 name: postmortem-index
-argument-hint: "[--out=<dir>]"
+argument-hint: "[--from=<dir>] [--out=<dir>]"
 description: "Build a browsable HTML index of every postmortem in a repo — date, mode, scope, one-line conclusion, and the artifacts each one examined, plus a by-artifact view answering 'has anything been written about this file'. Reads frontmatter only; superseded postmortems are shown and marked, never hidden. Use when the user says 'browse postmortems', 'postmortem index', 'show me past postmortems', 'what have we written about X', 'list our retrospectives', or wants to find an earlier postmortem without knowing its filename. Do NOT use to run a postmortem (use postmortem) or to audit tests (use test-audit)."
 metadata:
   last_verified: "2026-07-26"
@@ -26,11 +26,18 @@ artifact that cannot be committed cannot be mistaken for truth.
 
 ## Finding the postmortems
 
-Use the same resolution ladder as filing —
-`../postmortem/references/filing.md` — with one difference: **rung 4 does not
-apply.** Do not propose a location and do not create a directory. There is
-nothing to browse in a repo that has never written a postmortem; say so and
-stop. Report which rung located the directory.
+Use the same resolution ladder as filing — the plugin-level
+`../../references/filing.md` — with two differences.
+
+**Rung 4 does not apply.** Do not propose a location and do not create a
+directory. There is nothing to browse in a repo that has never written a
+postmortem; say so and stop. Report which rung located the directory.
+
+**Rung 1 is `--from=<dir>`, not `--out=<dir>`.** This skill reads one directory
+and writes to another, so the two need separate names: `--from` overrides where
+postmortems are *read*, `--out` where the generated page is *written*. Filing's
+`--out` means "where the deliverable goes" and it keeps that meaning here — the
+deliverable is the page. A bare `--out` never changes what gets indexed.
 
 An empty resolved directory is valid output. Build the page, show the count as
 zero, and say where it looked.
@@ -41,13 +48,33 @@ Frontmatter only. Never parse the body — `../postmortem/references/report-form
 is a house style, not a parse contract, and an index that depends on prose
 shape breaks the first time someone writes a section differently.
 
-Per file, read `mode`, `scope`, `date`, `summary`, `range`, `artifacts`, and
-`supersedes`, plus `version` and `task` on experience-mode files. Render
-`version` beside the mode badge — feedback on a tool ages against that tool's
-releases, so a reader scanning a run of experience postmortems about one subject
-is deciding what is still live, and that is the field that answers it. Treat any
-frontmatter key not in this list as data the index does not display rather than
-as an error.
+**The field set is defined in the plugin-level `../../references/filing.md`, and
+that table is the only enumeration of it.** Read every field it lists; do not
+keep a second list here. This skill previously carried its own copy, and the two
+drifted the first time a field was added — a field written into filing's table
+and never displayed is invisible in exactly the view that exists to surface it.
+
+Two display rules the field table does not carry, because they are this page's
+business rather than the record's:
+
+- Render `version` beside the mode badge. Feedback on a tool ages against that
+  tool's releases, so a reader scanning several experience postmortems about one
+  subject is deciding what is still live, and that is the field that answers it.
+- Treat any frontmatter key not in the table as data this page does not display,
+  rather than as an error.
+
+## Linking to the record
+
+Each entry links to the postmortem's **markdown** file, which is the addressable
+artifact. But this page is opened in a browser, and a markdown link there is a
+download or a wall of raw text.
+
+So: **when a rendering shares the entry's stem, link that instead, and link the
+markdown beside it as a secondary link.** Check for the sibling rather than
+assuming one; most postmortems have none. A rendering is derived and may be
+absent or deleted at any time, so an entry whose sibling is missing simply falls
+back to the markdown — never omit the entry, and never link a rendering you did
+not confirm exists.
 
 **Files with missing or unparseable frontmatter still appear.** Postmortems
 written before this field set existed have none, and silently dropping them is

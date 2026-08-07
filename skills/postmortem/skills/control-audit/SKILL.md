@@ -73,7 +73,9 @@ Deliberately violate what the control guards and confirm it fires: a
 commit-shaped path leak against a path hook, a key-shaped string against a
 secrets gate, a banned command against a package-manager guard. This is a
 dispatch to the `adversarial-verify` protocol (shipped in this plugin),
-constructor and needle-verifier as separate judgments.
+constructor and needle-verifier as separate judgments. Read the plugin-level
+`../../references/verification.md` here — it holds the rule, the failure
+shapes, and the verdict set for every skill in this family.
 
 **Required** for every control whose guarded-by slot is empty. Sampled
 beyond that as budget allows.
@@ -93,9 +95,8 @@ Safety protocol, non-negotiable:
   and put the token itself first on the cleanup inventory.
 - Never `--no-verify`; never disable one control to test another.
 - **A green must prove the needle was threaded** — record the violation
-  reaching the control's input, not just the control's verdict. A firing
-  that cannot show its needle is vacuous, and goes back for
-  reconstruction, not into the tally.
+  reaching the control's input, not just the control's verdict. The verdict
+  for one that cannot is `vacuous`; see the shared reference above.
 - Cleanup is verified against the run's own inventory, not `git status`
   alone: every artifact the run created — worktree, branch, stash, commit,
   file — is enumerated and confirmed gone. `git status` cannot see branch,

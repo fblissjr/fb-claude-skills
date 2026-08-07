@@ -105,8 +105,8 @@ root-level `.postmortem.json`, or inference from where that repo already keeps
 prose about itself — and with no signal at all you propose a location rather
 than creating one. The naming rule `YYYY-MM-DD_<mode>_<slug>.md` and the
 required frontmatter (including the `artifacts` list, which must match the
-body's citations exactly) are in `references/filing.md`. Read it before
-writing the file.
+body's citations exactly) are in `../../references/filing.md` — shared with
+the other skills in this plugin that write files. Read it before writing.
 
 Markdown is the postmortem and is always written. `--html` additionally renders
 a self-contained HTML file beside it with the same stem — a transform of the

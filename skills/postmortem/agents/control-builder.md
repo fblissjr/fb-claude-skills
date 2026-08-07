@@ -42,15 +42,14 @@ specimens are what make the next dispatch obviously worth its cost.
    proves nothing.
 
 4. **Verify the control actually ran.** This is the failure mode of the
-   whole method and it is easy to hit. Recurring shapes: a "does it fail
-   without X" run where X was still present; a mutation that shell quoting
-   turned into a literal that matched nothing, so the run was a no-op; an
-   injected perturbation assigned to a variable that was overwritten before
-   it reached any output; a check that never modified the file it claimed to
-   break. **Confirm the file changed, the command errored or didn't, the
-   dependency was actually absent.** A green control you did not really run
-   is worse than no control, because it converts an open question into a
-   settled one and nobody revisits it.
+   whole method and it is easy to hit. **Confirm the file changed, the
+   command errored or didn't, the dependency was actually absent.** Show it;
+   do not infer it.
+
+   The catalogue of ways an attempt silently misses is maintained in this
+   plugin's `references/verification.md`, one directory above `agents/`. Read
+   it — it is the checklist for this step, and it is shared with the skills
+   that dispatch here so the four cannot drift apart.
 
    Symptom to watch for: a control that passes on the first attempt, testing
    something you expected to be broken.
@@ -65,6 +64,12 @@ specimens are what make the next dispatch obviously worth its cost.
 - **The verdict**: confirmed / refuted / no separation. "No separation" is a
   real and common outcome — it means the technique was not doing the work,
   and that is the finding.
+
+  These three are the verdicts *you* may return. There is a fourth,
+  `vacuous`, for a run whose violation never reached its subject — and it is
+  deliberately not yours to issue. You do not grade your own needle; a
+  separate pass over your evidence can overturn any of your three to vacuous.
+  Report what you observed and let it.
 - **The bracket**, if the claim was a threshold: one observation confirmed
   bad above, one confirmed fine below. An unbracketed threshold is a guess
   with a number on it, and should be labelled as one.

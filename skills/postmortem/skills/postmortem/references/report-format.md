@@ -67,7 +67,8 @@ output is not a postmortem. Every run writes a file.
 The file opens with the frontmatter block, then the five sections above.
 
 Where it goes, what it is called, what the frontmatter must carry, and what to
-do when a postmortem for the same scope already exists: `references/filing.md`.
+do when a postmortem for the same scope already exists: the plugin-level
+`references/filing.md`, shared with the other skills here that write files.
 Resolve the location from that ladder; never assume one.
 
 ## Routing the findings

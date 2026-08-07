@@ -34,7 +34,7 @@ the same run's verification lessons.
 |-------|---------|-------------|
 | `postmortem` | "postmortem", "retrospective", "what went well", "what would you do differently", "what was confusing about using X", "feedback for the devs" | Verdicted retrospective of finished work: session mode (the conversation), span/feature mode (git history, session logs, changelogs, plan docs), or experience mode (feedback to the developers of the system the work was done *with*). Output is always a durable file; `--visuals` adds figures and charts. |
 | `postmortem-index` | "browse postmortems", "postmortem index", "what have we written about X" | Generated HTML index over a repo's postmortems: chronological, plus a by-artifact view. Reads frontmatter only. Superseded entries are marked, not hidden; artifact paths that no longer resolve in the tree are marked "not in the tree today", not dropped. |
-| `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Per-architecture question packs in `references/architectures.md`. |
+| `test-audit` | "audit the tests", "are these tests testing the right thing", "test drift", "do we trust this suite" | Per-test claim recovery, oracle verification by spot mutation, envelope mapping, and keep/rewrite/delete verdicts. Files a dated `audit` artifact via the shared filing ladder. Per-architecture question packs in `references/architectures.md`. |
 | `adversarial-verify` | "adversarially verify this", "build the control", "try to refute this", "did that green actually test anything" | The single-claim primitive: construct the refutation (dispatched to the `control-builder` agent), then a separate pass verifies the attempt reached the subject before either outcome counts. Verdicts: confirmed / refuted / no separation / vacuous. |
 | `control-audit` | "audit the controls", "do our hooks actually fire", "is anything watching this check" | Census of everything check-shaped outside the test suite — four slots per control (fires-via, guarded-by, retirement-condition, disclosed-uncontrolled-edges), each derived or transcribed — plus mandatory live-fire of controls nothing watches, dispatched to `adversarial-verify` under a strict safety protocol. Report-only; a run, not an artifact. |
 
@@ -42,7 +42,7 @@ the same run's verification lessons.
 
 | Agent | Role |
 |-------|------|
-| `control-builder` | Takes one claim and tries to falsify it by construction: single-variable control, proof the control took effect, both measurements, verdict. Deliberately inherits the session model — designing a refutation is not down-tier work. Ships mechanism only; installing repos grow their own evidence record. |
+| `control-builder` | Takes one claim and tries to falsify it by construction: single-variable control, proof the control took effect, both measurements, verdict. Returns three verdicts; `vacuous` is deliberately not its to issue, because it does not grade its own needle. Deliberately inherits the session model — designing a refutation is not down-tier work. Ships mechanism only; installing repos grow their own evidence record. |
 
 ## Invocation
 
@@ -53,6 +53,7 @@ the same run's verification lessons.
 /postmortem:postmortem --html         # markdown plus a readable HTML file
 /postmortem:postmortem experience mitate --visuals   # feedback for that tool's devs, with figures
 /postmortem:postmortem-index          # browsable index over all of them
+/postmortem:postmortem-index --from=docs/postmortems --out=build/
 /postmortem:test-audit                # audit the current repo's suite
 /postmortem:adversarial-verify <claim>  # refute-by-construction, needle verified
 /postmortem:control-audit             # census + live-fire the repo's controls
@@ -115,6 +116,34 @@ media directory is why this is a flag rather than a judgment call: filing never
 silently creates a directory the repo did not choose, and the flag is the
 consent.
 
+## Shared references
+
+Three concerns are used by more than one skill, so they live at the plugin root
+rather than inside whichever skill happened to need them first:
+
+| File | Read by |
+|------|---------|
+| `references/filing.md` | `postmortem` and `test-audit` (write), `postmortem-index` (locate) |
+| `references/verification.md` | `adversarial-verify`, `test-audit`, `control-audit`, and the `control-builder` agent |
+
+There is no import mechanism in a plugin made of prose — a file is shared only
+because several skills name its path — so the **path is the only signal** a
+future editor gets about who depends on a file. Both were previously owned by
+one skill and reached into by others, and both drifted the first time something
+was added.
+
+Two things deliberately stay duplicated. The HTML palette is mirrored between
+`html-render.md` and `index-page.md` because each template must be embeddable
+verbatim to emit one self-contained file; extracting ~12 lines would make every
+render an assembly step. That pair is pinned by a test arm rather than merged.
+And `postmortem-index` no longer keeps its own copy of the frontmatter field
+set — `filing.md`'s table is now the only enumeration of it.
+
+Note: files at the plugin root sit outside per-skill token accounting, so
+`skill-maintain`'s `ref_tokens` figure undercounts a skill's real reference
+surface. The budget gate is on SKILL.md only, so nothing is bypassed — but the
+number is informational, not complete.
+
 ## Design notes
 
 - Every finding must cite a concrete artifact (a file, commit, measurement,
@@ -133,7 +162,12 @@ consent.
   chronological. Frontmatter carries an `artifacts` list that must match the
   body's citations exactly, which is what makes "has anything been written about
   this file" a one-line grep and why there is deliberately no index file. Full
-  procedure: `skills/postmortem/references/filing.md`.
+  procedure: `references/filing.md` at the plugin root.
+- Renderings are derived and disposable. A run that annotates a markdown file
+  re-renders every sibling rendering, and each rendering carries a provenance
+  footer naming its source file and render date — an annotated markdown beside
+  a stale HTML is a state the skill defines as wrong, so nothing may produce it
+  silently.
 
 ## Configuration
 
@@ -163,7 +197,8 @@ Rendering a postmortem from an earlier run is not a designed capability — the
 report format is a house style, not a parse contract. Run a new postmortem
 instead.
 
-`test-audit` is markdown only.
+`test-audit` is markdown only — its reader is the next audit, and a rendering
+would be a second format to keep in step for no reader that exists yet.
 
 ## The index
 

@@ -222,7 +222,7 @@ the directory every time and refuses to commit a listing, because "a listing tha
 gets committed and trusted becomes a copy that drifts out of agreement with the
 directory" (`skills/postmortem/skills/postmortem-index/SKILL.md`). The same
 plugin refuses to store a supersedes chain for the same reason
-(`skills/postmortem/skills/postmortem/references/filing.md`). That is CLAUDE.md
+(`skills/postmortem/references/filing.md`). That is CLAUDE.md
 invariant 1b derived independently, for a unit with no connection to this one.
 
 ### 6. Facts at call time, outcomes as a later keyed append
