@@ -1,5 +1,16 @@
 # changelog
 
+## 1.24.0
+
+### added
+- **`gemini-bridge` 0.8.0 → 0.9.0 — the skill becomes a routing layer and the detail moves into three references.** `gemini-multimodal` was named for every modality and written for images: the body carried the measured image-resolution guidance and little else, so an agent holding a video had no idea what models to use, what formats were accepted, what the upload cost, or which parameters exist. `references/api.md` covers the call (parameter placement, models and the `UnrecognizedStr` trap, thinking, seed vs the ignored `temperature`, structured output, storage and the 501, service tiers, token accounting, and what the CLI deliberately does not expose); `references/media.md` covers attachment (routing per kind, formats, the resolution/token table across modalities, size limits, what the guards miss); `references/video.md` covers video end to end. Every claim in `api.md` is tagged **probed / SDK / docs**, because in this plugin a claim's provenance is how much you trust it. SKILL.md keeps a start-here table by task and one rule per modality, and the two sections that had become verbatim copies of a reference were cut to pointers.
+- **`gemini-bridge formats`** — accepted mime types per kind, which route each takes, the size limits, and the extension remappings. Derived from the tables `media.py` enforces, so it cannot drift; that is why it is a command rather than a section in a reference file, which would be a copy with nothing watching it.
+- **A `video-analysis` recipe.** The stance a video answer needs — timestamp everything as MM:SS, report what is observable, mark inference as inference, say when something fell between the 1 FPS samples — is the same across most video tasks, and it is exactly what a caller writing a question forgets. Fixing it in a versioned file with a pinned model and seed leaves the caller free to spend their attention on the question, which is the part only they can write. `--system` remains the escape hatch for when the stance itself is the task.
+
+### fixed
+- **Two docs told callers to use `gemini-3.6-pro`, which is not in the SDK's model list.** Checked against the installed `_gaos` types: the union has `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-pro-preview` and the `gemini-pro-latest` / `gemini-flash-latest` aliases, but no `gemini-3.6-pro`. Because the type is a `Literal` union **plus** an `UnrecognizedStr` escape hatch, a bad id is not caught client-side — it fails at the server, which is the worst place to learn it. Both examples now use `gemini-pro-latest`, and `api.md` states the trap along with the pinned-vs-alias tradeoff.
+- **`auth.py`'s header was stale and read like insider shorthand.** It opened "one of the two seams that differ between the Gemini Developer API and Vertex" — three files carry provider assumptions since `files.py` landed — and justified itself with "Vertex funding via Google Developer Program credits is a live option we deliberately did not foreclose", which explains nothing to a reader who was not in that session. Rewritten to say what Vertex actually is, that it is not planned, and concretely what adding it would touch. `media.py` and `files.py` had the same stale seam count and now agree.
+
 ## 1.23.0
 
 ### added

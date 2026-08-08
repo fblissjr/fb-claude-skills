@@ -540,6 +540,43 @@ def cmd_stored(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_formats(args: argparse.Namespace) -> int:
+    """What can be attached, and how each kind travels.
+
+    Derived from the tables in `media.py` rather than written down anywhere, so
+    it cannot drift from what the CLI will actually accept. That is the whole
+    reason it exists as a command instead of a section in a reference file: a
+    documented list of supported formats is a copy, and the only thing watching
+    a copy is whoever next notices it is wrong.
+    """
+    print(f"{'kind':<9} {'route':<7} accepted mime types")
+    for kind, mimes in (
+        ("image", media.IMAGE_MIME),
+        ("video", media.VIDEO_MIME),
+        ("audio", media.AUDIO_MIME),
+        ("document", media.DOCUMENT_MIME),
+    ):
+        route = "upload" if kind in media.UPLOAD_KINDS else "inline"
+        print(f"{kind:<9} {route:<7} {', '.join(sorted(mimes))}")
+
+    print(f"\nAnything larger than {media.INLINE_LIMIT_BYTES / 1e6:.0f}MB is "
+          "uploaded whatever its kind.")
+    print("Uploads: 2GB per file, 20GB per project, deleted automatically after "
+          "48h.")
+    print("--resolution applies to image and video only; audio and documents "
+          "have no such field.")
+
+    print("\nThe type is taken from the file extension. These are the "
+          "extensions whose\nsystem mime name differs from what the API "
+          "accepts, and are remapped:")
+    for wrong, right in sorted(media.MIME_ALIASES.items()):
+        print(f"  {wrong:<20} -> {right}")
+    print("\nAn extension outside these tables is refused before anything is "
+          "sent. Convert\nit first -- .mkv and .m4v are the common surprises, "
+          "and `ffmpeg -c copy` remuxes\nboth to .mp4 without re-encoding.")
+    return 0
+
+
 def cmd_uploads(args: argparse.Namespace) -> int:
     """List -- and optionally delete -- files this project pushed to Google.
 
@@ -717,6 +754,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="list interactions stored server-side (they cannot be deleted)",
     )
     sto.set_defaults(func=cmd_stored)
+
+    fmt = sub.add_parser(
+        "formats", help="what can be attached, and how each kind travels"
+    )
+    fmt.set_defaults(func=cmd_formats)
 
     up = sub.add_parser(
         "uploads",

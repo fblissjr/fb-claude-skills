@@ -1,16 +1,16 @@
 """Turning local files into Interactions API content blocks.
 
-The second provider seam (see auth.py). Images and documents attach inline as
-base64, which avoids the Files API entirely -- that matters because
-`client.files.upload` raises on Vertex clients, so keeping inline as the
-default for the common case keeps the Vertex door open.
+One of three files carrying provider assumptions, with `auth.py` and
+`files.py`. Images and documents attach inline as base64: the bytes travel in
+the request, no upload step, nothing left behind on Google's side afterwards.
 
-Video and audio go the other way: they reach the API as a `uri` from an
-uploaded file, which `files.py` obtains. That is not a size decision. It is the
-only shape probed to work (probe 11), and inline video is unverified -- the
-house rule here is that a static source is a hypothesis and only a live call is
-authority, so the unprobed path does not ship. Anything past the inline cap is
-routed the same way regardless of kind, which is what makes a 90MB PDF work.
+Video and audio go the other way: they reach the API as a `uri` for a file
+uploaded first, which `files.py` obtains. That is not a size decision. It is
+the only shape probed to work (probe 11), and inline video is unverified --
+the house rule here is that a static source is a hypothesis and only a live
+call is authority, so the unprobed path does not ship. Anything past the
+inline cap is routed the same way regardless of kind, which is what makes a
+90MB PDF work.
 
 What the Interactions API does NOT offer for video, confirmed against the
 generated SDK types rather than the docs: no fps, no start_offset, no

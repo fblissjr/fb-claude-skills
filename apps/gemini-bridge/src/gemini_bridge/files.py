@@ -1,11 +1,11 @@
 """The Files API: media that cannot travel inline.
 
-The third provider seam, alongside `auth.py` (credentials) and `media.py`
-(content blocks). `client.files.upload` is Gemini Developer API only -- it
-raises on Vertex clients -- so every assumption about uploading lives here and
-nowhere else. Inline base64 stays the default for images and documents
-precisely so that seam stays narrow: only video, audio, and anything past the
-inline cap come through this module.
+One of three files carrying provider assumptions, with `auth.py` (credentials)
+and `media.py` (content blocks). `client.files.upload` belongs to the Gemini
+Developer API and raises on a Vertex client, so every assumption about
+uploading is kept here rather than spread through the call path. Images and
+documents never reach this module at all -- they go inline -- which is what
+keeps the surface this small.
 
 Two facts shape the whole design, and both were established live rather than
 from documentation:

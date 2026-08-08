@@ -1,9 +1,18 @@
 """Credential resolution.
 
-One of the two seams that differ between the Gemini Developer API and Vertex
-(the other is `media.py`). Keep provider assumptions here, not sprinkled through
-the call path -- Vertex funding via Google Developer Program credits is a live
-option we deliberately did not foreclose.
+This plugin talks to the Gemini Developer API, authenticated with an API key.
+Google's other front door for the same models is Vertex AI, which authenticates
+completely differently (project, region, and Google Cloud credentials) and
+handles file input differently too. Supporting it is not planned, but three
+files are written so that it stays *possible* rather than requiring the call
+path to be untangled first: this one, `media.py`, and `files.py`. Provider
+assumptions belong in those three and nowhere else.
+
+If Vertex is ever added, this is the shape of the work: `client_kwargs` below
+returns something other than an api_key, and `files.py` grows a second branch,
+because `client.files.upload` raises on a Vertex client -- there, large media
+is registered from a Cloud Storage bucket instead. Images and PDFs would need
+no change at all, since they are sent inline as bytes.
 
 Deliberately secret-manager agnostic. The tool does not know or care what holds
 the key: it runs a command you supply and reads the key from that command's

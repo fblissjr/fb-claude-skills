@@ -6,7 +6,7 @@ from dataclasses import replace
 import orjson
 import pytest
 
-from gemini_bridge import ledger, media, runs
+from gemini_bridge import cli, ledger, media, runs
 
 
 def test_runs_root_self_ignores(tmp_path):
@@ -168,6 +168,35 @@ def test_context_files_take_the_cheaper_resolution(tmp_path):
         f.write_bytes(b"\x89PNG\r\n\x1a\n")
     atts = media.resolve_attachments([str(a)], "high", [str(b)], "low")
     assert [x.resolution for x in atts] == ["high", "low"]
+
+
+def test_formats_covers_every_kind_media_can_classify(capsys):
+    """`formats` exists so the docs do not have to copy a list that rots.
+
+    It earns that only if it is complete. The command enumerates the four mime
+    tables by hand, so adding a fifth kind to `media.py` -- the one change that
+    would make it silently partial -- is exactly what this catches. A format
+    listing that omits a supported kind is worse than none, because it reads as
+    "not supported" rather than "not listed".
+    """
+    assert cli.main(["formats"]) == 0
+    out = capsys.readouterr().out
+    every_mime = (
+        media.IMAGE_MIME | media.VIDEO_MIME | media.AUDIO_MIME | media.DOCUMENT_MIME
+    )
+    missing = [m for m in every_mime if m not in out]
+    assert not missing, f"accepted but unlisted: {sorted(missing)}"
+    for kind in {media.classify(m) for m in every_mime}:
+        assert kind in out, f"{kind} is classifiable but absent from `formats`"
+
+
+def test_formats_names_the_remapped_extensions(capsys):
+    """The alias table is the non-obvious part -- a user whose .wav was
+    rejected needs to see that the mapping exists."""
+    assert cli.main(["formats"]) == 0
+    out = capsys.readouterr().out
+    for wrong, right in media.MIME_ALIASES.items():
+        assert wrong in out and right in out
 
 
 def test_ledger_records_provenance_not_the_reference(tmp_path):

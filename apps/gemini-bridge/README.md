@@ -67,6 +67,7 @@ gemini-bridge recipes              # list available recipes
 gemini-bridge stats                # token totals per recipe from the ledger
 gemini-bridge stored               # interactions held server-side
 gemini-bridge uploads              # files held by the Files API (deletable)
+gemini-bridge formats              # what can be attached, and how each travels
 gemini-bridge doctor               # config, credentials, recipes, guards
 ```
 
@@ -107,7 +108,7 @@ unless you pass one — and every parameter a recipe could set is a flag:
 
 ```bash
 # text-only question, no recipe, deeper thinking
-gemini-bridge ask --model gemini-3.6-pro --thinking-level high \
+gemini-bridge ask --model gemini-pro-latest --thinking-level high \
   "Poke holes in this migration plan: ..."
 
 # ad-hoc stance plus structured output
@@ -180,7 +181,15 @@ scanning is on.
 
 | Skill | Description |
 |-------|-------------|
-| [gemini-multimodal](skills/gemini-multimodal/SKILL.md) | Route a perceptual task to Gemini, pick a resolution from measured guidance, and read the structured verdict from the run directory. |
+| [gemini-multimodal](skills/gemini-multimodal/SKILL.md) | Route a task to Gemini in any modality — image, video, audio, PDF, or text — pick a resolution from measured guidance, and read the answer from the run directory. |
+
+The skill is a routing layer; the detail lives in three references beside it:
+[api.md](skills/gemini-multimodal/references/api.md) (models, parameters,
+storage, token accounting, what is deliberately not exposed),
+[media.md](skills/gemini-multimodal/references/media.md) (per-modality routing,
+formats, resolution and cost, size limits), and
+[video.md](skills/gemini-multimodal/references/video.md) (video and audio end
+to end).
 
 ## Invocation
 

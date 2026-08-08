@@ -47,12 +47,27 @@ filename, the scanner reads only the prompt. If you are about to send a
 screenshot of a terminal, an editor, or a browser, say so and let the user
 confirm. The same goes for any document you did not generate yourself.
 
-## Running it
+## Where to start, by task
+
+Every call is `gemini-bridge ask`. It takes any modality; the recipe and the
+question are what change.
+
+| Task | Start with |
+|---|---|
+| Compare two images | `-r perceptual-diff -f before.png -f after.png` |
+| Anything about a video | `-r video-analysis -f clip.mp4` + a specific question |
+| Ask about one image or PDF | `-r general -f page.png` + the question |
+| Transcribe or describe audio | `-f take.wav` + what you need from it |
+| A stance no recipe covers | no `-r`; `--system` / `--system-file` |
+| Text-only second opinion | no `-r`, no `-f`, just the question |
 
 ```bash
 gemini-bridge ask -r perceptual-diff \
   -f before.png -f after.png \
   "Compare these two renders. The first is BEFORE a change, the second is AFTER."
+
+gemini-bridge ask -r video-analysis -f flow.mp4 \
+  "At what timestamp does the list first render duplicate rows?"
 ```
 
 stdout stays small on purpose: run path, status, token counts. **The answer is
@@ -66,13 +81,27 @@ Useful flags:
 |---|---|
 | `-f` | subject file, repeatable |
 | `-c` | context file, attached at the cheaper resolution |
-| `--resolution` | override the recipe (`low`, `medium`, `high`, `ultra_high`) |
+| `--resolution` | override the recipe (`low`, `medium`, `high`, `ultra_high`); images and video only |
 | `--dry-run` | print what would be sent, call nothing |
 | `--prompt-file` | read the question from a file instead of the command line |
 | `--upload-timeout` | seconds to wait for a video or audio file to finish processing (default 300) |
 
-`gemini-bridge recipes` lists what is available. `gemini-bridge doctor` checks
-credentials and config. `gemini-bridge stats` summarizes past calls.
+Other subcommands: `recipes` lists what is available, `formats` prints what can
+be attached and how each kind travels, `doctor` checks credentials and config,
+`stats` summarizes past calls, `stored` and `uploads` show what is held
+server-side.
+
+## Going deeper
+
+SKILL.md is the routing layer. Three references carry the detail, and it is
+worth reading the relevant one before a first call of a kind you have not made
+before:
+
+| Reference | Read it for |
+|---|---|
+| `references/api.md` | models, thinking, seed, structured output, storage, service tiers, token accounting, what the API and the CLI deliberately do not expose, and the source URLs |
+| `references/media.md` | how each modality is attached, accepted formats, resolution and token cost per kind, size limits, what the guards miss |
+| `references/video.md` | video and audio end to end: the 1 FPS constraint, ffmpeg prep, worked examples, when video is the wrong tool |
 
 ## Recipe-free calls
 
@@ -80,7 +109,7 @@ credentials and config. `gemini-bridge stats` summarizes past calls.
 one-off stance, a schema invented for this task — call ad-hoc:
 
 ```bash
-gemini-bridge ask --model gemini-3.6-pro --thinking-level high \
+gemini-bridge ask --model gemini-pro-latest --thinking-level high \
   "Critique this design: ..."
 
 gemini-bridge ask --system-file stance.md --schema-file verdict.json \
@@ -106,50 +135,45 @@ Three things to keep straight:
 
 ## Video and audio
 
-```bash
-gemini-bridge ask -f recording.mp4 \
-  --system "You are reverse-engineering a UI interaction so it can be
-rebuilt in HTML and CSS. Report geometry, timing, and easing as
-concretely as the footage allows, and say when a value is inferred." \
-  "Trace the drawer open animation: timestamp, what moves, how far, how long."
-```
-
 Attaching either uploads the file and sends a reference to it. Three things
 that follow, in the order they will bite:
 
 1. **You write the prompt, and that is where the quality is.** A video with no
    context returns a plot summary. Say what the file is, what decision the
-   answer feeds, what to ignore, and what shape you want the answer in. Reach
-   for `--system` whenever the stance matters more than the question —
-   that lever is the one most often forgotten. Attaching media with **no**
-   question runs a generic default and warns; that exists so a bare call is not
-   refused, not as a way to use this.
+   answer feeds, what to ignore, and what shape you want the answer in. Use
+   `-r video-analysis` for the ordinary stance and put your effort into the
+   question; reach for `--system` when the stance itself is the task.
+   Attaching media with **no** question runs a generic default and warns —
+   that exists so a bare call is not refused, not as a way to use this.
 2. **The upload is a disclosure with a 48-hour life.** Say what you are sending
-   before you send it. Unlike stored interactions, uploads can be taken back:
-   `gemini-bridge uploads` lists them, `--delete` removes them. Identical bytes
-   upload once, so follow-up questions about the same file are cheap.
-3. **It is slow.** Uploading and processing a large clip can outrun a default
-   120s command timeout. Give the command more time, and raise
-   `--upload-timeout` if processing is what runs long.
+   before you send it, and remember that neither guard reads inside a file — a
+   two-minute screen recording is a hundred-plus frames of whatever was on
+   that desktop. Uploads *can* be taken back, unlike stored interactions:
+   `gemini-bridge uploads --delete`. Identical bytes upload once, so follow-up
+   questions about the same file are cheap.
+3. **It is slow, and length is the cost.** Roughly 4,200 input tokens per
+   minute of video. Uploading and processing can outrun a default 120s command
+   timeout; give it more time, and raise `--upload-timeout` if processing is
+   what runs long.
 
-Frames are sampled at 1 FPS and cannot be clipped or retimed. Trim with ffmpeg
-first rather than paying for a ten-minute recording to ask about fifteen
-seconds of it. Full detail, including the ffmpeg one-liners and what to do
-about sub-second events: `references/video.md`.
+Frames are sampled at 1 FPS and cannot be clipped or retimed, so trim with
+ffmpeg rather than paying for ten minutes to ask about fifteen seconds — and
+do not expect sub-second events to be seen at all. Everything else, including
+the ffmpeg one-liners, worked examples, and when to send frames instead:
+`references/video.md`.
 
 ## Choosing a resolution
 
-Measured, not guessed — a control harness over four real image pairs, two runs
-each, at both resolutions:
+One rule per modality; the measured evidence and the token table are in
+`references/media.md`.
 
-- **`low` is the default and is usually right.** On storyboard strips and
-  contact sheets it found *more* differences than `high`, not fewer.
-- **Use `high` for full-frame renders** — a 3D viewport, a full screenshot,
-  anything where detail is spread across the frame. On a viewport pair, `high`
-  found 5–6 differences where `low` found 1. This is the case that justifies
-  roughly 3x the input tokens.
-- **Use `high` when text in the image matters.** Reading small on-screen text
-  is the documented case for it.
+- **Images: `low` is usually right**, and on storyboards and contact sheets it
+  measurably beat `high`. Go `high` for full-frame renders, where detail is
+  spread across the whole frame, and whenever in-image text matters.
+- **Video: leave it alone unless there is text to read.** `low`, `medium`, and
+  the default all cost the same 70 tokens per frame; `high` is a flat 4x.
+- **Audio and PDFs take no resolution at all** — those content types have no
+  such field, and the CLI strips it rather than sending a key that would 400.
 
 ## What the verdict means
 
@@ -180,6 +204,11 @@ recorded, not acted on.
   sending, and do not expect anything shorter than about a second to be seen.
 
 ## Adding a recipe
+
+A recipe fixes the *stance*; the caller supplies the question. That division is
+the point — the stance becomes versioned and diffable instead of depending on
+how it happened to be phrased that session, and with a pinned `seed` and model
+two runs are actually comparable.
 
 A recipe is a markdown file: YAML frontmatter for parameters, body for the
 system instruction. Nothing in code changes. See
