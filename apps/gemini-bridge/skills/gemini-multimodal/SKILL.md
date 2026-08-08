@@ -1,6 +1,6 @@
 ---
 name: gemini-multimodal
-description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", "what does Gemini see", "get Gemini's take", or names Gemini alongside a question, image, or screenshot. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
+description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Handles images, video, audio, and PDFs. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Use for anything involving a video or audio file, which Claude cannot open at all - "watch this video", "what happens in this screen recording", "turn this recording into code", "transcribe this audio", "analyze this clip". Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", or names Gemini alongside a question or file. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
 metadata:
   last_verified: "2026-08-01"
   freshness: "cascade"
@@ -8,11 +8,14 @@ metadata:
 
 Hand a perceptual task to a Gemini model when direct inspection is not working.
 
-The signal that this skill applies is usually not "there is an image" — it is
-**reaching for numpy, histograms, or pixel-diff statistics to answer a question
-about what something looks like.** That substitution is the symptom. Comparing
-two renders and reporting mean squared error is not an answer to "did this
-change anything visible."
+Two signals that this skill applies. The first is a hard capability wall:
+**there is a video or audio file in the task.** You cannot open either, and no
+amount of `ffprobe` metadata substitutes for watching the thing.
+
+The second is subtler and more common: **reaching for numpy, histograms, or
+pixel-diff statistics to answer a question about what something looks like.**
+That substitution is the symptom. Comparing two renders and reporting mean
+squared error is not an answer to "did this change anything visible."
 
 ## Before calling
 
@@ -66,6 +69,7 @@ Useful flags:
 | `--resolution` | override the recipe (`low`, `medium`, `high`, `ultra_high`) |
 | `--dry-run` | print what would be sent, call nothing |
 | `--prompt-file` | read the question from a file instead of the command line |
+| `--upload-timeout` | seconds to wait for a video or audio file to finish processing (default 300) |
 
 `gemini-bridge recipes` lists what is available. `gemini-bridge doctor` checks
 credentials and config. `gemini-bridge stats` summarizes past calls.
@@ -99,6 +103,39 @@ Three things to keep straight:
   a recipe's name must actually carry that recipe's stance. If an ad-hoc
   stance proves itself twice, promote it to a recipe file so it is versioned
   and reproducible instead of retyped.
+
+## Video and audio
+
+```bash
+gemini-bridge ask -f recording.mp4 \
+  --system "You are reverse-engineering a UI interaction so it can be
+rebuilt in HTML and CSS. Report geometry, timing, and easing as
+concretely as the footage allows, and say when a value is inferred." \
+  "Trace the drawer open animation: timestamp, what moves, how far, how long."
+```
+
+Attaching either uploads the file and sends a reference to it. Three things
+that follow, in the order they will bite:
+
+1. **You write the prompt, and that is where the quality is.** A video with no
+   context returns a plot summary. Say what the file is, what decision the
+   answer feeds, what to ignore, and what shape you want the answer in. Reach
+   for `--system` whenever the stance matters more than the question —
+   that lever is the one most often forgotten. Attaching media with **no**
+   question runs a generic default and warns; that exists so a bare call is not
+   refused, not as a way to use this.
+2. **The upload is a disclosure with a 48-hour life.** Say what you are sending
+   before you send it. Unlike stored interactions, uploads can be taken back:
+   `gemini-bridge uploads` lists them, `--delete` removes them. Identical bytes
+   upload once, so follow-up questions about the same file are cheap.
+3. **It is slow.** Uploading and processing a large clip can outrun a default
+   120s command timeout. Give the command more time, and raise
+   `--upload-timeout` if processing is what runs long.
+
+Frames are sampled at 1 FPS and cannot be clipped or retimed. Trim with ffmpeg
+first rather than paying for a ten-minute recording to ask about fifteen
+seconds of it. Full detail, including the ffmpeg one-liners and what to do
+about sub-second events: `references/video.md`.
 
 ## Choosing a resolution
 
@@ -138,9 +175,9 @@ recorded, not acted on.
 - **Thinking is on by default and bills at the output rate.** Recipes default
   to `thinking_level: minimal`; an unset level is the expensive path, not the
   cheap one.
-- **Video and audio are not wired up yet.** They need the Files API plus ffmpeg
-  preprocessing, because the API exposes no frame-rate or clipping controls.
-  The CLI refuses them with a clear message rather than failing obscurely.
+- **Video frames are sampled at 1 FPS and cannot be clipped.** No fps, no start
+  or end offset — the API has no such controls. Trim with ffmpeg before
+  sending, and do not expect anything shorter than about a second to be seen.
 
 ## Adding a recipe
 

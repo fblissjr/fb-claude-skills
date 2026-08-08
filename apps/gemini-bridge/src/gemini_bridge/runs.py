@@ -108,6 +108,17 @@ class RunDir:
     def write_usage(self, usage: dict[str, Any]) -> None:
         _dump(self.path / "usage.json", usage)
 
+    def write_uploads(self, records: list[dict[str, Any]]) -> None:
+        """The Files API handles this run created or reused.
+
+        Written even when the list is empty, so that a run directory answers
+        "did this send anything to the Files API?" without the reader having
+        to infer it from the attachment kinds. Unlike an interaction, an
+        upload can actually be deleted -- this is the local half of what makes
+        that possible.
+        """
+        _dump(self.path / "uploads.json", records)
+
     def write_interaction_id(self, interaction_id: str) -> None:
         (self.path / "interaction.id").write_text(interaction_id + "\n")
 

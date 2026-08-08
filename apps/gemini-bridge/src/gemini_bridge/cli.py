@@ -9,12 +9,18 @@ There is no `purge` command. `interactions.delete` returns HTTP 501 Not
 Implemented -- verified live -- so stored interactions cannot be removed
 programmatically. The project retention window in AI Studio is the only cleanup
 that exists, which is why `stateful` defaults to false on every recipe.
+
+Uploaded files are the exception and have their own command: `files.delete`
+works, so `uploads --delete` is real cleanup rather than disclosure. Keeping
+the two on separate commands is deliberate -- collapsing them would imply the
+same remedy applies to both, and for interactions it does not.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import replace
 from os import environ
 from pathlib import Path
@@ -22,7 +28,18 @@ from typing import Any
 
 import orjson
 
-from . import auth, client as call_mod, content, ledger, media, privacy, recipes, runs
+from . import (
+    auth,
+    client as call_mod,
+    content,
+    files,
+    ledger,
+    media,
+    privacy,
+    prompts,
+    recipes,
+    runs,
+)
 from .config import Config
 
 RECIPE_SUBPATH = Path("skills") / "gemini-multimodal" / "references" / "recipes"
@@ -132,8 +149,28 @@ def cmd_ask(args: argparse.Namespace) -> int:
     question = args.question
     if args.prompt_file:
         question = Path(args.prompt_file).read_text().strip()
+
+    # A question is required, but "required" does not have to mean "refused".
+    # With media attached and nothing asked, fall back to a kind-appropriate
+    # default and say loudly what that costs -- the caller composing this
+    # command has context no default can have, and is the only party that can
+    # turn "describe this video" into a question worth paying for.
+    #
+    # The kinds come from filenames alone, before any guard has run, so that
+    # this decision cannot depend on reading a file the path guard is about to
+    # refuse. Unknown extensions simply do not contribute a kind; `inspect`
+    # reports the real error a few lines below, where it is actionable.
+    used_default_prompt = False
     if not question:
-        return _fail("no question: pass one positionally or via --prompt-file")
+        if not (args.file or args.context):
+            return _fail(
+                "no question: pass one positionally or via --prompt-file. "
+                "(A question is only optional when there is media attached.)"
+            )
+        kinds = media.guess_kinds([*args.file, *args.context])
+        question = prompts.default_question(kinds)
+        used_default_prompt = True
+        print(f"WARNING {prompts.default_notice(kinds)}", file=sys.stderr)
 
     # The prompt is composed by Claude, which has been reading the user's
     # files. The path guard says nothing about it, so a secret pasted into a
@@ -221,11 +258,23 @@ def cmd_ask(args: argparse.Namespace) -> int:
     except media.MediaError as exc:
         return _fail(str(exc))
 
+    pending_upload = [a for a in attachments if media.needs_upload(a)]
+
+    # Built once here, before anything leaves the machine, with a placeholder
+    # standing in for handles that do not exist yet. Two jobs: it is what
+    # `--dry-run` reports on, and it is where request-shape errors surface
+    # (`--continue-from` without `--store`, most of all) while they still cost
+    # nothing. Rebuilt below with the real handles once the uploads land --
+    # cheap, and far better than discovering an illegal combination after
+    # pushing 200MB of video across the wire.
     try:
         request = call_mod.build_request(
             recipe,
             question,
-            attachments,
+            [
+                replace(a, uri=media.DRY_RUN_URI) if media.needs_upload(a) else a
+                for a in attachments
+            ],
             previous_interaction_id=args.continue_from,
             model_override=args.model or cfg.default_model,
         )
@@ -240,14 +289,19 @@ def cmd_ask(args: argparse.Namespace) -> int:
               f"{'  (NOT deletable once stored)' if request['store'] else ''}")
         print(f"schema      {'yes' if request.get('response_format') else 'no'}")
         for att in attachments:
+            route = "upload" if media.needs_upload(att) else "inline"
             print(f"attach      {att.kind:9} {att.resolution or '-':5} "
-                  f"{att.size_bytes / 1024:8.1f}KB  {att.path}")
+                  f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
+        if pending_upload:
+            print(f"upload      {len(pending_upload)} file(s) would be sent to the "
+                  "Files API and held for 48h  (not done: --dry-run)")
         shown = question[:100]
         for f in content.scan(question):
             if f.blocking:
                 shown = "<withheld: contains secret-shaped content>"
                 break
-        print(f"question    {shown}")
+        print(f"question    {shown}"
+              f"{'  (generic default)' if used_default_prompt else ''}")
         return 0
 
     try:
@@ -265,29 +319,105 @@ def cmd_ask(args: argparse.Namespace) -> int:
         # message, and this is the one path where the key is still in hand.
         return _fail(f"could not construct the API client: {type(exc).__name__}")
 
+    # The run directory is created BEFORE the uploads, not after. An upload is
+    # already a disclosure -- the bytes are at Google for 48 hours whether or
+    # not the interaction that was going to use them ever happens -- so the
+    # local record of it has to exist before it can be orphaned.
     try:
         run = runs.RunDir.create(project_root, recipe.name)
         run.write_prompt(recipe.system_instruction, question)
-        run.write_request(call_mod.redact_for_record(request, attachments, project_root))
     except OSError as exc:
         return _fail(f"could not create the run directory under {project_root}: {exc}")
 
     runs_root = run.path.parent
-    try:
-        result = call_mod.call(api, request)
-    except Exception as exc:  # noqa: BLE001 - record then surface
-        run.write_error(f"{type(exc).__name__}: {exc}")
+
+    def _record_failure(status: str, error: str) -> None:
         ledger.record(
             runs_root, run_id=run.path.name, recipe=recipe.name,
-            model=request["model"], status="failed", usage=None,
+            model=request["model"], status=status, usage=None,
             attachments=[a.manifest_entry(project_root) for a in attachments],
             duration_ms=0, stateful=recipe.stateful,
             service_tier=recipe.service_tier,
             thinking_level=request.get("generation_config", {}).get("thinking_level"),
-            credential_kind=creds.kind, error=str(exc),
+            credential_kind=creds.kind, error=error,
             allow_prompt_secrets=args.allow_prompt_secrets,
             prompt_scanned=prompt_scanned,
         )
+
+    if pending_upload:
+        cache = files.Cache.load(runs_root)
+        resolved: list[media.Attachment] = []
+        performed: list[files.Upload] = []
+
+        def _persist_uploads() -> None:
+            """Cache first, run record second.
+
+            Both hold the handles, but only the cache is what `uploads
+            --delete` reads -- it is the difference between an orphaned upload
+            being removable and having to wait out 48 hours. `Cache.save`
+            already swallows its own errors, so the run-dir copy is the one
+            that needs a guard here, and it degrades to a warning rather than
+            taking down a call whose bytes have already been sent.
+            """
+            cache.save()
+            try:
+                run.write_uploads([u.record() for u in performed])
+            except OSError as exc:
+                print(f"WARNING could not write uploads.json: {exc}", file=sys.stderr)
+
+        for att in attachments:
+            if not media.needs_upload(att):
+                resolved.append(att)
+                continue
+            try:
+                up = files.ensure_uploaded(
+                    api, att, cache, timeout_s=args.upload_timeout
+                )
+            except files.UploadError as exc:
+                # Whatever already uploaded is recorded before bailing out:
+                # those handles are live at Google and `uploads --delete` is
+                # the only way to take them back early.
+                _persist_uploads()
+                run.write_error(str(exc))
+                _record_failure("upload_failed", str(exc))
+                return _fail(f"{exc}\n  run: {run.path}")
+            performed.append(up)
+            # The server's mime type wins: it describes the file it is holding,
+            # ours only describes the extension.
+            resolved.append(replace(att, uri=up.uri, mime_type=up.mime_type))
+            print(f"upload  {up.display_name}  "
+                  f"{'reused' if up.reused else 'new'}  {up.name}")
+        attachments = resolved
+        _persist_uploads()
+        if any(not u.reused for u in performed):
+            print("        uploads live 48h at Google; "
+                  "`gemini-bridge uploads --delete` removes them now")
+
+        # Rebuilt with the real handles. Everything else about the request was
+        # already validated above.
+        try:
+            request = call_mod.build_request(
+                recipe,
+                question,
+                attachments,
+                previous_interaction_id=args.continue_from,
+                model_override=args.model or cfg.default_model,
+            )
+        except (call_mod.CallError, media.MediaError) as exc:
+            run.write_error(str(exc))
+            _record_failure("failed", str(exc))
+            return _fail(f"{exc}\n  run: {run.path}")
+
+    try:
+        run.write_request(call_mod.redact_for_record(request, attachments, project_root))
+    except OSError as exc:
+        return _fail(f"could not write the run record under {run.path}: {exc}")
+
+    try:
+        result = call_mod.call(api, request)
+    except Exception as exc:  # noqa: BLE001 - record then surface
+        run.write_error(f"{type(exc).__name__}: {exc}")
+        _record_failure("failed", str(exc))
         return _fail(f"{type(exc).__name__}: {exc}\n  run: {run.path}")
 
     # The call is billed and, if stored, permanent -- delete returns 501. So
@@ -410,6 +540,71 @@ def cmd_stored(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_uploads(args: argparse.Namespace) -> int:
+    """List -- and optionally delete -- files this project pushed to Google.
+
+    The counterpart to `stored`, and deliberately the opposite of it in one
+    respect: `stored` is a pure disclosure list because interactions cannot be
+    deleted (501), whereas `files.delete` works. So this one can actually act,
+    and the 48h expiry is a backstop rather than the only cleanup.
+
+    It reads the local cache, which records only what this project uploaded.
+    That is the point -- the alternative would be enumerating every file in the
+    account, including ones other tools own.
+    """
+    project_root = Path(args.project_root or Path.cwd()).resolve()
+    runs_root = project_root / runs.RUNS_DIRNAME
+    cache = files.Cache.load(runs_root)
+    now = time.time()
+    live = cache.live(now)
+
+    if not live:
+        print(f"no live uploads recorded under {runs_root}")
+        print("(entries are dropped once they are within 30 minutes of the "
+              "48h expiry, so an empty list can also mean everything aged out)")
+        return 0
+
+    if not args.delete:
+        print(f"{len(live)} upload(s) held at Google by this project:\n")
+        print(f"{'file':<32} {'size':>9} {'expires in':>11}  handle")
+        for up in live:
+            hours = (up.expires_at() - now) / 3600
+            print(f"{up.display_name[:32]:<32} {up.size_bytes / 1e6:>8.1f}MB "
+                  f"{hours:>10.1f}h  {up.name}")
+        print("\nUnlike stored interactions, these CAN be deleted: re-run with "
+              "--delete.")
+        print("They expire on their own 48h after upload.")
+        return 0
+
+    try:
+        creds = auth.resolve(args.key_command, Config.load(project_root).key_command)
+    except auth.AuthError as exc:
+        return _fail(str(exc))
+
+    from google import genai
+
+    try:
+        api = genai.Client(**creds.client_kwargs())
+    except Exception as exc:  # noqa: BLE001 - never echo a key-shaped value
+        return _fail(f"could not construct the API client: {type(exc).__name__}")
+
+    failures = 0
+    for up in live:
+        try:
+            files.delete(api, up.name)
+        except files.UploadError as exc:
+            failures += 1
+            print(f"WARNING {exc}", file=sys.stderr)
+            continue
+        # Dropped only on a confirmed delete. A handle left in the cache after
+        # a failed delete is retryable; one dropped optimistically is an
+        # orphan nothing can name.
+        cache.drop(up.sha256)
+        print(f"deleted {up.display_name}  {up.name}")
+    cache.save()
+    return 1 if failures else 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     project_root = Path(args.project_root or Path.cwd()).resolve()
     cfg = Config.load(project_root)
@@ -431,6 +626,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
           f"({len(cfg.sensitive_paths)} from config, "
           f"{len(patterns) - len(cfg.sensitive_paths)} built in)")
     print(f"prompt scan    : {'on' if cfg.scan_prompt else 'OFF'}")
+
+    live = files.Cache.load(project_root / runs.RUNS_DIRNAME).live(time.time())
+    print(f"uploads held   : {len(live)} file(s) at Google"
+          f"{'  (`uploads --delete` removes them)' if live else ''}")
 
     exists, ignored = runs.ignore_status(project_root)
     if not exists:
@@ -491,6 +690,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ask.add_argument("--schema-file", metavar="PATH",
                      help="JSON Schema file; the reply comes back as JSON")
+    ask.add_argument(
+        "--upload-timeout", type=float, default=files.DEFAULT_TIMEOUT_S,
+        metavar="SECONDS",
+        help="how long to wait for an uploaded file to finish processing "
+             f"(default {files.DEFAULT_TIMEOUT_S:.0f}s; long videos need more)",
+    )
     ask.add_argument("--label", action="append", default=[], metavar="KEY=VALUE",
                      help="request label; repeatable")
     ask.add_argument(
@@ -512,6 +717,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="list interactions stored server-side (they cannot be deleted)",
     )
     sto.set_defaults(func=cmd_stored)
+
+    up = sub.add_parser(
+        "uploads",
+        help="list files this project uploaded to the Files API (these CAN be "
+             "deleted, unlike interactions)",
+    )
+    up.add_argument("--delete", action="store_true",
+                    help="delete them server-side now instead of waiting 48h")
+    up.set_defaults(func=cmd_uploads)
 
     doc = sub.add_parser("doctor", help="check config, credentials, and recipes")
     doc.set_defaults(func=cmd_doctor)

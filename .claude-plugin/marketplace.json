@@ -118,8 +118,8 @@
     {
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
-      "description": "Hand a task to Gemini and get a structured answer back -- perceptual image comparison, media extraction, or any ad-hoc question with model, thinking level, and schema set per call. Explicit, auditable, one run directory per call.",
-      "version": "0.7.2"
+      "description": "Hand a task to Gemini and get a structured answer back -- video and audio analysis, perceptual image comparison, or any ad-hoc question with model, thinking level, and schema set per call. Explicit, auditable, one run directory per call.",
+      "version": "0.8.0"
     }
   ],
   "renames": {

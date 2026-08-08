@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-08-08
 
 # gemini-bridge
 
@@ -10,6 +10,8 @@ reporting what a person would actually notice. Claude can measure images with
 code but cannot reliably see the difference between them; Gemini can. Since
 0.7.0 the bridge is not vision-only: any call that does not need a saved
 recipe can be made ad-hoc, with every parameter set from the command line.
+Since 0.8.0 it takes **video and audio** too, which is the harder capability
+gap — those are files Claude cannot open at all.
 
 ## Installation
 
@@ -64,8 +66,41 @@ gemini-bridge ask ... --dry-run    # print the manifest, call nothing
 gemini-bridge recipes              # list available recipes
 gemini-bridge stats                # token totals per recipe from the ledger
 gemini-bridge stored               # interactions held server-side
+gemini-bridge uploads              # files held by the Files API (deletable)
 gemini-bridge doctor               # config, credentials, recipes, guards
 ```
+
+### Video and audio
+
+```bash
+gemini-bridge ask -f recording.mp4 \
+  --system "You are reverse-engineering a UI interaction so it can be rebuilt." \
+  "Trace the drawer animation: timestamp, what moves, how far, how long."
+```
+
+Attaching a video or an audio file uploads it to the Files API and sends a
+reference; images and PDFs still attach inline, and anything past the inline
+cap is uploaded regardless of kind. Four consequences:
+
+- **The upload is a disclosure with a 48-hour life.** Unlike a stored
+  interaction, it can be taken back — `gemini-bridge uploads` lists what this
+  project is holding at Google, `--delete` removes it now.
+- **Identical bytes upload once.** Handles are cached by content hash for the
+  48h window and confirmed with the server before reuse, so a series of
+  questions about one recording costs one upload. Change the file and the hash
+  changes with it, so a stale handle can never answer for new bytes.
+- **It is slow.** Give the command more than the default 120s if the file is
+  large, and raise `--upload-timeout` (default 300s) if processing runs long.
+- **Frames are sampled at 1 FPS and cannot be clipped or retimed** — the API
+  offers no fps, start, or end controls. Trim with ffmpeg before sending, and
+  do not expect sub-second events to be seen at all.
+
+The prompt is where the quality comes from, and it is yours to write: a video
+sent with no context returns a plot summary. Say what the file is, what
+decision the answer feeds, and what to ignore; use `--system` for the stance.
+A call that attaches media and asks nothing runs a generic default and warns
+about it. Detail and ffmpeg recipes:
+[skills/gemini-multimodal/references/video.md](skills/gemini-multimodal/references/video.md).
 
 `-r` is optional. Without it the call runs as `adhoc` — no system instruction
 unless you pass one — and every parameter a recipe could set is a flag:
@@ -165,12 +200,16 @@ request.json     the media manifest and parameters -- never the base64 payloads
 response.md      the answer as prose
 response.json    the structured verdict, when the recipe defines a schema
 usage.json       token counts, broken down by modality
+uploads.json     Files API handles this run created or reused, when any
 ```
 
 The runs root writes its own `.gitignore` containing `*` on first use, so run
 output cannot be committed into your repo by accident. A `ledger.jsonl` beside
 it records one line per call — model, recipe, tokens, duration, status — using
-only facts the API reported, never a self-assessment.
+only facts the API reported, never a self-assessment. An `upload-cache.json`
+sits beside it holding Files API handles keyed by content hash; it is what
+makes a re-asked question skip the upload, and what lets `uploads --delete`
+name a file after the run directory that created it is gone.
 
 **Add `.gemini-runs/` to your project's own `.gitignore` as well.** The
 self-ignore is a single file: delete it and the tree is stageable until the next

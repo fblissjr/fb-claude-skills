@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import replace
 
 import orjson
 import pytest
@@ -87,18 +88,77 @@ def test_image_becomes_inline_block(tmp_path):
     assert "data" in block
 
 
-def test_video_refused_until_files_api(tmp_path):
+def test_video_is_never_inlined_however_small(tmp_path):
+    """Routing video through the Files API is a verification decision.
+
+    Only the uri shape was probed live (probe 11); inline video is a
+    hypothesis from the SDK types and nothing more. A size-based rule would
+    quietly send a 2KB clip down the unproven path, so the kind decides and
+    the size does not get a vote. Delete this and the first tiny test clip
+    someone tries becomes the thing that discovers whether inline works.
+    """
     p = tmp_path / "clip.mp4"
     p.write_bytes(b"0" * 16)
-    with pytest.raises(media.MediaError, match="Files API"):
-        media.to_content_block(media.inspect(p))
+    att = media.inspect(p)
+    assert media.needs_upload(att)
+    with pytest.raises(media.MediaError, match="must be uploaded"):
+        media.to_content_block(att)
+
+
+def test_oversized_image_routes_to_upload_too(tmp_path):
+    """The cap is the second, independent reason to upload.
+
+    Before the Files API existed this was a dead end with an apologetic error.
+    It must now be a route, or a 90MB PDF is still unusable.
+    """
+    p = tmp_path / "huge.pdf"
+    p.write_bytes(b"%PDF-1.4\n")
+    att = media.Attachment(
+        path=p, kind="document", mime_type="application/pdf",
+        size_bytes=media.INLINE_LIMIT_BYTES + 1,
+    )
+    assert media.needs_upload(att)
+
+
+def test_uploaded_attachment_becomes_a_uri_block(tmp_path):
+    p = tmp_path / "clip.mp4"
+    p.write_bytes(b"0" * 16)
+    att = replace(media.inspect(p, "low"), uri="https://files/abc")
+    block = media.to_content_block(att)
+    assert block == {
+        "type": "video",
+        "uri": "https://files/abc",
+        "mime_type": "video/mp4",
+        "resolution": "low",
+    }
+    assert "data" not in block, "a uri block must never also carry the bytes"
+
+
+def test_audio_block_carries_no_resolution(tmp_path):
+    """AudioContent has no resolution field; sending one is a 400, not an
+    ignored extra. The recipe-level resolution applies to every attachment,
+    so an audio file inherits it unless this strips it."""
+    p = tmp_path / "clip.wav"
+    p.write_bytes(b"RIFF")
+    att = replace(media.inspect(p, "high"), uri="https://files/xyz")
+    assert "resolution" not in media.to_content_block(att)
+
+
+def test_guess_kinds_ignores_what_it_cannot_place(tmp_path):
+    """It runs before the guards, on paths that may not exist and may not be
+    supported. Anything it cannot place is dropped, never raised -- the real
+    error belongs to inspect(), where it is actionable."""
+    kinds = media.guess_kinds(["a.mp4", "b.png", "c.zip", "no-extension"])
+    assert kinds == ["video", "image"]
 
 
 def test_manifest_never_carries_payload(tmp_path):
     p = tmp_path / "x.png"
     p.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 64)
     entry = media.inspect(p, "high").manifest_entry()
-    assert set(entry) == {"path", "kind", "mime_type", "size_bytes", "resolution"}
+    assert set(entry) == {
+        "path", "kind", "mime_type", "size_bytes", "resolution", "uri",
+    }
     assert "data" not in entry
 
 

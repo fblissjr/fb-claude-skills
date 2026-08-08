@@ -37,6 +37,13 @@ What it answers:
   9  is service_tier="flex" accepted
  10  image attach, per-item media resolution, and token cost by resolution
  11  video attach via files.upload
+ 12  audio attach via files.upload           (same road, separate content type)
+
+Probe 11 is what the shipped video path is modelled on, so it is the arm to
+re-run when that path misbehaves. Probe 12 exists because audio reaches the API
+through identical machinery and was still never confirmed: "the same code
+handles it" is a hypothesis about the server, not a fact about it, and this file
+is where that distinction is enforced.
 """
 
 from __future__ import annotations
@@ -128,6 +135,7 @@ def main() -> int:
     ap.add_argument("--op-ref", help="1Password secret reference for the API key")
     ap.add_argument("--image", action="append", default=[], help="repeatable")
     ap.add_argument("--video", help="path to a short video file")
+    ap.add_argument("--audio", help="path to a short audio file")
     ap.add_argument("--model", default=MODEL)
     args = ap.parse_args()
 
@@ -398,6 +406,42 @@ def main() -> int:
                 "YES",
                 f"input_tokens={u.get('total_input_tokens')} "
                 f"answer={(r.output_text or '')[:120]!r}",
+            )
+
+    # -- 12 --------------------------------------------------------------
+    if args.audio:
+
+        @probe("12. audio via files.upload")
+        def _():
+            f = client.files.upload(file=args.audio)
+            uploaded_files.append(getattr(f, "name", ""))
+            record("upload", "YES", f"uri={f.uri} mime={f.mime_type}")
+
+            for _ in range(30):
+                state = str(getattr(client.files.get(name=f.name), "state", ""))
+                if "ACTIVE" in state.upper():
+                    break
+                time.sleep(2)
+
+            # No `resolution` here on purpose. AudioContent has no such field,
+            # and whether an extra key 400s or is ignored is exactly the sort of
+            # thing only a live call settles -- so the shipped path strips it
+            # and this probe matches the shipped path.
+            r = client.interactions.create(
+                model=model,
+                input=[
+                    {"type": "audio", "uri": f.uri, "mime_type": f.mime_type},
+                    {"type": "text", "text": "Transcribe this. Note any silence."},
+                ],
+                store=False,
+            )
+            u = usage_dict(r)
+            record(
+                "audio",
+                "YES",
+                f"input_tokens={u.get('total_input_tokens')} "
+                f"by_modality={u.get('input_tokens_by_modality')} "
+                f"answer={(r.output_text or '')[:100]!r}",
             )
 
     # -- cleanup ---------------------------------------------------------
