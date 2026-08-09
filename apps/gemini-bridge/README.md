@@ -128,6 +128,55 @@ path, so raising it is always an explicit act. `--system`/`--system-file`
 cannot be combined with `-r`: the run is labeled with the recipe's name, and
 swapping the stance under that name would mislabel the record.
 
+## The spend gate
+
+Claude Code's Bash permission prompt is the usual protection, but it is one you
+can allowlist away or click through, and it cannot tell "look at this
+screenshot" from "upload forty minutes of video". So expensive and
+irreversible calls need a second thing: an authorization only a **user-typed**
+slash command can create.
+
+```
+/gemini-bridge:gemini-authorize              # single use, 10 min, 200k token ceiling
+/gemini-bridge:gemini-authorize --max-tokens 500000
+```
+
+A call is gated when it is over ~20,000 estimated input tokens, uses `--store`
+(which cannot be undone — `interactions.delete` returns 501), or raises
+`--thinking-level` to `medium` or `high`. Everything else — screenshots, PDFs,
+short clips, text questions — runs under the ordinary prompt exactly as before.
+
+**Minting and enforcing are deliberately split.** A `UserPromptExpansion` hook
+mints, because only a user-typed command can reach that event; the main loop
+cannot. The CLI enforces, because it is the narrower chokepoint — it also
+covers manual, scripted, and subagent callers on machines where the hook is not
+installed, and it can see the resolved attachments, which a bash command line
+cannot reliably be parsed for. The gate runs **before** credentials are
+resolved and before any upload, so a refused call sends nothing at all.
+
+**What this does and does not do.** The authorization is a local file. Anything
+holding Bash or Write can fabricate one, and dropping `CLAUDE_SESSION_ID` makes
+a caller look like a human at a terminal. This is not a defence against a
+determined agent and does not claim to be. What it guarantees is that nothing
+on the *normal, helpful* path spends at scale: an eager agent that would gladly
+upload the whole recording now has to be told to, by a human, in a way it
+cannot arrange for itself. An eager agent is the realistic failure mode, not a
+hostile one.
+
+Turn it off, or retune it, per project:
+
+```toml
+[authorization]
+# required = false             # back to the permission prompt alone
+max_unauthorized_tokens = 5000 # gate more aggressively
+ttl_seconds = 600
+```
+
+`gemini-bridge doctor` reports whether the gate is on and what it costs to
+cross. `ledger.jsonl` records an `authorization_tier` per call — `cheap`,
+`expensive-authorized`, or `expensive-ungated` — so an audit can tell an
+approved spend from one that never needed approving.
+
 ## What gets checked before anything is sent
 
 Two guards, both on by default, because a call cannot be recalled — the API's

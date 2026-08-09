@@ -30,6 +30,7 @@ import orjson
 
 from . import (
     auth,
+    authorization,
     budget,
     client as call_mod,
     content,
@@ -307,6 +308,20 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 break
         print(f"question    {shown}"
               f"{'  (generic default)' if used_default_prompt else ''}")
+        # Whether the real call would be gated, answered on the one path that
+        # sends nothing. Finding this out by being refused costs a round trip;
+        # finding it out here costs nothing.
+        tier, why = authorization.classify(
+            estimated_tokens=budget.total(attachments),
+            thinking_level=request.get("generation_config", {}).get("thinking_level"),
+            stateful=recipe.stateful,
+            max_unauthorized_tokens=cfg.max_unauthorized_tokens,
+        )
+        if tier == "expensive" and cfg.require_authorization:
+            print(f"gate        needs {authorization.AUTHORIZE_COMMAND} "
+                  f"-- {why}")
+        else:
+            print("gate        none; runs under the ordinary permission prompt")
         return 0
 
     # Said before the send, not after, so it is still actionable. The defaults
@@ -316,6 +331,28 @@ def cmd_ask(args: argparse.Namespace) -> int:
     warning = budget.advice(attachments, estimated_tokens)
     if warning:
         print(f"WARNING {warning}", file=sys.stderr)
+
+    # The spend gate, before credentials are even resolved. An expensive or
+    # irreversible call needs an authorization only a user-typed slash command
+    # can mint; a cheap one runs under the ordinary Bash permission prompt as
+    # it always has. Placed here because it must precede every irrevocable
+    # step -- the upload most of all, which discloses bytes for 48h whether or
+    # not the interaction that follows succeeds.
+    tier, why = authorization.classify(
+        estimated_tokens=estimated_tokens,
+        thinking_level=request.get("generation_config", {}).get("thinking_level"),
+        stateful=recipe.stateful,
+        max_unauthorized_tokens=cfg.max_unauthorized_tokens,
+    )
+    authorization_tier = tier
+    if tier == "expensive" and cfg.require_authorization:
+        decision = authorization.claim(
+            estimated_tokens=estimated_tokens,
+            ttl_seconds=cfg.authorization_ttl_seconds,
+        )
+        authorization_tier = decision.tier
+        if not decision.allowed:
+            return _fail(f"{why}, so {decision.reason}")
 
     try:
         creds = auth.resolve(args.key_command, cfg.key_command)
@@ -355,6 +392,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
             credential_kind=creds.kind, error=error,
             allow_prompt_secrets=args.allow_prompt_secrets,
             prompt_scanned=prompt_scanned,
+            authorization_tier=authorization_tier,
         )
 
     if pending_upload:
@@ -471,6 +509,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         allow_prompt_secrets=args.allow_prompt_secrets,
         prompt_scanned=prompt_scanned,
         interaction_id=interaction_id,
+        authorization_tier=authorization_tier,
     )
 
     u = result.usage
@@ -676,6 +715,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
           f"({len(cfg.sensitive_paths)} from config, "
           f"{len(patterns) - len(cfg.sensitive_paths)} built in)")
     print(f"prompt scan    : {'on' if cfg.scan_prompt else 'OFF'}")
+
+    if cfg.require_authorization:
+        print(f"spend gate     : on -- calls over "
+              f"{cfg.max_unauthorized_tokens:,} estimated tokens, or using "
+              f"--store or raised thinking,\n                 need "
+              f"{authorization.AUTHORIZE_COMMAND} "
+              f"(valid {cfg.authorization_ttl_seconds}s, single use)")
+    else:
+        print("spend gate     : OFF -- every call runs under the ordinary "
+              "permission prompt only")
 
     live = files.Cache.load(project_root / runs.RUNS_DIRNAME).live(time.time())
     print(f"uploads held   : {len(live)} file(s) at Google"

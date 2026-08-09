@@ -1,0 +1,20 @@
+{
+  "description": "gemini-bridge: one hook, and it only mints. UserPromptExpansion fires solely on a user-typed /gemini-authorize, which is the one thing the CLI cannot do for itself -- establishing that a human, not the main loop, asked for an expensive call. Enforcement lives in the CLI, not here: it is the narrower chokepoint (it also covers manual, scripted and subagent callers) and it can see the resolved attachments, which a bash command line cannot reliably be parsed for. This hook never spawns a model, never sends anything, and never blocks a prompt.",
+  "hooks": {
+    "UserPromptExpansion": [
+      {
+        "matcher": "gemini-authorize",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "timeout": 10,
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/gemini-authorize.sh"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

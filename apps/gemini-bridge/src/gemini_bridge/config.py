@@ -45,6 +45,13 @@ class Config:
     sensitive_paths: list[str] = field(default_factory=list)
     use_default_sensitive_paths: bool = True
     scan_prompt: bool = True
+    # The spend gate. On by default: video shipped in 0.8.0, so there is no
+    # established behaviour to break, and an unauthorized call that uploads
+    # forty minutes of footage is exactly what it exists to prevent. Cheap
+    # calls are untouched, so the common path does not change.
+    require_authorization: bool = True
+    max_unauthorized_tokens: int = 20_000
+    authorization_ttl_seconds: int = 600
     sources: list[Path] = field(default_factory=list)
 
     @classmethod
@@ -91,6 +98,17 @@ class Config:
             cfg.use_default_sensitive_paths = privacy_cfg.get("use_defaults", True)
             cfg.scan_prompt = privacy_cfg.get("scan_prompt", True)
 
+            # Project-level, deliberately: "how much may be spent without
+            # asking" is a property of the project being analysed, not of the
+            # machine. Unlike the key command, it is safe to commit -- it
+            # carries no secret and a shared repo benefits from agreeing on it.
+            authz = project.get("authorization", {})
+            cfg.require_authorization = authz.get("required", True)
+            cfg.max_unauthorized_tokens = int(
+                authz.get("max_unauthorized_tokens", 20_000)
+            )
+            cfg.authorization_ttl_seconds = int(authz.get("ttl_seconds", 600))
+
         return cfg
 
 
@@ -123,6 +141,14 @@ EXAMPLE_PROJECT_CONFIG = """\
 # Patterns match anywhere in the resolved path, case-insensitively.
 # A bare name matches any directory component.
 sensitive_paths = ["secrets", "*.key", "credentials/*"]
+
+[authorization]
+# Expensive or irreversible calls need a user-typed
+# /gemini-bridge:gemini-authorize. Cheap ones run under the ordinary
+# permission prompt. Set required = false to disable the gate entirely.
+# required = true
+# max_unauthorized_tokens = 20000
+# ttl_seconds = 600
 
 [recipes]
 # dirs = ["prompts/gemini"]

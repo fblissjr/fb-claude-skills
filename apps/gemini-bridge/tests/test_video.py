@@ -518,3 +518,110 @@ def test_a_mixed_set_gets_the_generic_default_question(project, monkeypatch):
     text = next(b for b in sent_request(capture)["input"] if b["type"] == "text")
     assert text["text"] == prompts.default_question(["video", "document"])
     assert text["text"] != prompts.DEFAULTS["video"]
+
+
+# -- the spend gate, end to end ---------------------------------------------
+
+
+def _authorize(tmp_path, monkeypatch, *, max_tokens=200000, ts=None):
+    import time as _t
+    from gemini_bridge import authorization
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    d = authorization.state_dir("s-e2e")
+    d.mkdir(parents=True, exist_ok=True)
+    (d / authorization.AUTH_FILENAME).write_bytes(orjson.dumps(
+        {"ts": ts if ts is not None else _t.time(),
+         "max_tokens": max_tokens, "origin": "user_typed_command"}
+    ))
+
+
+def test_an_expensive_call_is_refused_before_anything_uploads(
+    project, monkeypatch, capsys, tmp_path
+):
+    """The gate must precede the upload, not merely the interaction.
+
+    An upload is already a disclosure -- the bytes live at Google for 48h
+    whether or not the call that followed them happened. A gate that fired
+    after the upload would be protecting the cheaper half.
+    """
+    from gemini_bridge import budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    ff = FakeFiles()
+    install(monkeypatch, fake_client(ff))
+
+    assert ask(project, "-f", str(project.video), "q") == 1
+    assert ff.uploaded == [], "nothing may leave the machine on a refused call"
+    err = capsys.readouterr().err
+    assert "gemini-authorize" in err
+    assert "estimated input tokens" in err
+
+
+def test_an_authorized_expensive_call_goes_through(
+    project, monkeypatch, tmp_path
+):
+    from gemini_bridge import budget
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    _authorize(tmp_path, monkeypatch)
+    ff = FakeFiles()
+    install(monkeypatch, fake_client(ff))
+
+    assert ask(project, "-f", str(project.video), "q") == 0
+    assert ff.uploaded == [str(project.video)]
+    entry = ledger.read(project.root / runs.RUNS_DIRNAME)[0]
+    assert entry["authorization_tier"] == "expensive-authorized"
+
+
+def test_a_cheap_call_needs_no_authorization(project, monkeypatch, tmp_path):
+    """The common path must not change. If a screenshot needs a slash command,
+    the gate gets switched off and protects nothing."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert ask(project, "-f", str(shot), "what is this") == 0
+    assert ledger.read(project.root / runs.RUNS_DIRNAME)[0]["authorization_tier"] \
+        == "cheap"
+
+
+def test_store_is_gated_even_when_tiny(project, monkeypatch, capsys, tmp_path):
+    """Irreversibility, not size. A one-line question with --store leaves an
+    interaction that interactions.delete cannot remove."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "--store", "a short question") == 1
+    assert "cannot be undone" in capsys.readouterr().err
+
+
+def test_the_gate_can_be_turned_off_in_project_config(
+    project, monkeypatch, tmp_path
+):
+    """It is the user's money and the user's call."""
+    from gemini_bridge import budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nrequired = false\n"
+    )
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 0
+
+
+def test_dry_run_says_whether_the_real_call_would_be_gated(
+    project, monkeypatch, capsys, tmp_path
+):
+    """Learning this by being refused costs a round trip. --dry-run sends
+    nothing, so it is the right place to answer it."""
+    from gemini_bridge import budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "--dry-run", "q") == 0
+    assert "gemini-authorize" in capsys.readouterr().out

@@ -64,6 +64,12 @@ def record(
     # README points at. A caller that DID scan says so explicitly.
     prompt_scanned: bool = False,
     interaction_id: str | None = None,
+    # Which tier the spend gate put this call in: cheap (never gated),
+    # expensive-authorized (a user typed the command), or expensive-ungated
+    # (no agent session, so treated as a direct human invocation). Defaults to
+    # "unknown" rather than "cheap" for the same reason prompt_scanned defaults
+    # to False -- a forgotten kwarg must not positively claim the safe answer.
+    authorization_tier: str = "unknown",
 ) -> Path:
     """Append one call record. Never raises -- logging must not break the call."""
     path = runs_root / LEDGER_NAME
@@ -100,6 +106,7 @@ def record(
         # way the run dir holds the text in plaintext locally, and the
         # interaction at Google cannot be deleted.
         "prompt_scanned": prompt_scanned,
+        "authorization_tier": authorization_tier,
         # Which route: True when --allow-prompt-secrets was passed on this
         # call. Kept alongside prompt_scanned because a deliberate one-off
         # bypass and a standing config opt-out are different facts about a run.

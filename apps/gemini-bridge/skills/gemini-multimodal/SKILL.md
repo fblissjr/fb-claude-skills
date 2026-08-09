@@ -137,6 +137,23 @@ triggers worth asking about: video over a couple of minutes, `--resolution
 high` across several files, switching to Pro, raising `--thinking-level`, and
 `--store` (which cannot be undone).
 
+### Some calls are gated, and you cannot clear the gate yourself
+
+Above ~20,000 estimated input tokens — or with `--store`, or
+`--thinking-level medium|high` — the CLI refuses unless the user has typed
+`/gemini-bridge:gemini-authorize`. Nothing you can run mints that
+authorization; that is the point of it.
+
+If you are refused: **do not retry, do not split the call into smaller ones to
+get under the limit, and do not turn the gate off in `.gemini-bridge.toml`.**
+Say what you wanted to send, what it would cost, and what you expected to
+learn, then stop and let the user decide. Often the better move is the cheaper
+call the refusal suggests — a trimmed clip or a lower resolution usually
+answers the question and needs no authorization at all.
+
+`--dry-run` tells you whether a call would be gated without sending anything,
+so check there rather than discovering it by being refused.
+
 ## Going deeper
 
 SKILL.md is the routing layer. Three references carry the detail, and it is
