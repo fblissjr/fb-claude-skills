@@ -31,8 +31,10 @@ Two things to do:
 
 Two guards run automatically and refuse the call rather than warning:
 
-- **Attached paths** are matched against built-in patterns for secret-shaped
-  files plus anything configured in `.gemini-bridge.toml`.
+- **Every path you name** — `-f`, `-c`, `--prompt-file`, `--system-file`,
+  `--schema-file` — is matched against built-in patterns for secret-shaped
+  files plus anything configured in `.gemini-bridge.toml`, before the file is
+  opened.
 - **The prompt** is scanned for secret-shaped content. This one matters most
   here, because *you* compose the prompt after reading the user's files. Do not
   paste key material, tokens, or credential blocks into a question. If a refusal
@@ -139,10 +141,12 @@ high` across several files, switching to Pro, raising `--thinking-level`, and
 
 ### Some calls are gated, and you cannot clear the gate yourself
 
-Above ~20,000 estimated input tokens — or with `--store`, or
-`--thinking-level medium|high` — the CLI refuses unless the user has typed
-`/gemini-bridge:gemini-authorize`. Nothing you can run mints that
-authorization; that is the point of it.
+Above ~20,000 estimated input tokens — or with `--store`, `--thinking-level
+medium|high`, or `--max-output-tokens` above the same limit — the CLI refuses
+unless the user has typed `/gemini-bridge:gemini-authorize`. Nothing you can
+run mints that authorization; that is the point of it. The estimate counts the
+question and system instruction as well as the attachments, so a very large
+`--prompt-file` is gated on its own.
 
 If you are refused: **do not retry, do not split the call into smaller ones to
 get under the limit, and do not turn the gate off in `.gemini-bridge.toml`.**

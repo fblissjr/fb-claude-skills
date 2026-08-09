@@ -35,6 +35,8 @@ is the actual failure mode.
 from __future__ import annotations
 
 import os
+import re
+import stat
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +47,15 @@ import orjson
 STATE_ROOT_NAME = "claude-gemini-bridge"
 AUTH_FILENAME = "authorization.json"
 REQUIRED_ORIGIN = "user_typed_command"
+
+# The one tier a refusal may be recorded under. It used to be the bare string
+# "expensive", which describes the *call* rather than the gate's verdict and is
+# not one of the values the README's table lists -- so an audit filtering the
+# documented values dropped exactly the refusals it was run to count. The CLI
+# papered over that on the peek path with a hard-coded string; the consume
+# path, which is the one a parallel-call race takes, kept the bare value.
+# Naming it here means both paths get it from the same place.
+TIER_REFUSED = "expensive-refused"
 
 # The slash command a human types. Named in every refusal, because a refusal
 # that does not say how to proceed just gets worked around.
@@ -78,13 +89,41 @@ SESSION_ENV_VARS = ("CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID")
 # the variable again rebuilds the same silent no-op.
 AGENT_MARKER_VARS = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_VERSION")
 
+# The id is interpolated straight into a filesystem path by `state_dir`, on
+# both sides of the gate. Anything carrying a separator, or spelled `.` or
+# `..`, resolves somewhere neither half intended -- so it is not a session id
+# this module can act on, and "cannot verify" already has an answer here.
+# Requiring a leading alphanumeric is what rejects the dot forms without a
+# second check.
+SESSION_ID_RE = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
-def session_id() -> str | None:
-    """The Claude Code session id, or None when it cannot be found."""
+
+def raw_session_id() -> str | None:
+    """Whatever the environment says the session is, unvalidated.
+
+    For the ledger, which wants attribution and not a decision. `ledger.py`
+    read `CLAUDE_SESSION_ID` alone -- the variable this module documents as
+    *not* exported -- so every row written on an agent call recorded a null
+    session, including the `run_id: "(refused)"` rows added so an audit could
+    see an agent repeatedly trying to spend more than it may. An audit trail
+    that cannot attribute its rows to a session cannot show a pattern.
+
+    Deliberately not `session_id()`: a value too odd for the gate to act on is
+    still the best answer available to the question "which session was this?",
+    and dropping it would trade a real attribution for a null.
+    """
     for var in SESSION_ENV_VARS:
         value = os.environ.get(var)
         if value:
             return value
+    return None
+
+
+def session_id() -> str | None:
+    """The session id the gate may act on, or None if it cannot be used as one."""
+    value = raw_session_id()
+    if value and SESSION_ID_RE.match(value):
+        return value
     return None
 
 
@@ -107,7 +146,47 @@ def state_dir(sid: str) -> Path:
     return base / STATE_ROOT_NAME / sid
 
 
+def _owned(path: Path, *, directory: bool = False) -> bool:
+    """Whether `path` is a file (or directory) owned by this user.
+
+    The `TMPDIR` fallback is a shared `/tmp` on Linux, and the minting hook's
+    own comment calls this file the thing standing between another local
+    account and spending on this API key. Nothing checked it: whatever sat at
+    the path was trusted on its contents alone. An account that creates
+    `/tmp/claude-gemini-bridge` first owns that path, and the hook's `chmod
+    700` on an existing directory fails into a `|| true`.
+
+    `lstat`, not `stat`: a symlink pointing at a file we do own would
+    otherwise pass while the attacker still controls what the name resolves
+    to. Regular-file-only for the same reason -- a fifo or a device is not an
+    authorization.
+    """
+    if not hasattr(os, "getuid"):  # not a platform this plugin's hook runs on
+        return True
+    try:
+        st = path.lstat()
+    except OSError:
+        return False
+    right_type = stat.S_ISDIR(st.st_mode) if directory else stat.S_ISREG(st.st_mode)
+    return right_type and st.st_uid == os.getuid()
+
+
+def mint_target_ok() -> bool:
+    """Whether the hook can mint into the state root at all.
+
+    Mirrors the hook's own refusal so `doctor` can report it. Without this the
+    failure is the worst shape there is: the user types the command, it appears
+    to work, the call is refused again, and nothing anywhere says why.
+    """
+    base = Path(os.environ.get("TMPDIR") or "/tmp") / STATE_ROOT_NAME
+    if not base.exists():
+        return True  # the hook creates it, and then owns it
+    return _owned(base, directory=True)
+
+
 def _read(path: Path) -> dict[str, Any] | None:
+    if not _owned(path):
+        return None
     try:
         data = orjson.loads(path.read_bytes())
     except (OSError, orjson.JSONDecodeError):
@@ -121,6 +200,7 @@ def classify(
     thinking_level: str | None,
     stateful: bool,
     max_unauthorized_tokens: int,
+    max_output_tokens: int | None = None,
 ) -> tuple[str, str]:
     """(tier, why). Cost and irreversibility, not modality.
 
@@ -128,6 +208,11 @@ def classify(
     tokens, and gating it would train people to switch the gate off, which
     costs more than it saves. What earns a gate is a call that is large, or one
     that cannot be taken back.
+
+    `estimated_tokens` is the whole input -- attachments *and* the text that
+    travels with them. Counting attachments alone left a multi-megabyte
+    `--prompt-file` reporting "not gated" at roughly a million tokens, which
+    is the same spend arriving by the one route nobody was measuring.
     """
     if stateful:
         return "expensive", (
@@ -138,6 +223,17 @@ def classify(
         return "expensive", (
             f"thinking_level={thinking_level} bills at the output rate with no "
             "ceiling on how much of it the model uses"
+        )
+    # Raised thinking is gated because output billing runs away. Asking for the
+    # output directly is the same spend by a plainer route, so it meets the
+    # same threshold -- output tokens cost several times what input does, which
+    # makes this the conservative side of the comparison rather than the
+    # generous one.
+    if max_output_tokens and max_output_tokens > max_unauthorized_tokens:
+        return "expensive", (
+            f"max_output_tokens={max_output_tokens:,} is over the "
+            f"{max_unauthorized_tokens:,} limit, and output bills at several "
+            "times the input rate"
         )
     if estimated_tokens > max_unauthorized_tokens:
         return "expensive", (
@@ -162,13 +258,14 @@ def _no_session_decision() -> Decision:
             reason="no agent session; treated as a direct human invocation",
         )
     return Decision(
-        allowed=False, tier="expensive",
+        allowed=False, tier=TIER_REFUSED,
         reason=(
-            "this looks like an agent session but no session id could be read "
-            f"from {' or '.join(SESSION_ENV_VARS)}, so the authorization "
-            "cannot be located. Refusing rather than allowing an unverified "
-            "call. If the variable was renamed upstream, that is a bug in "
-            "this plugin -- report it rather than working around it."
+            "this looks like an agent session but no usable session id could "
+            f"be read from {' or '.join(SESSION_ENV_VARS)} -- it is missing, "
+            "or not a plain identifier -- so the authorization cannot be "
+            "located. Refusing rather than allowing an unverified call. If the "
+            "variable was renamed upstream, that is a bug in this plugin -- "
+            "report it rather than working around it."
         ),
     )
 
@@ -179,14 +276,15 @@ def _validate(
     """Shared by peek and consume so the two can never disagree."""
     if token is None:
         return Decision(
-            allowed=False, tier="expensive",
-            reason="the authorization file could not be read or parsed. "
-                   f"Ask the user to run {AUTHORIZE_COMMAND} again.",
+            allowed=False, tier=TIER_REFUSED,
+            reason="the authorization file could not be read, parsed, or is "
+                   "not owned by this user. Ask the user to run "
+                   f"{AUTHORIZE_COMMAND} again.",
         )
 
     if token.get("origin") != REQUIRED_ORIGIN:
         return Decision(
-            allowed=False, tier="expensive",
+            allowed=False, tier=TIER_REFUSED,
             reason="the authorization lacks user-typed provenance. Only the "
                    f"user running {AUTHORIZE_COMMAND} can authorize a call of "
                    "this size.",
@@ -197,14 +295,14 @@ def _validate(
         ceiling = int(token.get("max_tokens") or 0)
     except (TypeError, ValueError):
         return Decision(
-            allowed=False, tier="expensive",
+            allowed=False, tier=TIER_REFUSED,
             reason="the authorization is malformed. Ask the user to run "
                    f"{AUTHORIZE_COMMAND} again.",
         )
 
     if age > ttl_seconds:
         return Decision(
-            allowed=False, tier="expensive",
+            allowed=False, tier=TIER_REFUSED,
             reason=f"the authorization expired ({int(age)}s old, limit "
                    f"{ttl_seconds}s). An approval from earlier in the session "
                    "should not silently fund a call the user has stopped "
@@ -214,9 +312,23 @@ def _validate(
     # The token carries a ceiling, so "approve a clip, send the feature film"
     # is not one edit away. Without it the approval is a blank cheque and the
     # user's control over spend is nominal.
-    if ceiling and estimated_tokens > ceiling:
+    #
+    # A ceiling of zero or one that is missing entirely is refused, not treated
+    # as absent. The guard here used to read `if ceiling and ...`, which made 0
+    # -- the value that reads as "allow nothing" -- the single value that
+    # allowed everything, reachable by typing `--max-tokens 0` because the hook
+    # accepts it as all digits.
+    if ceiling <= 0:
         return Decision(
-            allowed=False, tier="expensive",
+            allowed=False, tier=TIER_REFUSED,
+            reason="the authorization carries no usable token ceiling, so "
+                   "there is nothing bounding what it would approve. Ask the "
+                   f"user to run {AUTHORIZE_COMMAND} again.",
+        )
+
+    if estimated_tokens > ceiling:
+        return Decision(
+            allowed=False, tier=TIER_REFUSED,
             reason=f"this call is ~{estimated_tokens:,} estimated input tokens "
                    f"but the authorization covers {ceiling:,}. Ask the user for "
                    f"a larger one: {AUTHORIZE_COMMAND} "
@@ -243,7 +355,7 @@ def peek(
 
     path = state_dir(sid) / AUTH_FILENAME
     if not path.is_file():
-        return Decision(allowed=False, tier="expensive", reason=_missing_message())
+        return Decision(allowed=False, tier=TIER_REFUSED, reason=_missing_message())
     return _validate(
         _read(path), estimated_tokens=estimated_tokens,
         ttl_seconds=ttl_seconds, now=now,
@@ -275,7 +387,7 @@ def consume(
     try:
         os.rename(auth_path, claimed)
     except OSError:
-        return Decision(allowed=False, tier="expensive", reason=_missing_message())
+        return Decision(allowed=False, tier=TIER_REFUSED, reason=_missing_message())
 
     try:
         return _validate(

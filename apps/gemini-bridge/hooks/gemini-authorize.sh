@@ -60,8 +60,28 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-# A typo becomes the default rather than an unbounded approval.
+# A typo becomes the default rather than an unbounded approval. So does zero:
+# the CLI refuses a ceiling of 0 rather than reading it as "no ceiling", and
+# minting one here would only produce an authorization guaranteed to be
+# rejected.
 case "$MAX_TOKENS" in *[!0-9]* | "") MAX_TOKENS=200000 ;; esac
+[ "$MAX_TOKENS" -gt 0 ] 2>/dev/null || MAX_TOKENS=200000
+
+# The session id lands in a filesystem path. Claude Code sends a uuid, but a
+# value carrying a separator would write somewhere neither half of the gate
+# looks -- and the CLI applies the same rule when reading, so an id it would
+# reject is one there is no point minting for.
+# Must match `authorization.SESSION_ID_RE` exactly: a leading alphanumeric,
+# then alphanumerics/dot/underscore/hyphen, 128 characters at most. The looser
+# earlier version minted for ids the CLI then always refused -- an approval the
+# user typed that could never be spent, with `doctor` the only place saying so.
+# A parity arm in tests/test_authorize_hook.py runs both sides over the same
+# ids, because a claim of agreement between two implementations is a thing to
+# test rather than a thing to write in a comment.
+case "$SESSION_ID" in
+  "" | [!A-Za-z0-9]* | *[!A-Za-z0-9._-]*) exit 0 ;;
+esac
+[ "${#SESSION_ID}" -le 128 ] || exit 0
 
 STATE_ROOT="${TMPDIR:-/tmp}/claude-gemini-bridge"
 STATE_DIR="$STATE_ROOT/${SESSION_ID}"
@@ -70,7 +90,19 @@ STATE_DIR="$STATE_ROOT/${SESSION_ID}"
 # what stands between another local account and spending on this API key.
 umask 077
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
-chmod 700 "$STATE_ROOT" "$STATE_DIR" 2>/dev/null || true
+
+# `mkdir -p` succeeds against a directory that already exists, whoever owns it.
+# On a shared /tmp another account can create `claude-gemini-bridge` first, at
+# which point the `chmod` below fails, the old `|| true` swallowed it, and the
+# authorization was written into a path that account controls. Minting into a
+# root we do not own is refused instead -- the fail-closed direction, and the
+# one `doctor` reports so it is not another invisible failure. The CLI checks
+# ownership again when it reads, since this half may not be installed at all.
+for d in "$STATE_ROOT" "$STATE_DIR"; do
+  [ -L "$d" ] && exit 0
+  [ -O "$d" ] || exit 0
+  chmod 700 "$d" 2>/dev/null || exit 0
+done
 
 # Nothing else prunes these, so they would sit until reboot. Bounded to this
 # plugin's own directory.

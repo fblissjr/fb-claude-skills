@@ -21,6 +21,23 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# Several patterns below end a greedy character class with a literal the class
+# excludes, and those are written possessively (`++`, `*+`, `{10,}+`).
+#
+# Not a micro-optimisation: greedily, each start position consumes to the end
+# of the text and then backtracks one character at a time looking for a
+# delimiter that is not there. On input with no separator to break the run that
+# is quadratic, and it was measured at ~275 seconds for a 400KB prompt -- the
+# CLI sitting there producing nothing, on the guard path, before anything was
+# sent. A base64 blob, a minified bundle, a hex digest or a data: URI pasted
+# into `--prompt-file` is exactly that shape.
+#
+# Possessive is safe here *only* because the following literal is excluded from
+# the class it follows, so the backtracking it removes could never have reached
+# a match. `[A-Za-z0-9.-]+\.` in the email pattern is deliberately left greedy:
+# `.` IS in that class, and the backtracking is what finds the last dot.
+# Requires Python 3.11+, which `requires-python` already pins.
+#
 # (name, compiled pattern, whether a hit should block rather than warn)
 _SPECS: list[tuple[str, str, bool]] = [
     # High confidence: these shapes are secrets or nothing.
@@ -34,21 +51,21 @@ _SPECS: list[tuple[str, str, bool]] = [
     # GitHub's recommended format since 2022; the classic pattern misses it.
     ("github fine-grained token", r"github_pat_[A-Za-z0-9_]{50,}", True),
     ("npm token", r"npm_[A-Za-z0-9]{36,}", True),
-    ("sendgrid key", r"SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}", True),
+    ("sendgrid key", r"SG\.[A-Za-z0-9_-]{20,}+\.[A-Za-z0-9_-]{20,}", True),
     # A connection string with an inline password -- pasted constantly when
     # debugging, and the password is the whole secret.
     ("connection string with password",
-     r"[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s:/@]+@[^\s/]+", True),
+     r"(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*+://[^\s:/@]++:[^\s:/@]++@[^\s/]+", True),
     ("slack token", r"xox[baprs]-[A-Za-z0-9-]{10,}", True),
     ("google api key", r"AIza[A-Za-z0-9_-]{35}", True),
     ("aws access key", r"AKIA[0-9A-Z]{16}", True),
-    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}", True),
+    ("jwt", r"eyJ[A-Za-z0-9_-]{10,}+\.eyJ[A-Za-z0-9_-]{10,}+\.[A-Za-z0-9_-]{10,}", True),
     ("private key block", r"-----BEGIN [A-Z ]*PRIVATE KEY-----", True),
     ("ssh fingerprint", r"SHA256:[A-Za-z0-9+/]{43}=?", True),
     ("secret reference", r"\bop://[^\s\"']+", True),
     # Lower confidence: legitimate in some prompts, so warn rather than block.
-    ("email address", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", False),
-    ("absolute home path", r"/(?:Users|home)/[^/\s\"']+/", False),
+    ("email address", r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", False),
+    ("absolute home path", r"/(?:Users|home)/[^/\s\"']++/", False),
 ]
 
 PATTERNS = [(name, re.compile(rx), blocking) for name, rx, blocking in _SPECS]

@@ -24,11 +24,15 @@ from documentation:
 The cache exists because the motivating video case is iterative. Asking four
 questions about one screen recording should upload it once, not four times: the
 bytes are identical, the handle is valid for 48h, and re-uploading spends
-wall-clock and the project's 20GB quota to arrive at the same URI. It is keyed
-by content hash, so it can never serve a handle for different bytes -- edit the
-file and the key changes. The only staleness it can suffer is server-side
-(expired or deleted), which is why a cached handle is confirmed with a live
-`files.get` before it is reused.
+wall-clock and the project's 20GB quota to arrive at the same URI. Reuse is
+matched on a content hash, so it can never serve a handle for different bytes
+-- edit the file and the hash changes. The only staleness it can suffer is
+server-side (expired or deleted), which is why a cached handle is confirmed
+with a live `files.get` before it is reused.
+
+The cache is *keyed* by handle name rather than by that hash, because one set
+of bytes can have more than one live handle and the local record has to be able
+to name every one of them. See `Cache`.
 """
 
 from __future__ import annotations
@@ -126,11 +130,23 @@ def digest(path: Path, chunk: int = 1024 * 1024) -> str:
 
 @dataclass
 class Cache:
-    """Content hash -> handle, stored beside the run directories.
+    """Handle name -> handle, stored beside the run directories.
 
     Deliberately holds no paths, only basenames: the runs tree is written into
     whatever project is being analysed, and a full path there records the local
     username for no benefit the hash does not already provide.
+
+    **Keyed by handle name, not content hash.** The hash is what answers "have
+    I uploaded these bytes already", and it stays on the record for that -- but
+    it is not unique over live handles. Re-uploading a file whose handle is
+    inside the reuse margin produces a second live handle for the same bytes,
+    and while this was keyed by hash the second `put` overwrote the first: the
+    older handle's name was erased locally while its bytes sat at Google for up
+    to another thirty minutes, unlistable by `uploads` and undeletable by
+    `--delete`. That is the same shape as the `live()` mutation fixed in
+    0.11.1, arriving by the reuse path instead of the listing path. The name is
+    also what `files.delete` takes, so the key is now the thing the remedy
+    needs.
     """
 
     path: Path
@@ -146,7 +162,15 @@ class Cache:
             return cls(path=path)
         if not isinstance(raw, dict):
             return cls(path=path)
-        entries = {k: v for k, v in raw.items() if isinstance(v, dict)}
+        # Re-keyed on the way in rather than migrated: a file written by the
+        # hash-keyed version carries `name` inside every record, so normalising
+        # here converts it in place and the next save persists the new shape.
+        # An entry with no usable name is dropped -- it names nothing that
+        # could be deleted, which is the only reason this file exists.
+        entries: dict[str, dict[str, Any]] = {}
+        for value in raw.values():
+            if isinstance(value, dict) and isinstance(value.get("name"), str):
+                entries[value["name"]] = value
         return cls(path=path, entries=entries)
 
     def save(self) -> None:
@@ -161,8 +185,8 @@ class Cache:
         except OSError:
             pass  # a lost cache costs an upload, never the call
 
-    def _parse(self, sha: str) -> Upload | None:
-        raw = self.entries.get(sha)
+    def _parse(self, key: str) -> Upload | None:
+        raw = self.entries.get(key)
         if not isinstance(raw, dict):
             return None
         try:
@@ -175,29 +199,34 @@ class Cache:
             float(up.uploaded_at)
             int(up.size_bytes)
         except (TypeError, ValueError):
-            self.entries.pop(sha, None)  # older or corrupt shape
+            self.entries.pop(key, None)  # older or corrupt shape
             return None
         return up
 
     def get(self, sha: str, now: float) -> Upload | None:
-        """A handle safe to *reuse*, or None.
+        """The newest handle for these bytes that is safe to *reuse*, or None.
 
         Applies the reuse margin: a file that lapses between this check and
         the call would fail the interaction after the upload was skipped.
+
+        Non-mutating, like `live`. It used to drop the entry it declined to
+        reuse, which is how a still-live handle lost its only local record --
+        declining to reuse something is not the same as it being gone, and
+        only `drop` after a confirmed delete may forget a handle.
         """
-        up = self._parse(sha)
-        if up is None:
-            return None
-        if now >= up.expires_at() - REUSE_MARGIN_S:
-            self.entries.pop(sha, None)
-            return None
-        return up
+        candidates = [
+            up for key in list(self.entries)
+            if (up := self._parse(key))
+            and up.sha256 == sha
+            and now < up.expires_at() - REUSE_MARGIN_S
+        ]
+        return max(candidates, key=lambda u: u.uploaded_at, default=None)
 
     def put(self, up: Upload) -> None:
-        self.entries[up.sha256] = up.record()
+        self.entries[up.name] = up.record()
 
-    def drop(self, sha: str) -> None:
-        self.entries.pop(sha, None)
+    def drop(self, name: str) -> None:
+        self.entries.pop(name, None)
 
     def live(self, now: float) -> list[Upload]:
         """Everything still at Google, newest first. Non-mutating.
@@ -211,7 +240,7 @@ class Cache:
         another twelve minutes. Listing and deleting must see everything that
         is actually there.
         """
-        out = [up for sha in list(self.entries) if (up := self._parse(sha))
+        out = [up for key in list(self.entries) if (up := self._parse(key))
                and now < up.expires_at()]
         return sorted(out, key=lambda u: u.uploaded_at, reverse=True)
 
@@ -302,7 +331,7 @@ def ensure_uploaded(
     if cached:
         if _still_there(api, cached.name):
             return cached
-        cache.drop(sha)
+        cache.drop(cached.name)
 
     try:
         handle = api.files.upload(file=str(att.path))

@@ -71,12 +71,22 @@ material sitting beside it.
 | Image | `ultra_high` | 2240 | computer use only |
 | Video | default / `low` / `medium` | **70 per frame, all identical** | motion, action, scene description |
 | Video | `high` | 280 per frame | only when reading text or fine detail in frames |
+| Video | `ultra_high` | **unpublished — estimated at 560** | no known reason to use it |
 | PDF | `medium` | 560 | quality saturates here |
+
+`ultra_high` on video is type-valid — the SDK has one `MediaResolution` literal
+shared by image and video content, so the CLI accepts it — but no source
+probed or documented gives a per-frame rate for it. The budget estimator prices
+it at twice `high`, following the image ladder's doubling. That number is a
+guess and is deliberately a high one: the estimate feeds the spend gate, and
+under-counting is the direction that spends money. Until it is probed, prefer
+`high`, whose rate is known.
 
 Two non-obvious consequences:
 
 - **Video has no cheap tier.** `low` and `medium` are treated exactly like the
-  default. The only video decision is 70 vs 280 per frame, a flat 4x, and it is
+  default. The video decision worth making is 70 vs 280 per frame, a flat 4x
+  (`ultra_high` exists but has no published rate; see above), and it is
   worth paying only when the question depends on reading something inside the
   frame.
 - **The API's image default is `high`.** The recipes here set `low` because
@@ -142,8 +152,9 @@ gemini-bridge uploads --delete   # remove them now rather than waiting 48h
 Two guards refuse rather than warn, and both run **before** any file is read or
 uploaded:
 
-- **Attached paths** are matched against built-in patterns for secret-shaped
-  files plus anything in `.gemini-bridge.toml`.
+- **Every path named on the command line** — `-f`, `-c`, `--prompt-file`,
+  `--system-file`, `--schema-file` — is matched against built-in patterns for
+  secret-shaped files plus anything in `.gemini-bridge.toml`.
 - **The prompt** is scanned for secret-shaped content, along with the system
   instruction, schema, and label values.
 

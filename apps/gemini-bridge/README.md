@@ -86,10 +86,10 @@ cap is uploaded regardless of kind. Four consequences:
 - **The upload is a disclosure with a 48-hour life.** Unlike a stored
   interaction, it can be taken back — `gemini-bridge uploads` lists what this
   project is holding at Google, `--delete` removes it now.
-- **Identical bytes upload once.** Handles are cached by content hash for the
-  48h window and confirmed with the server before reuse, so a series of
-  questions about one recording costs one upload. Change the file and the hash
-  changes with it, so a stale handle can never answer for new bytes.
+- **Identical bytes upload once.** Reuse is matched on a content hash over the
+  48h window and confirmed with the server first, so a series of questions
+  about one recording costs one upload. Change the file and the hash changes
+  with it, so a stale handle can never answer for new bytes.
 - **It is slow.** Give the command more than the default 120s if the file is
   large, and raise `--upload-timeout` (default 300s) if processing runs long.
 - **Frames are sampled at 1 FPS and cannot be clipped or retimed** — the API
@@ -142,23 +142,57 @@ slash command can create.
 ```
 
 A call is gated when it is over ~20,000 estimated input tokens, uses `--store`
-(which cannot be undone — `interactions.delete` returns 501), or raises
-`--thinking-level` to `medium` or `high`. Everything else — screenshots, PDFs,
-short clips, text questions — runs under the ordinary prompt exactly as before.
+(which cannot be undone — `interactions.delete` returns 501), raises
+`--thinking-level` to `medium` or `high`, or sets `--max-output-tokens` above
+the same limit (output bills at several times the input rate, which is the same
+reason raised thinking is gated). Everything else — screenshots, PDFs, short
+clips, text questions — runs under the ordinary prompt exactly as before.
+
+The estimate covers the **whole** input: attachments plus every text channel
+the request carries — question, system instruction, schema, and label values.
+That is the same list the secret scanner walks, and it is now literally the
+same list in the code, because the two were built separately and disagreed: a
+3MB `--schema-file` was scanned and then costed at one token, printing `gate
+none` on a call of roughly a million.
 
 **Minting and enforcing are deliberately split.** A `UserPromptExpansion` hook
 mints, because only a user-typed command can reach that event; the main loop
-cannot. The CLI enforces, because it is the narrower chokepoint — it also
+cannot. The command also carries `disable-model-invocation: true`, so its
+description never enters context and the SlashCommand tool cannot reach it —
+without that, the whole design rests on an untested assumption about which
+paths fire that event, which is the shape of the 0.11.0 no-op. `doctor` cannot
+detect a regression in either half of that, which is why it is written down
+here. The CLI enforces, because it is the narrower chokepoint — it also
 covers manual, scripted, and subagent callers on machines where the hook is not
 installed, and it can see the resolved attachments, which a bash command line
-cannot reliably be parsed for. The gate runs **before** credentials are
-resolved and before any upload, so a refused call sends nothing at all.
+cannot reliably be parsed for.
+
+Enforcement is two steps. The tier is decided and a read-only check runs
+**before** credentials are resolved, so a call that is going to be refused is
+refused without doing any work first. The single-use token is then spent at the
+last moment before the first irreversible step — after the credential command,
+the client, and the run directory, all of which can fail for free. That
+ordering exists because the first version spent the token before credentials,
+so a key command that timed out on a biometric prompt burned the user's
+approval on a call that sent nothing. Either step can refuse, both record
+`expensive-refused`, and neither can be reached after an upload.
 
 **What this does and does not do.** The authorization is a local file. Anything
 holding Bash or Write can fabricate one, and clearing the Claude Code session
 and agent-marker environment variables makes a caller look like a human at a
 terminal. This is not a defence against a
-determined agent and does not claim to be. What it guarantees is that nothing
+determined agent and does not claim to be.
+
+It is, however, hardened against the *other* local account it shares `/tmp`
+with, which is a different threat and a reachable one. The token is written
+under `$TMPDIR` — a shared `/tmp` on Linux when that is unset — and `mkdir -p`
+succeeds against a directory someone else created first, at which point the
+`chmod 700` fails and, before 0.12.0, was ignored. Both halves now refuse a
+state root they do not own: the hook will not mint into one, the CLI will not
+read a token from one, symlinks are rejected without following them, and
+`doctor` reports the condition rather than leaving it as another silent
+refusal. A session id that is not a plain identifier is refused for the same
+reason — it is interpolated into that path by both halves. What it guarantees is that nothing
 on the *normal, helpful* path spends at scale: an eager agent that would gladly
 upload the whole recording now has to be told to, by a human, in a way it
 cannot arrange for itself. An eager agent is the realistic failure mode, not a
@@ -201,12 +235,18 @@ Two guards, both on by default, because a call cannot be recalled — the API's
 delete endpoint returns 501, so the only cleanups are the project retention
 window and a project-wide bulk delete in the console.
 
-**Attached files** are matched against a built-in pattern set covering shapes
-that are secrets or nothing (`*.pem`, `id_rsa`, `.env`, `.ssh`, and similar),
-plus anything you add. Matching is case-insensitive, expands home-relative and
-environment-variable prefixes in your patterns, and runs on the raw arguments
-before any file is opened. It is designed to over-block rather than
-under-block.
+**Every file named on the command line** is matched against a built-in pattern
+set covering shapes that are secrets or nothing (`*.pem`, `id_rsa`, `.env`,
+`.ssh`, and similar), plus anything you add. Matching is case-insensitive,
+expands home-relative and environment-variable prefixes in your patterns, and
+runs on the raw arguments before any file is opened. It is designed to
+over-block rather than under-block.
+
+That means `-f` and `-c` **and** `--prompt-file`, `--system-file` and
+`--schema-file`. The last three also read a local file and put its contents
+straight into the request, and until 0.12.0 they were not checked: `-f .env`
+was refused while `--prompt-file .env` sent the same bytes as the question. A
+guard that depends on which flag was typed protects the flag, not the file.
 
 **The prompt itself** is scanned for secret-shaped content — API keys, tokens,
 private key blocks, JWTs. High-confidence shapes refuse the call; weaker signals
@@ -283,9 +323,12 @@ The runs root writes its own `.gitignore` containing `*` on first use, so run
 output cannot be committed into your repo by accident. A `ledger.jsonl` beside
 it records one line per call — model, recipe, tokens, duration, status — using
 only facts the API reported, never a self-assessment. An `upload-cache.json`
-sits beside it holding Files API handles keyed by content hash; it is what
-makes a re-asked question skip the upload, and what lets `uploads --delete`
-name a file after the run directory that created it is gone.
+sits beside it holding Files API handles; it is what makes a re-asked question
+skip the upload, and what lets `uploads --delete` name a file after the run
+directory that created it is gone. Handles are *matched* on a content hash and
+*keyed* by handle name — one set of bytes can have more than one live handle,
+and keying by hash meant a second upload silently erased the first one's name
+while its bytes were still at Google.
 
 **Add `.gemini-runs/` to your project's own `.gitignore` as well.** The
 self-ignore is a single file: delete it and the tree is stageable until the next

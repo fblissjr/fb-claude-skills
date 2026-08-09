@@ -662,7 +662,11 @@ def test_listing_does_not_mutate_the_cache(tmp_path):
         size_bytes=1, uploaded_at=0.0, display_name="clip.mp4",
     ))
     cache.live(files.LIFETIME_S - 60)
-    assert "abc" in cache.entries
+    # By handle name, which is both the cache key and what `files.delete`
+    # takes. This asserted the content hash, which was the key at the time --
+    # pinning the implementation rather than the claim, and going red on a
+    # re-keying that strictly improved the thing it exists to protect.
+    assert "files/soon" in cache.entries
 
 
 def test_a_null_field_in_the_cache_is_a_cold_cache_not_a_crash(tmp_path):
@@ -729,3 +733,37 @@ def test_a_refused_call_is_recorded_in_the_ledger(project, monkeypatch, tmp_path
     assert entries and entries[0]["status"] == "unauthorized"
     assert entries[0]["authorization_tier"] == "expensive-refused"
     assert entries[0]["run_id"] == "(refused)", "nothing was sent, so no run dir"
+
+
+def test_a_handle_inside_the_reuse_margin_stays_deletable(tmp_path):
+    """Same shape as the `Cache.live()` bug fixed in 0.11.1, by the other door.
+
+    `get()` popped an entry inside the 30-minute reuse margin, and then the
+    fresh upload's `put()` rekeyed the same content hash -- so the previous,
+    still-live handle's name was erased while its bytes sat at Google for up to
+    another 30 minutes: unlistable by `uploads`, undeletable by `--delete`, and
+    gone from the only local record that could name it.
+
+    One content hash can have two live handles, so the cache cannot be keyed by
+    content hash. It is keyed by the handle name, which is what `files.delete`
+    takes.
+    """
+    from gemini_bridge import files as files_mod
+
+    cache = files_mod.Cache(path=tmp_path / "c.json")
+    old = files_mod.Upload(name="files/OLD", uri="u1", mime_type="video/mp4",
+                           sha256="abc", size_bytes=1, uploaded_at=0.0,
+                           display_name="v.mp4")
+    cache.put(old)
+    near_expiry = files_mod.LIFETIME_S - 60  # inside the margin, not yet expired
+
+    assert cache.get("abc", near_expiry) is None, "too close to expiry to reuse"
+
+    new = files_mod.Upload(name="files/NEW", uri="u2", mime_type="video/mp4",
+                           sha256="abc", size_bytes=1,
+                           uploaded_at=near_expiry, display_name="v.mp4")
+    cache.put(new)
+
+    names = {u.name for u in cache.live(near_expiry)}
+    assert names == {"files/OLD", "files/NEW"}, \
+        "both handles are live at Google, so both must be deletable"

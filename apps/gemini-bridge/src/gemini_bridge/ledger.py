@@ -21,11 +21,12 @@ step, or a human, can append a verdict row keyed by `run_id`.
 from __future__ import annotations
 
 import datetime as dt
-import os
 from pathlib import Path
 from typing import Any
 
 import orjson
+
+from . import authorization
 
 LEDGER_NAME = "ledger.jsonl"
 
@@ -117,7 +118,12 @@ def record(
         ],
         "usage": usage or {},
         "pricing": _pricing_note(),
-        "session_id": os.environ.get("CLAUDE_SESSION_ID"),
+        # Via authorization, not a literal env read. This asked for
+        # CLAUDE_SESSION_ID alone -- the variable that module documents as
+        # NOT exported by Claude Code -- so every row written on an agent
+        # call recorded a null session, refusals included. Two places
+        # reading the session must read it the same way.
+        "session_id": authorization.raw_session_id(),
         "error": error,
     }
     try:

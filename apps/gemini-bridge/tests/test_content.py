@@ -136,3 +136,48 @@ def test_redaction_never_reveals_more_than_a_third(length):
     revealed = len(excerpt.replace("...", ""))
     assert revealed <= max(1, length // 3)
     assert revealed <= 10
+
+
+# -- the scanner must not be the thing that breaks the call -----------------
+
+
+def test_a_long_unbroken_run_does_not_blow_up_the_scan():
+    """Catastrophic backtracking, found by running the real CLI on real input.
+
+    Two patterns ended a greedy character class with a literal that the class
+    excludes -- `[A-Za-z0-9._%+-]+@` and `[a-z][a-z0-9+.-]*://`. On text with
+    no separator to break the run, each start position consumed to the end and
+    backtracked one character at a time looking for a delimiter that is not
+    there: quadratic, and measured at ~275s for a 400KB prompt. The tool sat
+    there producing nothing, on the guard path, before anything was sent.
+
+    The trigger is not exotic. A base64 blob, a minified bundle, a hex digest
+    or a data: URI pasted into `--prompt-file` is exactly this shape.
+
+    Timed rather than counted because Python exposes no backtracking counter.
+    The margin is wide on purpose: this input measured ~7s before the fix and
+    runs in single-digit milliseconds after it, so a one-second budget is far
+    below the bug and far above any plausible scheduling noise.
+    """
+    import time
+
+    start = time.perf_counter()
+    content.scan("x" * 65536)
+    assert time.perf_counter() - start < 1.0
+
+
+@pytest.mark.parametrize(
+    "sample,name",
+    [
+        ("contact me at real.person@example.com please", "email address"),
+        ("postgres://user:swordfish@db.internal:5432/app",
+         "connection string with password"),
+        ("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNH", "jwt"),
+    ],
+)
+def test_the_patterns_still_match_after_being_made_possessive(sample, name):
+    """The counterweight. Possessive quantifiers only remove backtracking that
+    could never lead to a match -- the delimiter is excluded from the class in
+    every case changed -- so every one of these must still fire. If a fix for
+    the arm above silently narrowed what the scanner catches, this goes red."""
+    assert name in {f.name for f in content.scan(sample)}

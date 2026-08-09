@@ -74,6 +74,36 @@ def _fail(message: str) -> int:
     return 1
 
 
+def _outgoing_text(
+    recipe: recipes.Recipe, question: str, *, from_recipe: bool
+) -> list[tuple[str, str]]:
+    """Every text channel in the request, labelled. One list, two consumers.
+
+    The secret scanner and the token estimator each used to build their own,
+    and they disagreed: the scanner has enumerated four channels since 0.6.x
+    while the estimator counted two, so a 3MB `--schema-file` was scanned and
+    then estimated at one token, printing `gate none` on a call of roughly a
+    million. That is the same hole `--prompt-file` had, reappearing on the
+    sibling flag the same release added to the path guard.
+
+    The scanner's own comment already stated the rule -- "a channel left out of
+    this list stays unscanned until someone names it" -- and the fix for a rule
+    that has to hold in two places is to have one place. Anything added to the
+    request as text belongs here and nowhere else.
+    """
+    channels = [("prompt", question)]
+    if recipe.system_instruction:
+        label = f"recipe {recipe.name!r}" if from_recipe else "system instruction"
+        channels.append((label, recipe.system_instruction))
+    if recipe.schema:
+        channels.append(("schema", orjson.dumps(recipe.schema).decode()))
+    if recipe.labels:
+        channels.append(
+            ("labels", " ".join(f"{k}={v}" for k, v in recipe.labels.items()))
+        )
+    return channels
+
+
 def _effective_recipe(
     args: argparse.Namespace, recipe_dirs: list[Path]
 ) -> recipes.Recipe:
@@ -144,6 +174,36 @@ def cmd_ask(args: argparse.Namespace) -> int:
     project_root = Path(args.project_root or Path.cwd()).resolve()
     cfg = Config.load(project_root)
 
+    # The path guard runs first, on the raw arguments, before ANY of them is
+    # opened. Two orderings were wrong before this one:
+    #
+    # - It once ran after media inspection, so a file the guard exists to block
+    #   -- id_rsa, something.pem -- was rejected first for having an
+    #   unrecognised mime type. Most default patterns could never fire, and the
+    #   user got a confusing error instead of a refusal.
+    # - It then covered `-f`/`-c` only, though `--prompt-file`,
+    #   `--system-file` and `--schema-file` each read a local file and put its
+    #   contents straight into the request. `-f .env` was refused while
+    #   `--prompt-file .env` sent the same bytes as the question. A guard that
+    #   depends on which flag was typed protects the flag, not the file.
+    #
+    # The content scanner below is not a substitute: it matches key *shapes*,
+    # so `DB_PASSWORD=hunter2` goes straight through it.
+    patterns = privacy.effective_patterns(
+        cfg.sensitive_paths, cfg.use_default_sensitive_paths
+    )
+    for raw in [
+        *args.file, *args.context,
+        *(p for p in (args.prompt_file, args.system_file, args.schema_file) if p),
+    ]:
+        hit = privacy.is_sensitive(Path(raw), patterns)
+        if hit:
+            return _fail(
+                f"{raw} matches sensitive path pattern {hit!r}. "
+                "Sent interactions cannot be deleted through the API, so this "
+                "is refused rather than sent."
+            )
+
     try:
         recipe = _effective_recipe(args, _recipe_dirs(cfg))
     except recipes.RecipeError as exc:
@@ -151,7 +211,13 @@ def cmd_ask(args: argparse.Namespace) -> int:
 
     question = args.question
     if args.prompt_file:
-        question = Path(args.prompt_file).read_text().strip()
+        # Guarded like every other file read here. Unguarded, a missing or
+        # unreadable prompt file reached the user as a raw traceback while
+        # --system-file and --schema-file both reported cleanly.
+        try:
+            question = Path(args.prompt_file).read_text().strip()
+        except OSError as exc:
+            return _fail(f"could not read {args.prompt_file}: {exc}")
 
     # A question is required, but "required" does not have to mean "refused".
     # With media attached and nothing asked, fall back to a kind-appropriate
@@ -196,22 +262,13 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # on this call or the standing config opt-out -- so bypass runs stay
     # findable by the audit filter the README names.
     prompt_scanned = bool(cfg.scan_prompt and not args.allow_prompt_secrets)
+    # The system instruction is sent verbatim (from a recipe body, --system, or
+    # --system-file -- all previously- or never-scanned routes), and schema
+    # descriptions and label values travel in the request too. Built once, here,
+    # because the scanner and the token estimator below must not disagree about
+    # what leaves the machine as text.
+    outgoing = _outgoing_text(recipe, question, from_recipe=bool(args.recipe))
     if cfg.scan_prompt:
-        # Every outgoing text channel. The system instruction is sent verbatim
-        # (from a recipe body, --system, or --system-file -- all previously- or
-        # never-scanned routes), and schema descriptions and label values
-        # travel in the request too; the 0.6.x ledger fix taught that a channel
-        # left out of this list stays unscanned until someone names it.
-        outgoing = [("prompt", question)]
-        if recipe.system_instruction:
-            source = f"recipe {recipe.name!r}" if args.recipe else "system instruction"
-            outgoing.append((source, recipe.system_instruction))
-        if recipe.schema:
-            outgoing.append(("schema", orjson.dumps(recipe.schema).decode()))
-        if recipe.labels:
-            outgoing.append(
-                ("labels", " ".join(f"{k}={v}" for k, v in recipe.labels.items()))
-            )
         blocked = False
         for label, text in outgoing:
             findings = content.scan(text)
@@ -231,24 +288,6 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 "--allow-prompt-secrets is active. A sent interaction cannot "
                 "be deleted through the API.",
                 file=sys.stderr,
-            )
-
-    # The path guard runs BEFORE media inspection, on the raw arguments.
-    # Ordered the other way round, a file the guard exists to block -- id_rsa,
-    # something.pem -- was rejected first for having an unrecognised mime type,
-    # so most default patterns could never fire and the user got a confusing
-    # error instead of a refusal. Type support is irrelevant to whether a file
-    # should be sent.
-    patterns = privacy.effective_patterns(
-        cfg.sensitive_paths, cfg.use_default_sensitive_paths
-    )
-    for raw in [*args.file, *args.context]:
-        hit = privacy.is_sensitive(Path(raw), patterns)
-        if hit:
-            return _fail(
-                f"{raw} matches sensitive path pattern {hit!r}. "
-                "Sent interactions cannot be deleted through the API, so this "
-                "is refused rather than sent."
             )
 
     try:
@@ -286,6 +325,14 @@ def cmd_ask(args: argparse.Namespace) -> int:
     except call_mod.CallError as exc:
         return _fail(str(exc))
 
+    # Everything billed as input, attachments and text alike. Counting only the
+    # attachments let a multi-megabyte --prompt-file -- roughly a million
+    # tokens -- classify as cheap, and counting only the prompt and system
+    # instruction left the same hole open on --schema-file. `outgoing` is the
+    # scanner's list, so a channel cannot be scanned and then not costed.
+    text_tokens = budget.text_tokens(*(text for _, text in outgoing))
+    estimated_tokens = budget.total(attachments) + text_tokens
+
     if args.dry_run:
         print(f"recipe      {recipe.name}  ({recipe.path or 'no recipe file'})")
         print(f"model       {request['model']}")
@@ -298,10 +345,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
             print(f"attach      {att.kind:9} {att.resolution or '-':5} "
                   f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
             print(f"            {budget.estimate(att).line(att)}")
-        dry_total = budget.total(attachments)
-        if attachments:
-            print(f"estimate    ~{dry_total:,} input tokens total "
-                  "(rough; exact counts come back in usage.json)")
+        print(f"text        ~{text_tokens:,} input tokens "
+              f"({', '.join(label for label, _ in outgoing)})")
+        print(f"estimate    ~{estimated_tokens:,} input tokens total "
+              "(rough; exact counts come back in usage.json)")
         if pending_upload:
             print(f"upload      {len(pending_upload)} file(s) would be sent to the "
                   "Files API and held for 48h  (not done: --dry-run)")
@@ -316,10 +363,11 @@ def cmd_ask(args: argparse.Namespace) -> int:
         # sends nothing. Finding this out by being refused costs a round trip;
         # finding it out here costs nothing.
         tier, why = authorization.classify(
-            estimated_tokens=dry_total,
+            estimated_tokens=estimated_tokens,
             thinking_level=request.get("generation_config", {}).get("thinking_level"),
             stateful=recipe.stateful,
             max_unauthorized_tokens=cfg.max_unauthorized_tokens,
+            max_output_tokens=recipe.max_output_tokens,
         )
         if tier == "expensive" and cfg.require_authorization:
             print(f"gate        needs {authorization.AUTHORIZE_COMMAND} "
@@ -331,32 +379,40 @@ def cmd_ask(args: argparse.Namespace) -> int:
     # Said before the send, not after, so it is still actionable. The defaults
     # in this tool are already the cheap ones; what runs up a bill is clip
     # length, which is invisible until the invoice.
-    estimated_tokens = budget.total(attachments)
     warning = budget.advice(attachments, estimated_tokens)
     if warning:
         print(f"WARNING {warning}", file=sys.stderr)
 
-    # The spend gate, before credentials are even resolved. An expensive or
-    # irreversible call needs an authorization only a user-typed slash command
-    # can mint; a cheap one runs under the ordinary Bash permission prompt as
-    # it always has. Placed here because it must precede every irrevocable
-    # step -- the upload most of all, which discloses bytes for 48h whether or
-    # not the interaction that follows succeeds.
+    # The spend gate. An expensive or irreversible call needs an authorization
+    # only a user-typed slash command can mint; a cheap one runs under the
+    # ordinary Bash permission prompt as it always has. Classified here, before
+    # credentials, because `classify` is pure and a refusal below must precede
+    # every irrevocable step -- the upload most of all, which discloses bytes
+    # for 48h whether or not the interaction that follows succeeds.
     tier, why = authorization.classify(
         estimated_tokens=estimated_tokens,
         thinking_level=request.get("generation_config", {}).get("thinking_level"),
         stateful=recipe.stateful,
         max_unauthorized_tokens=cfg.max_unauthorized_tokens,
+        max_output_tokens=recipe.max_output_tokens,
     )
     # "expensive" is never recorded as-is: it describes the call, not the
     # gate's verdict, and leaking it into the ledger created a fourth value no
     # audit filter knows to look for -- on exactly the large, ungated runs an
-    # audit exists to find.
+    # audit exists to find. Every other value comes from the Decision itself,
+    # so the two halves of the gate cannot disagree about what they did.
     gated = tier == "expensive" and cfg.require_authorization
-    authorization_tier = {
-        ("cheap", True): "cheap", ("cheap", False): "cheap",
-        ("expensive", False): "expensive-gate-disabled",
-    }.get((tier, cfg.require_authorization), "expensive")
+    if tier == "cheap":
+        authorization_tier = "cheap"
+    elif not cfg.require_authorization:
+        authorization_tier = "expensive-gate-disabled"
+    else:
+        # Replaced by the Decision below, which is the authority on what the
+        # gate concluded. "unknown" until then, so a path that somehow records
+        # before the gate has ruled says so rather than positively claiming a
+        # verdict nothing reached -- the same reasoning as ledger.record's own
+        # default.
+        authorization_tier = "unknown"
 
     if gated:
         # Peek now, consume later. Refusing here costs nothing; the token is
@@ -372,8 +428,22 @@ def cmd_ask(args: argparse.Namespace) -> int:
             # spend more than it may -- which is the pattern worth seeing.
             # Recorded without a run directory: nothing was sent, so there is
             # nothing to put in one.
+            #
+            # Guarded because `ensure_runs_root` was the one filesystem call in
+            # this command evaluated outside a try -- as an argument, which is
+            # how it escaped notice. On a read-only project root the refusal
+            # became a PermissionError traceback, and a refusal whose whole
+            # design is to terminate in a human decision instead terminated in
+            # a stack trace. `ledger.record` never raises; reaching it is what
+            # could fail. The audit row is the thing that may be lost here.
+            try:
+                _refusal_root = runs.ensure_runs_root(project_root)
+            except OSError as exc:
+                print(f"WARNING could not record the refusal under "
+                      f"{project_root}: {exc}", file=sys.stderr)
+                return _fail(f"{why}, so {preview.reason}")
             ledger.record(
-                runs.ensure_runs_root(project_root),
+                _refusal_root,
                 run_id="(refused)", recipe=recipe.name,
                 model=request["model"], status="unauthorized", usage=None,
                 attachments=[a.manifest_entry(project_root) for a in attachments],
@@ -383,7 +453,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 credential_kind="(not resolved)", error=preview.reason,
                 allow_prompt_secrets=args.allow_prompt_secrets,
                 prompt_scanned=prompt_scanned,
-                authorization_tier="expensive-refused",
+                # From the Decision, not a literal. Hard-coding it here is why
+                # this path looked correct while the consume path recorded an
+                # undocumented value for the same event.
+                authorization_tier=preview.tier,
             )
             return _fail(f"{why}, so {preview.reason}")
 
@@ -704,8 +777,11 @@ def cmd_uploads(args: argparse.Namespace) -> int:
 
     if not live:
         print(f"no live uploads recorded under {runs_root}")
-        print("(entries are dropped once they are within 30 minutes of the "
-              "48h expiry, so an empty list can also mean everything aged out)")
+        # This used to claim entries are pruned 30 minutes before expiry --
+        # describing the bug `live()` was made non-mutating to remove, as if it
+        # were the design. Listing now shows everything still at Google.
+        print("(entries disappear once the 48h expiry passes, so an empty list "
+              "can also mean everything aged out)")
         return 0
 
     if not args.delete:
@@ -743,7 +819,7 @@ def cmd_uploads(args: argparse.Namespace) -> int:
         # Dropped only on a confirmed delete. A handle left in the cache after
         # a failed delete is retryable; one dropped optimistically is an
         # orphan nothing can name.
-        cache.drop(up.sha256)
+        cache.drop(up.name)
         print(f"deleted {up.display_name}  {up.name}")
     cache.save()
     return 1 if failures else 0
@@ -776,9 +852,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:
               "permission prompt only")
     else:
         print(f"spend gate     : on -- calls over "
-              f"{cfg.max_unauthorized_tokens:,} estimated tokens, or using "
-              f"--store or raised thinking,")
-        print(f"                 need {authorization.AUTHORIZE_COMMAND} "
+              f"{cfg.max_unauthorized_tokens:,} estimated input tokens "
+              "(attachments and text),")
+        print("                 or using --store, raised thinking, or a "
+              "--max-output-tokens over the")
+        print("                 same limit.")
+        print(f"                 These need {authorization.AUTHORIZE_COMMAND} "
               f"(valid {cfg.authorization_ttl_seconds}s, single use)")
 
         # Both halves of the gate can be broken in ways that are invisible from
@@ -790,6 +869,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                   "authorize hook mints nothing.")
             print("                 Install jq, or set [authorization] "
                   "required = false.")
+        if not authorization.mint_target_ok():
+            print("                 BROKEN: the state root under $TMPDIR is "
+                  "not a directory this user")
+            print("                 owns, so the hook refuses to mint into it. "
+                  "Remove it, or set TMPDIR.")
         sid = authorization.session_id()
         if sid:
             held = (authorization.state_dir(sid)

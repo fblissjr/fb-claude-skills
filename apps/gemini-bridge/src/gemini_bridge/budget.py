@@ -34,6 +34,25 @@ from .media import Attachment
 VIDEO_TOKENS_PER_SECOND = 70
 VIDEO_TOKENS_PER_SECOND_HIGH = 280
 
+# A table, not `280 if resolution == "high" else 70`. That form priced
+# `ultra_high` -- an accepted video resolution, offered by `--resolution`,
+# validated by `recipes`, and carried on the content block -- at the *cheapest*
+# rate, so the single most expensive setting produced an estimate four times
+# under `high` and slipped a gate that `high` triggers. A ladder selected by
+# equality against one rung breaks the moment a rung is added, and this one had
+# already been added.
+#
+# `ultra_high` follows the image ladder's doubling. It is a guess, and it is
+# deliberately a high one: an estimate that feeds a spend gate must never
+# under-count, because under-counting is the direction that spends money.
+VIDEO_TOKEN_RATES = {
+    None: VIDEO_TOKENS_PER_SECOND,
+    "low": VIDEO_TOKENS_PER_SECOND,
+    "medium": VIDEO_TOKENS_PER_SECOND,
+    "high": VIDEO_TOKENS_PER_SECOND_HIGH,
+    "ultra_high": VIDEO_TOKENS_PER_SECOND_HIGH * 2,
+}
+
 # Audio has no published per-frame figure in anything probed; this is a rough
 # working number and is why audio estimates are marked approximate too.
 AUDIO_TOKENS_PER_SECOND = 25
@@ -128,10 +147,11 @@ def estimate(att: Attachment) -> Estimate:
 
 def _estimate(att: Attachment) -> Estimate:
     if att.kind == "video":
-        rate = (
-            VIDEO_TOKENS_PER_SECOND_HIGH
-            if att.resolution == "high"
-            else VIDEO_TOKENS_PER_SECOND
+        # An unknown value bills at the highest known rate, not the lowest: a
+        # resolution this table has not caught up with is the case where
+        # guessing cheap is how the gate gets bypassed.
+        rate = VIDEO_TOKEN_RATES.get(
+            att.resolution, max(VIDEO_TOKEN_RATES.values())
         )
         seconds = duration_seconds(att)
         if seconds is None:
@@ -162,6 +182,26 @@ def _estimate(att: Attachment) -> Estimate:
     )
 
 
+# Roughly four characters per token for English prose. Wrong for code, CJK, or
+# base64 -- all of which pack differently -- so this is the same order-of-
+# magnitude figure the rest of the module deals in, not an accounting number.
+TEXT_CHARS_PER_TOKEN = 4
+
+
+def text_tokens(*texts: str | None) -> int:
+    """The input tokens carried by the request's text, rounded up.
+
+    Text was the one billed input this module did not count, and the omission
+    was not academic: the spend gate reads its threshold from here, so a
+    multi-megabyte `--prompt-file` -- roughly a million tokens -- classified as
+    cheap and went out under the ordinary permission prompt. A question typed
+    on the command line rounds to nothing and changes no verdict, which is why
+    counting it costs nothing to add.
+    """
+    chars = sum(len(t) for t in texts if t)
+    return -(-chars // TEXT_CHARS_PER_TOKEN)
+
+
 def total(attachments: list[Attachment]) -> int:
     return sum(estimate(a).tokens for a in attachments)
 
@@ -175,6 +215,14 @@ def advice(attachments: list[Attachment], tokens: int) -> str | None:
     """
     if tokens < WARN_TOKENS:
         return None
+    if not attachments:
+        # Reachable since the estimate started counting text. Naming
+        # `--resolution` on a call with nothing attached is advice the caller
+        # cannot act on, which is the failure this function exists to avoid.
+        return (
+            f"~{tokens:,} estimated input tokens, all of it prompt text. Send "
+            "the part of it the question is actually about."
+        )
     video = [a for a in attachments if a.kind == "video"]
     if video:
         longest = max(video, key=lambda a: estimate(a).tokens)

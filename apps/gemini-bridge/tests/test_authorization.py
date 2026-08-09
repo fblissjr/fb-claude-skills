@@ -194,7 +194,10 @@ def test_an_agent_with_no_readable_session_id_is_refused(tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDECODE", "1")  # an agent, but unidentifiable
     d = authorization.consume(estimated_tokens=999_999, ttl_seconds=600, now=1.0)
     assert not d.allowed
-    assert "no session id" in d.reason
+    # The claim is that the refusal names its cause, not that it uses one
+    # exact phrasing -- the wording widened when an unusable id (one that is
+    # not a plain identifier) joined a missing one as the same conclusion.
+    assert "session id" in d.reason
 
 
 def test_peek_does_not_consume(session):
@@ -228,3 +231,110 @@ def test_the_refusal_never_tells_claude_to_fix_it_itself(session):
     assert "they will run" in d.reason
     assert "do not disable the gate" in d.reason.lower()
     assert "do not retry" in d.reason.lower()
+
+
+# -- values the ledger is allowed to carry ----------------------------------
+
+# Mirrors the README table. A literal rather than an import, so a new value in
+# the code cannot satisfy this by existing -- the documentation has to move.
+DOCUMENTED_TIERS = {
+    "cheap", "expensive-authorized", "expensive-refused",
+    "expensive-gate-disabled", "expensive-ungated", "unknown",
+}
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        None,                                                   # unreadable
+        {"ts": 1000.0, "origin": "forged", "max_tokens": 1},    # wrong origin
+        {"ts": "nope", "origin": "user_typed_command"},         # malformed
+        {"ts": 1.0, "origin": "user_typed_command", "max_tokens": 1},  # expired
+        {"ts": 1000.0, "origin": "user_typed_command", "max_tokens": 1},  # small
+    ],
+)
+def test_every_refusal_carries_a_documented_tier(token):
+    """The bare string "expensive" leaked into the ledger from here.
+
+    It describes the *call*, not the gate's verdict, and it is not in the
+    README's table -- so an audit filtering the documented values dropped
+    exactly the refusals it was run to count. The peek path papered over this
+    with a hard-coded string in the CLI; the consume path did not, and the
+    consume path is the one a parallel-call race takes.
+    """
+    d = authorization._validate(
+        token, estimated_tokens=50_000, ttl_seconds=600, now=2000.0
+    )
+    assert not d.allowed
+    assert d.tier in DOCUMENTED_TIERS
+
+
+def test_an_unidentifiable_agent_is_refused_with_a_documented_tier(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    for var in authorization.SESSION_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("CLAUDECODE", "1")
+    d = authorization.consume(estimated_tokens=999_999, ttl_seconds=600, now=1.0)
+    assert not d.allowed and d.tier in DOCUMENTED_TIERS
+
+
+# -- the ceiling is a ceiling ------------------------------------------------
+
+
+@pytest.mark.parametrize("max_tokens", [0, None])
+def test_a_zero_or_absent_ceiling_is_refused_not_unlimited(session, max_tokens):
+    """`if ceiling and ...` made 0 mean "no ceiling checked".
+
+    So the value that reads as "allow nothing" was the one value that allowed
+    everything, and the hook accepted it because "0" is all digits. An
+    authorization whose ceiling cannot be read is an authorization that cannot
+    be verified, which this module has already decided means no.
+    """
+    session.mkdir(parents=True, exist_ok=True)
+    body = {"ts": 1000.0, "origin": "user_typed_command"}
+    if max_tokens is not None:
+        body["max_tokens"] = max_tokens
+    (session / authorization.AUTH_FILENAME).write_bytes(orjson.dumps(body))
+
+    d = authorization.consume(
+        estimated_tokens=50_000_000, ttl_seconds=600, now=1100.0
+    )
+    assert not d.allowed, "a missing ceiling must not be an unlimited one"
+    assert d.tier in DOCUMENTED_TIERS
+
+
+# -- the token has to be ours ------------------------------------------------
+
+
+def test_an_authorization_we_do_not_own_is_refused(session, monkeypatch):
+    """The TMPDIR fallback is a shared /tmp on Linux, and the hook's own
+    comment calls this file the thing standing between another local account
+    and spending on this API key. It was never checked: whatever sat at the
+    path was trusted on its contents alone, and another account that created
+    the directory first owns that path."""
+    mint(session)
+    real_lstat = authorization.Path.lstat
+
+    def foreign(self, *a, **k):
+        st = real_lstat(self, *a, **k)
+        if self.name == authorization.AUTH_FILENAME:
+            return type("S", (), {"st_uid": st.st_uid + 1, "st_mode": st.st_mode})()
+        return st
+
+    monkeypatch.setattr(authorization.Path, "lstat", foreign)
+    d = authorization.peek(estimated_tokens=50_000, ttl_seconds=600, now=1100.0)
+    assert not d.allowed and d.tier in DOCUMENTED_TIERS
+
+
+def test_a_session_id_that_is_not_a_plain_identifier_is_refused(
+    tmp_path, monkeypatch
+):
+    """`state_dir` interpolates the id straight into a path. An id carrying a
+    separator resolves somewhere neither half of the gate intended, and the
+    module's rule for "cannot verify" is no."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "../../elsewhere")
+    d = authorization.consume(estimated_tokens=50_000, ttl_seconds=600, now=1100.0)
+    assert not d.allowed and d.tier in DOCUMENTED_TIERS
