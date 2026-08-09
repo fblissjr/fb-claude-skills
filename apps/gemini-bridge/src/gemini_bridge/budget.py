@@ -1,0 +1,171 @@
+"""What a call will cost, before you make it.
+
+The bridge's defaults are already the cheap ones -- Flash, `thinking_level:
+minimal`, default media resolution -- so the thing that actually runs up a bill
+is not a setting anyone chose. It is **clip length**, which nobody sees until
+the invoice. A minute of video is about 4,200 input tokens; a ten-minute screen
+recording someone attached without trimming is most of a dollar's worth of
+input on a question that wanted fifteen seconds of it.
+
+So this module exists to put a number on screen before the send, not to
+enforce a policy. It warns and never refuses: the caller can see the estimate
+and stop, and a hard ceiling would have to guess a budget it cannot know.
+
+**Every number here is an estimate and is labelled as one.** Three Google doc
+pages give three different video token rates differing by about 4x (see
+`references/api.md`), so this is deliberately an order of magnitude for
+deciding whether to trim, not an accounting figure. The exact count comes back
+in `usage.json` after the fact, which is the only number worth trusting.
+
+No prices, ever. A dollar figure in code goes stale silently and looks
+authoritative while it does it.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+from dataclasses import dataclass
+
+from .media import Attachment
+
+# Sampling is fixed at 1 FPS, and low/medium/default all cost the same.
+VIDEO_TOKENS_PER_SECOND = 70
+VIDEO_TOKENS_PER_SECOND_HIGH = 280
+
+# Audio has no published per-frame figure in anything probed; this is a rough
+# working number and is why audio estimates are marked approximate too.
+AUDIO_TOKENS_PER_SECOND = 25
+
+IMAGE_TOKENS = {"low": 280, "medium": 560, "high": 1120, "ultra_high": 2240}
+DEFAULT_IMAGE_TOKENS = IMAGE_TOKENS["high"]  # the API's default, not ours
+DOCUMENT_TOKENS_PER_MB = 3000  # very rough; pages per MB vary wildly
+
+# Nothing is free. Without a floor, a small file rounds to zero tokens and the
+# estimate reads as "this costs nothing" -- which is both wrong and exactly the
+# wrong direction for a number whose job is to make spending visible. One
+# sampled frame, one second of audio, one page of PDF.
+MIN_TOKENS = {"video": VIDEO_TOKENS_PER_SECOND, "audio": AUDIO_TOKENS_PER_SECOND,
+              "document": 560}
+
+# Above this, say something. Chosen as "about five minutes of video" -- long
+# enough not to nag on ordinary clips, short enough to catch the ten-minute
+# recording nobody meant to send whole.
+WARN_TOKENS = 20_000
+
+PROBE_TIMEOUT_S = 10
+
+
+@dataclass(frozen=True)
+class Estimate:
+    tokens: int
+    duration_s: float | None  # None when ffprobe is unavailable or failed
+    exact: bool = False  # never true today; here so callers cannot assume
+
+    def line(self, att: Attachment) -> str:
+        if self.duration_s:
+            mins, secs = divmod(int(self.duration_s), 60)
+            length = f"{mins}m{secs:02d}s  "
+        else:
+            length = ""
+        return f"{length}~{self.tokens:,} input tokens (estimate)"
+
+
+def duration_seconds(att: Attachment) -> float | None:
+    """Media length via ffprobe, or None if it cannot be determined.
+
+    ffprobe is read-only and does not transcode, so this is cheap and safe --
+    but it is optional. Its absence degrades the estimate to a size-based
+    guess rather than failing the call, because a missing local tool must
+    never be the reason a paid feature stops working.
+    """
+    if att.kind not in {"video", "audio"} or not shutil.which("ffprobe"):
+        return None
+    try:
+        out = subprocess.run(
+            [
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "json", str(att.path),
+            ],
+            capture_output=True, text=True, timeout=PROBE_TIMEOUT_S, check=False,
+        )
+        if out.returncode != 0:
+            return None
+        value = json.loads(out.stdout).get("format", {}).get("duration")
+        return float(value) if value else None
+    except (OSError, ValueError, json.JSONDecodeError, subprocess.SubprocessError):
+        return None
+
+
+def estimate(att: Attachment) -> Estimate:
+    """A deliberately rough input-token figure for one attachment."""
+    raw = _estimate(att)
+    floor = MIN_TOKENS.get(att.kind, 0)
+    if raw.tokens >= floor:
+        return raw
+    return Estimate(tokens=floor, duration_s=raw.duration_s, exact=raw.exact)
+
+
+def _estimate(att: Attachment) -> Estimate:
+    if att.kind == "video":
+        rate = (
+            VIDEO_TOKENS_PER_SECOND_HIGH
+            if att.resolution == "high"
+            else VIDEO_TOKENS_PER_SECOND
+        )
+        seconds = duration_seconds(att)
+        if seconds is None:
+            # No ffprobe. Roughly 1MB per 10s for typical screen-recording
+            # bitrates -- wrong for anything unusual, which is why the line
+            # that prints it says "estimate" and not a duration.
+            seconds = att.size_bytes / 1e6 * 10
+            return Estimate(tokens=int(seconds * rate), duration_s=None)
+        return Estimate(tokens=int(seconds * rate), duration_s=seconds)
+
+    if att.kind == "audio":
+        seconds = duration_seconds(att)
+        if seconds is None:
+            seconds = att.size_bytes / 1e6 * 60
+            return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),
+                            duration_s=None)
+        return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),
+                        duration_s=seconds)
+
+    if att.kind == "image":
+        return Estimate(
+            tokens=IMAGE_TOKENS.get(att.resolution or "", DEFAULT_IMAGE_TOKENS),
+            duration_s=None,
+        )
+
+    return Estimate(
+        tokens=int(att.size_bytes / 1e6 * DOCUMENT_TOKENS_PER_MB), duration_s=None
+    )
+
+
+def total(attachments: list[Attachment]) -> int:
+    return sum(estimate(a).tokens for a in attachments)
+
+
+def advice(attachments: list[Attachment], tokens: int) -> str | None:
+    """The one line worth printing when a call looks expensive.
+
+    Names the specific lever rather than saying "this is large", because the
+    fix differs: a long video wants trimming, a pile of images wants a lower
+    resolution.
+    """
+    if tokens < WARN_TOKENS:
+        return None
+    video = [a for a in attachments if a.kind == "video"]
+    if video:
+        longest = max(video, key=lambda a: estimate(a).tokens)
+        return (
+            f"~{tokens:,} estimated input tokens; {longest.path.name} is the "
+            "bulk of it. Clip length is the cost -- `ffmpeg -ss START -to END "
+            "-i in.mp4 -c copy out.mp4` trims without re-encoding."
+        )
+    return (
+        f"~{tokens:,} estimated input tokens. Lower --resolution, or attach "
+        "reference files with -c instead of -f, if this is more than the "
+        "question needs."
+    )

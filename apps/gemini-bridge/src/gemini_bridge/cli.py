@@ -30,6 +30,7 @@ import orjson
 
 from . import (
     auth,
+    budget,
     client as call_mod,
     content,
     files,
@@ -292,6 +293,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
             route = "upload" if media.needs_upload(att) else "inline"
             print(f"attach      {att.kind:9} {att.resolution or '-':5} "
                   f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
+            print(f"            {budget.estimate(att).line(att)}")
+        if attachments:
+            print(f"estimate    ~{budget.total(attachments):,} input tokens total "
+                  "(rough; exact counts come back in usage.json)")
         if pending_upload:
             print(f"upload      {len(pending_upload)} file(s) would be sent to the "
                   "Files API and held for 48h  (not done: --dry-run)")
@@ -303,6 +308,14 @@ def cmd_ask(args: argparse.Namespace) -> int:
         print(f"question    {shown}"
               f"{'  (generic default)' if used_default_prompt else ''}")
         return 0
+
+    # Said before the send, not after, so it is still actionable. The defaults
+    # in this tool are already the cheap ones; what runs up a bill is clip
+    # length, which is invisible until the invoice.
+    estimated_tokens = budget.total(attachments)
+    warning = budget.advice(attachments, estimated_tokens)
+    if warning:
+        print(f"WARNING {warning}", file=sys.stderr)
 
     try:
         creds = auth.resolve(args.key_command, cfg.key_command)

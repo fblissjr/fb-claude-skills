@@ -91,6 +91,35 @@ be attached and how each kind travels, `doctor` checks credentials and config,
 `stats` summarizes past calls, `stored` and `uploads` show what is held
 server-side.
 
+## Budget: frugal by default, and say the number
+
+**The defaults are already the cheap ones** — Flash, `thinking_level: minimal`,
+default media resolution. Do not quietly upgrade them because a task feels
+important. Good enough is the default on purpose; perfect is a decision
+somebody should get to make.
+
+What actually costs money is **how much media you attach**, not which knobs you
+set. Roughly: an image is ~280–1120 tokens, a minute of video ~4,200. The CLI
+prints an estimate in `--dry-run`, warns before sending anything large, and
+reports exact counts afterwards in `usage.json`.
+
+**Ask before spending, when the answer isn't already in the conversation.**
+If the user has said what they want — or you are simply answering a question
+they asked about a file they just handed you — get on with it. But when a call
+is about to be expensive and you are choosing on their behalf, put the choice
+to them with real options and real numbers:
+
+> This recording is 8 minutes (~34k input tokens). I can:
+> **(a)** trim to the 00:40–01:10 window you described (~2k),
+> **(b)** send the whole thing at default resolution (~34k),
+> **(c)** send it all at `high` for readable on-screen text (~134k).
+> Default is (a) unless you'd rather I look wider.
+
+Name the numbers, recommend one, and make the cheap option the default. The
+triggers worth asking about: video over a couple of minutes, `--resolution
+high` across several files, switching to Pro, raising `--thinking-level`, and
+`--store` (which cannot be undone).
+
 ## Going deeper
 
 SKILL.md is the routing layer. Three references carry the detail, and it is

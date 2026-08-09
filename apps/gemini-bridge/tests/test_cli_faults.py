@@ -12,6 +12,7 @@ or the interaction id silently.
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -212,24 +213,35 @@ def test_interaction_id_is_written_before_the_other_files(project, monkeypatch):
     assert (run_dir / "interaction.id").read_text().strip() == "v1_abc"
 
 
-def test_ledger_write_failure_is_swallowed(project, monkeypatch, tmp_path):
+def test_ledger_write_failure_is_swallowed(monkeypatch, tmp_path):
     """Logging must never be the reason a call fails.
 
-    `ledger.record` opens a file and deliberately catches OSError: a read-only
-    directory should cost you the record, not the answer.
+    `ledger.record` opens a file and deliberately catches OSError: an
+    unwritable destination should cost you the record, not the answer.
+
+    The failure is injected rather than staged with a 0o500 directory, because
+    **root ignores permission bits**. Under the container this suite often runs
+    in, the staged write simply succeeded, the except branch never executed,
+    and the arm failed for a reason that had nothing to do with the code -- so
+    deleting the error handling would not have turned it red. A test that
+    cannot fail for its stated reason is decoration; this one works at any uid.
     """
-    read_only = tmp_path / "ro"
-    read_only.mkdir()
-    read_only.chmod(0o500)
-    try:
-        path = ledger.record(
-            read_only, run_id="r", recipe="demo", model="m", status="completed",
-            usage={}, attachments=[], duration_ms=1, stateful=False,
-            service_tier=None, thinking_level=None, credential_kind="env:X",
-        )
-        assert not path.exists(), "nothing written, but no exception either"
-    finally:
-        read_only.chmod(0o700)
+    target = tmp_path / "logs"
+    target.mkdir()
+    real_open = Path.open
+
+    def refuse(self, *args, **kwargs):
+        if self.name == ledger.LEDGER_NAME:
+            raise OSError("No space left on device")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", refuse)
+    path = ledger.record(
+        target, run_id="r", recipe="demo", model="m", status="completed",
+        usage={}, attachments=[], duration_ms=1, stateful=False,
+        service_tier=None, thinking_level=None, credential_kind="env:X",
+    )
+    assert not path.exists(), "nothing written, but no exception either"
 
 
 # -- API-side failures ------------------------------------------------------

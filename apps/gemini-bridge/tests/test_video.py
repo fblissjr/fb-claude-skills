@@ -397,3 +397,54 @@ def test_dry_run_uploads_nothing(project, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "upload" in out, "it must say an upload would happen"
     assert media.DRY_RUN_URI not in out, "the placeholder must never be shown"
+
+
+# -- budget -----------------------------------------------------------------
+
+
+def test_a_long_video_warns_before_it_is_sent(project, monkeypatch, capsys):
+    """The defaults here are already the cheap ones, so the only thing that
+    runs up a bill is clip length -- and that is invisible until the invoice.
+    The warning has to land before the send, while it is still actionable."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 0
+    err = capsys.readouterr().err
+    assert "estimated input tokens" in err
+    assert "ffmpeg" in err, "naming the lever is the point; 'this is large' is not"
+
+
+def test_a_short_clip_does_not_nag(project, monkeypatch, capsys):
+    """A warning on every call is a warning nobody reads."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 8.0)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 0
+    assert "estimated input tokens" not in capsys.readouterr().err
+
+
+def test_dry_run_shows_the_estimate(project, monkeypatch, capsys):
+    """--dry-run is where a cost question should be answered, since it is the
+    one path that promises to send nothing."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 120.0)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "--dry-run", "q") == 0
+    out = capsys.readouterr().out
+    assert "2m00s" in out
+    assert "estimate" in out
+
+
+def test_estimate_survives_a_missing_ffprobe(project, monkeypatch):
+    """ffprobe is optional. A missing local tool must never be the reason a
+    paid feature stops working, so the estimate degrades to a size guess."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget.shutil, "which", lambda _n: None)
+    est = budget.estimate(media.inspect(project.video))
+    assert est.duration_s is None
+    assert est.tokens > 0

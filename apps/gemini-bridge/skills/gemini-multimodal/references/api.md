@@ -217,6 +217,23 @@ Not oversights — each is either unverified or a deliberate omission:
   understanding. `video_config` in particular is text-to-video and has nothing
   to do with analysing a video.
 
+## The SDK is pinned exactly
+
+`google-genai` is pinned to an exact version, not a floor. This API breaks, and
+the generated `_gaos` types are what our parameter surface is derived from — a
+floor spec means a routine `uv sync` can silently change what the code is
+talking to.
+
+An exact pin is only worth its inconvenience if bumping it tells you what
+moved, so `tests/test_sdk_contract.py` asserts our constants against the
+installed SDK: accepted mime types per kind, resolution values,
+`generation_config` keys, which content types carry `resolution`, and that
+every model id this plugin recommends actually exists. Bump the pin and those
+arms name the drift, instead of it arriving later as a 400 on a paid call.
+
+They pin **shape**, never behaviour — `temperature` appears in no SDK type and
+the API accepts it regardless. Only a live probe settles that class of question.
+
 ## Extending this safely
 
 The rule that produced every probed finding above: **form the hypothesis from

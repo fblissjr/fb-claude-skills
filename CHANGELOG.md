@@ -1,5 +1,19 @@
 # changelog
 
+## 1.25.0
+
+### added
+- **`gemini-bridge` 0.9.0 → 0.10.0 — budget transparency, because the expensive thing was never a setting anyone chose.** Every knob in this plugin already defaults to the cheap option — Flash, `thinking_level: minimal`, default media resolution — so the only real cost driver is **clip length**, and that was invisible until the invoice. A minute of video is roughly 4,200 input tokens; a ten-minute recording attached whole to answer a fifteen-second question is most of a dollar of input nobody decided to spend. `budget.py` now estimates input tokens per attachment (duration via `ffprobe` where available, size-based fallback where not), prints it in `--dry-run`, and warns before the send while it is still actionable — naming the lever, since a long video wants trimming and a pile of images wants a lower resolution. It warns and never refuses: a hard ceiling would have to guess a budget it cannot know. No prices anywhere; a dollar figure in code goes stale silently while looking authoritative.
+- **SKILL.md now tells the agent to ask before spending.** Not on every call — if the user already said what they want, or is asking about a file they just handed over, get on with it. But when a call is about to be expensive and the agent is choosing on their behalf, put it to them with real options and real numbers ("8 minutes, ~34k tokens: trim to the window you described (~2k), send whole (~34k), or `high` for readable text (~134k)"), recommend one, and make the cheap option the default. The section also states plainly that the defaults are frugal *on purpose* and must not be quietly upgraded because a task feels important.
+- **`tests/test_sdk_contract.py`** — our constants asserted against the pinned SDK's generated types: accepted mime types per kind, resolution values, `generation_config` keys, which content types carry `resolution`, and that every model id the plugin recommends actually exists. Shape only, never behaviour — `temperature` is in no SDK type and the API accepts it regardless, and only a live probe settles that class.
+
+### changed
+- **`google-genai` pinned exactly at 2.17.0**, up from a `>=2.3.0` floor. This is what `.claude/rules/general.md` requires of an application and what the design record asked for in as many words ("Pin the SDK exactly. This API breaks."), and a floor meant a routine `uv sync` could silently change what the code is talking to. The bump from 2.16.0 was verified against every load-bearing type before landing: mime lists, resolution enum, generation-config keys, and the absence of `resolution` on audio and document blocks all unchanged. The contract test above is what makes the pin worth its inconvenience — bumping it now names what moved instead of the drift arriving later as a 400 on a paid call.
+
+### fixed
+- **A test that could not fail for its stated reason.** `test_ledger_write_failure_is_swallowed` staged an unwritable destination with `chmod(0o500)` — but **root ignores permission bits**, so in the container this suite commonly runs in the write simply succeeded, the `except OSError` branch never executed, and the arm failed for a reason unrelated to the code. Deleting the error handling it guards would not have turned it red. Verified rather than assumed: the arm passes as `nobody` and fails as root, `CAP_DAC_OVERRIDE` present. The failure is now injected by monkeypatching `Path.open`, which works at any uid, and mutation-proven — removing the `except OSError` turns it red. **The bridge suite is fully green for the first time: 271 passed, 0 failed.**
+- **A zero-token estimate.** The new budget arm caught its own subject: a small file's duration rounded down to zero seconds and reported "~0 input tokens", which reads as free. Nothing is free — estimates now floor at one sampled frame, one second of audio, or one page of PDF.
+
 ## 1.24.0
 
 ### added
