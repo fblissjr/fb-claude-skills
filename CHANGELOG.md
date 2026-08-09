@@ -1,5 +1,15 @@
 # changelog
 
+## 1.28.0
+
+### added
+- **`gemini-bridge` 0.12.0 → 0.13.0 — every send now announces its manifest before anything leaves the machine.** `--dry-run` was the only way to see what a call sends, and it had to be asked for; a real send printed nothing until the bytes were already gone, so the one moment the user could still stop — the manifest on screen, the call not yet made — existed only on the path that sends nothing. Every `ask` now prints the same manifest (recipe, model, store, per-attachment route and estimate, the text channels, the total, the question) to stderr **before credentials are resolved, before any upload, before the call**. It prints on gate refusals too, because the refusal tells the user to decide and the manifest is what they are deciding about. The dry-run report and the announcement are one function, deliberately — two separately-built descriptions of "what would be sent" is the exact shape that let the scanner and the estimator disagree about outgoing text in 0.12.0 — and a drift arm holds them to it.
+
+### fixed
+- **`-r <path>` was the sixth file route, and the only one the path guard did not cover.** `recipes.load` treats an argument with a suffix that exists as a file to read, and its body travels in the request as the system instruction — so `-f deploy.key` was refused while `-r deploy.key` read the same bytes, one release after the README started claiming "every file named on the command line" is guarded. The guard's condition mirrors load's path branch exactly; a bare recipe *name* resolves inside declared recipe directories and is not a user-named file, so it stays unguarded. (A dotfile like `.env` has no pathlib suffix, so the path branch never read one — the exposure was suffixed files.)
+- **A bad config was a traceback on the first line of every command.** Malformed TOML raised `TOMLDecodeError` straight through, a non-numeric `[authorization]` threshold raised `ValueError`, and the `[auth]`-in-project-config refusal — a clean message by design — was never caught anywhere. All three failed closed, but every other refusal in this CLI terminates in a sentence a person can act on. `Config.load` now wraps all of it in `ConfigError` naming the file and key, and `main` catches it once, for every command.
+- **The gate tier was classified twice from the same arguments**, once per branch of `--dry-run`. Classified once, above the branch, so the report and the enforcement cannot diverge.
+
 ## 1.27.0
 
 ### added

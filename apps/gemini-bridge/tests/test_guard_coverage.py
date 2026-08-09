@@ -131,6 +131,78 @@ def test_a_missing_prompt_file_is_an_error_not_a_traceback(
     assert "Traceback" not in out.err
 
 
+def test_a_recipe_given_as_a_path_is_guarded_like_every_other_file(
+    project, monkeypatch, capsys
+):
+    """`recipes.load` treats an argument with a suffix that exists as a file to
+    read, and its body becomes the system instruction -- text that travels in
+    the request. That makes `-r <path>` the sixth route by which a file named
+    on the command line reaches Gemini, and it was the only one the path guard
+    did not cover: `-f deploy.key` was refused while `-r deploy.key` read the
+    same bytes. (A dotfile like `.env` has no pathlib suffix, so load's path
+    branch never reads one -- the guard mirrors that condition exactly.) The
+    content scanner is not a substitute -- a bare password has no key shape."""
+    keyfile = project.root / "deploy.key"
+    keyfile.write_text("hunter2\n")  # deliberately not key-shaped
+    assert ask(project, monkeypatch, "-r", str(keyfile), "q") == 1
+    err = capsys.readouterr().err
+    assert "sensitive path pattern" in err
+    assert "hunter2" not in err, "a refusal must not echo what it refused"
+
+
+# -- every send says what is about to leave the machine ----------------------
+
+
+def test_a_real_send_announces_the_manifest_before_sending(
+    project, monkeypatch, capsys
+):
+    """--dry-run was the only way to see what a call sends, and it had to be
+    asked for. A real send printed nothing before the bytes left, so the one
+    moment the user could still stop -- the manifest on screen, the call not
+    yet made -- existed only on the path that sends nothing."""
+    assert ask(project, monkeypatch, "-f", str(project.image), "what is this") == 0
+    err = capsys.readouterr().err
+    assert "attach" in err
+    assert "estimate" in err
+
+
+def test_the_manifest_is_announced_even_when_the_gate_refuses(
+    project, monkeypatch, capsys
+):
+    """A refusal is exactly when the user needs to see what the call was going
+    to send -- the refusal text tells them to decide, and the manifest is what
+    they are deciding about."""
+    big = project.root / "big.txt"
+    big.write_text("lorem ipsum dolor sit amet " * 40_000)
+    assert ask(project, monkeypatch, "--prompt-file", str(big)) == 1
+    err = capsys.readouterr().err
+    assert "estimate" in err
+    assert "model" in err
+    assert "gemini-authorize" in err
+
+
+def test_dry_run_and_the_real_announcement_cannot_drift(
+    project, monkeypatch, capsys
+):
+    """The dry-run report and the pre-send announcement are one function; this
+    arm holds them to it. Two separately-built descriptions of "what would be
+    sent" is the exact shape that let the scanner and the estimator disagree
+    about outgoing text -- delete the shared function and rebuild either side
+    by hand, and this goes red."""
+    def core(text: str) -> list[str]:
+        wanted = ("recipe", "model", "thinking", "store", "schema",
+                  "attach", "text", "estimate", "question")
+        return [line for line in text.splitlines() if line.startswith(wanted)]
+
+    assert ask(project, monkeypatch, "-f", str(project.image),
+               "--dry-run", "what is this") == 0
+    dry = core(capsys.readouterr().out)
+    assert ask(project, monkeypatch, "-f", str(project.image),
+               "what is this") == 0
+    real = core(capsys.readouterr().err)
+    assert dry and dry == real
+
+
 # -- the gate sees everything that is billed --------------------------------
 
 

@@ -31,10 +31,23 @@ def user_config_path() -> Path:
 
 
 def _load_toml(path: Path) -> dict:
+    """Read a config file, or raise ConfigError with the path in the message.
+
+    Wrapped because every command loads config before doing anything else, so
+    an unwrapped TOMLDecodeError was a traceback on the first line of every
+    invocation until the typo was found. Fail-closed was never in question --
+    nothing runs without config -- but a refusal here has to terminate in a
+    sentence a person can act on, like every other refusal in this CLI.
+    """
     if not path.is_file():
         return {}
-    with path.open("rb") as fh:
-        return tomllib.load(fh)
+    try:
+        with path.open("rb") as fh:
+            return tomllib.load(fh)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"{path} is not valid TOML: {exc}") from exc
+    except OSError as exc:
+        raise ConfigError(f"{path} could not be read: {exc}") from exc
 
 
 @dataclass
@@ -104,10 +117,19 @@ class Config:
             # carries no secret and a shared repo benefits from agreeing on it.
             authz = project.get("authorization", {})
             cfg.require_authorization = authz.get("required", True)
-            cfg.max_unauthorized_tokens = int(
-                authz.get("max_unauthorized_tokens", 20_000)
-            )
-            cfg.authorization_ttl_seconds = int(authz.get("ttl_seconds", 600))
+            # Wrapped for the same reason as _load_toml: these feed the spend
+            # gate, and a string where a number belongs was an uncaught
+            # ValueError rather than a message naming the file and the key.
+            try:
+                cfg.max_unauthorized_tokens = int(
+                    authz.get("max_unauthorized_tokens", 20_000)
+                )
+                cfg.authorization_ttl_seconds = int(authz.get("ttl_seconds", 600))
+            except (TypeError, ValueError) as exc:
+                raise ConfigError(
+                    f"{project_path}: [authorization] max_unauthorized_tokens "
+                    f"and ttl_seconds must be integers: {exc}"
+                ) from exc
 
         return cfg
 

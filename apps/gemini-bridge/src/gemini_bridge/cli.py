@@ -43,7 +43,7 @@ from . import (
     recipes,
     runs,
 )
-from .config import Config
+from .config import Config, ConfigError
 
 RECIPE_SUBPATH = Path("skills") / "gemini-multimodal" / "references" / "recipes"
 
@@ -102,6 +102,61 @@ def _outgoing_text(
             ("labels", " ".join(f"{k}={v}" for k, v in recipe.labels.items()))
         )
     return channels
+
+
+def _send_preview(
+    recipe: recipes.Recipe,
+    request: dict[str, Any],
+    attachments: list[media.Attachment],
+    outgoing: list[tuple[str, str]],
+    text_tokens: int,
+    estimated_tokens: int,
+    question: str,
+    *,
+    used_default_prompt: bool,
+    dry_run: bool,
+) -> list[str]:
+    """What is about to leave the machine, as printable lines.
+
+    One function, two consumers, deliberately: `--dry-run` prints this instead
+    of sending, and a real send prints it to stderr immediately before anything
+    is sent. While the dry-run report was the only copy, the real path shipped
+    with no pre-send disclosure at all -- the one moment the user could still
+    stop existed only on the path that sends nothing. And two separately-built
+    descriptions of "what would be sent" is the exact shape that let the
+    scanner and the estimator disagree about outgoing text.
+    """
+    lines = [
+        f"recipe      {recipe.name}  ({recipe.path or 'no recipe file'})",
+        f"model       {request['model']}",
+        f"thinking    {request.get('generation_config', {}).get('thinking_level')}",
+        (f"store       {request['store']}"
+         f"{'  (NOT deletable once stored)' if request['store'] else ''}"),
+        f"schema      {'yes' if request.get('response_format') else 'no'}",
+    ]
+    for att in attachments:
+        route = "upload" if media.needs_upload(att) else "inline"
+        lines.append(f"attach      {att.kind:9} {att.resolution or '-':5} "
+                     f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
+        lines.append(f"            {budget.estimate(att).line(att)}")
+    lines.append(f"text        ~{text_tokens:,} input tokens "
+                 f"({', '.join(label for label, _ in outgoing)})")
+    lines.append(f"estimate    ~{estimated_tokens:,} input tokens total "
+                 "(rough; exact counts come back in usage.json)")
+    pending = sum(1 for a in attachments if media.needs_upload(a))
+    if pending:
+        verb = ("would be sent to the Files API and held for 48h  "
+                "(not done: --dry-run)" if dry_run
+                else "will be sent to the Files API and held for 48h")
+        lines.append(f"upload      {pending} file(s) {verb}")
+    shown = question[:100]
+    for f in content.scan(question):
+        if f.blocking:
+            shown = "<withheld: contains secret-shaped content>"
+            break
+    lines.append(f"question    {shown}"
+                 f"{'  (generic default)' if used_default_prompt else ''}")
+    return lines
 
 
 def _effective_recipe(
@@ -192,10 +247,18 @@ def cmd_ask(args: argparse.Namespace) -> int:
     patterns = privacy.effective_patterns(
         cfg.sensitive_paths, cfg.use_default_sensitive_paths
     )
-    for raw in [
+    guarded = [
         *args.file, *args.context,
         *(p for p in (args.prompt_file, args.system_file, args.schema_file) if p),
-    ]:
+    ]
+    # `-r` is a sixth file route: recipes.load treats an argument with a suffix
+    # that exists as a file to read, and its body travels in the request as the
+    # system instruction. The condition mirrors that path branch exactly -- a
+    # bare recipe NAME resolves inside declared recipe directories and is not a
+    # user-named file, so it is not guarded.
+    if args.recipe and Path(args.recipe).suffix and Path(args.recipe).exists():
+        guarded.append(args.recipe)
+    for raw in guarded:
         hit = privacy.is_sensitive(Path(raw), patterns)
         if hit:
             return _fail(
@@ -333,48 +396,46 @@ def cmd_ask(args: argparse.Namespace) -> int:
     text_tokens = budget.text_tokens(*(text for _, text in outgoing))
     estimated_tokens = budget.total(attachments) + text_tokens
 
+    # The spend gate's verdict. Classified once, up here, for the dry-run
+    # report and the real path alike -- it used to be computed twice from the
+    # same arguments, once per branch. `classify` is pure, and a refusal below
+    # must precede every irrevocable step: the upload most of all, which
+    # discloses bytes for 48h whether or not the interaction that follows
+    # succeeds.
+    tier, why = authorization.classify(
+        estimated_tokens=estimated_tokens,
+        thinking_level=request.get("generation_config", {}).get("thinking_level"),
+        stateful=recipe.stateful,
+        max_unauthorized_tokens=cfg.max_unauthorized_tokens,
+        max_output_tokens=recipe.max_output_tokens,
+    )
+    gated = tier == "expensive" and cfg.require_authorization
+
+    preview_lines = _send_preview(
+        recipe, request, attachments, outgoing, text_tokens, estimated_tokens,
+        question, used_default_prompt=used_default_prompt, dry_run=args.dry_run,
+    )
+
     if args.dry_run:
-        print(f"recipe      {recipe.name}  ({recipe.path or 'no recipe file'})")
-        print(f"model       {request['model']}")
-        print(f"thinking    {request.get('generation_config', {}).get('thinking_level')}")
-        print(f"store       {request['store']}"
-              f"{'  (NOT deletable once stored)' if request['store'] else ''}")
-        print(f"schema      {'yes' if request.get('response_format') else 'no'}")
-        for att in attachments:
-            route = "upload" if media.needs_upload(att) else "inline"
-            print(f"attach      {att.kind:9} {att.resolution or '-':5} "
-                  f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
-            print(f"            {budget.estimate(att).line(att)}")
-        print(f"text        ~{text_tokens:,} input tokens "
-              f"({', '.join(label for label, _ in outgoing)})")
-        print(f"estimate    ~{estimated_tokens:,} input tokens total "
-              "(rough; exact counts come back in usage.json)")
-        if pending_upload:
-            print(f"upload      {len(pending_upload)} file(s) would be sent to the "
-                  "Files API and held for 48h  (not done: --dry-run)")
-        shown = question[:100]
-        for f in content.scan(question):
-            if f.blocking:
-                shown = "<withheld: contains secret-shaped content>"
-                break
-        print(f"question    {shown}"
-              f"{'  (generic default)' if used_default_prompt else ''}")
+        for line in preview_lines:
+            print(line)
         # Whether the real call would be gated, answered on the one path that
         # sends nothing. Finding this out by being refused costs a round trip;
         # finding it out here costs nothing.
-        tier, why = authorization.classify(
-            estimated_tokens=estimated_tokens,
-            thinking_level=request.get("generation_config", {}).get("thinking_level"),
-            stateful=recipe.stateful,
-            max_unauthorized_tokens=cfg.max_unauthorized_tokens,
-            max_output_tokens=recipe.max_output_tokens,
-        )
-        if tier == "expensive" and cfg.require_authorization:
+        if gated:
             print(f"gate        needs {authorization.AUTHORIZE_COMMAND} "
                   f"-- {why}")
         else:
             print("gate        none; runs under the ordinary permission prompt")
         return 0
+
+    # The same manifest, on every real send, BEFORE anything leaves the
+    # machine -- credentials, uploads, and the call all come after. What is
+    # being sent has to be on screen while stopping the call still costs
+    # nothing; a disclosure printed after the send is a receipt, not a choice.
+    # stderr, because stdout is the answer-handoff contract.
+    for line in preview_lines:
+        print(line, file=sys.stderr)
 
     # Said before the send, not after, so it is still actionable. The defaults
     # in this tool are already the cheap ones; what runs up a bill is clip
@@ -383,25 +444,11 @@ def cmd_ask(args: argparse.Namespace) -> int:
     if warning:
         print(f"WARNING {warning}", file=sys.stderr)
 
-    # The spend gate. An expensive or irreversible call needs an authorization
-    # only a user-typed slash command can mint; a cheap one runs under the
-    # ordinary Bash permission prompt as it always has. Classified here, before
-    # credentials, because `classify` is pure and a refusal below must precede
-    # every irrevocable step -- the upload most of all, which discloses bytes
-    # for 48h whether or not the interaction that follows succeeds.
-    tier, why = authorization.classify(
-        estimated_tokens=estimated_tokens,
-        thinking_level=request.get("generation_config", {}).get("thinking_level"),
-        stateful=recipe.stateful,
-        max_unauthorized_tokens=cfg.max_unauthorized_tokens,
-        max_output_tokens=recipe.max_output_tokens,
-    )
     # "expensive" is never recorded as-is: it describes the call, not the
     # gate's verdict, and leaking it into the ledger created a fourth value no
     # audit filter knows to look for -- on exactly the large, ungated runs an
     # audit exists to find. Every other value comes from the Decision itself,
     # so the two halves of the gate cannot disagree about what they did.
-    gated = tier == "expensive" and cfg.require_authorization
     if tier == "cheap":
         authorization_tier = "cheap"
     elif not cfg.require_authorization:
@@ -1002,7 +1049,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ConfigError as exc:
+        # Caught here, once, because every command loads config first: a
+        # malformed file failed closed but as a traceback, and a refusal must
+        # terminate in a sentence a person can act on. Config.load wraps the
+        # TOML and type errors into ConfigError so this is the whole set.
+        return _fail(str(exc))
 
 
 if __name__ == "__main__":

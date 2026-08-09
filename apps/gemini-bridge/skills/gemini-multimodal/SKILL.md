@@ -24,17 +24,20 @@ retained for the project's window and **cannot be deleted through the API**.
 Two things to do:
 
 1. **Say what you are sending.** Name the files and the recipe in one line
-   before running the command.
+   before running the command. The CLI prints the full manifest to stderr
+   before anything leaves the machine on every send — your one line is the
+   intent, its manifest is the record; leave the manifest in view rather than
+   suppressing stderr.
 2. **`--dry-run` first** when the attachment set is large or unfamiliar. It
-   prints the manifest and calls nothing — it opens no connection, so nothing
-   leaves the machine.
+   prints the same manifest and calls nothing — it opens no connection, so
+   nothing leaves the machine.
 
 Two guards run automatically and refuse the call rather than warning:
 
 - **Every path you name** — `-f`, `-c`, `--prompt-file`, `--system-file`,
-  `--schema-file` — is matched against built-in patterns for secret-shaped
-  files plus anything configured in `.gemini-bridge.toml`, before the file is
-  opened.
+  `--schema-file`, and `-r` given as a path — is matched against built-in
+  patterns for secret-shaped files plus anything configured in
+  `.gemini-bridge.toml`, before the file is opened.
 - **The prompt** is scanned for secret-shaped content. This one matters most
   here, because *you* compose the prompt after reading the user's files. Do not
   paste key material, tokens, or credential blocks into a question. If a refusal

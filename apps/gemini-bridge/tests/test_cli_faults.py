@@ -244,6 +244,36 @@ def test_ledger_write_failure_is_swallowed(monkeypatch, tmp_path):
     assert not path.exists(), "nothing written, but no exception either"
 
 
+# -- config failures ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "toml",
+    [
+        "[privacy\n",                                    # malformed TOML
+        '[authorization]\nmax_unauthorized_tokens = "lots"\n',  # wrong type
+        '[auth]\nkey_command = "pass show x"\n',         # section refused by design
+    ],
+    ids=["malformed", "non-numeric-threshold", "auth-in-project-config"],
+)
+def test_a_bad_project_config_is_an_error_not_a_traceback(
+    project, monkeypatch, capsys, toml
+):
+    """Config.load raised straight through every command -- tomllib on a typo,
+    ValueError on a non-numeric gate threshold, ConfigError for [auth]. All
+    three failed closed, but as tracebacks, and every other refusal in this
+    CLI terminates in a sentence a person can act on."""
+    (project.root / ".gemini-bridge.toml").write_text(toml)
+    code = cli.main([
+        "--project-root", str(project.root), "ask", "-r", "demo",
+        "-f", str(project.image), "q",
+    ])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error:")
+    assert "Traceback" not in err
+
+
 # -- API-side failures ------------------------------------------------------
 
 

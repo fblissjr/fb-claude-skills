@@ -153,8 +153,9 @@ Two guards refuse rather than warn, and both run **before** any file is read or
 uploaded:
 
 - **Every path named on the command line** — `-f`, `-c`, `--prompt-file`,
-  `--system-file`, `--schema-file` — is matched against built-in patterns for
-  secret-shaped files plus anything in `.gemini-bridge.toml`.
+  `--system-file`, `--schema-file`, and `-r` given as a path — is matched
+  against built-in patterns for secret-shaped files plus anything in
+  `.gemini-bridge.toml`.
 - **The prompt** is scanned for secret-shaped content, along with the system
   instruction, schema, and label values.
 

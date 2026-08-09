@@ -1,4 +1,4 @@
-last updated: 2026-08-08
+last updated: 2026-08-09
 
 # gemini-bridge
 
@@ -231,9 +231,20 @@ repeatedly trying to spend more than it may.
 
 ## What gets checked before anything is sent
 
-Two guards, both on by default, because a call cannot be recalled — the API's
-delete endpoint returns 501, so the only cleanups are the project retention
-window and a project-wide bulk delete in the console.
+**Every send announces its manifest first.** Before credentials are resolved,
+before any upload, before the call, `ask` prints to stderr what is about to
+leave the machine: recipe, model, whether the interaction will be stored, each
+attachment with its size, route (inline or upload) and token estimate, the
+text channels and their estimate, and the question. It is the same report
+`--dry-run` prints — literally the same function, so the two cannot drift —
+and it prints on refusals too, so a gated call shows what it was going to
+send. The difference is only that `--dry-run` stops there and opens no
+connection at all.
+
+Beyond the announcement, two guards run on every call, both on by default,
+because a call cannot be recalled — the API's delete endpoint returns 501, so
+the only cleanups are the project retention window and a project-wide bulk
+delete in the console.
 
 **Every file named on the command line** is matched against a built-in pattern
 set covering shapes that are secrets or nothing (`*.pem`, `id_rsa`, `.env`,
@@ -242,11 +253,16 @@ expands home-relative and environment-variable prefixes in your patterns, and
 runs on the raw arguments before any file is opened. It is designed to
 over-block rather than under-block.
 
-That means `-f` and `-c` **and** `--prompt-file`, `--system-file` and
-`--schema-file`. The last three also read a local file and put its contents
-straight into the request, and until 0.12.0 they were not checked: `-f .env`
-was refused while `--prompt-file .env` sent the same bytes as the question. A
-guard that depends on which flag was typed protects the flag, not the file.
+That means `-f` and `-c` **and** `--prompt-file`, `--system-file`,
+`--schema-file`, and `-r` when it is given as a path. The middle three also
+read a local file and put its contents straight into the request, and until
+0.12.0 they were not checked: `-f .env` was refused while `--prompt-file .env`
+sent the same bytes as the question. `-r` was the sixth route and the last one
+covered (0.13.0): an argument with a suffix that exists is read as a recipe
+file whose body becomes the system instruction. A guard that depends on which
+flag was typed protects the flag, not the file. A bare recipe *name* resolves
+inside declared recipe directories and is not a user-named file, so names are
+not matched against the patterns.
 
 **The prompt itself** is scanned for secret-shaped content — API keys, tokens,
 private key blocks, JWTs. High-confidence shapes refuse the call; weaker signals
