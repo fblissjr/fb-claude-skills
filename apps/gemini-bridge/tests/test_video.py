@@ -402,13 +402,17 @@ def test_dry_run_uploads_nothing(project, monkeypatch, capsys):
 # -- budget -----------------------------------------------------------------
 
 
-def test_a_long_video_warns_before_it_is_sent(project, monkeypatch, capsys):
+def test_a_long_video_warns_before_it_is_sent(project, monkeypatch, capsys, tmp_path):
     """The defaults here are already the cheap ones, so the only thing that
     runs up a bill is clip length -- and that is invisible until the invoice.
     The warning has to land before the send, while it is still actionable."""
     from gemini_bridge import budget
 
     monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    # A ten-minute clip is over the gate threshold, so this arm has to carry an
+    # authorization to reach the send at all -- which is itself the gate
+    # working. The claim under test is the warning, not the gate.
+    _authorize(tmp_path, monkeypatch)
     install(monkeypatch, fake_client(FakeFiles()))
     assert ask(project, "-f", str(project.video), "q") == 0
     err = capsys.readouterr().err
@@ -527,7 +531,7 @@ def _authorize(tmp_path, monkeypatch, *, max_tokens=200000, ts=None):
     import time as _t
     from gemini_bridge import authorization
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     d = authorization.state_dir("s-e2e")
     d.mkdir(parents=True, exist_ok=True)
     (d / authorization.AUTH_FILENAME).write_bytes(orjson.dumps(
@@ -547,7 +551,7 @@ def test_an_expensive_call_is_refused_before_anything_uploads(
     """
     from gemini_bridge import budget
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
     ff = FakeFiles()
     install(monkeypatch, fake_client(ff))
@@ -578,7 +582,7 @@ def test_a_cheap_call_needs_no_authorization(project, monkeypatch, tmp_path):
     """The common path must not change. If a screenshot needs a slash command,
     the gate gets switched off and protects nothing."""
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     shot = project.root / "shot.png"
     shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
     install(monkeypatch, fake_client(FakeFiles()))
@@ -592,7 +596,7 @@ def test_store_is_gated_even_when_tiny(project, monkeypatch, capsys, tmp_path):
     """Irreversibility, not size. A one-line question with --store leaves an
     interaction that interactions.delete cannot remove."""
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     install(monkeypatch, fake_client(FakeFiles()))
     assert ask(project, "--store", "a short question") == 1
     assert "cannot be undone" in capsys.readouterr().err
@@ -604,7 +608,7 @@ def test_the_gate_can_be_turned_off_in_project_config(
     """It is the user's money and the user's call."""
     from gemini_bridge import budget
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
     (project.root / ".gemini-bridge.toml").write_text(
         "[authorization]\nrequired = false\n"
@@ -620,8 +624,108 @@ def test_dry_run_says_whether_the_real_call_would_be_gated(
     nothing, so it is the right place to answer it."""
     from gemini_bridge import budget
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_SESSION_ID", "s-e2e")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
     monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
     install(monkeypatch, fake_client(FakeFiles()))
     assert ask(project, "-f", str(project.video), "--dry-run", "q") == 0
     assert "gemini-authorize" in capsys.readouterr().out
+
+
+# -- regressions from the 0.11.1 review -------------------------------------
+
+
+def test_uploads_lists_a_handle_close_to_expiry(tmp_path):
+    """`live` must not apply the *reuse* margin.
+
+    It did, and `uploads --delete` saves the cache afterwards, so a handle
+    twelve minutes from expiry was dropped from the listing AND the prune was
+    persisted -- never listed, never deleted, its only record erased while the
+    bytes sat at Google for another twelve minutes.
+    """
+    cache = files.Cache(path=tmp_path / files.CACHE_NAME)
+    cache.put(files.Upload(
+        name="files/soon", uri="u", mime_type="video/mp4", sha256="abc",
+        size_bytes=1, uploaded_at=0.0, display_name="clip.mp4",
+    ))
+    near_expiry = files.LIFETIME_S - 12 * 60
+    assert [u.name for u in cache.live(near_expiry)] == ["files/soon"]
+    assert cache.get("abc", near_expiry) is None, "still unsafe to reuse, though"
+    assert cache.live(files.LIFETIME_S + 1) == [], "genuinely expired is gone"
+
+
+def test_listing_does_not_mutate_the_cache(tmp_path):
+    """`uploads` is a read. If listing prunes, `uploads --delete` persists the
+    prune and the handle becomes unnameable."""
+    cache = files.Cache(path=tmp_path / files.CACHE_NAME)
+    cache.put(files.Upload(
+        name="files/soon", uri="u", mime_type="video/mp4", sha256="abc",
+        size_bytes=1, uploaded_at=0.0, display_name="clip.mp4",
+    ))
+    cache.live(files.LIFETIME_S - 60)
+    assert "abc" in cache.entries
+
+
+def test_a_null_field_in_the_cache_is_a_cold_cache_not_a_crash(tmp_path):
+    """Value-type drift, not just key drift. A null uploaded_at survived
+    construction and raised TypeError out of doctor, uploads and ask alike --
+    breaking the module's own stated contract."""
+    path = tmp_path / files.CACHE_NAME
+    path.write_bytes(orjson.dumps({"abc": {
+        "name": "files/x", "uri": "u", "mime_type": "video/mp4",
+        "sha256": "abc", "size_bytes": 1, "uploaded_at": None,
+        "display_name": "clip.mp4",
+    }}))
+    cache = files.Cache.load(tmp_path)
+    assert cache.live(1000.0) == []
+    assert cache.get("abc", 1000.0) is None
+
+
+def test_a_timed_out_upload_is_still_recorded(project, monkeypatch, tmp_path):
+    """The bytes are at Google the moment upload() returns and stay 48h whether
+    or not the file finishes processing. Caching only after ACTIVE meant a
+    timeout left a live, undeletable, invisible file -- and the retry uploaded
+    the same bytes again against the same 20GB quota."""
+    _authorize(tmp_path, monkeypatch)
+    monkeypatch.setattr(files, "_sleep", lambda _s: None)
+    install(monkeypatch, fake_client(FakeFiles(states=["PROCESSING"])))
+
+    assert ask(project, "-f", str(project.video), "--upload-timeout", "0", "q") == 1
+    cache = files.Cache.load(project.root / runs.RUNS_DIRNAME)
+    assert [u.name for u in cache.live(0)] == ["files/u1"], \
+        "an orphan you cannot name is an orphan you cannot delete"
+
+
+def test_gate_disabled_records_a_documented_tier(project, monkeypatch, tmp_path):
+    """With the gate off the ledger recorded the bare string "expensive", a
+    fourth value no doc names -- so an audit filtering the documented three
+    missed exactly the large, ungated calls it exists to find."""
+    from gemini_bridge import budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nrequired = false\n"
+    )
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 0
+    tier = ledger.read(project.root / runs.RUNS_DIRNAME)[0]["authorization_tier"]
+    assert tier == "expensive-gate-disabled"
+    assert tier in {
+        "cheap", "expensive-authorized", "expensive-ungated",
+        "expensive-gate-disabled", "unknown",
+    }
+
+
+def test_a_refused_call_is_recorded_in_the_ledger(project, monkeypatch, tmp_path):
+    """A refusal is an audit event too -- it is how you see an agent trying to
+    spend more than it is allowed to."""
+    from gemini_bridge import budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-none")
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 1
+    entries = ledger.read(project.root / runs.RUNS_DIRNAME)
+    assert entries and entries[0]["status"] == "unauthorized"
+    assert entries[0]["authorization_tier"] == "expensive-refused"
+    assert entries[0]["run_id"] == "(refused)", "nothing was sent, so no run dir"

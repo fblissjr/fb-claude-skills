@@ -19,6 +19,7 @@ same remedy applies to both, and for interactions it does not.
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import time
 from dataclasses import replace
@@ -273,10 +274,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
         request = call_mod.build_request(
             recipe,
             question,
-            [
-                replace(a, uri=media.DRY_RUN_URI) if media.needs_upload(a) else a
-                for a in attachments
-            ],
+            # Placeholder handles for EVERY attachment, so the preview costs
+            # no base64 at all. It exists to validate the request shape and to
+            # feed --dry-run; the real request is built once below, after the
+            # uploads. Encoding here as well meant every inline file was read
+            # and base64-ed twice on the mixed path the README itself shows.
+            [replace(a, uri=media.DRY_RUN_URI) for a in attachments],
             previous_interaction_id=args.continue_from,
             model_override=args.model or cfg.default_model,
         )
@@ -295,8 +298,9 @@ def cmd_ask(args: argparse.Namespace) -> int:
             print(f"attach      {att.kind:9} {att.resolution or '-':5} "
                   f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
             print(f"            {budget.estimate(att).line(att)}")
+        dry_total = budget.total(attachments)
         if attachments:
-            print(f"estimate    ~{budget.total(attachments):,} input tokens total "
+            print(f"estimate    ~{dry_total:,} input tokens total "
                   "(rough; exact counts come back in usage.json)")
         if pending_upload:
             print(f"upload      {len(pending_upload)} file(s) would be sent to the "
@@ -312,7 +316,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         # sends nothing. Finding this out by being refused costs a round trip;
         # finding it out here costs nothing.
         tier, why = authorization.classify(
-            estimated_tokens=budget.total(attachments),
+            estimated_tokens=dry_total,
             thinking_level=request.get("generation_config", {}).get("thinking_level"),
             stateful=recipe.stateful,
             max_unauthorized_tokens=cfg.max_unauthorized_tokens,
@@ -344,15 +348,44 @@ def cmd_ask(args: argparse.Namespace) -> int:
         stateful=recipe.stateful,
         max_unauthorized_tokens=cfg.max_unauthorized_tokens,
     )
-    authorization_tier = tier
-    if tier == "expensive" and cfg.require_authorization:
-        decision = authorization.claim(
+    # "expensive" is never recorded as-is: it describes the call, not the
+    # gate's verdict, and leaking it into the ledger created a fourth value no
+    # audit filter knows to look for -- on exactly the large, ungated runs an
+    # audit exists to find.
+    gated = tier == "expensive" and cfg.require_authorization
+    authorization_tier = {
+        ("cheap", True): "cheap", ("cheap", False): "cheap",
+        ("expensive", False): "expensive-gate-disabled",
+    }.get((tier, cfg.require_authorization), "expensive")
+
+    if gated:
+        # Peek now, consume later. Refusing here costs nothing; the token is
+        # spent immediately before the first irreversible step, so a failure
+        # in between does not burn the user's approval.
+        preview = authorization.peek(
             estimated_tokens=estimated_tokens,
             ttl_seconds=cfg.authorization_ttl_seconds,
         )
-        authorization_tier = decision.tier
-        if not decision.allowed:
-            return _fail(f"{why}, so {decision.reason}")
+        if not preview.allowed:
+            # A refusal is an audit event. A gate whose ledger shows only the
+            # spends it allowed cannot show an agent repeatedly trying to
+            # spend more than it may -- which is the pattern worth seeing.
+            # Recorded without a run directory: nothing was sent, so there is
+            # nothing to put in one.
+            ledger.record(
+                runs.ensure_runs_root(project_root),
+                run_id="(refused)", recipe=recipe.name,
+                model=request["model"], status="unauthorized", usage=None,
+                attachments=[a.manifest_entry(project_root) for a in attachments],
+                duration_ms=0, stateful=recipe.stateful,
+                service_tier=recipe.service_tier,
+                thinking_level=recipe.generation_config().get("thinking_level"),
+                credential_kind="(not resolved)", error=preview.reason,
+                allow_prompt_secrets=args.allow_prompt_secrets,
+                prompt_scanned=prompt_scanned,
+                authorization_tier="expensive-refused",
+            )
+            return _fail(f"{why}, so {preview.reason}")
 
     try:
         creds = auth.resolve(args.key_command, cfg.key_command)
@@ -394,6 +427,20 @@ def cmd_ask(args: argparse.Namespace) -> int:
             prompt_scanned=prompt_scanned,
             authorization_tier=authorization_tier,
         )
+
+    # The last moment before anything irreversible: credentials resolved, run
+    # directory on disk, nothing sent. Spending the token here rather than at
+    # the peek above means a failure in between costs the user nothing.
+    if gated:
+        decision = authorization.consume(
+            estimated_tokens=estimated_tokens,
+            ttl_seconds=cfg.authorization_ttl_seconds,
+        )
+        authorization_tier = decision.tier
+        if not decision.allowed:
+            run.write_error(decision.reason)
+            _record_failure("unauthorized", decision.reason)
+            return _fail(f"{why}, so {decision.reason}")
 
     if pending_upload:
         cache = files.Cache.load(runs_root)
@@ -444,25 +491,33 @@ def cmd_ask(args: argparse.Namespace) -> int:
             print("        uploads live 48h at Google; "
                   "`gemini-bridge uploads --delete` removes them now")
 
-        # Rebuilt with the real handles. Everything else about the request was
-        # already validated above.
-        try:
-            request = call_mod.build_request(
-                recipe,
-                question,
-                attachments,
-                previous_interaction_id=args.continue_from,
-                model_override=args.model or cfg.default_model,
-            )
-        except (call_mod.CallError, media.MediaError) as exc:
-            run.write_error(str(exc))
-            _record_failure("failed", str(exc))
-            return _fail(f"{exc}\n  run: {run.path}")
+    # The real request, built once, with real handles and real inline bytes.
+    # Unconditional: the preview above carries placeholder uris for everything,
+    # so it is never the thing that gets sent.
+    try:
+        request = call_mod.build_request(
+            recipe,
+            question,
+            attachments,
+            previous_interaction_id=args.continue_from,
+            model_override=args.model or cfg.default_model,
+        )
+    except (call_mod.CallError, media.MediaError) as exc:
+        run.write_error(str(exc))
+        _record_failure("failed", str(exc))
+        return _fail(f"{exc}\n  run: {run.path}")
 
     try:
         run.write_request(call_mod.redact_for_record(request, attachments, project_root))
     except OSError as exc:
-        return _fail(f"could not write the run record under {run.path}: {exc}")
+        # Reached only after the uploads, so bytes may already be at Google.
+        # Returning without a ledger row left that disclosure with no record
+        # anywhere -- the one thing this whole persistence dance exists to
+        # prevent.
+        message = f"could not write the run record under {run.path}: {exc}"
+        run.write_error(message)
+        _record_failure("failed", message)
+        return _fail(message)
 
     try:
         result = call_mod.call(api, request)
@@ -716,15 +771,39 @@ def cmd_doctor(args: argparse.Namespace) -> int:
           f"{len(patterns) - len(cfg.sensitive_paths)} built in)")
     print(f"prompt scan    : {'on' if cfg.scan_prompt else 'OFF'}")
 
-    if cfg.require_authorization:
-        print(f"spend gate     : on -- calls over "
-              f"{cfg.max_unauthorized_tokens:,} estimated tokens, or using "
-              f"--store or raised thinking,\n                 need "
-              f"{authorization.AUTHORIZE_COMMAND} "
-              f"(valid {cfg.authorization_ttl_seconds}s, single use)")
-    else:
+    if not cfg.require_authorization:
         print("spend gate     : OFF -- every call runs under the ordinary "
               "permission prompt only")
+    else:
+        print(f"spend gate     : on -- calls over "
+              f"{cfg.max_unauthorized_tokens:,} estimated tokens, or using "
+              f"--store or raised thinking,")
+        print(f"                 need {authorization.AUTHORIZE_COMMAND} "
+              f"(valid {cfg.authorization_ttl_seconds}s, single use)")
+
+        # Both halves of the gate can be broken in ways that are invisible from
+        # either side, and produce the same symptom: the user runs the command,
+        # it appears to work, the call is refused again, and nothing says why.
+        # This is the only place that can tell them.
+        if not shutil.which("jq"):
+            print("                 BROKEN: jq is not on PATH, so the "
+                  "authorize hook mints nothing.")
+            print("                 Install jq, or set [authorization] "
+                  "required = false.")
+        sid = authorization.session_id()
+        if sid:
+            held = (authorization.state_dir(sid)
+                    / authorization.AUTH_FILENAME).is_file()
+            print(f"                 session {sid[:12]}... "
+                  f"authorization {'held' if held else 'none right now'}")
+        elif authorization.in_agent_session():
+            print("                 BROKEN: agent session with no readable "
+                  "session id, so every")
+            print("                 expensive call is refused. Report this -- "
+                  "the variable may have moved.")
+        else:
+            print("                 not an agent session; calls here are not "
+                  "gated")
 
     live = files.Cache.load(project_root / runs.RUNS_DIRNAME).live(time.time())
     print(f"uploads held   : {len(live)} file(s) at Google"

@@ -72,6 +72,13 @@ class Estimate:
         return f"{length}~{self.tokens:,} input tokens (estimate)"
 
 
+# ffprobe spawns a process with a 10s timeout, and `estimate` is called from
+# the per-file line, the total, the gate's tier decision, and the warning --
+# up to three or four times per file per command. Keyed on identity, not just
+# path, so a file rewritten mid-run is not answered from the old reading.
+_DURATION_CACHE: dict[tuple[str, int, float], float | None] = {}
+
+
 def duration_seconds(att: Attachment) -> float | None:
     """Media length via ffprobe, or None if it cannot be determined.
 
@@ -82,6 +89,18 @@ def duration_seconds(att: Attachment) -> float | None:
     """
     if att.kind not in {"video", "audio"} or not shutil.which("ffprobe"):
         return None
+    try:
+        stat = att.path.stat()
+        key = (str(att.path), stat.st_size, stat.st_mtime)
+    except OSError:
+        return None
+    if key in _DURATION_CACHE:
+        return _DURATION_CACHE[key]
+    _DURATION_CACHE[key] = value = _probe_duration(att)
+    return value
+
+
+def _probe_duration(att: Attachment) -> float | None:
     try:
         out = subprocess.run(
             [

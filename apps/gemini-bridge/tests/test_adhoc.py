@@ -29,6 +29,13 @@ def project(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "home" / ".config"))
     (tmp_path / "home" / ".config").mkdir(parents=True)
+    # These arms are about parameter plumbing, and several of them use --store
+    # or raised thinking, which the spend gate now stops. Turning it off here
+    # keeps them testing what they claim to; the gate has its own suite, and
+    # test_video covers it end to end through the CLI.
+    (tmp_path / ".gemini-bridge.toml").write_text(
+        "[authorization]\nrequired = false\n"
+    )
     recipes_dir = tmp_path / "recipes"
     recipes_dir.mkdir()
     (recipes_dir / "demo.md").write_text(

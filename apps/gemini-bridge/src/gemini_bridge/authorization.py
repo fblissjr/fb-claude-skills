@@ -61,20 +61,49 @@ class Decision:
     tier: str = "cheap"
 
 
-def session_id() -> str | None:
-    """The Claude Code session, or None when not running under one.
+# Read in order. `CLAUDE_CODE_SESSION_ID` is the one Claude Code actually
+# exports to Bash subprocesses; `CLAUDE_SESSION_ID` is kept because ledger.py
+# has always read it and some versions may still set it.
+#
+# The first shipped version of this gate read ONLY `CLAUDE_SESSION_ID`, which
+# is not exported. `session_id()` returned None on every agent call, the gate
+# concluded "not an agent session" and stood down, and it was a no-op for
+# precisely the calls it exists to stop. It failed OPEN and silently. Every
+# test passed because every test set the variable itself, which proved the
+# tests agreed with the code and nothing about the world.
+SESSION_ENV_VARS = ("CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID")
 
-    Absence is treated as a direct human invocation and is not gated: someone
-    typing this into their own shell *is* the authorization, and gating them
-    would make the feature unusable outside an agent. That also means the gate
-    can be sidestepped by unsetting the variable -- see the module docstring on
-    what this does and does not defend against.
+# Independent evidence that we are inside an agent, used to decide the
+# direction of failure when no session id can be found. Without this, renaming
+# the variable again rebuilds the same silent no-op.
+AGENT_MARKER_VARS = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_VERSION")
+
+
+def session_id() -> str | None:
+    """The Claude Code session id, or None when it cannot be found."""
+    for var in SESSION_ENV_VARS:
+        value = os.environ.get(var)
+        if value:
+            return value
+    return None
+
+
+def in_agent_session() -> bool:
+    """Whether this looks like an agent, independent of the session id.
+
+    Load-bearing: "no session id" and "no agent" are different conclusions
+    with opposite safe answers. A human at a shell should not be gated; an
+    agent whose session id we cannot read must be, because the alternative is
+    the gate quietly not existing.
     """
-    return os.environ.get("CLAUDE_SESSION_ID") or None
+    return any(os.environ.get(v) for v in (*AGENT_MARKER_VARS, *SESSION_ENV_VARS))
 
 
 def state_dir(sid: str) -> Path:
-    base = Path(os.environ.get("TMPDIR", "/tmp"))
+    # `os.environ.get("TMPDIR", "/tmp")` returns "" for an exported-but-empty
+    # TMPDIR, while the hook's `${TMPDIR:-/tmp}` yields /tmp -- mint and
+    # enforce would look in different directories.
+    base = Path(os.environ.get("TMPDIR") or "/tmp")
     return base / STATE_ROOT_NAME / sid
 
 
@@ -118,26 +147,128 @@ def classify(
     return "cheap", ""
 
 
-def claim(
-    *,
-    estimated_tokens: int,
-    ttl_seconds: int,
-    now: float | None = None,
-) -> Decision:
-    """Spend the session's authorization, or explain why the call is refused.
+def _no_session_decision() -> Decision:
+    """What to do when no session id can be resolved.
 
-    Single-use, claimed by rename before validation. Parallel tool calls are a
-    supported pattern, so two expensive calls in one turn could otherwise both
-    read the same still-present token and both proceed -- one approval funding
-    two sends. Only the process that wins the rename continues.
+    Two opposite answers depending on who is asking, which is the whole reason
+    `in_agent_session` exists. A human typing into their own shell *is* the
+    authorization and must not be gated. An agent whose session we cannot
+    identify must be, because "cannot verify" has to mean no -- the
+    alternative is the silent no-op this gate shipped with.
     """
-    now = time.time() if now is None else now
-    sid = session_id()
-    if sid is None:
+    if not in_agent_session():
         return Decision(
             allowed=True, tier="expensive-ungated",
             reason="no agent session; treated as a direct human invocation",
         )
+    return Decision(
+        allowed=False, tier="expensive",
+        reason=(
+            "this looks like an agent session but no session id could be read "
+            f"from {' or '.join(SESSION_ENV_VARS)}, so the authorization "
+            "cannot be located. Refusing rather than allowing an unverified "
+            "call. If the variable was renamed upstream, that is a bug in "
+            "this plugin -- report it rather than working around it."
+        ),
+    )
+
+
+def _validate(
+    token, *, estimated_tokens: int, ttl_seconds: int, now: float
+) -> Decision:
+    """Shared by peek and consume so the two can never disagree."""
+    if token is None:
+        return Decision(
+            allowed=False, tier="expensive",
+            reason="the authorization file could not be read or parsed. "
+                   f"Ask the user to run {AUTHORIZE_COMMAND} again.",
+        )
+
+    if token.get("origin") != REQUIRED_ORIGIN:
+        return Decision(
+            allowed=False, tier="expensive",
+            reason="the authorization lacks user-typed provenance. Only the "
+                   f"user running {AUTHORIZE_COMMAND} can authorize a call of "
+                   "this size.",
+        )
+
+    try:
+        age = now - float(token.get("ts") or 0)
+        ceiling = int(token.get("max_tokens") or 0)
+    except (TypeError, ValueError):
+        return Decision(
+            allowed=False, tier="expensive",
+            reason="the authorization is malformed. Ask the user to run "
+                   f"{AUTHORIZE_COMMAND} again.",
+        )
+
+    if age > ttl_seconds:
+        return Decision(
+            allowed=False, tier="expensive",
+            reason=f"the authorization expired ({int(age)}s old, limit "
+                   f"{ttl_seconds}s). An approval from earlier in the session "
+                   "should not silently fund a call the user has stopped "
+                   "thinking about.",
+        )
+
+    # The token carries a ceiling, so "approve a clip, send the feature film"
+    # is not one edit away. Without it the approval is a blank cheque and the
+    # user's control over spend is nominal.
+    if ceiling and estimated_tokens > ceiling:
+        return Decision(
+            allowed=False, tier="expensive",
+            reason=f"this call is ~{estimated_tokens:,} estimated input tokens "
+                   f"but the authorization covers {ceiling:,}. Ask the user for "
+                   f"a larger one: {AUTHORIZE_COMMAND} "
+                   f"--max-tokens {estimated_tokens}",
+        )
+
+    return Decision(allowed=True, tier="expensive-authorized")
+
+
+def peek(
+    *, estimated_tokens: int, ttl_seconds: int, now: float | None = None
+) -> Decision:
+    """Would this call be authorized? Reads only; consumes nothing.
+
+    Exists so the refusal can happen early -- before credentials are resolved,
+    a client is built, or a run directory is created -- while the token itself
+    is spent late. `consume` is the authoritative check; this only avoids
+    doing pointless work on a call that is going to be refused anyway.
+    """
+    now = time.time() if now is None else now
+    sid = session_id()
+    if sid is None:
+        return _no_session_decision()
+
+    path = state_dir(sid) / AUTH_FILENAME
+    if not path.is_file():
+        return Decision(allowed=False, tier="expensive", reason=_missing_message())
+    return _validate(
+        _read(path), estimated_tokens=estimated_tokens,
+        ttl_seconds=ttl_seconds, now=now,
+    )
+
+
+def consume(
+    *, estimated_tokens: int, ttl_seconds: int, now: float | None = None
+) -> Decision:
+    """Spend the authorization, immediately before the first irreversible step.
+
+    Placement is a bug class, not a style point: the first version consumed the
+    token before credentials were resolved, so a key command that prompted for
+    an unlock and timed out burned the user's approval on a call that sent
+    nothing -- and they had to type the command again to retry.
+
+    Single-use, claimed by rename *before* validation. Parallel tool calls are
+    a supported pattern, so two expensive calls in one turn could otherwise
+    both read the same still-present token and both proceed -- one approval
+    funding two sends. Only the process that wins the rename continues.
+    """
+    now = time.time() if now is None else now
+    sid = session_id()
+    if sid is None:
+        return _no_session_decision()
 
     auth_path = state_dir(sid) / AUTH_FILENAME
     claimed = auth_path.with_suffix(f".claimed.{os.getpid()}")
@@ -147,48 +278,13 @@ def claim(
         return Decision(allowed=False, tier="expensive", reason=_missing_message())
 
     try:
-        token = _read(claimed)
-        if token is None:
-            return Decision(
-                allowed=False, tier="expensive",
-                reason="the authorization file could not be read or parsed. "
-                       f"Ask the user to run {AUTHORIZE_COMMAND} again.",
-            )
-
-        if token.get("origin") != REQUIRED_ORIGIN:
-            return Decision(
-                allowed=False, tier="expensive",
-                reason="the authorization lacks user-typed provenance. Only "
-                       f"the user running {AUTHORIZE_COMMAND} can authorize a "
-                       "call of this size.",
-            )
-
-        age = now - float(token.get("ts") or 0)
-        if age > ttl_seconds:
-            return Decision(
-                allowed=False, tier="expensive",
-                reason=f"the authorization expired ({int(age)}s old, limit "
-                       f"{ttl_seconds}s). An approval from earlier in the "
-                       "session should not silently fund a call the user has "
-                       "stopped thinking about.",
-            )
-
-        # The token carries a ceiling, so "approve a clip, send the feature
-        # film" is not one edit away. Without this the approval would be a
-        # blank cheque and the user's control over spend would be nominal.
-        ceiling = int(token.get("max_tokens") or 0)
-        if ceiling and estimated_tokens > ceiling:
-            return Decision(
-                allowed=False, tier="expensive",
-                reason=f"this call is ~{estimated_tokens:,} estimated input "
-                       f"tokens but the authorization covers {ceiling:,}. Ask "
-                       f"the user for a larger one: {AUTHORIZE_COMMAND} "
-                       f"--max-tokens {estimated_tokens}",
-            )
-
-        return Decision(allowed=True, tier="expensive-authorized")
+        return _validate(
+            _read(claimed), estimated_tokens=estimated_tokens,
+            ttl_seconds=ttl_seconds, now=now,
+        )
     finally:
-        # Whatever happened, this claim is spent. One approval, one call.
+        # Whatever happened, this claim is spent. A rejected token must not sit
+        # there for a retry loop to keep testing against.
         try:
             claimed.unlink()
         except OSError:

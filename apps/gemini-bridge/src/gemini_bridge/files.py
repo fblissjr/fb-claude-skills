@@ -161,14 +161,32 @@ class Cache:
         except OSError:
             pass  # a lost cache costs an upload, never the call
 
-    def get(self, sha: str, now: float) -> Upload | None:
+    def _parse(self, sha: str) -> Upload | None:
         raw = self.entries.get(sha)
-        if not raw:
+        if not isinstance(raw, dict):
             return None
         try:
             up = Upload(**{**raw, "reused": True})
-        except TypeError:
-            self.entries.pop(sha, None)  # written by an older, different shape
+            # Field *types* drift as well as field names: a null or string
+            # `uploaded_at` survived construction and then raised TypeError out
+            # of `expires_at`, uncaught, from `doctor`, `uploads` and `ask`
+            # alike -- breaking the module's own "a corrupt cache is a cold
+            # cache" promise. Force the arithmetic here, where it is caught.
+            float(up.uploaded_at)
+            int(up.size_bytes)
+        except (TypeError, ValueError):
+            self.entries.pop(sha, None)  # older or corrupt shape
+            return None
+        return up
+
+    def get(self, sha: str, now: float) -> Upload | None:
+        """A handle safe to *reuse*, or None.
+
+        Applies the reuse margin: a file that lapses between this check and
+        the call would fail the interaction after the upload was skipped.
+        """
+        up = self._parse(sha)
+        if up is None:
             return None
         if now >= up.expires_at() - REUSE_MARGIN_S:
             self.entries.pop(sha, None)
@@ -182,12 +200,19 @@ class Cache:
         self.entries.pop(sha, None)
 
     def live(self, now: float) -> list[Upload]:
-        """Handles that have not aged out, newest first."""
-        out = []
-        for sha in list(self.entries):
-            up = self.get(sha, now)
-            if up:
-                out.append(up)
+        """Everything still at Google, newest first. Non-mutating.
+
+        Deliberately NOT `get`: the reuse margin is about whether a handle is
+        safe to *send*, and applying it here made `uploads` disown files that
+        still exist. A handle twelve minutes from expiry was dropped from the
+        listing, and because `uploads --delete` saves the cache afterwards, the
+        prune was persisted -- so the file was never listed, never deleted, and
+        the only record of it was erased while the bytes sat at Google for
+        another twelve minutes. Listing and deleting must see everything that
+        is actually there.
+        """
+        out = [up for sha in list(self.entries) if (up := self._parse(sha))
+               and now < up.expires_at()]
         return sorted(out, key=lambda u: u.uploaded_at, reverse=True)
 
 
@@ -294,8 +319,6 @@ def ensure_uploaded(
             f"uri={uri!r}); the bytes may have been transferred anyway"
         )
 
-    _await_active(api, name, timeout_s=timeout_s, sleep=sleep, now=now)
-
     up = Upload(
         name=name,
         uri=uri,
@@ -306,7 +329,17 @@ def ensure_uploaded(
         uploaded_at=now(),
         display_name=att.path.name,
     )
+
+    # Recorded BEFORE waiting for ACTIVE, not after. The bytes are already at
+    # Google the moment `upload` returns, and they stay 48h whether or not the
+    # file ever finishes processing. Caching only on success meant an upload
+    # that timed out in PROCESSING was live, undeletable by name, and invisible
+    # to `uploads --delete` -- and the retry re-uploaded the same bytes against
+    # the same 20GB quota. A handle that never goes ACTIVE is harmless to hold:
+    # reuse re-checks state and re-uploads anyway.
     cache.put(up)
+
+    _await_active(api, name, timeout_s=timeout_s, sleep=sleep, now=now)
     return up
 
 

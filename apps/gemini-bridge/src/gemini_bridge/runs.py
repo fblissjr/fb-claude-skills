@@ -64,6 +64,21 @@ def _ensure_ignored(runs_root: Path) -> None:
         marker.write_text("# Written by gemini-bridge. Run output is local-only.\n*\n")
 
 
+def ensure_runs_root(root: Path) -> Path:
+    """The runs tree, created and self-ignored.
+
+    Public because the ledger is written on paths that never create a run
+    directory -- a call refused by the spend gate sends nothing, so it has no
+    run of its own, but it is still an audit event that has to land somewhere.
+    `ledger.record` swallows OSError by design, so without this the row was
+    silently dropped whenever this was the project's first call.
+    """
+    runs_root = root / RUNS_DIRNAME
+    runs_root.mkdir(parents=True, exist_ok=True)
+    _ensure_ignored(runs_root)
+    return runs_root
+
+
 @dataclass
 class RunDir:
     path: Path
@@ -73,9 +88,7 @@ class RunDir:
         cls, root: Path, recipe_name: str, now: dt.datetime | None = None
     ) -> RunDir:
         now = now or dt.datetime.now()
-        runs_root = root / RUNS_DIRNAME
-        runs_root.mkdir(parents=True, exist_ok=True)
-        _ensure_ignored(runs_root)
+        runs_root = ensure_runs_root(root)
         stamp = now.strftime("%Y%m%dT%H%M%S")
         base = runs_root / f"{stamp}-{_slug(recipe_name)}"
         candidate, n = base, 1
@@ -111,11 +124,14 @@ class RunDir:
     def write_uploads(self, records: list[dict[str, Any]]) -> None:
         """The Files API handles this run created or reused.
 
-        Written even when the list is empty, so that a run directory answers
-        "did this send anything to the Files API?" without the reader having
-        to infer it from the attachment kinds. Unlike an interaction, an
-        upload can actually be deleted -- this is the local half of what makes
-        that possible.
+        Written only when a run actually uploaded something -- the caller sits
+        behind that check, so the absence of this file means "no uploads",
+        not "unknown". The docstring used to claim it was written even when
+        empty, which no caller ever did; a reader trusting that would have
+        read a missing file as a bug.
+
+        Unlike an interaction, an upload can be deleted, and this is the local
+        half of what makes that possible.
         """
         _dump(self.path / "uploads.json", records)
 

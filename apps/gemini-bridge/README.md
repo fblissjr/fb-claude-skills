@@ -155,8 +155,9 @@ cannot reliably be parsed for. The gate runs **before** credentials are
 resolved and before any upload, so a refused call sends nothing at all.
 
 **What this does and does not do.** The authorization is a local file. Anything
-holding Bash or Write can fabricate one, and dropping `CLAUDE_SESSION_ID` makes
-a caller look like a human at a terminal. This is not a defence against a
+holding Bash or Write can fabricate one, and clearing the Claude Code session
+and agent-marker environment variables makes a caller look like a human at a
+terminal. This is not a defence against a
 determined agent and does not claim to be. What it guarantees is that nothing
 on the *normal, helpful* path spends at scale: an eager agent that would gladly
 upload the whole recording now has to be told to, by a human, in a way it
@@ -172,10 +173,27 @@ max_unauthorized_tokens = 5000 # gate more aggressively
 ttl_seconds = 600
 ```
 
-`gemini-bridge doctor` reports whether the gate is on and what it costs to
-cross. `ledger.jsonl` records an `authorization_tier` per call — `cheap`,
-`expensive-authorized`, or `expensive-ungated` — so an audit can tell an
-approved spend from one that never needed approving.
+`gemini-bridge doctor` reports whether the gate is on, what it costs to cross,
+the session it resolved, and whether an authorization is currently held. It
+also flags the two ways the gate breaks invisibly: `jq` missing (the hook mints
+nothing, so every expensive call is refused with no way to approve it) and an
+agent session whose id cannot be read (the gate refuses rather than standing
+down — the direction that matters).
+
+`ledger.jsonl` records an `authorization_tier` per call:
+
+| Value | Meaning |
+|---|---|
+| `cheap` | under every threshold; never gated |
+| `expensive-authorized` | gated, and a user-typed command approved it |
+| `expensive-refused` | gated and refused; nothing was sent |
+| `expensive-gate-disabled` | would have been gated, but the project turned the gate off |
+| `expensive-ungated` | not an agent session, so treated as a direct human invocation |
+| `unknown` | a row written by a caller that did not say |
+
+Refusals are recorded too, under `run_id: "(refused)"` with no run directory —
+a gate whose audit trail shows only the spends it allowed cannot show an agent
+repeatedly trying to spend more than it may.
 
 ## What gets checked before anything is sent
 

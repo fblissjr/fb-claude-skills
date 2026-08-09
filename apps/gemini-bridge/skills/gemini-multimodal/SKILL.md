@@ -152,7 +152,10 @@ call the refusal suggests — a trimmed clip or a lower resolution usually
 answers the question and needs no authorization at all.
 
 `--dry-run` tells you whether a call would be gated without sending anything,
-so check there rather than discovering it by being refused.
+so check there rather than discovering it by being refused. If `doctor` reports
+the gate as BROKEN — `jq` missing, or a session id it cannot read — say so to
+the user rather than trying to route around it; in that state no call can be
+authorized at all.
 
 ## Going deeper
 
