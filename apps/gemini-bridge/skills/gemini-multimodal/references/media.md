@@ -3,6 +3,18 @@
 What happens to a file between `-f` and the model, for every modality. For
 call parameters see `api.md`; for video specifics see `video.md`.
 
+## One call, any mixture
+
+A request carries as many attachments as the question needs, in **any
+combination of kinds**: eight screenshots, or a video plus the two mockups it
+should match plus a PDF spec, or an audio track alongside the frames it
+belongs to. Each file is routed on its own kind, independently, inside the one
+request — so a mixed set costs one call, not one call per modality. Attachment
+order is preserved and the question is appended last.
+
+The only per-kind differences are the ones below: how a file travels, and
+whether it carries a resolution. Neither is something you select.
+
 ## The routing rule
 
 Two ways a file reaches the API, and you do not choose between them:

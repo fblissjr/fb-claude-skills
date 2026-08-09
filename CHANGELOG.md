@@ -1,5 +1,10 @@
 # changelog
 
+## 1.25.1
+
+### fixed
+- **`gemini-bridge` 0.10.0 → 0.10.1 — the docs implied one modality per call, and the code never worked that way.** SKILL.md's start-here table had one row per kind ("Ask about one image or PDF"), which reads as mutually exclusive, and nothing anywhere said that `-f` is repeatable across kinds. A reader following it would split "does this recording match the two mockups and the spec?" into three calls, paying three times and denying the model the comparison that was the whole question. **No code changed** — mixed sets already routed correctly, each file on its own kind inside one request — so this is purely the documentation catching up with the feature, plus three tests that pin it: images inline and video by uri in one call with attachment order preserved, subjects and context of different kinds at different resolutions, and a mixed set correctly falling back to the generic default question rather than applying the video one to a PDF. The description now says "singly or mixed in one call" (traded against the weakest trigger phrase to stay inside the 1024-char limit), and `media.md` opens by stating that a request carries any combination.
+
 ## 1.25.0
 
 ### added

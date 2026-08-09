@@ -1,6 +1,6 @@
 ---
 name: gemini-multimodal
-description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Handles images, video, audio, and PDFs. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Use for anything involving a video or audio file, which Claude cannot open at all - "watch this video", "what happens in this screen recording", "turn this recording into code", "transcribe this audio", "analyze this clip". Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", or names Gemini alongside a question or file. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
+description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Handles images, video, audio, and PDFs, singly or mixed in one call. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Use for anything involving a video or audio file, which Claude cannot open at all - "watch this video", "what happens in this screen recording", "turn this recording into code", "transcribe this audio". Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", or names Gemini alongside a question or file. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
 metadata:
   last_verified: "2026-08-01"
   freshness: "cascade"
@@ -54,12 +54,24 @@ question are what change.
 
 | Task | Start with |
 |---|---|
-| Compare two images | `-r perceptual-diff -f before.png -f after.png` |
-| Anything about a video | `-r video-analysis -f clip.mp4` + a specific question |
-| Ask about one image or PDF | `-r general -f page.png` + the question |
+| Compare renders or screenshots | `-r perceptual-diff -f before.png -f after.png` |
+| Anything involving a video | `-r video-analysis -f clip.mp4` + a specific question |
+| Ask about images or PDFs | `-r general -f page.png ...` + the question |
 | Transcribe or describe audio | `-f take.wav` + what you need from it |
 | A stance no recipe covers | no `-r`; `--system` / `--system-file` |
 | Text-only second opinion | no `-r`, no `-f`, just the question |
+
+**`-f` is repeatable and the kinds can be mixed freely.** One call takes as
+many files as the question needs, in any combination — six screenshots, or a
+video plus the two mockups it is supposed to match, plus the PDF spec. Each
+file is routed on its own kind (images and PDFs inline, video and audio
+uploaded), attachment order is preserved, and the question goes last. Nothing
+here is one-file or one-modality per call, so do not split a question into
+several calls that would have been better asked once with everything attached.
+
+Use `-c` instead of `-f` for anything that is *reference* rather than
+*subject* — it rides at the cheaper resolution, which is the main way a
+multi-file call stays affordable.
 
 ```bash
 gemini-bridge ask -r perceptual-diff \
@@ -68,6 +80,11 @@ gemini-bridge ask -r perceptual-diff \
 
 gemini-bridge ask -r video-analysis -f flow.mp4 \
   "At what timestamp does the list first render duplicate rows?"
+
+# mixed: the recording is the subject, the mockups are reference
+gemini-bridge ask -f recording.mp4 -c mock-a.png -c mock-b.png \
+  --resolution high --context-resolution low \
+  "Where does the implemented flow diverge from either mockup?"
 ```
 
 stdout stays small on purpose: run path, status, token counts. **The answer is

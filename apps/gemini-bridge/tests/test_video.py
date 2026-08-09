@@ -448,3 +448,73 @@ def test_estimate_survives_a_missing_ffprobe(project, monkeypatch):
     est = budget.estimate(media.inspect(project.video))
     assert est.duration_s is None
     assert est.tokens > 0
+
+
+# -- mixed attachment sets --------------------------------------------------
+
+
+def test_one_call_can_mix_images_and_video(project, monkeypatch):
+    """Nothing about this tool is one-modality-per-call.
+
+    Each attachment is routed on its own kind -- images inline, video by uri --
+    inside a single request, and the caller does not choose or even see the
+    routing. The docs used to present a table of one row per modality, which
+    reads as mutually exclusive; this pins that it never was.
+    """
+    a, b = project.root / "before.png", project.root / "after.png"
+    for p in (a, b):
+        p.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    pdf = project.root / "spec.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n" + b"0" * 32)
+
+    ff = FakeFiles()
+    capture: list[dict] = []
+    install(monkeypatch, fake_client(ff, capture=capture))
+
+    assert ask(
+        project,
+        "-f", str(a), "-f", str(b), "-f", str(project.video), "-f", str(pdf),
+        "does the recording match the two mockups and the spec?",
+    ) == 0
+
+    blocks = sent_request(capture)["input"]
+    assert [x["type"] for x in blocks] == [
+        "image", "image", "video", "document", "text",
+    ], "attachment order must survive, with the question last"
+    assert ff.uploaded == [str(project.video)], "only the video needed uploading"
+    assert all("data" in x for x in blocks if x["type"] in {"image", "document"})
+    assert "uri" in blocks[2] and "data" not in blocks[2]
+
+
+def test_subjects_and_context_can_be_different_kinds(project, monkeypatch):
+    """-c is the lever for a mixed set: the reference material rides at the
+    cheaper resolution while the subject keeps the expensive one."""
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    ff = FakeFiles()
+    capture: list[dict] = []
+    install(monkeypatch, fake_client(ff, capture=capture))
+
+    assert ask(
+        project, "-f", str(project.video), "-c", str(shot),
+        "--resolution", "high", "--context-resolution", "low",
+        "does the recording end on the state in the reference shot?",
+    ) == 0
+
+    blocks = sent_request(capture)["input"]
+    assert blocks[0]["type"] == "video" and blocks[0]["resolution"] == "high"
+    assert blocks[1]["type"] == "image" and blocks[1]["resolution"] == "low"
+
+
+def test_a_mixed_set_gets_the_generic_default_question(project, monkeypatch):
+    """The video default demands MM:SS timestamps, which is wrong advice for
+    the PDF beside it. Mixed sets fall back rather than picking a winner."""
+    pdf = project.root / "spec.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    capture: list[dict] = []
+    install(monkeypatch, fake_client(FakeFiles(), capture=capture))
+
+    assert ask(project, "-f", str(project.video), "-f", str(pdf)) == 0
+    text = next(b for b in sent_request(capture)["input"] if b["type"] == "text")
+    assert text["text"] == prompts.default_question(["video", "document"])
+    assert text["text"] != prompts.DEFAULTS["video"]
