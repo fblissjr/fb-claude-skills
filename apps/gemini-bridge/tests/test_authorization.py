@@ -338,3 +338,49 @@ def test_a_session_id_that_is_not_a_plain_identifier_is_refused(
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "../../elsewhere")
     d = authorization.consume(estimated_tokens=50_000, ttl_seconds=600, now=1100.0)
     assert not d.allowed and d.tier in DOCUMENTED_TIERS
+
+
+# -- the session cap ---------------------------------------------------------
+
+
+def test_session_cumulative_spend_triggers_the_gate():
+    """Per-call gating alone lets 'the same cheap call, forever' spend without
+    a ceiling: 100 calls at 15k tokens each never trip a 20k per-call limit.
+    Once the session's recorded spend plus this call crosses the cap, the call
+    is expensive -- it needs the same human keystroke, not a new mechanism."""
+    tier, why = authorization.classify(
+        estimated_tokens=100, thinking_level="minimal", stateful=False,
+        max_unauthorized_tokens=20_000,
+        session_spent_tokens=499_950, max_session_tokens=500_000,
+    )
+    assert tier == "expensive"
+    assert "session" in why
+
+
+def test_a_session_under_its_cap_is_untouched():
+    """The cap must not gate the common path: a session that has spent a
+    little is not a session spending at scale."""
+    tier, _ = authorization.classify(
+        estimated_tokens=100, thinking_level="minimal", stateful=False,
+        max_unauthorized_tokens=20_000,
+        session_spent_tokens=40_000, max_session_tokens=500_000,
+    )
+    assert tier == "cheap"
+
+
+def test_a_disabled_session_cap_is_none_not_zero():
+    """None disables the cap. Zero must NOT read as disabled -- 'the value
+    that reads as allow-nothing was the single value that allowed everything'
+    is the exact bug the per-call ceiling shipped with. Zero gates every call."""
+    tier, _ = authorization.classify(
+        estimated_tokens=100, thinking_level="minimal", stateful=False,
+        max_unauthorized_tokens=20_000,
+        session_spent_tokens=10**9, max_session_tokens=None,
+    )
+    assert tier == "cheap"
+    tier, _ = authorization.classify(
+        estimated_tokens=100, thinking_level="minimal", stateful=False,
+        max_unauthorized_tokens=20_000,
+        session_spent_tokens=0, max_session_tokens=0,
+    )
+    assert tier == "expensive"

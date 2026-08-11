@@ -1,5 +1,15 @@
 # changelog
 
+## 1.29.0
+
+### added
+- **`gemini-bridge` 0.13.0 → 0.14.0 — the session spend cap: many cheap calls are one expensive call arriving slowly.** The gate was per-call only, so a hundred calls at 15k tokens each never tripped the 20k per-call limit — the one spend axis with no ceiling. Each session now also carries a cumulative cap (`max_session_tokens`, default 500,000 — 2.5x the default per-approval ceiling, roughly two hours of default-rate video), summed from the project ledger's *recorded* usage for the current session: crossing it classifies the next call expensive, which routes it through the same user-typed `/gemini-bridge:gemini-authorize` everything else expensive needs — who decides changes, not what is possible. Actuals count, not estimates, so refusals cost nothing against it; other sessions' rows are other sessions' money (a mutation arm pins that); `false` disables the cap while `0` deliberately does **not** read as disabled — "the value that reads as allow-nothing" being the one that allows everything is the exact bug the per-call ceiling shipped with, so `0` gates every call. `doctor` reports the session's spend against the cap.
+
+### fixed
+- **The secret-scan refusal named its own bypass.** "Pass `--allow-prompt-secrets` if these are false positives" is an instruction the main loop will helpfully follow — the precise failure the spend gate's `_missing_message` documents and avoids, sitting in the sibling guard. The refusal now ends with the user: report the redacted findings, do not add the flag, do not rephrase past the scan; a user who judges them false positives re-runs with the override themselves. The flag stays discoverable in `--help` and the README.
+- **The no-ffprobe estimate under-counted, against the module's own rule.** The size fallback assumed 1MB ≈ 10s (~800kbps), while screen recordings of mostly-static content commonly run 100–300kbps — a 15MB, 20-minute recording estimated ~10.5k tokens, under the gate, while billing ~84k, and "an estimate that feeds a spend gate must never under-count" is stated two constants up. The fallback now assumes the low-bitrate end (30s/MB video, 150s/MB audio), the manifest line marks an unknown duration as a size-based guess instead of printing an estimate indistinguishable from a measured one, and `doctor` reports a missing ffprobe as gate degradation. No finite constant bounds every file; saying so where the number appears is the honest half of the fix.
+- **SDK error messages are scrubbed before they travel.** The client-constructor path reduces failures to a type name because a key-format error embeds the value — but `interactions.create` and Files API failures surfaced `str(exc)` raw into stderr, `error.txt`, and the ledger's error field at once, on exactly the paths where credentials are in play. Error text now passes through the secret scanner's blocking patterns (`content.redact_secrets`); warn-level shapes are left alone because in an error message the path usually *is* the diagnostic, and the replacement names what was scrubbed so the message stays actionable.
+
 ## 1.28.0
 
 ### added

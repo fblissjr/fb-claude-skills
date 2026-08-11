@@ -46,6 +46,7 @@ from typing import Any
 
 import orjson
 
+from .content import redact_secrets
 from .media import Attachment
 
 CACHE_NAME = "upload-cache.json"
@@ -335,9 +336,14 @@ def ensure_uploaded(
 
     try:
         handle = api.files.upload(file=str(att.path))
-    except Exception as exc:  # the class is surfaced, never the payload
+    except Exception as exc:
+        # The class and the message are surfaced, never the payload -- and the
+        # message is scrubbed first: this is a path where credentials are in
+        # play, an SDK error can echo request details, and the string lands in
+        # stderr, error.txt, and the ledger at once.
         raise UploadError(
-            f"upload of {att.path.name} failed: {type(exc).__name__}: {exc}"
+            f"upload of {att.path.name} failed: {type(exc).__name__}: "
+            f"{redact_secrets(str(exc))}"
         ) from exc
 
     name = getattr(handle, "name", None)
@@ -375,5 +381,8 @@ def ensure_uploaded(
 def delete(api: Any, name: str) -> None:
     try:
         api.files.delete(name=name)
-    except Exception as exc:
-        raise UploadError(f"could not delete {name}: {type(exc).__name__}: {exc}") from exc
+    except Exception as exc:  # scrubbed for the same reason as the upload path
+        raise UploadError(
+            f"could not delete {name}: {type(exc).__name__}: "
+            f"{redact_secrets(str(exc))}"
+        ) from exc

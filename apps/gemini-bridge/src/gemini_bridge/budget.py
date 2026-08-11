@@ -57,6 +57,19 @@ VIDEO_TOKEN_RATES = {
 # working number and is why audio estimates are marked approximate too.
 AUDIO_TOKENS_PER_SECOND = 25
 
+# When ffprobe is unavailable, duration is guessed from size, and the guess
+# feeds the spend gate -- so it must assume the LOW-bitrate end of plausible,
+# not the typical one, because under-counting is the direction that spends
+# money (the video-rate table above states the same rule). 30s/MB assumes
+# ~270kbps: screen recordings of mostly-static content commonly run
+# 100-300kbps, where the old 10s/MB (~800kbps) under-counted a 20-minute
+# recording below the gate. Over for ordinary footage, which costs a needless
+# authorization; no finite constant can bound a pathological file, which is
+# why the manifest line says the duration is unknown. Audio: 150s/MB covers
+# voice-note bitrates (~48kbps) the old 60s/MB figure halved.
+FALLBACK_VIDEO_SECONDS_PER_MB = 30
+FALLBACK_AUDIO_SECONDS_PER_MB = 150
+
 IMAGE_TOKENS = {"low": 280, "medium": 560, "high": 1120, "ultra_high": 2240}
 DEFAULT_IMAGE_TOKENS = IMAGE_TOKENS["high"]  # the API's default, not ours
 DOCUMENT_TOKENS_PER_MB = 3000  # very rough; pages per MB vary wildly
@@ -85,10 +98,16 @@ class Estimate:
     def line(self, att: Attachment) -> str:
         if self.duration_s:
             mins, secs = divmod(int(self.duration_s), 60)
-            length = f"{mins}m{secs:02d}s  "
-        else:
-            length = ""
-        return f"{length}~{self.tokens:,} input tokens (estimate)"
+            return (f"{mins}m{secs:02d}s  ~{self.tokens:,} input tokens "
+                    "(estimate)")
+        if att.kind in {"video", "audio"}:
+            # The manifest is the one moment the user can still stop the call,
+            # and length is the one input the gate cannot bound without
+            # ffprobe. A line with no duration and no marker reads as a normal
+            # estimate; this one says it is a guess.
+            return (f"~{self.tokens:,} input tokens (estimate; duration "
+                    "unknown -- no ffprobe, sized from bytes)")
+        return f"~{self.tokens:,} input tokens (estimate)"
 
 
 # ffprobe spawns a process with a 10s timeout, and `estimate` is called from
@@ -155,17 +174,16 @@ def _estimate(att: Attachment) -> Estimate:
         )
         seconds = duration_seconds(att)
         if seconds is None:
-            # No ffprobe. Roughly 1MB per 10s for typical screen-recording
-            # bitrates -- wrong for anything unusual, which is why the line
-            # that prints it says "estimate" and not a duration.
-            seconds = att.size_bytes / 1e6 * 10
+            # No ffprobe. The constant explains its own direction of error;
+            # the printed line says the duration is unknown.
+            seconds = att.size_bytes / 1e6 * FALLBACK_VIDEO_SECONDS_PER_MB
             return Estimate(tokens=int(seconds * rate), duration_s=None)
         return Estimate(tokens=int(seconds * rate), duration_s=seconds)
 
     if att.kind == "audio":
         seconds = duration_seconds(att)
         if seconds is None:
-            seconds = att.size_bytes / 1e6 * 60
+            seconds = att.size_bytes / 1e6 * FALLBACK_AUDIO_SECONDS_PER_MB
             return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),
                             duration_s=None)
         return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),

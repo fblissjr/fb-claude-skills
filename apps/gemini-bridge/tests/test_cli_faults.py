@@ -379,3 +379,72 @@ def test_ledger_file_is_owner_only(project, monkeypatch):
     assert run_ask(project, monkeypatch) == 0
     ledger_path = project.root / runs.RUNS_DIRNAME / ledger.LEDGER_NAME
     assert ledger_path.stat().st_mode & 0o777 == 0o600
+
+
+# -- the session spend sum ---------------------------------------------------
+
+
+def test_session_spent_counts_only_this_sessions_recorded_usage():
+    """The cap compares against ACTUAL recorded spend, not estimates: refused
+    rows carry no usage and add nothing, other sessions' rows are other
+    sessions' money, and a null session id matches nothing -- a human at a
+    shell has no session and no cap."""
+    entries = [
+        {"session_id": "s1", "usage": {"total_input_tokens": 100}},
+        {"session_id": "s1", "usage": {}},                        # refused row
+        {"session_id": "s2", "usage": {"total_input_tokens": 40}},
+        {"session_id": None, "usage": {"total_input_tokens": 7}},
+    ]
+    assert ledger.session_spent(entries, "s1") == 100
+    assert ledger.session_spent(entries, None) == 0
+
+
+# -- the secret-scan refusal's stance ---------------------------------------
+
+
+def test_secret_refusal_terminates_in_a_user_decision(project, monkeypatch, capsys):
+    """The refusal must end with the user, like the spend gate's does.
+
+    The old message said "pass --allow-prompt-secrets if these are false
+    positives" -- an instruction the main loop will helpfully follow, which is
+    the exact failure authorization._missing_message documents and avoids. The
+    flag stays discoverable; the refusal itself hands the decision to the user
+    instead of naming the workaround as the caller's next step.
+    """
+    secret = "ghp_" + "a" * 36
+    assert run_ask(project, monkeypatch, question=f"is {secret} ok") == 1
+    err = capsys.readouterr().err
+    assert "pass --allow-prompt-secrets" not in err
+    assert "Do not add --allow-prompt-secrets yourself" in err
+    assert "tell the user" in err.lower()
+
+
+# -- SDK error redaction -----------------------------------------------------
+
+
+def test_a_call_error_echoing_a_key_is_scrubbed_everywhere(project, monkeypatch, capsys):
+    """The one path where the constructor's type-name-only discipline was not
+    applied: `interactions.create` failures surfaced str(exc) raw, into
+    stderr, error.txt, and the ledger's error field at once. An SDK error that
+    echoes request details must not relocate a key into all three."""
+    key = "AIza" + "B" * 35
+
+    class Boom:
+        def create(self, **_kw):
+            raise RuntimeError(f"401 for key {key}")
+
+    import sys as _sys
+    monkeypatch.setitem(_sys.modules, "google", SimpleNamespace(
+        genai=SimpleNamespace(Client=lambda **_kw: SimpleNamespace(
+            interactions=Boom()
+        ))
+    ))
+    assert cli.main([
+        "--project-root", str(project.root), "ask", "-r", "demo",
+        "-f", str(project.image), "what is this",
+    ]) == 1
+    out = capsys.readouterr()
+    assert key not in out.err and key not in out.out
+    run_dir = next((project.root / runs.RUNS_DIRNAME).glob("*-demo*"))
+    assert key not in (run_dir / "error.txt").read_text()
+    assert key not in (read_ledger(project)[0]["error"] or "")

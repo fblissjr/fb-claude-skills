@@ -201,6 +201,8 @@ def classify(
     stateful: bool,
     max_unauthorized_tokens: int,
     max_output_tokens: int | None = None,
+    session_spent_tokens: int = 0,
+    max_session_tokens: int | None = None,
 ) -> tuple[str, str]:
     """(tier, why). Cost and irreversibility, not modality.
 
@@ -239,6 +241,23 @@ def classify(
         return "expensive", (
             f"~{estimated_tokens:,} estimated input tokens, over the "
             f"{max_unauthorized_tokens:,} limit for an unauthorized call"
+        )
+    # The cumulative arm. Per-call gating alone lets "the same cheap call,
+    # forever" spend without a ceiling: a hundred calls at 15k tokens each
+    # never trip a 20k per-call limit. Crossing the cap does not stop the
+    # session -- it makes the next call expensive, which routes through the
+    # same human keystroke everything else expensive needs. `None` disables
+    # the cap; zero deliberately does NOT read as disabled, because "the value
+    # that reads as allow-nothing" being the one that allows everything is the
+    # exact bug the per-call ceiling shipped with. Spent is the ledger's
+    # recorded actuals, so the cap is per project root, like the ledger.
+    if (max_session_tokens is not None
+            and session_spent_tokens + estimated_tokens > max_session_tokens):
+        return "expensive", (
+            f"this session has already spent ~{session_spent_tokens:,} "
+            f"recorded input tokens in this project; with this call's "
+            f"~{estimated_tokens:,} it crosses the {max_session_tokens:,} "
+            "session cap for unauthorized spend"
         )
     return "cheap", ""
 

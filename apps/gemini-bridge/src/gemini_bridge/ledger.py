@@ -152,6 +152,24 @@ def read(runs_root: Path) -> list[dict[str, Any]]:
     return out
 
 
+def session_spent(entries: list[dict[str, Any]], session_id: str | None) -> int:
+    """Input tokens this session has already spent, from recorded usage.
+
+    Feeds the spend gate's session cap. Actual counts, not estimates: refused
+    rows carry no usage and add nothing. Other sessions' rows are other
+    sessions' money. A null session id matches nothing -- a human at a shell
+    has no session and no cap, and matching None against rows that recorded
+    None would gate them on each other's spend.
+    """
+    if not session_id:
+        return 0
+    return sum(
+        (e.get("usage") or {}).get("total_input_tokens") or 0
+        for e in entries
+        if e.get("session_id") == session_id
+    )
+
+
 def summarize(entries: list[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate for `gemini-bridge stats`. Counts and tokens, no invented dollars."""
     by_recipe: dict[str, dict[str, int]] = {}

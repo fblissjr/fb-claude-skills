@@ -340,10 +340,20 @@ def cmd_ask(args: argparse.Namespace) -> int:
                       f"what looks like a {f}", file=sys.stderr)
             blocked = blocked or bool(content.blocking(findings))
         if blocked and not args.allow_prompt_secrets:
+            # Ends with the user, like the spend gate's refusal. The old
+            # message said "pass --allow-prompt-secrets if these are false
+            # positives" -- an instruction the main loop will helpfully
+            # follow, which is the exact failure _missing_message documents.
+            # The flag stays discoverable in --help and the README; the
+            # refusal itself must not name the workaround as a next step.
             return _fail(
-                "refusing to send: secret-shaped content found. Remove it, or "
-                "pass --allow-prompt-secrets if these are false positives. "
-                "Sent interactions cannot be deleted through the API."
+                "refusing to send: secret-shaped content found, and a sent "
+                "interaction cannot be deleted through the API. Do not add "
+                "--allow-prompt-secrets yourself, and do not rephrase the "
+                "prompt to slip past the scan: tell the user what was "
+                "flagged (the redacted findings above) and let them decide. "
+                "If they judge these false positives, they will re-run the "
+                "call themselves with the override."
             )
         if blocked:
             print(
@@ -408,6 +418,16 @@ def cmd_ask(args: argparse.Namespace) -> int:
         stateful=recipe.stateful,
         max_unauthorized_tokens=cfg.max_unauthorized_tokens,
         max_output_tokens=recipe.max_output_tokens,
+        # What this session has already spent in this project, from the
+        # ledger's recorded actuals. A hundred individually-cheap calls are
+        # one expensive call arriving slowly, and per-call gating alone never
+        # sees them; crossing the cap routes the next call through the same
+        # human keystroke everything else expensive needs.
+        session_spent_tokens=ledger.session_spent(
+            ledger.read(project_root / runs.RUNS_DIRNAME),
+            authorization.raw_session_id(),
+        ),
+        max_session_tokens=cfg.max_session_tokens,
     )
     gated = tier == "expensive" and cfg.require_authorization
 
@@ -642,9 +662,15 @@ def cmd_ask(args: argparse.Namespace) -> int:
     try:
         result = call_mod.call(api, request)
     except Exception as exc:  # noqa: BLE001 - record then surface
-        run.write_error(f"{type(exc).__name__}: {exc}")
-        _record_failure("failed", str(exc))
-        return _fail(f"{type(exc).__name__}: {exc}\n  run: {run.path}")
+        # Scrubbed like the constructor path, which reduces to a type name
+        # because a key-format error embeds the value. This surface keeps the
+        # message -- it usually carries the actionable HTTP status -- but an
+        # SDK error can echo request details, and this string lands in
+        # stderr, error.txt, and the ledger at once.
+        message = content.redact_secrets(f"{type(exc).__name__}: {exc}")
+        run.write_error(message)
+        _record_failure("failed", message)
+        return _fail(f"{message}\n  run: {run.path}")
 
     # The call is billed and, if stored, permanent -- delete returns 501. So
     # every write is guarded individually and the ledger is written regardless:
@@ -906,6 +932,26 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         print("                 same limit.")
         print(f"                 These need {authorization.AUTHORIZE_COMMAND} "
               f"(valid {cfg.authorization_ttl_seconds}s, single use)")
+        if cfg.max_session_tokens is None:
+            print("                 Session cap: disabled in project config.")
+        else:
+            spent = ledger.session_spent(
+                ledger.read(project_root / runs.RUNS_DIRNAME),
+                authorization.raw_session_id(),
+            )
+            print(f"                 Session cap: ~{spent:,} of "
+                  f"{cfg.max_session_tokens:,} cumulative input tokens "
+                  "recorded for this session.")
+
+        # Not BROKEN -- the gate still fires -- but its video/audio estimates
+        # degrade to a size-based guess, and a low-bitrate file can
+        # under-count past a threshold. The manifest line says so per call;
+        # this is the one place that can say why, before any call.
+        if not shutil.which("ffprobe"):
+            print("                 ffprobe is not on PATH, so video/audio "
+                  "length is a size-based guess;")
+            print("                 a low-bitrate file can under-count the "
+                  "gate. Install ffmpeg for real durations.")
 
         # Both halves of the gate can be broken in ways that are invisible from
         # either side, and produce the same symptom: the user runs the command,

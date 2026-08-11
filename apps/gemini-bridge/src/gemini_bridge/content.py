@@ -118,3 +118,22 @@ def scan(text: str) -> list[Finding]:
 
 def blocking(findings: list[Finding]) -> list[Finding]:
     return [f for f in findings if f.blocking]
+
+
+def redact_secrets(text: str) -> str:
+    """Scrub blocking matches out of text that is about to travel.
+
+    For error messages. The client-constructor path reduces failures to a type
+    name because a key-format error embeds the value; the call and upload
+    paths surface `str(exc)` -- into stderr, error.txt, and the ledger's error
+    field at once -- and an SDK error can echo request details. Only blocking
+    shapes are removed: emails and paths are warn-level in the scanner because
+    they are legitimate in prose, and in an error message the path usually IS
+    the diagnostic. The replacement names what was scrubbed so the message
+    stays actionable without relocating the value.
+    """
+    for name, pattern, is_blocking in PATTERNS:
+        if not is_blocking:
+            continue
+        text = pattern.sub(f"<redacted {name}>", text)
+    return text

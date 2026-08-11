@@ -181,3 +181,32 @@ def test_the_patterns_still_match_after_being_made_possessive(sample, name):
     every case changed -- so every one of these must still fire. If a fix for
     the arm above silently narrowed what the scanner catches, this goes red."""
     assert name in {f.name for f in content.scan(sample)}
+
+
+def test_redact_secrets_scrubs_key_material_and_keeps_the_context():
+    """Error messages travel: stderr, error.txt, the ledger, bug reports.
+
+    An SDK exception string can echo request details, and the call and upload
+    paths surface `str(exc)` -- unlike the client-constructor path, which
+    reduces to a type name precisely because a key-format error embeds the
+    value. `redact_secrets` closes that asymmetry: blocking matches are
+    replaced, the diagnostic context around them survives, because an error
+    message with the useful part removed just gets the command re-run.
+    """
+    key = "AIza" + "A" * 35
+    text = f"401 UNAUTHENTICATED for key {key} at /v1/interactions"
+    scrubbed = content.redact_secrets(text)
+    assert key not in scrubbed
+    assert "401" in scrubbed and "/v1/interactions" in scrubbed
+    assert "google api key" in scrubbed  # says WHAT was scrubbed, not the value
+
+
+def test_redact_secrets_leaves_warn_level_matches_alone():
+    """Emails and home paths are warn-level in the scanner because they are
+    legitimate in prose -- and in an error message a path is usually the
+    diagnostic. Only blocking shapes are scrubbed."""
+    text = (
+        "could not read /Users/someone/clip.mp4"  # path-privacy: ignore
+        " (owner: dev@example.com)"
+    )
+    assert content.redact_secrets(text) == text

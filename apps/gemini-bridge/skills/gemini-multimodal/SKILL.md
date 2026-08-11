@@ -149,7 +149,12 @@ medium|high`, or `--max-output-tokens` above the same limit — the CLI refuses
 unless the user has typed `/gemini-bridge:gemini-authorize`. Nothing you can
 run mints that authorization; that is the point of it. The estimate counts the
 question and system instruction as well as the attachments, so a very large
-`--prompt-file` is gated on its own.
+`--prompt-file` is gated on its own. The session also carries a cumulative cap
+(500,000 recorded input tokens per project by default): many individually
+cheap calls are one expensive call arriving slowly, and once this session's
+ledger crosses the cap, further calls are gated regardless of size. The remedy
+is the same user-typed command — the cap changes who decides, not what is
+possible.
 
 If you are refused: **do not retry, do not split the call into smaller ones to
 get under the limit, and do not turn the gate off in `.gemini-bridge.toml`.**

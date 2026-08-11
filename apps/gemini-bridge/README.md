@@ -1,4 +1,4 @@
-last updated: 2026-08-09
+last updated: 2026-08-11
 
 # gemini-bridge
 
@@ -148,6 +148,16 @@ the same limit (output bills at several times the input rate, which is the same
 reason raised thinking is gated). Everything else — screenshots, PDFs, short
 clips, text questions — runs under the ordinary prompt exactly as before.
 
+One more trigger is cumulative rather than per-call. A hundred calls at 15,000
+tokens each never trip a 20,000 per-call limit — they are one expensive call
+arriving slowly. So each session also carries a cap (500,000 recorded input
+tokens by default, summed from this project's ledger): once the session's
+recorded spend plus the current call crosses it, the call is gated whatever
+its own size. Crossing the cap does not stop the session — the next call
+routes through the same user-typed command everything else expensive does.
+Actual recorded usage counts, not estimates, so refused calls cost nothing
+against it; the cap is per project root, because the ledger is.
+
 The estimate covers the **whole** input: attachments plus every text channel
 the request carries — question, system instruction, schema, and label values.
 That is the same list the secret scanner walks, and it is now literally the
@@ -205,14 +215,19 @@ Turn it off, or retune it, per project:
 # required = false             # back to the permission prompt alone
 max_unauthorized_tokens = 5000 # gate more aggressively
 ttl_seconds = 600
+# max_session_tokens = 500000  # cumulative per session and project; false disables
 ```
 
 `gemini-bridge doctor` reports whether the gate is on, what it costs to cross,
-the session it resolved, and whether an authorization is currently held. It
-also flags the two ways the gate breaks invisibly: `jq` missing (the hook mints
-nothing, so every expensive call is refused with no way to approve it) and an
-agent session whose id cannot be read (the gate refuses rather than standing
-down — the direction that matters).
+the session it resolved, its recorded spend against the session cap, and
+whether an authorization is currently held. It also flags the two ways the
+gate breaks invisibly: `jq` missing (the hook mints nothing, so every
+expensive call is refused with no way to approve it) and an agent session
+whose id cannot be read (the gate refuses rather than standing down — the
+direction that matters) — plus one way it degrades: `ffprobe` missing, which
+turns video and audio durations into size-based guesses. The guess assumes a
+low bitrate so it errs expensive, but no constant bounds every file, which is
+why the manifest marks an unknown duration explicitly.
 
 `ledger.jsonl` records an `authorization_tier` per call:
 
@@ -268,7 +283,12 @@ not matched against the patterns.
 private key blocks, JWTs. High-confidence shapes refuse the call; weaker signals
 (an email address, an absolute home path) warn and continue. Findings are
 redacted in the message, so a warning never reproduces the thing it found.
-`--allow-prompt-secrets` overrides when they are false positives.
+`--allow-prompt-secrets` overrides when they are false positives — a decision
+the refusal deliberately leaves to you: the message tells the agent to report
+the findings and stop, not to add the flag, for the same reason the spend
+gate's refusal ends with the user. The same redaction is applied to SDK error
+messages before they reach stderr, `error.txt`, or the ledger, since an error
+can echo request details on the two paths where credentials are in play.
 
 This matters because the prompt is usually composed by Claude, which has been
 reading your files. Checking only which files are attached would leave the

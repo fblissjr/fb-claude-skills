@@ -767,3 +767,122 @@ def test_a_handle_inside_the_reuse_margin_stays_deletable(tmp_path):
     names = {u.name for u in cache.live(near_expiry)}
     assert names == {"files/OLD", "files/NEW"}, \
         "both handles are live at Google, so both must be deletable"
+
+
+# -- the estimate's direction of error, and the session cap ------------------
+
+
+def test_the_size_fallback_estimates_expensive_not_cheap(project, monkeypatch):
+    """Without ffprobe the estimate feeds the spend gate from a size guess,
+    and 'an estimate that feeds a spend gate must never under-count' is the
+    module's own rule. The old 10s/MB assumed ~800kbps; screen recordings of
+    mostly-static content commonly run 100-300kbps, so a 15MB 20-minute
+    recording estimated ~10.5k tokens -- under the gate -- while billing ~84k.
+    The fallback must assume the low-bitrate end: at least 30s of video per MB."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget.shutil, "which", lambda _n: None)
+    big = project.root / "long-low-bitrate.mp4"
+    big.write_bytes(b"\x00\x00\x00 ftypisom" + b"v" * (2 * 1024 * 1024))
+    att = media.inspect(big)
+    est = budget.estimate(att)
+    assert est.duration_s is None
+    floor = int(att.size_bytes / 1e6 * 30) * budget.VIDEO_TOKENS_PER_SECOND
+    assert est.tokens >= floor
+
+
+def test_an_unknown_duration_is_said_out_loud(project, monkeypatch):
+    """The manifest line is the one moment the user can stop the call. A
+    video line with no duration and no marker reads as a normal estimate;
+    it has to say the length is a guess, because that is the one input the
+    gate cannot bound without ffprobe."""
+    from gemini_bridge import budget
+
+    monkeypatch.setattr(budget.shutil, "which", lambda _n: None)
+    att = media.inspect(project.video)
+    assert "duration unknown" in budget.estimate(att).line(att)
+
+
+def test_an_upload_error_echoing_a_key_is_scrubbed(project, monkeypatch, capsys):
+    """Upload failures surface str(exc) into stderr, error.txt, and the
+    ledger at once, and this is a path where credentials are in play. The
+    diagnostic survives; key-shaped content does not."""
+    key = "AIza" + "C" * 35
+    ff = FakeFiles(upload_error=RuntimeError(f"403 for key {key}"))
+    install(monkeypatch, fake_client(ff))
+
+    assert ask(project, "-f", str(project.video), "q") == 1
+    out = capsys.readouterr()
+    assert key not in out.err and key not in out.out
+    entry = ledger.read(project.root / runs.RUNS_DIRNAME)[0]
+    assert key not in (entry["error"] or "")
+
+
+def _seed_spend(project, monkeypatch, tmp_path, *, tokens, session="s-e2e"):
+    """A prior call's worth of recorded usage, attributed to `session`."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", session)
+    ledger.record(
+        runs.ensure_runs_root(project.root),
+        run_id="seed", recipe="adhoc", model="m", status="completed",
+        usage={"total_input_tokens": tokens}, attachments=[], duration_ms=1,
+        stateful=False, service_tier=None, thinking_level="minimal",
+        credential_kind="env:TEST", prompt_scanned=True,
+        authorization_tier="cheap",
+    )
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
+
+
+def test_session_spend_accumulates_into_the_gate(
+    project, monkeypatch, capsys, tmp_path
+):
+    """One hundred cheap calls are one expensive call arriving slowly. The
+    ledger's recorded spend for THIS session counts against the session cap,
+    and crossing it gates a call that is tiny on its own."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_session_tokens = 5000\n"
+    )
+    _seed_spend(project, monkeypatch, tmp_path, tokens=4500)
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert ask(project, "-f", str(shot), "what is this") == 1
+    err = capsys.readouterr().err
+    assert "session" in err and "gemini-authorize" in err
+
+
+def test_other_sessions_spend_is_other_sessions_money(
+    project, monkeypatch, tmp_path
+):
+    """The cap is per session. Rows another session wrote must not gate this
+    one, or the second session in a shared project starts life refused."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_session_tokens = 5000\n"
+    )
+    _seed_spend(project, monkeypatch, tmp_path, tokens=4500, session="s-other")
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert ask(project, "-f", str(shot), "what is this") == 0
+
+
+def test_an_authorization_crosses_the_session_cap(
+    project, monkeypatch, tmp_path
+):
+    """The cap changes who decides, not what is possible: a session over its
+    cap keeps working the moment a human types the command. A hard stop here
+    would just train people to disable the cap."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_session_tokens = 5000\n"
+    )
+    _seed_spend(project, monkeypatch, tmp_path, tokens=4500)
+    _authorize(tmp_path, monkeypatch)
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert ask(project, "-f", str(shot), "what is this") == 0
+    entry = ledger.read(project.root / runs.RUNS_DIRNAME)[-1]
+    assert entry["authorization_tier"] == "expensive-authorized"
