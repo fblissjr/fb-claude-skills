@@ -94,24 +94,26 @@ class Estimate:
     tokens: int
     duration_s: float | None  # None when ffprobe is unavailable or failed
     exact: bool = False  # never true today; here so callers cannot assume
+    # Set where the fallback fires, not re-derived from `att.kind` at the
+    # printing site -- the formatter guessing which kinds are duration-based
+    # is how it also mis-blamed "no ffprobe" for durations that failed with
+    # ffprobe installed (bad container, timeout, a probed zero). No cause is
+    # named in the line for that same reason; doctor reports the absent-tool
+    # case, the one it can actually see.
+    sized_from_bytes: bool = False
 
-    def line(self, att: Attachment) -> str:
+    def line(self) -> str:
+        # The manifest is the one moment the user can still stop the call,
+        # and length is the one input the gate cannot bound unmeasured -- a
+        # guess must not print indistinguishably from a measurement.
         if self.duration_s:
             mins, secs = divmod(int(self.duration_s), 60)
-            return (f"{mins}m{secs:02d}s  ~{self.tokens:,} input tokens "
-                    "(estimate)")
-        if att.kind in {"video", "audio"}:
-            # The manifest is the one moment the user can still stop the call,
-            # and length is the one input the gate cannot bound unmeasured. A
-            # line with no duration and no marker reads as a normal estimate;
-            # this one says it is a guess. Deliberately no cause named:
-            # ffprobe may be absent, or present and failed on this file (bad
-            # container, timeout, a probed zero) -- blaming the tool sent
-            # users to install what they already had. doctor reports the
-            # absent-tool case, the one it can actually see.
-            return (f"~{self.tokens:,} input tokens (estimate; duration "
-                    "unknown, sized from bytes)")
-        return f"~{self.tokens:,} input tokens (estimate)"
+            prefix = f"{mins}m{secs:02d}s  "
+        else:
+            prefix = ""
+        marker = ("; duration unknown, sized from bytes"
+                  if self.sized_from_bytes else "")
+        return f"{prefix}~{self.tokens:,} input tokens (estimate{marker})"
 
 
 # ffprobe spawns a process with a 10s timeout, and `estimate` is called from
@@ -172,7 +174,8 @@ def estimate(att: Attachment) -> Estimate:
     floor = MIN_TOKENS.get(att.kind, 0)
     if raw.tokens >= floor:
         return raw
-    return Estimate(tokens=floor, duration_s=raw.duration_s, exact=raw.exact)
+    return Estimate(tokens=floor, duration_s=raw.duration_s, exact=raw.exact,
+                    sized_from_bytes=raw.sized_from_bytes)
 
 
 def _estimate(att: Attachment) -> Estimate:
@@ -185,10 +188,11 @@ def _estimate(att: Attachment) -> Estimate:
         )
         seconds = duration_seconds(att)
         if seconds is None:
-            # No ffprobe. The constant explains its own direction of error;
-            # the printed line says the duration is unknown.
+            # No measurable duration. The constant explains its own direction
+            # of error; the printed line says the duration is unknown.
             seconds = att.size_bytes / 1e6 * FALLBACK_VIDEO_SECONDS_PER_MB
-            return Estimate(tokens=int(seconds * rate), duration_s=None)
+            return Estimate(tokens=int(seconds * rate), duration_s=None,
+                            sized_from_bytes=True)
         return Estimate(tokens=int(seconds * rate), duration_s=seconds)
 
     if att.kind == "audio":
@@ -196,7 +200,7 @@ def _estimate(att: Attachment) -> Estimate:
         if seconds is None:
             seconds = att.size_bytes / 1e6 * FALLBACK_AUDIO_SECONDS_PER_MB
             return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),
-                            duration_s=None)
+                            duration_s=None, sized_from_bytes=True)
         return Estimate(tokens=int(seconds * AUDIO_TOKENS_PER_SECOND),
                         duration_s=seconds)
 

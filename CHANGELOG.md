@@ -1,5 +1,10 @@
 # changelog
 
+## 1.30.1
+
+### fixed
+- **`gemini-bridge` 0.15.0 → 0.15.1 — the second review round's surviving findings, applied.** The five angle reviews of 0.15.0 confirmed one correctness defect and a cluster of drift hazards. The spend counter is now written via tmp-file-and-`os.replace` instead of truncate-in-place: a concurrent reader could catch the truncated file empty, read the count as zero, and write back `0 + its tokens` — resetting the accumulated total, worse than the lose-one-update bound the docstring claimed (the one-update race remains, and remains accepted). The state-root derivation collapses to a single `state_root()` helper — it existed inline in three places, and a writer/reader divergence would have made the cap silently never accrue. `add_session_spend` reads the spend file directly instead of nesting `session_spent_tokens()` (which re-resolved the session and rebuilt the path just validated). The strict type-check validation shipped for `max_session_tokens` now covers its siblings `max_unauthorized_tokens` and `ttl_seconds` — bare `int()` coercion had kept accepting `true` (a live threshold of 1), negatives, floats, and quoted strings in the same block the changelog had just described fixing. The accrual policy (all token classes, unauthorized only) moves into `authorization.accrue_call_spend` so no future recording path can half-know it. `Estimate` carries a `sized_from_bytes` flag set where the fallback fires, instead of the formatter re-deriving duration-based kinds from `att.kind`. The redundant source scrub on the `interactions.create` error path is dropped — the three sinks it flows into all scrub — while `UploadError` keeps scrubbing at construction, with the reason now stated: its messages also reach bare WARNING prints that are not scrubbing sinks. Declined with reasons: lazier spend-file reading inside `classify` (one ~30-byte read per gated call is not worth making the pure function read files) and scrubbing the two local-OSError WARNING lines (their text is local filesystem errors; the SDK-derived WARNING already prints construction-scrubbed text).
+
 ## 1.30.0
 
 ### changed

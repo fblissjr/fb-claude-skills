@@ -18,6 +18,7 @@ import tomllib
 from dataclasses import dataclass, field
 from os import environ
 from pathlib import Path
+from typing import Any
 
 APP_NAME = "gemini-bridge"
 PROJECT_CONFIG_NAME = ".gemini-bridge.toml"
@@ -129,41 +130,44 @@ class Config:
             # Wrapped for the same reason as _load_toml: these feed the spend
             # gate, and a string where a number belongs was an uncaught
             # ValueError rather than a message naming the file and the key.
-            try:
-                cfg.max_unauthorized_tokens = int(
-                    authz.get("max_unauthorized_tokens", 20_000)
-                )
-                cfg.authorization_ttl_seconds = int(authz.get("ttl_seconds", 600))
-            except (TypeError, ValueError) as exc:
-                raise ConfigError(
-                    f"{project_path}: [authorization] max_unauthorized_tokens "
-                    f"and ttl_seconds must be integers: {exc}"
-                ) from exc
+            # Type-checked rather than int()-coerced, for the whole block at
+            # once: coercion accepted wrong shapes with wrong meanings --
+            # `true` became a live threshold of 1 (bool subclasses int), `-1`
+            # -- the common "unlimited" idiom -- became a value that gates
+            # every call, floats truncated silently, and quoted strings
+            # parsed. The session cap shipped with this check first and its
+            # siblings in the same [authorization] block kept the coercion;
+            # one block, one rule. (No try around it: ConfigError subclasses
+            # ValueError, and raising inside a `except ValueError` got the
+            # tailored message re-wrapped into a self-contradiction.)
+            def _knob(name: str, value: Any, hint: str = "") -> int:
+                if (isinstance(value, bool) or not isinstance(value, int)
+                        or value < 0):
+                    raise ConfigError(
+                        f"{project_path}: [authorization] {name} must be a "
+                        f"non-negative integer{hint} (got {value!r})"
+                    )
+                return value
 
-            # Validated OUTSIDE the try above: ConfigError subclasses
-            # ValueError, so raising it inside got caught by that except and
-            # re-wrapped into a self-contradicting composite ("must be
-            # integers ... or false to disable"). Type-checked rather than
-            # int()-coerced, because coercion accepted the wrong shapes with
-            # the wrong meanings: `true` became a live one-token cap (bool
-            # subclasses int), `-1` -- the common "unlimited" idiom -- became
-            # a cap that gates every call, and floats truncated silently.
-            # `false` disables; 0 stays a live gate-everything cap (see
-            # classify for why zero must never read as disabled).
+            cfg.max_unauthorized_tokens = _knob(
+                "max_unauthorized_tokens",
+                authz.get("max_unauthorized_tokens", 20_000),
+            )
+            cfg.authorization_ttl_seconds = _knob(
+                "ttl_seconds", authz.get("ttl_seconds", 600)
+            )
+            # `false` disables the cap; 0 stays a live gate-everything cap
+            # (see classify for why zero must never read as disabled).
             session_cap = authz.get(
                 "max_session_tokens", DEFAULT_SESSION_CAP_TOKENS
             )
             if session_cap is False:
                 cfg.max_session_tokens = None
-            elif (isinstance(session_cap, bool)
-                    or not isinstance(session_cap, int) or session_cap < 0):
-                raise ConfigError(
-                    f"{project_path}: [authorization] max_session_tokens must "
-                    "be a non-negative integer, or false to disable the cap "
-                    f"(got {session_cap!r})"
-                )
             else:
-                cfg.max_session_tokens = session_cap
+                cfg.max_session_tokens = _knob(
+                    "max_session_tokens", session_cap,
+                    hint=", or false to disable the cap",
+                )
 
         return cfg
 

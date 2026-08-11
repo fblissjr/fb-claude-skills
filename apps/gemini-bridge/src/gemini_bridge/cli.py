@@ -141,7 +141,7 @@ def _send_preview(
         route = "upload" if media.needs_upload(att) else "inline"
         lines.append(f"attach      {att.kind:9} {att.resolution or '-':5} "
                      f"{att.size_bytes / 1024:8.1f}KB  {route}  {att.path}")
-        lines.append(f"            {budget.estimate(att).line(att)}")
+        lines.append(f"            {budget.estimate(att).line()}")
     lines.append(f"text        ~{text_tokens:,} input tokens "
                  f"({', '.join(label for label, _ in outgoing)})")
     lines.append(f"estimate    ~{estimated_tokens:,} input tokens total "
@@ -621,9 +621,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
                 # those handles are live at Google and `uploads --delete` is
                 # the only way to take them back early.
                 _persist_uploads()
-                run.write_error(str(exc))
-                _record_failure("upload_failed", str(exc))
-                return _fail(f"{exc}\n  run: {run.path}")
+                message = str(exc)  # already scrubbed at construction
+                run.write_error(message)
+                _record_failure("upload_failed", message)
+                return _fail(f"{message}\n  run: {run.path}")
             performed.append(up)
             # The server's mime type wins: it describes the file it is holding,
             # ours only describes the extension.
@@ -648,9 +649,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
             model_override=args.model or cfg.default_model,
         )
     except (call_mod.CallError, media.MediaError) as exc:
-        run.write_error(str(exc))
-        _record_failure("failed", str(exc))
-        return _fail(f"{exc}\n  run: {run.path}")
+        message = str(exc)
+        run.write_error(message)
+        _record_failure("failed", message)
+        return _fail(f"{message}\n  run: {run.path}")
 
     try:
         run.write_request(call_mod.redact_for_record(request, attachments, project_root))
@@ -667,12 +669,13 @@ def cmd_ask(args: argparse.Namespace) -> int:
     try:
         result = call_mod.call(api, request)
     except Exception as exc:  # noqa: BLE001 - record then surface
-        # Scrubbed like the constructor path, which reduces to a type name
-        # because a key-format error embeds the value. This surface keeps the
-        # message -- it usually carries the actionable HTTP status -- but an
-        # SDK error can echo request details, and this string lands in
-        # stderr, error.txt, and the ledger at once.
-        message = content.redact_secrets(f"{type(exc).__name__}: {exc}")
+        # Built once so the three records stay identical; each sink it flows
+        # into (_fail, write_error, the ledger's error field) scrubs
+        # key-shaped content itself, so no source scrub here. UploadError
+        # messages are the exception -- files.py scrubs those at
+        # construction, because they also reach WARNING prints that are not
+        # scrubbing sinks.
+        message = f"{type(exc).__name__}: {exc}"
         run.write_error(message)
         _record_failure("failed", message)
         return _fail(f"{message}\n  run: {run.path}")
@@ -719,19 +722,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
     )
 
     u = result.usage
-    # Accrue what the API reported against the session cap -- input, output,
-    # and thinking alike, since output is the axis that bills highest and a
-    # counter of input alone leaves it uncapped. Only unauthorized spend
-    # counts: tokens a user explicitly approved must not later gate
-    # unrelated cheap calls under a message that says "unauthorized spend".
-    # After the ledger row, so the audit record cannot be the thing lost to
-    # a crash in the counter; add_session_spend itself never raises.
-    if authorization_tier != "expensive-authorized":
-        authorization.add_session_spend(
-            (u.get("total_input_tokens") or 0)
-            + (u.get("total_output_tokens") or 0)
-            + (u.get("total_thought_tokens") or 0)
-        )
+    # Accrue what the API reported against the session cap. The policy --
+    # which tiers count, which token classes -- lives in accrue_call_spend,
+    # not here, so the next recording path cannot half-know it. After the
+    # ledger row, so the audit record cannot be the thing lost to a crash in
+    # the counter; the accrual itself never raises.
+    authorization.accrue_call_spend(u, authorization_tier)
     print(f"run     {run.path}")
     print(f"status  {result.status}  ({result.duration_ms}ms)")
     print(f"tokens  in={u.get('total_input_tokens')} out={u.get('total_output_tokens')} "

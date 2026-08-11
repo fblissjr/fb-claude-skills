@@ -500,3 +500,25 @@ def test_a_call_error_echoing_a_key_is_scrubbed_everywhere(project, monkeypatch,
     run_dir = next((project.root / runs.RUNS_DIRNAME).glob("*-demo*"))
     assert key not in (run_dir / "error.txt").read_text()
     assert key not in (read_ledger(project)[0]["error"] or "")
+
+
+def test_sibling_authorization_knobs_get_the_same_strict_validation(
+    project, monkeypatch, capsys
+):
+    """The strict type-check shipped for max_session_tokens and stopped there:
+    its siblings in the same [authorization] block kept bare int() coercion,
+    so `max_unauthorized_tokens = true` became a live one-token gate-everything
+    threshold and `ttl_seconds = -5` a negative lifetime -- the exact
+    wrong-shape class the cap's validation was written to reject. One block,
+    one rule."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_unauthorized_tokens = true\n"
+    )
+    assert run_ask(project, monkeypatch) == 1
+    assert "max_unauthorized_tokens" in capsys.readouterr().err
+
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nttl_seconds = -5\n"
+    )
+    assert run_ask(project, monkeypatch) == 1
+    assert "ttl_seconds" in capsys.readouterr().err

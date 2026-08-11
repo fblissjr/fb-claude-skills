@@ -800,7 +800,7 @@ def test_an_unknown_duration_is_said_out_loud(project, monkeypatch):
 
     monkeypatch.setattr(budget.shutil, "which", lambda _n: None)
     att = media.inspect(project.video)
-    assert "duration unknown" in budget.estimate(att).line(att)
+    assert "duration unknown" in budget.estimate(att).line()
 
 
 def test_an_upload_error_echoing_a_key_is_scrubbed(project, monkeypatch, capsys):
@@ -823,7 +823,6 @@ def _seed_spend(monkeypatch, tmp_path, *, tokens, session="s-e2e"):
     writes it: into the session state directory, not the project ledger."""
     from gemini_bridge import authorization
     monkeypatch.setenv("TMPDIR", str(tmp_path))
-    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", session)
     d = authorization.state_dir(session)
     d.mkdir(parents=True, exist_ok=True)
     (d / authorization.SPEND_FILENAME).write_bytes(

@@ -139,12 +139,17 @@ def in_agent_session() -> bool:
     return any(os.environ.get(v) for v in (*AGENT_MARKER_VARS, *SESSION_ENV_VARS))
 
 
-def state_dir(sid: str) -> Path:
+def state_root() -> Path:
     # `os.environ.get("TMPDIR", "/tmp")` returns "" for an exported-but-empty
     # TMPDIR, while the hook's `${TMPDIR:-/tmp}` yields /tmp -- mint and
-    # enforce would look in different directories.
-    base = Path(os.environ.get("TMPDIR") or "/tmp")
-    return base / STATE_ROOT_NAME / sid
+    # enforce would look in different directories. The ONE place this
+    # derivation lives: it was copied inline twice, and a third copy in the
+    # spend counter would have let writer and reader silently diverge.
+    return Path(os.environ.get("TMPDIR") or "/tmp") / STATE_ROOT_NAME
+
+
+def state_dir(sid: str) -> Path:
+    return state_root() / sid
 
 
 def _owned(path: Path, *, directory: bool = False) -> bool:
@@ -179,7 +184,7 @@ def mint_target_ok() -> bool:
     failure is the worst shape there is: the user types the command, it appears
     to work, the call is refused again, and nothing anywhere says why.
     """
-    base = Path(os.environ.get("TMPDIR") or "/tmp") / STATE_ROOT_NAME
+    base = state_root()
     if not base.exists():
         return True  # the hook creates it, and then owns it
     return _owned(base, directory=True)
@@ -291,13 +296,35 @@ def session_spent_tokens() -> int:
     sid = session_id()
     if not sid:
         return 0
-    data = _read(state_dir(sid) / SPEND_FILENAME)
+    return _spend_value(_read(state_dir(sid) / SPEND_FILENAME))
+
+
+def _spend_value(data: dict[str, Any] | None) -> int:
+    """The counter a spend file holds, degraded to zero on any bad shape."""
     if not data:
         return 0
     try:
         return max(0, int(data.get("tokens") or 0))
     except (TypeError, ValueError):
         return 0
+
+
+def accrue_call_spend(usage: dict[str, Any], authorization_tier: str) -> None:
+    """The accrual policy, in one place instead of at a call site.
+
+    Two invariants any recording path must honour together: ALL token
+    classes count (output bills highest -- a counter of input alone leaves
+    the expensive axis uncapped), and only UNAUTHORIZED spend counts (tokens
+    a user explicitly approved must not later gate unrelated cheap calls
+    under a message that says "unauthorized spend").
+    """
+    if authorization_tier == "expensive-authorized":
+        return
+    add_session_spend(
+        (usage.get("total_input_tokens") or 0)
+        + (usage.get("total_output_tokens") or 0)
+        + (usage.get("total_thought_tokens") or 0)
+    )
 
 
 def add_session_spend(tokens: int) -> None:
@@ -310,21 +337,24 @@ def add_session_spend(tokens: int) -> None:
     explicitly approved must not later gate unrelated cheap calls under a
     message that says "unauthorized spend".
 
-    Two parallel calls can race the read-modify-write and lose one update.
-    Accepted: the cap is an order-of-magnitude control, and under-counting
-    by one call's usage does not change which side of it a runaway session
-    lands on -- unlike the single-use token, where the same race funds a
-    double spend and consume() claims by rename.
+    Written via tmp-file-and-replace, like consume() claims by rename: a
+    truncate-in-place write let a concurrent reader catch the file empty,
+    read the counter as zero, and write back `0 + its tokens` -- resetting
+    the whole accumulated count, which is worse than the race this accepts.
+    What remains accepted: two parallel calls can still interleave
+    read-modify-write and lose ONE update. The cap is an order-of-magnitude
+    control, and under-counting by one call's usage does not change which
+    side of it a runaway session lands on -- unlike the single-use token,
+    where the same race funds a double spend.
     """
     if tokens <= 0:
         return
     sid = session_id()
     if not sid:
         return
-    base = Path(os.environ.get("TMPDIR") or "/tmp") / STATE_ROOT_NAME
-    target = base / sid
+    target = state_dir(sid)  # the one place the path derivation lives
     try:
-        for d in (base, target):
+        for d in (target.parent, target):
             d.mkdir(mode=0o700, exist_ok=True)
             # _owned lstats, so a symlinked directory fails the type check
             # rather than being followed. An unowned root is the shared-/tmp
@@ -333,8 +363,13 @@ def add_session_spend(tokens: int) -> None:
             if not _owned(d, directory=True):
                 return
         path = target / SPEND_FILENAME
-        path.write_bytes(orjson.dumps({"tokens": session_spent_tokens() + tokens}))
-        path.chmod(0o600)
+        # _read directly rather than session_spent_tokens(), which would
+        # re-resolve the session and rebuild the path just validated above.
+        current = _spend_value(_read(path))
+        tmp = target / f"{SPEND_FILENAME}.{os.getpid()}.tmp"
+        tmp.write_bytes(orjson.dumps({"tokens": current + tokens}))
+        tmp.chmod(0o600)
+        os.replace(tmp, path)
     except OSError:
         return
 

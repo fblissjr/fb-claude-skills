@@ -337,10 +337,11 @@ def ensure_uploaded(
     try:
         handle = api.files.upload(file=str(att.path))
     except Exception as exc:
-        # The class and the message are surfaced, never the payload -- and the
-        # message is scrubbed first: this is a path where credentials are in
-        # play, an SDK error can echo request details, and the string lands in
-        # stderr, error.txt, and the ledger at once.
+        # The class and the message are surfaced, never the payload -- and
+        # the message is scrubbed AT CONSTRUCTION, not left to the sinks:
+        # UploadError text also reaches bare WARNING prints (cmd_uploads,
+        # persist warnings) that are not scrubbing sinks, and this is a path
+        # where credentials are in play.
         raise UploadError(
             f"upload of {att.path.name} failed: {type(exc).__name__}: "
             f"{redact_secrets(str(exc))}"
