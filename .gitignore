@@ -6,6 +6,7 @@ __pycache__/
 coderef/
 internal/
 update-coderef.sh
+snapshots/
 
 # Claude Code author-side files (not for distribution)
 .claude/worktrees/
