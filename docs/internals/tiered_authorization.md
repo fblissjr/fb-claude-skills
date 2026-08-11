@@ -7,8 +7,13 @@ last updated: 2026-08-01
 > page truncates, and a summarizing fetch silently loses the sections that
 > matter). Quotes below are verbatim from that file.
 >
-> Applies to `gemini-bridge` (designed, not started) and generalizes to any
-> plugin that spends money or sends data off-machine. Companion to
+> Applies to `gemini-bridge` — SHIPPED as of gemini-bridge 0.11.0 through
+> 0.15.1 (UserPromptExpansion minting, CLI enforcement, single-use ceiling
+> tokens, and a cumulative session cap the proposal below does not describe;
+> the shipped shape also drops this document's `--json`/USD estimates). The
+> code, its README, and the SKILL.md are the authority on current behaviour;
+> from here down this is the design record that preceded them. Generalizes to
+> any plugin that spends money or sends data off-machine. Companion to
 > [gemini_bridge_design.md](gemini_bridge_design.md).
 
 ## The problem
