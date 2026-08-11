@@ -160,6 +160,47 @@ scanner.
 
 A starter template lives at `references/path-privacy.local.json.example`.
 
+### `allow`: exempting a path instead of rewriting it
+
+A suggestion rewrites the text. That is right for prose and comments and wrong
+for anything runnable, because the rewritten form has to still work. The case
+that forces the distinction: a hook command containing `D="$HOME/.impeccable"`.
+The path names no user and reveals no machine layout, but substituting a
+placeholder into it makes the hook create a directory literally called
+`<HOME>`.
+
+For that shape, list the path under `allow` and it is exempted untouched:
+
+```json
+{
+  "allow": [
+    "$HOME/.impeccable",
+    {"prefix": "~/.cursor/agents/", "_why": "generic, names no user"}
+  ]
+}
+```
+
+Entries are matched as a **prefix, anchored at the start** of the candidate,
+never as a substring anywhere on the line. Anchoring is the whole safety
+property: a substring rule would let an allowed path appearing later in a line
+exempt a real leak earlier in it, which is the class the gate exists to catch.
+Prefix matching also widens usefully on its own — allowing `$HOME/.impeccable`
+covers everything beneath it and nothing else under `$HOME`.
+
+Entries are literal matched text rather than resolved paths, so `~/.cursor/`
+and `$HOME/.cursor/` are separate and both need listing if both appear.
+
+**Reach for `allow` only when a rewrite would break something.** It is for
+generic tool-config dot-directories. A path that names a *project* — another
+checkout on your disk — is the thing being guarded against; rewrite that by
+hand.
+
+Both consumers honour the list. `scrub-paths.sh` refuses to load any
+suggestion whose `match` overlaps an allow prefix in either direction, and
+says which two entries collided. Otherwise the config would hold two
+contradictory claims about one path and the scrubber, the consumer that
+actually rewrites files, would act on the wrong one.
+
 ## Scrubbing
 
 Once a `.path-privacy.local.json` is in place, `scrub-paths.sh` applies the

@@ -140,6 +140,60 @@ done < <(jq -r '
   | "\(.match)\t\(.suggest // "")"
 ' "$CFG" 2>/dev/null || true)
 
+# --- Honour the scanner's `allow` list.
+#
+# The two consumers share one config, so a path the scanner exempts must not be
+# something the scrubber rewrites anyway. `allow` exists precisely for paths
+# that appear inside RUNNABLE code, where a rewrite produces something that no
+# longer works -- so the scrubber is the consumer with the power to do real
+# damage, and it is the one that most needs to respect the list.
+#
+# This is not hypothetical. A downstream config carried `~/.grok/` as a
+# suggestion; one of the two occurrences was a copy-pasteable install command
+# in a README, which the substitution would have rewritten into a command that
+# does nothing useful. It had simply never fired.
+#
+# Conflict is PREFIX OVERLAP IN EITHER DIRECTION, because sed does blunt
+# substring replacement and cannot reason about candidates. An allow entry
+# under a broader suggestion (allow `$HOME/.tool`, suggest `$HOME/`) is a
+# conflict just as much as the exact-match case, since the broad rule rewrites
+# the allowed text on its way past.
+#
+# Skipped loudly rather than silently: the config says two contradictory things
+# about one path and only the author can say which was meant.
+ALLOW_PREFIX=()
+while IFS= read -r a; do
+  [ -z "$a" ] && continue
+  ALLOW_PREFIX+=("$a")
+done < <(jq -r '
+  .allow // []
+  | .[]
+  | if type == "string" then . else (.prefix // empty) end
+' "$CFG" 2>/dev/null || true)
+
+if [ ${#ALLOW_PREFIX[@]} -gt 0 ]; then
+  KEPT_MATCH=()
+  KEPT_TO=()
+  for (( i=0; i<${#SUGGEST_MATCH[@]}; i++ )); do
+    m="${SUGGEST_MATCH[$i]}"
+    conflict=""
+    for a in "${ALLOW_PREFIX[@]}"; do
+      case "$a" in "$m"*) conflict="$a" ;; esac
+      case "$m" in "$a"*) conflict="$a" ;; esac
+    done
+    if [ -n "$conflict" ]; then
+      echo "scrub-paths: skipping suggestion '$m' -- it overlaps allow entry '$conflict'." >&2
+      echo "  A path on the allow list is exempt because rewriting it would break it." >&2
+      echo "  Drop one of the two entries in $CFG to resolve." >&2
+      continue
+    fi
+    KEPT_MATCH+=("$m")
+    KEPT_TO+=("${SUGGEST_TO[$i]}")
+  done
+  SUGGEST_MATCH=(${KEPT_MATCH[@]+"${KEPT_MATCH[@]}"})
+  SUGGEST_TO=(${KEPT_TO[@]+"${KEPT_TO[@]}"})
+fi
+
 if [ ${#SUGGEST_MATCH[@]} -eq 0 ]; then
   echo "scrub-paths: config $CFG has no usable 'suggestions' entries. Nothing to do." >&2
   exit 0

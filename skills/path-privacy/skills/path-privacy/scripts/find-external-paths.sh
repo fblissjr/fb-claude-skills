@@ -18,6 +18,10 @@
 #     "suggestions": [
 #       {"match": "/home/foo/ComfyUI/", "suggest": "<comfyui>/"},
 #       {"match": "/home/foo/",         "suggest": "<home>/"}
+#     ],
+#     "allow": [
+#       "$HOME/.toolname",
+#       {"prefix": "~/.cursor/agents/", "_why": "generic, names no user"}
 #     ]
 #   }
 # Each finding whose matched text contains a `match` substring gets an
@@ -25,6 +29,11 @@
 # are auto-sorted longest-match-first so specific entries win over general
 # ones; the user does not need to order them by hand. Requires jq;
 # silently no-ops if jq is missing or the config is malformed.
+#
+# `allow` exempts candidates by literal PREFIX, for generic tool-config paths
+# that appear inside runnable code and so cannot be rewritten. Prefix is
+# anchored at the start, never a substring. See the ALLOW_PREFIX block below
+# for why, and prefer `suggestions` whenever the text can simply be rewritten.
 #
 # `--allow-skip-file` lets `--text` honour a `path-privacy: skip-file` marker
 # leading one of its first 30 lines, the same way a file on disk is treated
@@ -189,6 +198,25 @@ is_placeholder_user() {
 SUGGEST_MATCH=()
 SUGGEST_TO=()
 
+# --- Allow config: literal path PREFIXES that are not leaks.
+#
+# For the shape a substitution cannot fix: a generic tool-config path that
+# appears inside RUNNABLE code. `D="$HOME/.impeccable"` in a hook command
+# names no user and reveals no machine layout, but rewriting it to a
+# placeholder would make the hook create a directory literally called
+# <HOME>. The suggestion mechanism is the wrong tool there, because its whole
+# job is to rewrite the text.
+#
+# PREFIX, anchored at the start, never a substring. A substring rule would
+# let "$HOME/.impeccable" in an allow list exempt "/Users/jamie/x # see
+# $HOME/.impeccable", which is the class the gate exists to catch. Prefix
+# also gives the useful widening for free: allowing "$HOME/.impeccable"
+# allows "$HOME/.impeccable/node-unsupported" and nothing else under $HOME.
+#
+# Entries are literal matched text, not resolved paths, so "~/.cursor/" and
+# "$HOME/.cursor/" are distinct and both must be listed if both appear.
+ALLOW_PREFIX=()
+
 load_suggestions() {
   local cfg="${CONFIG_PATH:-$ROOT/.path-privacy.local.json}"
   [ -f "$cfg" ] || return 0
@@ -206,6 +234,30 @@ load_suggestions() {
     | .[]
     | "\(.match)\t\(.suggest // "")"
   ' "$cfg" 2>/dev/null || true)
+
+  # Accepts both the bare-string form and {"prefix": ..., "_why": ...}, so an
+  # entry can carry its justification the way suggestions do. An allow list
+  # without reasons rots into a list nobody dares prune.
+  local a
+  while IFS= read -r a; do
+    [ -z "$a" ] && continue
+    ALLOW_PREFIX+=("$a")
+  done < <(jq -r '
+    .allow // []
+    | .[]
+    | if type == "string" then . else (.prefix // empty) end
+  ' "$cfg" 2>/dev/null || true)
+}
+
+# Return 0 when the candidate is covered by an allow prefix.
+is_allowed_path() {
+  local cand="$1" a
+  for a in ${ALLOW_PREFIX[@]+"${ALLOW_PREFIX[@]}"}; do
+    case "$cand" in
+      "$a"|"$a"*) return 0 ;;
+    esac
+  done
+  return 1
 }
 
 # Return 0 + print substituted form on stdout if a suggestion matches; else return 1.
@@ -295,6 +347,13 @@ check_candidate() {
   case "$cand" in
     *'<'*'>'*) return 0 ;;
   esac
+
+  # Explicit per-repo allow list. Checked before resolution, because these are
+  # exempt on the strength of the literal text naming no user, not on where
+  # they happen to resolve on this machine.
+  if is_allowed_path "$cand"; then
+    return 0
+  fi
 
   local user_seg=""
   case "$cand" in
