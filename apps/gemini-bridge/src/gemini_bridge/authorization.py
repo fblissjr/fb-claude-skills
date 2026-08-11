@@ -46,6 +46,7 @@ import orjson
 
 STATE_ROOT_NAME = "claude-gemini-bridge"
 AUTH_FILENAME = "authorization.json"
+SPEND_FILENAME = "spend.json"
 REQUIRED_ORIGIN = "user_typed_command"
 
 # The one tier a refusal may be recorded under. It used to be the bare string
@@ -249,17 +250,93 @@ def classify(
     # same human keystroke everything else expensive needs. `None` disables
     # the cap; zero deliberately does NOT read as disabled, because "the value
     # that reads as allow-nothing" being the one that allows everything is the
-    # exact bug the per-call ceiling shipped with. Spent is the ledger's
-    # recorded actuals, so the cap is per project root, like the ledger.
+    # exact bug the per-call ceiling shipped with. Spent comes from
+    # `session_spent_tokens()` below -- session state, not the project
+    # ledger, for the reason that docstring gives.
     if (max_session_tokens is not None
             and session_spent_tokens + estimated_tokens > max_session_tokens):
         return "expensive", (
             f"this session has already spent ~{session_spent_tokens:,} "
-            f"recorded input tokens in this project; with this call's "
-            f"~{estimated_tokens:,} it crosses the {max_session_tokens:,} "
+            f"recorded tokens; with this call's ~{estimated_tokens:,} "
+            f"estimated input it crosses the {max_session_tokens:,} "
             "session cap for unauthorized spend"
         )
     return "cheap", ""
+
+
+def session_spent_tokens() -> int:
+    """What this session has spent unauthorized -- all token classes.
+
+    Read by the spend gate's session cap. It lives HERE, in the session state
+    directory beside the authorization token, with the same ownership rules --
+    and not in the project ledger it was first summed from, because the
+    ledger's location is chosen by the gated party: `--project-root
+    /tmp/fresh` gave a refused agent an empty ledger and a restarted count,
+    with no user keystroke. The ledger stays the audit record; this is gate
+    state, and gate state must live somewhere the gated party does not name
+    on the command line. (TMPDIR is part of the key, so overriding it does
+    reset the counter -- the same documented honest limit as clearing the
+    agent-marker variables, and a deliberate act where `--project-root` is
+    an ordinary argument.)
+
+    Keyed by the VALIDATED session id, like the token. The first version
+    summed ledger rows keyed by the raw id, while minting and consuming used
+    the validated one -- so a session whose id failed validation accrued
+    spend it could never authorize away, a permanent refusal no command
+    could clear.
+
+    Degrades to zero: unreadable, unowned, corrupt, or absent state must not
+    fail a call, and the per-call tier stands regardless.
+    """
+    sid = session_id()
+    if not sid:
+        return 0
+    data = _read(state_dir(sid) / SPEND_FILENAME)
+    if not data:
+        return 0
+    try:
+        return max(0, int(data.get("tokens") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def add_session_spend(tokens: int) -> None:
+    """Accrue recorded usage against the session cap. Never raises.
+
+    Called after the ledger row is written, with what the API actually
+    reported -- input, output, and thinking alike, since output is the axis
+    that bills highest and a cap counting input alone leaves the expensive
+    axis uncapped. The caller skips authorized calls: tokens a user
+    explicitly approved must not later gate unrelated cheap calls under a
+    message that says "unauthorized spend".
+
+    Two parallel calls can race the read-modify-write and lose one update.
+    Accepted: the cap is an order-of-magnitude control, and under-counting
+    by one call's usage does not change which side of it a runaway session
+    lands on -- unlike the single-use token, where the same race funds a
+    double spend and consume() claims by rename.
+    """
+    if tokens <= 0:
+        return
+    sid = session_id()
+    if not sid:
+        return
+    base = Path(os.environ.get("TMPDIR") or "/tmp") / STATE_ROOT_NAME
+    target = base / sid
+    try:
+        for d in (base, target):
+            d.mkdir(mode=0o700, exist_ok=True)
+            # _owned lstats, so a symlinked directory fails the type check
+            # rather than being followed. An unowned root is the shared-/tmp
+            # squat the minting hook refuses; the counter refuses it too, by
+            # declining to write. doctor already reports the condition.
+            if not _owned(d, directory=True):
+                return
+        path = target / SPEND_FILENAME
+        path.write_bytes(orjson.dumps({"tokens": session_spent_tokens() + tokens}))
+        path.chmod(0o600)
+    except OSError:
+        return
 
 
 def _no_session_decision() -> Decision:

@@ -381,22 +381,74 @@ def test_ledger_file_is_owner_only(project, monkeypatch):
     assert ledger_path.stat().st_mode & 0o777 == 0o600
 
 
-# -- the session spend sum ---------------------------------------------------
+# -- the ledger as a read surface -------------------------------------------
 
 
-def test_session_spent_counts_only_this_sessions_recorded_usage():
-    """The cap compares against ACTUAL recorded spend, not estimates: refused
-    rows carry no usage and add nothing, other sessions' rows are other
-    sessions' money, and a null session id matches nothing -- a human at a
-    shell has no session and no cap."""
-    entries = [
-        {"session_id": "s1", "usage": {"total_input_tokens": 100}},
-        {"session_id": "s1", "usage": {}},                        # refused row
-        {"session_id": "s2", "usage": {"total_input_tokens": 40}},
-        {"session_id": None, "usage": {"total_input_tokens": 7}},
-    ]
-    assert ledger.session_spent(entries, "s1") == 100
-    assert ledger.session_spent(entries, None) == 0
+def test_ledger_read_survives_unreadable_files_and_junk_lines(tmp_path):
+    """read() feeds stats, uploads, and doctor -- paths that must not crash.
+
+    An unreadable file reads as empty, matching record()'s own OSError
+    swallow: the two directions must agree that the ledger is never the
+    reason something fails. And a valid-JSON line that is not an object is
+    skipped like a corrupt one, instead of surfacing an AttributeError from
+    whoever indexes the row."""
+    p = tmp_path / ledger.LEDGER_NAME
+    p.write_bytes(b'42\n{"run_id": "ok"}\n')
+    assert ledger.read(tmp_path) == [{"run_id": "ok"}]
+    p.chmod(0o000)
+    try:
+        assert ledger.read(tmp_path) == []
+    finally:
+        p.chmod(0o600)
+
+
+# -- session-cap config validation -------------------------------------------
+
+
+def test_session_cap_config_rejects_nonsense_cleanly(project, monkeypatch, capsys):
+    """`true` and negatives must die as one clean ConfigError.
+
+    The first version raised the bool complaint inside a try whose own
+    except re-wrapped it into a self-contradicting composite ("must be
+    integers ... or false to disable"), and int() accepted -1 -- the common
+    'unlimited' idiom -- as a live cap that gates every call, the opposite of
+    what the user meant."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_session_tokens = true\n"
+    )
+    assert run_ask(project, monkeypatch) == 1
+    err = capsys.readouterr().err
+    assert "max_session_tokens" in err
+    assert "must be integers:" not in err, "the garbled composite is back"
+
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nmax_session_tokens = -1\n"
+    )
+    assert run_ask(project, monkeypatch) == 1
+    assert "max_session_tokens" in capsys.readouterr().err
+
+
+# -- doctor's degradation reporting ------------------------------------------
+
+
+def test_doctor_reports_missing_ffprobe_even_with_the_gate_off(
+    project, monkeypatch, capsys
+):
+    """`required = false` is exactly the configuration where the manifest
+    estimate is the only cost signal left, so the degradation notice must not
+    live inside the gate's else-branch -- which is where it first shipped,
+    printing nothing for the projects that needed it most."""
+    (project.root / ".gemini-bridge.toml").write_text(
+        "[authorization]\nrequired = false\n"
+    )
+    monkeypatch.setattr(
+        cli.shutil, "which",
+        lambda name: None if name == "ffprobe" else f"/usr/bin/{name}",
+    )
+    assert cli.main(["--project-root", str(project.root), "doctor"]) == 0
+    out = capsys.readouterr().out
+    assert "spend gate     : OFF" in out
+    assert "ffprobe" in out
 
 
 # -- the secret-scan refusal's stance ---------------------------------------

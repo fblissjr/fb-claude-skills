@@ -22,6 +22,11 @@ from pathlib import Path
 APP_NAME = "gemini-bridge"
 PROJECT_CONFIG_NAME = ".gemini-bridge.toml"
 
+# 2.5x the default per-approval ceiling -- roughly two hours of default-rate
+# video -- chosen so no ordinary session meets it and a runaway loop of
+# individually-cheap calls does.
+DEFAULT_SESSION_CAP_TOKENS = 500_000
+
 
 def user_config_path() -> Path:
     """Respects XDG_CONFIG_HOME, falls back to the conventional location."""
@@ -65,12 +70,10 @@ class Config:
     require_authorization: bool = True
     max_unauthorized_tokens: int = 20_000
     authorization_ttl_seconds: int = 600
-    # Cumulative per session and per project root (it is summed from the
-    # project's ledger). 500k is 2.5x the default per-approval ceiling --
-    # roughly two hours of default-rate video -- chosen so no ordinary session
-    # meets it and a runaway loop of individually-cheap calls does. `false` in
+    # Cumulative per session, counted in authorization's session state (not
+    # the project ledger -- see session_spent_tokens for why). `false` in
     # TOML disables it; 0 does not (0 gates every call, see classify).
-    max_session_tokens: int | None = 500_000
+    max_session_tokens: int | None = DEFAULT_SESSION_CAP_TOKENS
     sources: list[Path] = field(default_factory=list)
 
     @classmethod
@@ -131,25 +134,36 @@ class Config:
                     authz.get("max_unauthorized_tokens", 20_000)
                 )
                 cfg.authorization_ttl_seconds = int(authz.get("ttl_seconds", 600))
-                # `false` disables the session cap; any integer, including 0,
-                # is a live cap. `true` is nonsense rather than a value, and
-                # bool subclasses int, so it is rejected before int() would
-                # silently read it as 1 and gate everything.
-                session_cap = authz.get("max_session_tokens", 500_000)
-                if session_cap is False:
-                    cfg.max_session_tokens = None
-                elif session_cap is True:
-                    raise TypeError(
-                        "max_session_tokens is `true`; use an integer, or "
-                        "false to disable the cap"
-                    )
-                else:
-                    cfg.max_session_tokens = int(session_cap)
             except (TypeError, ValueError) as exc:
                 raise ConfigError(
-                    f"{project_path}: [authorization] max_unauthorized_tokens, "
-                    f"ttl_seconds and max_session_tokens must be integers: {exc}"
+                    f"{project_path}: [authorization] max_unauthorized_tokens "
+                    f"and ttl_seconds must be integers: {exc}"
                 ) from exc
+
+            # Validated OUTSIDE the try above: ConfigError subclasses
+            # ValueError, so raising it inside got caught by that except and
+            # re-wrapped into a self-contradicting composite ("must be
+            # integers ... or false to disable"). Type-checked rather than
+            # int()-coerced, because coercion accepted the wrong shapes with
+            # the wrong meanings: `true` became a live one-token cap (bool
+            # subclasses int), `-1` -- the common "unlimited" idiom -- became
+            # a cap that gates every call, and floats truncated silently.
+            # `false` disables; 0 stays a live gate-everything cap (see
+            # classify for why zero must never read as disabled).
+            session_cap = authz.get(
+                "max_session_tokens", DEFAULT_SESSION_CAP_TOKENS
+            )
+            if session_cap is False:
+                cfg.max_session_tokens = None
+            elif (isinstance(session_cap, bool)
+                    or not isinstance(session_cap, int) or session_cap < 0):
+                raise ConfigError(
+                    f"{project_path}: [authorization] max_session_tokens must "
+                    "be a non-negative integer, or false to disable the cap "
+                    f"(got {session_cap!r})"
+                )
+            else:
+                cfg.max_session_tokens = session_cap
 
         return cfg
 

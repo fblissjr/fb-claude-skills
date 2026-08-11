@@ -70,7 +70,10 @@ def _recipe_dirs(cfg: Config) -> list[Path]:
 
 
 def _fail(message: str) -> int:
-    print(f"error: {message}", file=sys.stderr)
+    # Every refusal and error funnels through here, so the sink scrubs
+    # key-shaped content once. Sources that build messages from SDK errors
+    # still scrub at the call site; this catches the next path someone adds.
+    print(f"error: {content.redact_secrets(message)}", file=sys.stderr)
     return 1
 
 
@@ -418,14 +421,16 @@ def cmd_ask(args: argparse.Namespace) -> int:
         stateful=recipe.stateful,
         max_unauthorized_tokens=cfg.max_unauthorized_tokens,
         max_output_tokens=recipe.max_output_tokens,
-        # What this session has already spent in this project, from the
-        # ledger's recorded actuals. A hundred individually-cheap calls are
-        # one expensive call arriving slowly, and per-call gating alone never
-        # sees them; crossing the cap routes the next call through the same
-        # human keystroke everything else expensive needs.
-        session_spent_tokens=ledger.session_spent(
-            ledger.read(project_root / runs.RUNS_DIRNAME),
-            authorization.raw_session_id(),
+        # What this session has already spent unauthorized, from the counter
+        # in session state (see session_spent_tokens for why not the project
+        # ledger). A hundred individually-cheap calls are one expensive call
+        # arriving slowly, and per-call gating alone never sees them;
+        # crossing the cap routes the next call through the same human
+        # keystroke everything else expensive needs. Not evaluated when the
+        # cap is off: a project that opted out must not pay the read.
+        session_spent_tokens=(
+            0 if cfg.max_session_tokens is None
+            else authorization.session_spent_tokens()
         ),
         max_session_tokens=cfg.max_session_tokens,
     )
@@ -714,6 +719,19 @@ def cmd_ask(args: argparse.Namespace) -> int:
     )
 
     u = result.usage
+    # Accrue what the API reported against the session cap -- input, output,
+    # and thinking alike, since output is the axis that bills highest and a
+    # counter of input alone leaves it uncapped. Only unauthorized spend
+    # counts: tokens a user explicitly approved must not later gate
+    # unrelated cheap calls under a message that says "unauthorized spend".
+    # After the ledger row, so the audit record cannot be the thing lost to
+    # a crash in the counter; add_session_spend itself never raises.
+    if authorization_tier != "expensive-authorized":
+        authorization.add_session_spend(
+            (u.get("total_input_tokens") or 0)
+            + (u.get("total_output_tokens") or 0)
+            + (u.get("total_thought_tokens") or 0)
+        )
     print(f"run     {run.path}")
     print(f"status  {result.status}  ({result.duration_ms}ms)")
     print(f"tokens  in={u.get('total_input_tokens')} out={u.get('total_output_tokens')} "
@@ -935,23 +953,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         if cfg.max_session_tokens is None:
             print("                 Session cap: disabled in project config.")
         else:
-            spent = ledger.session_spent(
-                ledger.read(project_root / runs.RUNS_DIRNAME),
-                authorization.raw_session_id(),
-            )
-            print(f"                 Session cap: ~{spent:,} of "
-                  f"{cfg.max_session_tokens:,} cumulative input tokens "
-                  "recorded for this session.")
-
-        # Not BROKEN -- the gate still fires -- but its video/audio estimates
-        # degrade to a size-based guess, and a low-bitrate file can
-        # under-count past a threshold. The manifest line says so per call;
-        # this is the one place that can say why, before any call.
-        if not shutil.which("ffprobe"):
-            print("                 ffprobe is not on PATH, so video/audio "
-                  "length is a size-based guess;")
-            print("                 a low-bitrate file can under-count the "
-                  "gate. Install ffmpeg for real durations.")
+            print(f"                 Session cap: "
+                  f"~{authorization.session_spent_tokens():,} of "
+                  f"{cfg.max_session_tokens:,} unauthorized tokens recorded "
+                  "for this session.")
 
         # Both halves of the gate can be broken in ways that are invisible from
         # either side, and produce the same symptom: the user runs the command,
@@ -981,6 +986,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         else:
             print("                 not an agent session; calls here are not "
                   "gated")
+
+    # Outside the gate branch on purpose: the estimator degrades whether or
+    # not the gate is on, and `required = false` is exactly the configuration
+    # where the manifest estimate is the only cost signal left.
+    if not shutil.which("ffprobe"):
+        print("ffprobe        : MISSING -- video/audio length becomes a "
+              "size-based guess, and a")
+        print("                 low-bitrate file can under-count. Install "
+              "ffmpeg for real durations.")
 
     live = files.Cache.load(project_root / runs.RUNS_DIRNAME).live(time.time())
     print(f"uploads held   : {len(live)} file(s) at Google"

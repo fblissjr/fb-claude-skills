@@ -150,13 +150,25 @@ clips, text questions — runs under the ordinary prompt exactly as before.
 
 One more trigger is cumulative rather than per-call. A hundred calls at 15,000
 tokens each never trip a 20,000 per-call limit — they are one expensive call
-arriving slowly. So each session also carries a cap (500,000 recorded input
-tokens by default, summed from this project's ledger): once the session's
-recorded spend plus the current call crosses it, the call is gated whatever
-its own size. Crossing the cap does not stop the session — the next call
-routes through the same user-typed command everything else expensive does.
-Actual recorded usage counts, not estimates, so refused calls cost nothing
-against it; the cap is per project root, because the ledger is.
+arriving slowly. So each session also carries a cap (500,000 recorded tokens
+by default): once the session's recorded spend plus the current call's
+estimate crosses it, the call is gated whatever its own size. Crossing the cap
+does not stop the session — the next call routes through the same user-typed
+command everything else expensive does.
+
+Three facts about what accrues, each chosen against a specific failure. The
+counter lives in the **session state directory beside the authorization
+token**, not in the project ledger it was first summed from — the ledger's
+location is chosen by the gated party, so `--project-root /tmp/fresh` handed a
+refused agent a restarted count with no user keystroke. (Overriding `TMPDIR`
+still resets it: the same documented limit as clearing the agent-marker
+variables, and a deliberate act where `--project-root` is an ordinary
+argument.) It counts **all token classes** — input, output, and thinking —
+because output bills highest and a cap on input alone leaves the expensive
+axis uncapped. And it counts **unauthorized spend only**: tokens a user
+explicitly approved must not later gate unrelated cheap calls under a message
+that says "unauthorized spend", demanding a fresh keystroke per call forever.
+Actuals accrue, estimates gate; refused calls cost nothing against it.
 
 The estimate covers the **whole** input: attachments plus every text channel
 the request carries — question, system instruction, schema, and label values.
@@ -215,7 +227,7 @@ Turn it off, or retune it, per project:
 # required = false             # back to the permission prompt alone
 max_unauthorized_tokens = 5000 # gate more aggressively
 ttl_seconds = 600
-# max_session_tokens = 500000  # cumulative per session and project; false disables
+# max_session_tokens = 500000  # cumulative per session; false disables
 ```
 
 `gemini-bridge doctor` reports whether the gate is on, what it costs to cross,

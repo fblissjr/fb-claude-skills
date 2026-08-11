@@ -818,17 +818,16 @@ def test_an_upload_error_echoing_a_key_is_scrubbed(project, monkeypatch, capsys)
     assert key not in (entry["error"] or "")
 
 
-def _seed_spend(project, monkeypatch, tmp_path, *, tokens, session="s-e2e"):
-    """A prior call's worth of recorded usage, attributed to `session`."""
+def _seed_spend(monkeypatch, tmp_path, *, tokens, session="s-e2e"):
+    """A session that has already spent `tokens`, written the way the CLI
+    writes it: into the session state directory, not the project ledger."""
+    from gemini_bridge import authorization
     monkeypatch.setenv("TMPDIR", str(tmp_path))
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", session)
-    ledger.record(
-        runs.ensure_runs_root(project.root),
-        run_id="seed", recipe="adhoc", model="m", status="completed",
-        usage={"total_input_tokens": tokens}, attachments=[], duration_ms=1,
-        stateful=False, service_tier=None, thinking_level="minimal",
-        credential_kind="env:TEST", prompt_scanned=True,
-        authorization_tier="cheap",
+    d = authorization.state_dir(session)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / authorization.SPEND_FILENAME).write_bytes(
+        orjson.dumps({"tokens": tokens})
     )
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
 
@@ -836,13 +835,13 @@ def _seed_spend(project, monkeypatch, tmp_path, *, tokens, session="s-e2e"):
 def test_session_spend_accumulates_into_the_gate(
     project, monkeypatch, capsys, tmp_path
 ):
-    """One hundred cheap calls are one expensive call arriving slowly. The
-    ledger's recorded spend for THIS session counts against the session cap,
-    and crossing it gates a call that is tiny on its own."""
+    """One hundred cheap calls are one expensive call arriving slowly. THIS
+    session's recorded spend counts against the session cap, and crossing it
+    gates a call that is tiny on its own."""
     (project.root / ".gemini-bridge.toml").write_text(
         "[authorization]\nmax_session_tokens = 5000\n"
     )
-    _seed_spend(project, monkeypatch, tmp_path, tokens=4500)
+    _seed_spend(monkeypatch, tmp_path, tokens=4500)
     shot = project.root / "shot.png"
     shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
     install(monkeypatch, fake_client(FakeFiles()))
@@ -855,12 +854,12 @@ def test_session_spend_accumulates_into_the_gate(
 def test_other_sessions_spend_is_other_sessions_money(
     project, monkeypatch, tmp_path
 ):
-    """The cap is per session. Rows another session wrote must not gate this
-    one, or the second session in a shared project starts life refused."""
+    """The cap is per session. Spend another session accrued must not gate
+    this one, or the second session on a shared machine starts life refused."""
     (project.root / ".gemini-bridge.toml").write_text(
         "[authorization]\nmax_session_tokens = 5000\n"
     )
-    _seed_spend(project, monkeypatch, tmp_path, tokens=4500, session="s-other")
+    _seed_spend(monkeypatch, tmp_path, tokens=4500, session="s-other")
     shot = project.root / "shot.png"
     shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
     install(monkeypatch, fake_client(FakeFiles()))
@@ -877,7 +876,7 @@ def test_an_authorization_crosses_the_session_cap(
     (project.root / ".gemini-bridge.toml").write_text(
         "[authorization]\nmax_session_tokens = 5000\n"
     )
-    _seed_spend(project, monkeypatch, tmp_path, tokens=4500)
+    _seed_spend(monkeypatch, tmp_path, tokens=4500)
     _authorize(tmp_path, monkeypatch)
     shot = project.root / "shot.png"
     shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
@@ -886,3 +885,70 @@ def test_an_authorization_crosses_the_session_cap(
     assert ask(project, "-f", str(shot), "what is this") == 0
     entry = ledger.read(project.root / runs.RUNS_DIRNAME)[-1]
     assert entry["authorization_tier"] == "expensive-authorized"
+
+
+def test_switching_project_root_does_not_reset_the_cap(
+    project, monkeypatch, capsys, tmp_path
+):
+    """The finding that moved the counter out of the ledger: while spend was
+    summed from the project ledger, `--project-root /tmp/fresh` handed the
+    refused party an empty ledger and a restarted count, with no user
+    keystroke -- the reset belonged to the party being gated. The counter is
+    session-keyed now, so a fresh root changes nothing."""
+    _seed_spend(monkeypatch, tmp_path, tokens=600_000)  # over the 500k default
+    fresh = tmp_path / "fresh-root"
+    fresh.mkdir()
+    shot = fresh / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert cli.main(
+        ["--project-root", str(fresh), "ask", "-f", str(shot), "what is this"]
+    ) == 1
+    err = capsys.readouterr().err
+    assert "session" in err and "gemini-authorize" in err
+
+
+def test_recorded_usage_feeds_the_counter_but_authorized_spend_does_not(
+    project, monkeypatch, tmp_path
+):
+    """Two claims about what accrues. The counter is fed by what the API
+    reported, after the call -- estimates gate, actuals accrue. And only
+    unauthorized spend counts: tokens a user explicitly approved must not
+    later gate unrelated cheap calls under a message that says 'unauthorized
+    spend', which would demand a fresh keystroke per call forever."""
+    from gemini_bridge import authorization, budget
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-e2e")
+    shot = project.root / "shot.png"
+    shot.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 32)
+    install(monkeypatch, fake_client(FakeFiles()))
+
+    assert ask(project, "-f", str(shot), "what is this") == 0
+    assert authorization.session_spent_tokens() == 5, \
+        "the fake usage reports 5 input tokens; the counter must hold them"
+
+    monkeypatch.setattr(budget, "duration_seconds", lambda _a: 600.0)
+    _authorize(tmp_path, monkeypatch)
+    install(monkeypatch, fake_client(FakeFiles()))
+    assert ask(project, "-f", str(project.video), "q") == 0
+    assert authorization.session_spent_tokens() == 5, \
+        "authorized spend must not accrue against the unauthorized cap"
+
+
+def test_a_zero_duration_probe_falls_back_to_size(monkeypatch):
+    """ffprobe reports duration "0.000000" for some fragmented/live
+    containers. The string is truthy, so `float(value) if value else None`
+    returned a measured 0.0 that skipped the size fallback entirely -- a file
+    of any size estimated at the MIN_TOKENS floor, the exact under-count
+    class the fallback rate exists to prevent, arriving by the path that HAS
+    ffprobe. Zero is not a measurement; it degrades to the size guess."""
+    from pathlib import Path
+
+    from gemini_bridge import budget
+    out = SimpleNamespace(
+        returncode=0, stdout='{"format": {"duration": "0.000000"}}'
+    )
+    monkeypatch.setattr(budget.subprocess, "run", lambda *a, **k: out)
+    att = SimpleNamespace(path=Path("x.mp4"), kind="video")
+    assert budget._probe_duration(att) is None

@@ -23,6 +23,8 @@ from typing import Any
 
 import orjson
 
+from .content import redact_secrets
+
 RUNS_DIRNAME = ".gemini-runs"
 
 
@@ -139,7 +141,11 @@ class RunDir:
         (self.path / "interaction.id").write_text(interaction_id + "\n")
 
     def write_error(self, message: str) -> None:
-        (self.path / "error.txt").write_text(message + "\n")
+        # Scrubbed at the sink like the ledger's error field: error text is
+        # routinely built from exception strings, and this file outlives the
+        # session in a directory that gets copied around.
+        (self.path / "error.txt").write_text(redact_secrets(message) + "\n")
+        _restrict(self.path / "error.txt")
 
     # -- reads ----------------------------------------------------------
 

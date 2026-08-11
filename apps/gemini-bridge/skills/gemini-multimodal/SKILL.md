@@ -150,14 +150,16 @@ unless the user has typed `/gemini-bridge:gemini-authorize`. Nothing you can
 run mints that authorization; that is the point of it. The estimate counts the
 question and system instruction as well as the attachments, so a very large
 `--prompt-file` is gated on its own. The session also carries a cumulative cap
-(500,000 recorded input tokens per project by default): many individually
-cheap calls are one expensive call arriving slowly, and once this session's
-ledger crosses the cap, further calls are gated regardless of size. The remedy
-is the same user-typed command — the cap changes who decides, not what is
-possible.
+(500,000 recorded tokens by default): many individually cheap calls are one
+expensive call arriving slowly, and once this session's recorded spend crosses
+the cap, further calls are gated regardless of size — in every project, since
+the counter is session-keyed, not per-directory. The remedy is the same
+user-typed command — the cap changes who decides, not what is possible.
 
 If you are refused: **do not retry, do not split the call into smaller ones to
-get under the limit, and do not turn the gate off in `.gemini-bridge.toml`.**
+get under the limit, do not turn the gate off in `.gemini-bridge.toml`, and do
+not point `--project-root` or `TMPDIR` somewhere fresh to dodge the session
+cap.**
 Say what you wanted to send, what it would cost, and what you expected to
 learn, then stop and let the user decide. Often the better move is the cheaper
 call the refusal suggests — a trimmed clip or a lower resolution usually

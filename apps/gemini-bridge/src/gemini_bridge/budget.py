@@ -102,11 +102,15 @@ class Estimate:
                     "(estimate)")
         if att.kind in {"video", "audio"}:
             # The manifest is the one moment the user can still stop the call,
-            # and length is the one input the gate cannot bound without
-            # ffprobe. A line with no duration and no marker reads as a normal
-            # estimate; this one says it is a guess.
+            # and length is the one input the gate cannot bound unmeasured. A
+            # line with no duration and no marker reads as a normal estimate;
+            # this one says it is a guess. Deliberately no cause named:
+            # ffprobe may be absent, or present and failed on this file (bad
+            # container, timeout, a probed zero) -- blaming the tool sent
+            # users to install what they already had. doctor reports the
+            # absent-tool case, the one it can actually see.
             return (f"~{self.tokens:,} input tokens (estimate; duration "
-                    "unknown -- no ffprobe, sized from bytes)")
+                    "unknown, sized from bytes)")
         return f"~{self.tokens:,} input tokens (estimate)"
 
 
@@ -150,7 +154,14 @@ def _probe_duration(att: Attachment) -> float | None:
         if out.returncode != 0:
             return None
         value = json.loads(out.stdout).get("format", {}).get("duration")
-        return float(value) if value else None
+        seconds = float(value) if value else None
+        # ffprobe reports "0.000000" for some fragmented/live containers.
+        # The string is truthy, so this used to return a measured 0.0 that
+        # skipped the size fallback entirely -- a file of any size estimated
+        # at the MIN_TOKENS floor, the exact under-count class the fallback
+        # rate exists to prevent, arriving by the path that has ffprobe.
+        # Zero is not a measurement of anything attachable; it is unknown.
+        return seconds if seconds and seconds > 0 else None
     except (OSError, ValueError, json.JSONDecodeError, subprocess.SubprocessError):
         return None
 

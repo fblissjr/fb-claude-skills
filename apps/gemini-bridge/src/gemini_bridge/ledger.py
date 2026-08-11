@@ -26,7 +26,7 @@ from typing import Any
 
 import orjson
 
-from . import authorization
+from . import authorization, content
 
 LEDGER_NAME = "ledger.jsonl"
 
@@ -124,7 +124,11 @@ def record(
         # call recorded a null session, refusals included. Two places
         # reading the session must read it the same way.
         "session_id": authorization.raw_session_id(),
-        "error": error,
+        # Scrubbed at the sink as well as at the sources that build messages
+        # from SDK errors: error text is the one field routinely assembled
+        # from exception strings, and the next caller added is the one that
+        # forgets to scrub.
+        "error": content.redact_secrets(error) if error else error,
     }
     try:
         with path.open("ab") as fh:
@@ -140,34 +144,27 @@ def record(
 
 def read(runs_root: Path) -> list[dict[str, Any]]:
     path = runs_root / LEDGER_NAME
-    if not path.is_file():
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        # Unreadable reads as empty, matching record()'s own swallow: the
+        # ledger must never be the reason a call or a listing fails. (There
+        # is no spend-gate consequence -- the session cap reads its own
+        # counter in authorization, not this file.)
         return []
     out = []
-    for line in path.read_bytes().splitlines():
+    for line in raw.splitlines():
         if line.strip():
             try:
-                out.append(orjson.loads(line))
+                obj = orjson.loads(line)
             except orjson.JSONDecodeError:
                 continue  # a corrupt line should not hide the rest
+            # A valid-JSON line that is not an object is corrupt for this
+            # file's purposes; skipping it here beats an AttributeError from
+            # whoever indexes the row.
+            if isinstance(obj, dict):
+                out.append(obj)
     return out
-
-
-def session_spent(entries: list[dict[str, Any]], session_id: str | None) -> int:
-    """Input tokens this session has already spent, from recorded usage.
-
-    Feeds the spend gate's session cap. Actual counts, not estimates: refused
-    rows carry no usage and add nothing. Other sessions' rows are other
-    sessions' money. A null session id matches nothing -- a human at a shell
-    has no session and no cap, and matching None against rows that recorded
-    None would gate them on each other's spend.
-    """
-    if not session_id:
-        return 0
-    return sum(
-        (e.get("usage") or {}).get("total_input_tokens") or 0
-        for e in entries
-        if e.get("session_id") == session_id
-    )
 
 
 def summarize(entries: list[dict[str, Any]]) -> dict[str, Any]:

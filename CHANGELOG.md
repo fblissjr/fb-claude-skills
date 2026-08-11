@@ -1,5 +1,18 @@
 # changelog
 
+## 1.30.0
+
+### changed
+- **`gemini-bridge` 0.14.0 → 0.15.0 — the session cap's counter moves out of the project ledger, closing the review's finding that the gated party controlled its own gate.** A code review of 0.14.0 confirmed the cap was trivially resettable: spend was summed from the ledger under `project_root`, and `--project-root /tmp/fresh` handed a refused agent an empty ledger with no user keystroke. The counter now lives in the session state directory beside the authorization token — session-keyed, ownership-checked (symlinks rejected, unowned roots refused), keyed by the *validated* session id (the raw-id sum let a session whose id failed validation accrue spend it could never authorize away — a permanent refusal no command could clear). It accrues **all token classes** (output bills highest; an input-only cap left the expensive axis uncapped) and **unauthorized spend only** (tokens a user approved must not later gate unrelated cheap calls under a message that says "unauthorized spend"). Overriding `TMPDIR` still resets it — the same documented honest limit as clearing the agent-marker variables — and the skill's refusal guidance now names both dodges. The ledger read leaves the ask path entirely, which also removes the review's crash finding (an unreadable `ledger.jsonl` was a bare traceback on every ask) and its eager-evaluation finding (projects that opted out of the cap paid a full-ledger parse per call).
+
+### fixed
+- **A probed duration of `"0.000000"` bypassed the size fallback.** The string is truthy, so `float(value) if value else None` returned a *measured* 0.0 for some fragmented/live containers — the fallback never ran, and a file of any size estimated at the 70-token floor: the exact under-count class 0.14.0 fixed, arriving by the path that has ffprobe. Zero now degrades to the size guess.
+- **The manifest's unknown-duration marker blamed a tool it had not checked.** It said "no ffprobe" for any unmeasured duration, but ffprobe present-and-failed (bad container, timeout, probed zero) takes the same path — sending users to install what they already had. The line now states the fact (duration unknown, sized from bytes) and names no cause; `doctor` reports the absent-tool case, the one it can see.
+- **`doctor`'s ffprobe warning printed only with the gate on** — nested in the gate's else-branch, so `required = false`, exactly the configuration where the manifest estimate is the only cost signal left, got a clean bill of health. Moved outside the branch.
+- **Session-cap config validation garbled its own error and accepted nonsense.** The tailored complaint for `true` was raised inside a try whose own except re-wrapped it into a self-contradicting composite; `int()` coercion accepted `-1` (the common "unlimited" idiom) as a live cap gating every call, truncated floats, and parsed quoted strings. Now validated outside that try, type-checked, negatives rejected; `false` disables and `0` stays a live gate-everything cap.
+- **`ledger.read` hardened for its remaining consumers** (`stats`, `uploads`, refusal audit rows): an unreadable file reads as empty — matching `record()`'s own OSError swallow — and a valid-JSON line that is not an object is skipped instead of crashing whoever indexes the row.
+- **Error redaction moved into the sinks as well as the sources.** `_fail`, `RunDir.write_error`, and the ledger's `error` field scrub key-shaped content themselves, so the next error path added to the CLI ships scrubbed by default instead of depending on its author remembering.
+
 ## 1.29.0
 
 ### added

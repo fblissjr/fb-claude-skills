@@ -384,3 +384,48 @@ def test_a_disabled_session_cap_is_none_not_zero():
         session_spent_tokens=0, max_session_tokens=0,
     )
     assert tier == "expensive"
+
+
+# -- the session spend counter -----------------------------------------------
+
+
+def test_spend_accumulates_in_session_state(session):
+    """The counter lives beside the authorization token -- session-keyed,
+    ownership-checked, project-independent -- because its first version summed
+    the PROJECT ledger, and the gated party chooses the project root:
+    `--project-root /tmp/fresh` reset the count to zero with no user
+    keystroke. Gate state must live somewhere the gated party does not name
+    on the command line."""
+    authorization.add_session_spend(300)
+    authorization.add_session_spend(200)
+    assert authorization.session_spent_tokens() == 500
+
+
+def test_spend_needs_a_usable_session(tmp_path, monkeypatch):
+    """No session, no counter: a human at a shell is not tracked. And an id
+    the gate cannot act on is not written under either, because the path is
+    built from it -- the ledger keyed spend by the RAW id once, which let a
+    session whose id failed validation accrue spend it could never authorize
+    away."""
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.delenv("CLAUDE_SESSION_ID", raising=False)
+    authorization.add_session_spend(500)
+    assert authorization.session_spent_tokens() == 0
+
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "../evil")
+    authorization.add_session_spend(500)
+    assert authorization.session_spent_tokens() == 0
+
+
+def test_a_corrupt_spend_file_reads_as_zero_not_a_crash(session):
+    """Same promise the upload cache makes: corrupt state degrades, never
+    fails the call. Zero is the degraded reading, and the per-call tier
+    stands regardless of it."""
+    session.mkdir(parents=True, exist_ok=True)
+    (session / authorization.SPEND_FILENAME).write_bytes(b"not json")
+    assert authorization.session_spent_tokens() == 0
+    (session / authorization.SPEND_FILENAME).write_bytes(
+        orjson.dumps({"tokens": "many"})
+    )
+    assert authorization.session_spent_tokens() == 0
