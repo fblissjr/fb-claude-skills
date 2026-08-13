@@ -235,10 +235,8 @@ tools/skill-maintainer/state/changes.jsonl
 certs/
 models/
 
-# Internal logs (tracked by the private overlay repo, NAS only)
+# Private nested repo (its own git history, NAS remote only)
 internal/
-# Private overlay git dir -- also in the global gitignore; never commit it
-.git-private/
 research/schema-processing/results/
 
 # explainer-video per-run scratch dirs (pid-suffixed, cleaned in finally)
