@@ -18,6 +18,15 @@ in the order they occur.
 /plugin install grilling@fb-claude-skills
 ```
 
+## Invocation
+
+```
+/grilling:grilling
+```
+
+Also triggers on its own: say "grill me", "stress-test this", "poke holes in
+this", "interview me", or "what am I not thinking about".
+
 ## The idea in one paragraph
 
 The **frontier** is every decision whose prerequisites are already settled. Ask

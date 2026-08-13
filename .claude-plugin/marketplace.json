@@ -71,13 +71,13 @@
       "name": "writing",
       "source": "./skills/writing",
       "description": "Skills for how the agent writes and explains: an American plain-language house style (active voice, front-loaded, sentence case, no bold for emphasis), voice matching that learns the user's own style, replacing walls of prose with compact visuals, and re-pitching a message that did not land.",
-      "version": "0.6.0"
+      "version": "0.6.1"
     },
     {
       "name": "grilling",
       "source": "./skills/grilling",
       "description": "A relentless design interview: work the problem as a tree, ask every question whose prerequisites are settled in one round with a recommended answer attached, and look facts up rather than asking the user for them.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     },
     {
       "name": "model-routing",

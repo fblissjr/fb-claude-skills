@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-08-13
 
 # fb-claude-skills
 
@@ -16,7 +16,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; SessionStart directives carry what no hook can enforce and silence themselves per block where the repo's own files cover the same ground; `/dev-conventions:init` scaffolds the conventions into the repo's own files so they reach every collaborator, plugin installed or not. Per-repo overrides in a tracked `.dev-conventions.json`. |
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas. A skill you invoke when designing a schema -- the SessionStart hook was removed, since the principles are needed at a decision point rather than before every session. |
-| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. Both split into a short body plus `references/`. |
+| [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. `show-me` — answer with a compact visual (pseudocode, call tree, component tree, file tree, types-and-signatures, a diff of any of those, mermaid, or one focused HTML page) instead of a paragraph about structure. `wait-what` — user-invoked only: rewrite the last message when it did not land, with more context and the project's own vocabulary. |
 | [claim-audit](skills/claim-audit/) | Skill | Audit the added prose of a diff as untrusted claims — every count, status, and attribution re-derived by executing a command whose output is that claim, never by reading. Unsourceable claims get labeled (`(memory)`, `(local)`, `(reported)`) or recommended for deletion; the report states its own scope (lines read, claims extracted, claims derived) so a green result is distinguishable from a run that read nothing. Report, don't rewrite — the caller weighs the findings. |
 | [postmortem](skills/postmortem/) | Skills | Evidence-grounded retrospectives. `postmortem` — verdicted look-back at a session, feature, or span (git history, session logs, changelogs); every finding cites an artifact, empty sections are valid, annotate-don't-rewrite. Filed as standalone dated files in a per-repo resolved location, optionally rendered to a self-contained HTML file. `postmortem-index` — a generated browsable page over them, answering "has anything been written about this file". `test-audit` — does each green test still mean anything: claim recovery, spot-mutation oracle checks, reachability-envelope mapping, keep/rewrite/delete verdicts. `adversarial-verify` — the single-claim primitive the audits dispatch to: construct the refutation via the bundled `control-builder` agent, then separately verify the attempt reached the subject. `control-audit` — census of everything check-shaped outside the test suite (hooks, validators, reminders; four slots per control, derived vs transcribed) with mandatory live-fire of controls nothing watches. |
 | [json-query](skills/json-query/) | Skill | JSON query tool selection and syntax -- jg (jsongrep) for extraction, jq for transformation |
@@ -30,6 +30,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped `fast-executor` / `task-coder` agents. **Installation is paused (2026-08-01)** — the rule asserts a cost/quality tradeoff nothing has measured, so it was removed everywhere and the skill is now user-invoked only. Removal still works. See [model_routing_flywheel.md](docs/internals/model_routing_flywheel.md). |
 | [advisor](skills/advisor/) | Skill + hooks | Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger model can see what was actually done. Strictly user-invoked: only a typed `/advisor` mints the spend authorization, and hooks deny any spawn without it. Mirror image of `model-routing`. |
+| [grilling](skills/grilling/) | Skill | A design interview that works the problem as a tree instead of asking questions in the order they occur. Each round asks every question whose prerequisites are already settled, with a recommended answer attached; facts the codebase can settle are looked up, never asked; the session ends when nothing is left unasked. |
 
 ### plugin & skill maintenance
 
@@ -98,6 +99,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install postmortem@fb-claude-skills
 /plugin install gemini-bridge@fb-claude-skills
 /plugin install dangling-refs@fb-claude-skills
+/plugin install grilling@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -185,6 +187,9 @@ Once installed, invoke as namespaced slash commands:
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns
 /writing:plain-language-us       # Write or rewrite prose in an American plain-language style
 /writing:voice-match             # Write in your own voice, learned from the thread and a saved profile
+/writing:show-me                 # Answer with a compact visual instead of a paragraph about structure
+/writing:wait-what               # Rewrite the last message when it did not land (user-invoked only)
+/grilling:grilling               # Design interview in rounds over a tree; facts looked up, not asked
 /model-routing:model-routing     # Per-project down-tier delegation rule (install paused; removal works)
 /advisor                         # Consult a higher-tier model about this session (user-invoked only)
 /claim-audit:claim-audit         # Audit added prose as claims, each re-derived by execution

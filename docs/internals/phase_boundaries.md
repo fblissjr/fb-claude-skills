@@ -23,7 +23,7 @@ bounded subagent, and no written policy on which of those to reach for when.
 | **`/clear`** | Empty the window and start from nothing |
 | **Hand off** | Write a portable markdown file and seed a session anywhere from it |
 | **Subagent** | Send the task to its own window and get a report back |
-| **`/compact`** | Compress this context and seed a fresh session with the summary |
+| **`/compact`** | Replace this session's history with a summary, in place, and continue |
 
 ## The tree
 
@@ -61,7 +61,7 @@ needs.
 
 `/compact` is the **default, not the first reach**. It sits at the bottom
 because the four questions above it are each cheaper or more precise. The
-failure mode of starting here is a fresh session that is confidently wrong about
+failure mode of starting here is a continuation that is confidently wrong about
 a decision the summary flattened.
 
 ## Primary and secondary sources
@@ -91,3 +91,8 @@ boundary rather than in the middle of the work.
   principle survives the number.
 - The original links a published vocabulary site for several terms. Dropped —
   the terms carry themselves here.
+- The original describes `/compact` as compressing the context and seeding a
+  fresh session with the summary. In this harness `/compact` replaces the
+  history in place and the same session continues; corrected above. Adopting a
+  doc means checking its behavioural claims against this harness, not only its
+  links and numbers.

@@ -11,7 +11,7 @@ description: >-
   a large diff. For chart and dashboard design use dataviz; for diagram craft
   inside a published page use artifact-diagramming; to fix the register of prose
   that stays prose, use plain-language-us.
-allowed-tools: "Read, Grep, Glob, Artifact"
+allowed-tools: "Read, Grep, Glob, Write, Edit, Skill, Artifact, Bash(open:*), Bash(xdg-open:*)"
 metadata:
   last_verified: "2026-08-13"
   review_interval_days: "365"
@@ -180,10 +180,11 @@ data, never lorem; support desktop and mobile.
 
 Publish it with the `Artifact` tool, which renders mermaid natively and gives
 the user a link they can keep. Load the `artifact-design` skill first. Where
-Artifact is unavailable, write the file and open it:
+Artifact is unavailable, write the file and open it in the default browser:
 
 ```
-Bash(open path/to/show-me-{description}.html)
+open path/to/show-me-{description}.html      # macOS
+xdg-open path/to/show-me-{description}.html  # Linux
 ```
 
 ## Where this pays most
@@ -194,10 +195,3 @@ the one where a shared shape prevents the most rework.
 
 Reading a large diff is the other. The same shapes work post-hoc to find what
 deserves attention.
-
----
-
-Adapted from the `show-me` skill in `humanlayer/skills` (MIT) and the article
-behind it. Changed here: the types-and-signatures shape restored from the
-article, the cost ladder stated rather than implied, and HTML routed through
-`Artifact` rather than only `open`.

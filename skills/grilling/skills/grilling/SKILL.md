@@ -100,9 +100,3 @@ Two wrappers are worth knowing even though this repo ships neither: a stateless
 one that just runs the interview, and a stateful one that also writes what it
 learns into a project glossary and decision records. The stateful variant is the
 better default wherever there is a repo to leave a trail in.
-
----
-
-Adapted from `grilling` in `mattpocock/skills` (MIT). Changed here: emoji
-stripped per house style, the `AskUserQuestion` path added for small frontiers,
-and the fact-finding instruction aligned with this repo's delegation practice.
