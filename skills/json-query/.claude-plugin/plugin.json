@@ -3,7 +3,7 @@
   "version": "0.1.2",
   "description": "JSON query tool selection and syntax guidance — jg (jsongrep) for fast extraction, jq for transformations",
   "author": {
-    "name": "Fred Bliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

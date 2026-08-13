@@ -3,7 +3,7 @@
   "version": "0.3.2",
   "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
   "author": {
-    "name": "Fred Bliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

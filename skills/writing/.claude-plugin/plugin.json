@@ -3,7 +3,7 @@
   "version": "0.6.1",
   "description": "Skills for how the agent writes and explains: an American plain-language house style, voice matching, replacing prose with compact visuals, and re-pitching a message that did not land",
   "author": {
-    "name": "Fred Bliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

@@ -5,7 +5,7 @@ requires-python = ">=3.13"
 description = "Cowork plugin and MCP server for Readwise Reader - search, save, and surface your reading library"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-authors = [{name = "Fred Bliss"}]
+authors = [{name = "fblissjr"}]
 dependencies = [
     # Exact, not a floor: this is an application, and `mcp` 2.0.0 implements the
     # 2026-07-28 spec, which removes the initialize/initialized handshake, drops

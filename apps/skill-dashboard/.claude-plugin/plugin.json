@@ -3,7 +3,7 @@
   "version": "1.2.0",
   "description": "Interactive MCP App skill dashboard: quality checks, token budgets, freshness, and repo hygiene",
   "author": {
-    "name": "Fred Bliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

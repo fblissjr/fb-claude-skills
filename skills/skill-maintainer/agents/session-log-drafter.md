@@ -7,7 +7,7 @@ description: >-
   session", "log today's work", or at the end of a substantive working session.
 tools: Read, Grep, Glob, Write, Edit, Bash
 metadata:
-  author: Fred Bliss
+  author: fblissjr
   version: 0.1.2
 ---
 

@@ -4,7 +4,7 @@ description: Explores any Claude Code plugin and returns a structured inventory 
 tools: Read, Grep, Glob
 model: sonnet
 metadata:
-  author: Fred Bliss
+  author: fblissjr
   version: 0.1.0
 ---
 

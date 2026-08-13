@@ -3,7 +3,7 @@
   "version": "0.15.1",
   "description": "Hand a task to Gemini and get a structured answer back -- video and audio analysis, perceptual image comparison, or any ad-hoc question with model, thinking level, and schema set per call. Explicit, auditable, one run directory per call.",
   "author": {
-    "name": "fbliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

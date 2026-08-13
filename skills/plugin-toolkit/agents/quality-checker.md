@@ -4,7 +4,7 @@ description: Evaluates a Claude Code plugin against the quality checklist and re
 tools: Read, Grep, Glob
 model: sonnet
 metadata:
-  author: Fred Bliss
+  author: fblissjr
   version: 0.1.0
 ---
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Audit the added prose of a diff as untrusted claims -- every count, status, and attribution re-derived by executing commands, never by reading. Reports claims beside their deriving commands and states its own scope.",
   "author": {
-    "name": "fbliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

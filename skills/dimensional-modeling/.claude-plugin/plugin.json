@@ -3,7 +3,7 @@
   "version": "0.5.1",
   "description": "Dimensional modeling for analytical schemas: grain-first design, append-only facts, SCD Type 2 dimensions, conformed dimensions instead of fact-to-fact joins. A skill you invoke when designing a schema -- it ships no SessionStart hook, because the principles are needed at a decision point the model can recognise, not before the first action of every session.",
   "author": {
-    "name": "Fred Bliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }

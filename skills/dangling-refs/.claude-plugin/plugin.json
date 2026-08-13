@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "description": "Remove a unit from a repo without leaving references behind. Sweeps tracked content before you delete, sorts every hit into what must change, what must stay as history, and what reaches users, and names the cascade a removal actually triggers.",
   "author": {
-    "name": "fbliss"
+    "name": "fblissjr"
   },
   "repository": "https://github.com/fblissjr/fb-claude-skills"
 }
