@@ -163,7 +163,7 @@ Rationale: a stance composed fresh each session makes the answer depend on how
 the question happened to be phrased that day, which makes two runs incomparable
 and a regression invisible. A file is diffable, reviewable, and can carry a
 determinism knob alongside it. "New behavior is new data, not new code"
-(VISION.md, "the harness is the system").
+(architecture.md, "the harness is the system").
 
 Consequence: there must be a default stance for the unstructured case. Otherwise
 the ad-hoc majority of calls has no path at all, which is the state
@@ -185,7 +185,7 @@ Promotion between tiers requires evidence, not enthusiasm:
 | user → bundled | read it as a stranger; if it names your work, it stays user |
 
 Rationale: "You don't prepare it first and use it second. You use it, and the
-using prepares it" (VISION.md, "use it, then prepare it").
+using prepares it" (architecture.md, "use it, then prepare it").
 
 Without the middle tier, project-shaped stances get published to everyone because
 bundled is the only place to put them. `perceptual-diff` says "the same 3D scene,
@@ -212,7 +212,7 @@ delimiter.
 
 Artifacts stay files. Facts are append-only and queried in place.
 
-Rationale and the deciding test are in VISION.md, "structured outputs as state":
+Rationale and the deciding test are in architecture.md, "structured outputs as state":
 ask what reads the artifact besides a query. A prompt that must stay re-runnable,
 a response another agent opens deliberately, a manifest that is the only local
 record of remote state — none of those survive being flattened into a row.

@@ -116,13 +116,20 @@ How the known pairs scored:
 
 Every pair that legitimately remains passes one of three ways:
 
-1. **Mechanical mirror** — something watches the pair by construction.
-   `.skill-maintainer/best_practices.md` is the working copy; a PostToolUse
-   hook mirrors it into `skills/skill-maintainer/references/best_practices.md`
-   (repo invariant 3).
+1. **Mechanical mirror** — something watches the pair by construction. This
+   shape has **no instance here** as of 2026-08-13. `best_practices.md` was the
+   example, and it stopped being a pair: a PostToolUse hook mirrored the working
+   copy into the bundled reference, a `tests.py` arm asserted they matched, and
+   both were servicing a copy whose only reader was that arm. The resolver
+   gained the fallback its own skill had always documented, and the second copy
+   was deleted. Read the shape as a warning rather than a template: a mechanical
+   mirror is what you build once you have decided to keep the copy, and the
+   prior question is whether the copy has a consumer.
 2. **Designed handoff** — the local copy is authoritative and the shipped one
    self-silences. dev-conventions' ambient blocks detect ground coverage in
-   `.claude/rules/` and stay quiet in this repo (repo invariant 6).
+   `.claude/rules/` and stay quiet in this repo (history in
+   [gotchas.md](gotchas.md), "SessionStart hooks from our own plugins were
+   disabled here").
 3. **Data vs. mechanism** — local evidence is quoted into a dispatch of the
    shipped mechanism at use time, never welded into a second copy of the
    mechanism itself.
@@ -131,6 +138,28 @@ Local copies of components this repo's own plugins ship (agents, skills,
 procedure prose) get the test with full force: an unwatched local variant
 splits dogfooding from what installs actually run, so defects in the shipped
 copy stop being noticed here first.
+
+## Inside the source, but inert for installers
+
+Invariant 1 says plugin content is whatever the marketplace `source` actually
+ships, and tells you to check the source before cascading. That answers "does
+this file travel" and not "does it do anything when it arrives", and the two
+come apart.
+
+A `CLAUDE.md` inside a plugin directory is the case that surfaced it, on
+2026-08-13, in `apps/readwise-reader/`. It sits under a shipped source, so by
+the letter of invariant 1 it is plugin content. But Claude Code loads a plugin's
+skills, agents, hooks, commands, and MCP servers; it does not load a plugin's
+`CLAUDE.md` as memory for the consuming project. The bump exists so
+`marketplace update` reaches installed users, and here it would reach them with
+nothing.
+
+**So: a file inside a shipped source that has no runtime effect for installers
+is outside the cascade.** Editing it needs no bump. The test is not "is it in
+the directory" but "does an installed user's session behave differently after
+`marketplace update`". Apply it deliberately rather than by reflex — a
+`SKILL.md` body, a `references/` file a skill reads, and a hook script all fail
+that test in the other direction, and are firmly inside.
 
 ## Why the cascade exists
 

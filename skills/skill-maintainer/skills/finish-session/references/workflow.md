@@ -36,17 +36,11 @@ Show the draft to the user. Two paths:
 
 Do not commit -- this is a draft for review.
 
-### Step 3 -- Sync bundled references
+### Step 3 -- Check for copies that drifted
 
-If `.skill-maintainer/best_practices.md` was modified in this session, the PostToolUse hook should have already mirrored it to `skills/skill-maintainer/references/best_practices.md`. Verify:
+`best_practices.md` used to have a working copy and a bundled copy kept in sync by a hook, and this step verified the pair. Both the second copy and the hook were deleted on 2026-08-13: `best_practices_file()` now falls back to the bundled reference, so there is one file and nothing to compare.
 
-```bash
-cmp -s .skill-maintainer/best_practices.md skills/skill-maintainer/references/best_practices.md && echo "in sync" || echo "DRIFT"
-```
-
-If drift is reported, copy the working copy over the bundled reference directly.
-
-Similar pattern for any other "working copy / bundled copy" pairs the project might accumulate.
+Nothing replaces this step by default. If the project later accumulates a genuine "local copy / shipped copy" pair, check it here -- but first apply the rule in the root CLAUDE.md: a copy earns its place only if it has a consumer other than the check confirming it is a copy. The pair that prompted this step failed that test.
 
 ### Step 4 -- Flag version bumps
 

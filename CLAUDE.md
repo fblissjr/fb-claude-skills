@@ -1,35 +1,57 @@
-last updated: 2026-08-04
+last updated: 2026-08-13
 
 # fb-claude-skills
 
-> **Read [VISION.md](VISION.md) first.** Skills are retrieval, and retrieval serves an architecture. High precision is the constraint, high recall is the goal.
+> **Read [VISION.md](VISION.md) first.** Skills are retrieval. High precision is the constraint, high recall is the goal, and every instruction spends from two budgets: context and friction.
 
 Plugin marketplace and extension system for Claude Code. Bundles skills, agents, hooks, MCP servers, and MCP Apps into installable plugins. Property-driven maintenance via git hooks, Claude Code hooks, and on-demand CLI tools.
 
 ## Working agreements
 
-- At session end, update what's actually relevant: `internal/log/log_YYYY-MM-DD.md`, this file (only if a hub-level rule changed), READMEs of impacted units, `pyproject.toml` of impacted units. Don't bulk-update untouched files.
-- `.claude/rules/` already covers language tooling (uv, bun, orjson), TDD, and doc conventions; `path-privacy`'s SessionStart hook covers path rules. Don't restate those here. (`dimensional-modeling` and `mece-decomposer` no longer ship SessionStart hooks at all — see invariant 6; `dev-conventions` is enabled but its blocks self-silence here via ground coverage — so `.claude/rules/` is the only copy that loads.)
+- At session end, update what is actually relevant: `internal/log/log_YYYY-MM-DD.md`, this file (only if a hub-level rule changed), READMEs of impacted units, `pyproject.toml` of impacted units. Do not bulk-update untouched files.
+- `.claude/rules/` already covers language tooling (uv, bun, orjson), TDD, and doc conventions. `path-privacy`'s SessionStart hook covers path rules. Do not restate any of it here.
 
 ## Repo invariants
 
-These bite on the first edit if you don't know them.
+These bite on the first edit if you do not know them. Numbering is stable: other
+documents cite these by number, so entries are removed rather than renumbered.
 
-1. **Plugin content change ⇒ version cascade (three files).** `plugin.json` + root `marketplace.json` + a `CHANGELOG.md` entry; plus `tools/<plugin>/pyproject.toml` and `uv lock` where those exist (the root `pyproject.toml` is a virtual workspace root with no version — never bumped). Without the bump, `marketplace update` never reaches installed users. "Plugin content" is whatever the marketplace `source` actually ships — check it before cascading: `tools/<plugin>/src/` counts when the plugin bundles that tool but not when the tool ships separately (then plugin and CLI version independently), and a skill plugin's `templates/`, `references/`, and `examples/` subdirs count, not just SKILL.md prose. **SKILL.md files are not in the cascade** — `metadata.version` and `metadata.author` are removed classes; do not re-add either. `metadata.last_verified` is written only after an actual human review, never bumped mechanically. Specimens, dates, and rationale: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
+**1. Plugin content change ⇒ version cascade.**
 
-1b. **One changelog, at the repo root; a copy earns its place only if it has a consumer other than the check that confirms it is a copy.** The two-question form: **name the copy's consumer, and name what watches the pair — if either answer is "nothing", delete the copy or demote it to data the shipped mechanism cites at dispatch.** Apply it with full force to local copies of components this repo's own plugins ship (agents, skills, procedure prose): an unwatched local variant splits dogfooding from what installs run, so defects in the shipped copy stop being noticed here first. The specimens and the three shapes a legitimate pair can take: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
+- `plugin.json` + root `marketplace.json` + a `CHANGELOG.md` entry.
+- Plus `tools/<plugin>/pyproject.toml` where it exists, but only when the CLI ships *with* the plugin. Read the marketplace `source` first: if it excludes `tools/`, plugin and CLI version independently, and setting them equal is often a downgrade.
+- The root `pyproject.toml` is a virtual workspace root with no version. Never bumped.
+- "Plugin content" is whatever the `source` ships, minus what has no runtime effect for an installer. A plugin's own `CLAUDE.md` ships and is inert, so it is outside the cascade. A `SKILL.md` body, a `references/` file a skill reads, and a hook script are all inside it.
+- **`SKILL.md` frontmatter is not in the cascade.** `metadata.version` and `metadata.author` are removed classes; never re-add them. `metadata.last_verified` is written only after an actual human review, never bumped mechanically.
+- Without the bump, `marketplace update` never reaches installed users.
+- Detail: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
 
-1c. **A rule earns its tier; re-audit the ones written for older models.** Cost is *emission*, not invocation — a hook firing on every edit and staying silent is nearly free, while `SessionStart` emits unconditionally and re-fires on resume, fork, clear and compact. Order: mechanically detectable violation → `PreToolUse` block; detectable condition → `PostToolUse` notice; neither → one ambient line pointing at a skill. Separately, upstream names a maintenance practice this repo did not have: *"instructions that worked around an older model's limitation may become overhead once a newer model handles the case on its own."* Most of this repo predates the Claude 5 generation, so when touching a rule, ask whether it is still compensating for something. Measurements, the tier test, the built-in introspection commands (do not rebuild them), and the transcript-mining traps: [docs/internals/context-cost.md](docs/internals/context-cost.md).
+**1b. One changelog, at the repo root; a copy earns its place only if something other than the check confirming it is a copy reads it.**
 
-2. **Path-privacy is enforced via git hooks.** Every path in repo content (code, docs, commit messages, branch names) must resolve under the repo root. Use `<HOME>/.claude/...` or generic names for system paths. Pre-commit + commit-msg hard-block leaks; don't `--no-verify`. **The hooks permit an absolute path that resolves INSIDE the repo** (`/Users/<name>/<this-repo>/x`) — by design, but it still leaks your username, so write those repo-relative too. `skill-maintain test`'s whole-tree audit catches that second class; the hooks do not. Detail: `skills/path-privacy/`.
+- Two questions: name the copy's consumer, and name what watches the pair. If either answer is "nothing", delete the copy, or demote it to data the shipped mechanism cites at dispatch.
+- Apply it hardest to local copies of what this repo's own plugins ship. An unwatched local variant splits dogfooding from what installs actually run, so defects in the shipped copy stop being noticed here first.
+- Detail: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
 
-3. **best_practices.md has two copies that drift.** Edit `.skill-maintainer/best_practices.md` (working copy). The PostToolUse hook mirrors to `skills/skill-maintainer/references/best_practices.md`, which is the **shipped** copy — the one `/maintain` reads in every installed repo, since `init` writes no local copy there. Editing only the bundled copy means this repo stops dogfooding what installs get. It is plugin content: editing it cascades. More: [docs/internals/gotchas.md](docs/internals/gotchas.md).
+**1c. A rule earns its tier, and rules written for older models get re-audited.**
 
-4. **Greenfield default for local DBs.** For readwise-reader's DuckDB, prefer `CREATE OR REPLACE VIEW` + re-init over migration bridges. Production-facing schemas (marketplace.json, published plugin contents) are the exception.
+- Cost is *emission*, not invocation. A hook firing on every edit and staying silent is nearly free; `SessionStart` emits unconditionally and re-fires on resume, fork, clear, and compact.
+- Tier order: mechanically detectable violation → a `PreToolUse` block; detectable condition → a `PostToolUse` notice; neither → one ambient line pointing at a skill.
+- When touching a rule, ask whether it is still compensating for a model limitation that no longer exists. Most of this repo predates the Claude 5 generation.
+- **Do not rebuild the built-in introspection.** `/doctor` reports skill-listing cost and proposes CLAUDE.md trims; `claude plugin details <name>` reports per-plugin always-on versus on-invoke; `/context` shows what occupies the window. A hand-rolled substitute lost to the built-in on 2026-08-13 and produced a wrong number.
+- Detail: [docs/internals/context-cost.md](docs/internals/context-cost.md).
 
-5. **Security-guidance plugin's PreToolUse hook is disabled here** via `.claude/settings.json` env `ENABLE_SECURITY_REMINDER=0`. It substring-matches benign tokens in markdown prose and false-fires on docs and session logs. If you reset settings, re-disable. Detail: [docs/internals/gotchas.md](docs/internals/gotchas.md).
+**2. Path privacy is enforced by git hooks.**
 
-6. **No plugins are disabled here (since 2026-08-04).** `dimensional-modeling` and `mece-decomposer` were disabled via `enabledPlugins: false` while their SessionStart hooks broadcast conventions `.claude/rules/` already states; the plugins dropped those hooks on 2026-07-26, the first control-audit census caught the disables guarding nothing, and the entries were retired. Do not add an `enabledPlugins` entry for anything in the marketplace `renames` map (e.g. `env-forge`) — Claude Code auto-deletes it, mutating a tracked file. `dev-conventions`' ambient blocks self-silence here via ground coverage of `.claude/rules/` (pinned by `test_this_repo_stays_fully_covered`), which is what keeps its pip/npm/lockfile enforcement hooks enabled at zero ambient cost. History in [docs/internals/gotchas.md](docs/internals/gotchas.md).
+- Every path in repo content — code, docs, commit messages, branch names — must resolve under the repo root. Use `<HOME>/.claude/...` or a generic name for system paths.
+- Pre-commit and commit-msg hard-block leaks. Never `--no-verify`.
+- The hooks permit an absolute path that resolves *inside* the repo. That is by design, but it still leaks a username, so write those repo-relative too. `skill-maintain test`'s whole-tree audit catches that second class; the hooks do not.
+- Detail: `skills/path-privacy/`.
+
+**3. `best_practices.md` is shipped plugin content, and there is one copy.**
+
+- Edit `skills/skill-maintainer/references/best_practices.md`. It is what `/maintain` reads here and in every installed repo.
+- `init` writes no local copy, and `best_practices_file()` falls back to the bundled one unless a repo has deliberately taken its own. So this repo dogfoods exactly what installs get.
+- Editing it cascades a version bump like any plugin content.
 
 ## Where to find what
 
@@ -39,7 +61,7 @@ These bite on the first edit if you don't know them.
 | The version cascade and what is deliberately NOT in it | [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md) |
 | Where context cost actually goes; which tier a rule belongs in; built-in introspection not to rebuild | [docs/internals/context-cost.md](docs/internals/context-cost.md) |
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
-| Repo-specific gotchas (disabled plugins, pipefail trap, best_practices duality) | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
+| Repo-specific gotchas: the security-guidance hook disabled here, the retired plugin disables and the `renames` caution, pipefail trap, path-privacy edges | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started | [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) |
 | The audit family, SHIPPED 2026-08-04: claim-audit (diff prose audited by execution, `skills/claim-audit/`), control-audit (census + live-fire over hooks, validators, reminders) and the adversarial-verify primitive it dispatches to (postmortem plugin); the docs are the design records | [docs/internals/claim_audit_design.md](docs/internals/claim_audit_design.md), [docs/internals/control_audit_design.md](docs/internals/control_audit_design.md) |
 | Why `agent-state` was retired rather than populated — each candidate population turned out to duplicate a file, and effectiveness needs a controlled A/B, not production correlation | [docs/internals/agent_state_population.md](docs/internals/agent_state_population.md) |
@@ -48,19 +70,20 @@ These bite on the first edit if you don't know them.
 | Why the delegation feedback layer is a report and not a loop; schema/grain/cost fixes | [docs/internals/model_routing_flywheel.md](docs/internals/model_routing_flywheel.md) |
 | Gating expensive/external calls by tier (UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny) | [docs/internals/tiered_authorization.md](docs/internals/tiered_authorization.md) |
 | Upstream doc changes identified but not yet absorbed | [docs/internals/upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
-| Why a thing is built this way (architectural worldview) | [VISION.md](VISION.md) |
+| Retrieval principles: context vs friction, progressive disclosure, what reopens a practice | [VISION.md](VISION.md) |
+| Why a thing is built this way (agent topology, model tiering, harness coupling, state substrate) | [docs/internals/architecture.md](docs/internals/architecture.md) |
 | The documentation index (what survives, and why) | [docs/README.md](docs/README.md) |
 | Current upstream Claude Code docs | `skill-maintain upstream`, then `.skill-maintainer/state/pages/` (gitignored). Nothing upstream is copied into this repo |
-| DuckDB schema (readwise-reader) | `apps/readwise-reader/CLAUDE.md` |
+| DuckDB schema and conventions (readwise-reader) | `apps/readwise-reader/CLAUDE.md` |
 | Repo layout, plugins table, install commands | [README.md](README.md) |
 | Setup from a fresh clone | [README.md](README.md) "installation" + `uv sync --all-packages` |
 
 ## State
 
-- `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored)
-- Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves — except skills declaring `metadata.freshness: "cascade"` (source is in-repo code; the version cascade surfaces drift, no calendar window).
+- `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored).
+- Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves. Skills declaring `metadata.freshness: "cascade"` are exempt: their source is in-repo code, so the version cascade surfaces drift and no calendar window applies.
 
 ## Cross-repo
 
-- `coderef/agentskills/` — symlink to a local clone of the Agent Skills spec + the `skills-ref` library (used here as the SKILL.md frontmatter parser; the validation gate is `skill-maintain validate` against the Claude Code schema, a superset)
-- Sibling repos: `star-schema-llm-context` (storage engine / kernel), `ccutils` (client applications). The three together form a database-like component stack — see [VISION.md](VISION.md) for the design.
+- `coderef/agentskills/` — symlink to a local clone of the Agent Skills spec plus the `skills-ref` library, used here as the SKILL.md frontmatter parser. The validation gate is `skill-maintain validate` against the Claude Code schema, a superset.
+- Sibling repos: `star-schema-llm-context` (storage engine / kernel), `ccutils` (client applications). The three together form a database-like component stack — see [docs/internals/architecture.md](docs/internals/architecture.md) for the design.

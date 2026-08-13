@@ -24,7 +24,7 @@ The install is layered, and the base rule is fully **standalone** — no externa
 - **Base rule** (always): the delegation behavior. Complete on its own.
 - **Agents** (opt-in): pre-shaped `.claude/agents/` definitions — `fast-executor` (haiku, mechanical work) and `task-coder` (sonnet, standard coding/data) — so delegation targets carry tailored execute-to-spec system prompts instead of a bare model override.
 
-Why a rules file and not a hook: the rule is plain data in the target project. It keeps working if this plugin is uninstalled, it's inspectable and locally editable, and removal is deleting one file. Opt-in is per project — invoke the skill only where you want the behavior. Design rationale: [VISION.md "route to the cheapest capable model"](../../VISION.md).
+Why a rules file and not a hook: the rule is plain data in the target project. It keeps working if this plugin is uninstalled, it's inspectable and locally editable, and removal is deleting one file. Opt-in is per project — invoke the skill only where you want the behavior. Design rationale: [architecture.md "route to the cheapest capable model"](../../docs/internals/architecture.md).
 
 ## Installation
 

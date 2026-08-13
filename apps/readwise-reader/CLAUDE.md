@@ -12,55 +12,6 @@ This is a Readwise Reader MCP server + Cowork plugin. It has three layers:
 2. **Storage layer** (`src/readwise_reader/storage/`): DuckDB star schema with batch sync engine and real-time webhook ingestion
 3. **Cowork plugin** (`commands/`, `skills/`): Commands and skills that Claude uses to invoke MCP tools
 
-## directory layout
-
-```
-src/readwise_reader/
-  api/
-    client.py          -- Async httpx client (Reader v3 + Core v2 APIs)
-    models.py          -- Pydantic models for all API request/response shapes
-    rate_limiter.py    -- Token bucket rate limiter (20 read/min, 50 write/min)
-  auth/
-    oauth_server.py    -- OAuth 2.1 server (PKCE, JWT, refresh tokens)
-    token_store.py     -- Fernet-encrypted local storage for Readwise API token
-    metadata.py        -- MCP TokenVerifier bridge
-  storage/
-    database.py        -- DuckDB connection, schema init, all CRUD methods
-    schemas/reader.sql -- DDL for all tables (dim_documents, fact_highlights, staging_highlights, etc.)
-    sync.py            -- Batch sync engine (API -> DuckDB), three-tier doc ID resolution
-    webhook_handler.py -- Real-time Starlette webhook receiver
-  tools/
-    documents.py       -- save, list, get, update, delete document tools
-    search.py          -- BM25 full-text search tools (documents + highlights)
-    tags.py            -- tag listing and tag-based document queries
-    triage.py          -- inbox triage tools (single + batch)
-    digest.py          -- library stats, reading digest, sync_library, get_highlights
-  enrichment/
-    pipeline.py        -- STUBS: PyLate embeddings + structured extraction (not yet implemented)
-  server.py            -- Entry point, lifespan, composite ASGI app assembly
-
-.claude-plugin/plugin.json  -- Plugin manifest
-.mcp.json                   -- MCP server connection config (localhost:8787/mcp)
-commands/                   -- 5 commands (digest, reference, save, search, triage)
-skills/                     -- 3 skills (library-search, content-triage, knowledge-retrieval)
-CONNECTORS.md               -- Single connector docs
-
-tests/
-  test_storage.py    -- DuckDB CRUD, FTS, reconciliation, audit
-  test_webhook.py    -- Starlette TestClient integration tests
-  test_api_client.py -- httpx/respx mocked API client tests
-  test_auth.py       -- OAuth server, PKCE, JWT, token refresh lifecycle
-  test_tools.py      -- MCP tool integration tests
-  e2e/
-    conftest.py            -- Fixtures: test ASGI app, MCP client session, seeded DB
-    test_e2e_connection.py -- MCP handshake, capabilities, session lifecycle
-    test_e2e_oauth.py      -- OAuth metadata, registration, PKCE flow, token rejection
-    test_e2e_tools.py      -- Tool listing + invocation for all 5 tool modules
-    test_e2e_errors.py     -- Auth failures, invalid tools, malformed requests
-
-internal/log/        -- Daily development logs (log_YYYY-MM-DD.md)
-```
-
 ## key patterns to understand
 
 ### two-API problem
@@ -97,18 +48,14 @@ Shared resources (`ReadwiseClient`, `Database`, `TokenStore`) are initialized in
 
 ## conventions
 
-- **Python 3.13**, managed with `uv` (never pip/python directly)
-- **orjson** for all JSON serialization
 - **ruff** >= 0.16 for linting (`line-length=100`, target `py313`, `extend-select = E,W,F,I,B,C4,UP`). `extend-select`, not `select`: `select` would replace ruff's 413 default rules with just these seven groups.
 - **pytest** with `pytest-asyncio` (mode=auto), `respx` for HTTP mocking
+- **Greenfield default for the local DB.** Prefer `CREATE OR REPLACE VIEW` plus re-init over migration bridges. This database is a local mirror of a remote SaaS, so it can be rebuilt; a migration bridge buys nothing and has to be maintained. Production-facing schemas are the exception, and this package has none — `marketplace.json` and published plugin contents are the repo-level cases. (Held as a root repo invariant until 2026-08-13, moved here because it only ever applied to this package.)
 - DuckDB parameterized queries: `?` placeholders cannot mix with SQL functions like `CURRENT_TIMESTAMP` in the same VALUES clause. Pass timestamps as parameters instead.
 - Use `EXCLUDED.column` in ON CONFLICT DO UPDATE to reference new values (DuckDB syntax)
 - Tool registration follows `register_*_tools(mcp)` pattern in separate modules under `tools/`
 - No emojis in code, docs, or output
-- Never commit or stage files automatically
 - Changelog entries go in the **repo root** `CHANGELOG.md`, not here. This package deliberately has no changelog of its own: it was the only first-party unit with one, so nothing maintained it and it drifted five versions behind `pyproject.toml` before anyone noticed. Semver, no dates.
-- Maintain daily logs in `internal/log/log_YYYY-MM-DD.md`
-
 ## running
 
 ```bash

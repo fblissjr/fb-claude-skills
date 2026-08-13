@@ -2,7 +2,7 @@ last updated: 2026-08-04
 
 # fb-claude-skills
 
-> **[Design Principles (VISION.md)](VISION.md)** -- Skills are retrieval, and retrieval serves an architecture. High precision is the constraint, high recall is the goal.
+> **[Design Principles (VISION.md)](VISION.md)** -- Skills are retrieval. High precision is the constraint, high recall is the goal, and every instruction spends from two budgets: context and friction.
 
 A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plugin marketplace in Claude Code, Cowork, and Claude Desktop.
 

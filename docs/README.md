@@ -12,10 +12,11 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 
 | Document | Description |
 |----------|-------------|
+| [architecture.md](internals/architecture.md) | The worldview `VISION.md` retrieval serves: trees not workflows, model tiering, harness coupling, context isolation, use-before-prepare, structured outputs as state, verify by construction, compound feedback. Split out of `VISION.md` 2026-08-13 |
 | [plugin-versioning.md](internals/plugin-versioning.md) | Full version cascade for plugin content changes; `sync-versions` coverage gaps; worked example |
 | [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; scaffolder-not-broadcaster; bracket-the-hook; agents; bash 3.2 portability |
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
-| [gotchas.md](internals/gotchas.md) | best_practices duality, security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
+| [gotchas.md](internals/gotchas.md) | security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
 | [gemini_bridge_design.md](internals/gemini_bridge_design.md) | **Frozen record** (2026-08-02) of the gemini-bridge design session and the live probing that corrected it. History, not documentation |
 | [foreign_capability_bridge.md](internals/foreign_capability_bridge.md) | The seven invariants a second bridge should follow; the capability/opinion/agent split and why mutation is the boundary; why it is a contract rather than a library at N=1 |
 | [tiered_authorization.md](internals/tiered_authorization.md) | Gating expensive or external calls by tier: UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny |

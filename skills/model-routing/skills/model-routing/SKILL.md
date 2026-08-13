@@ -33,7 +33,7 @@ The install has two independent layers. The **base rule** is standalone — no e
 
 A third layer, an `agent-state` feedback section, was removed in 0.5.0. It told Claude to record each delegation outcome via a CLI, into a table that never existed in the live database (the whole package was retired on 2026-08-02) — and the outcome it recorded was the orchestrator grading its own delegation. Delegation data is now recovered observationally from session transcripts instead. If a project still carries that section in its installed rule, delete it.
 
-Design rationale: [VISION.md "route to the cheapest capable model"](https://github.com/fblissjr/fb-claude-skills/blob/main/VISION.md) — decomposition quality and model tiering are complements; well-scoped leaf tasks don't need the frontier model.
+Design rationale: [architecture.md "route to the cheapest capable model"](https://github.com/fblissjr/fb-claude-skills/blob/main/docs/internals/architecture.md) — decomposition quality and model tiering are complements; well-scoped leaf tasks don't need the frontier model.
 
 ## Install
 

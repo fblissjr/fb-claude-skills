@@ -32,8 +32,21 @@ is more dangerous: a repo that gitignores its own skills directory would scan
 nothing and report green, which is the exact failure `_skipped` already warns
 about below.
 """
+# House soft thresholds. Reported, never gated -- they are an opinion about
+# attention, not a measurement, and they spent months flagging two skills at
+# ~1% over while the skill *listing*, which is the unconditional cost, went
+# unmeasured entirely.
 TOKEN_BUDGET_WARN = 4000
 TOKEN_BUDGET_CRITICAL = 8000
+
+# The one per-file number with a documented consequence, and therefore the only
+# one `skill-maintain test` fails on. Upstream: only the first 5,000 tokens of
+# each re-attached skill survive auto-compaction (and all re-attached skills
+# share a combined 25,000-token budget, filled most-recently-invoked first). A
+# skill above this is silently truncated in any session that compacts, which is
+# a behaviour change rather than a style preference.
+TOKEN_BUDGET_REATTACH = 5000
+
 STALE_DAYS = 30
 
 

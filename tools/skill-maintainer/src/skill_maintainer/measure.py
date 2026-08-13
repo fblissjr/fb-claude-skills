@@ -3,7 +3,13 @@
 import sys
 from pathlib import Path
 
-from skill_maintainer.shared import SKIP_DIRS, TOKEN_BUDGET_CRITICAL, TOKEN_BUDGET_WARN, discover_skills
+from skill_maintainer.shared import (
+    SKIP_DIRS,
+    TOKEN_BUDGET_CRITICAL,
+    TOKEN_BUDGET_REATTACH,
+    TOKEN_BUDGET_WARN,
+    discover_skills,
+)
 
 FILE_TYPE_MAP = {
     "SKILL.md": "skill_md",
@@ -117,7 +123,8 @@ def generate_report(results: list[dict]) -> str:
     lines = [
         "# Token Budget Report",
         "",
-        f"Budget threshold: {TOKEN_BUDGET_WARN} tokens (warn), {TOKEN_BUDGET_CRITICAL} tokens (critical)",
+        f"Gate: {TOKEN_BUDGET_REATTACH} tokens -- above this a skill is truncated on re-attach after a compaction.",
+        f"House soft thresholds, reported but not gated: {TOKEN_BUDGET_WARN} (warn), {TOKEN_BUDGET_CRITICAL} (critical)",
         "Budget applies to SKILL.md only; reference tokens are informational.",
         "Estimate: 1 token ~ 4 characters",
         "",

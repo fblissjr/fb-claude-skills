@@ -94,8 +94,35 @@ def load_fetch_date(root: Path) -> date | None:
         return None
 
 
+BUNDLED_BEST_PRACTICES = Path("skills") / "skill-maintainer" / "references" / "best_practices.md"
+
+
+def bundled_best_practices(root: Path) -> Path | None:
+    """The plugin-bundled best_practices.md, or None outside the source repo.
+
+    This is the copy that ships and the copy `init` seeds new repos from, so it
+    is the authority wherever a repo has not deliberately taken a local one.
+    """
+    candidate = root / BUNDLED_BEST_PRACTICES
+    return candidate if candidate.exists() else None
+
+
 def best_practices_file(root: Path) -> Path:
-    return config_dir(root) / "best_practices.md"
+    """Resolve the rules file: a deliberate per-repo copy, else the bundled one.
+
+    `init-maintenance/SKILL.md` has always documented this order -- "`init` does
+    not write a best_practices.md into the repo. The plugin's bundled
+    references/best_practices.md is the copy /maintain reads" -- but the code
+    returned only the per-repo path. Both consumers (the provenance join in
+    `upstream`, and its test arm) are guarded by `.exists()`, so a repo without a
+    local copy skipped the join silently rather than falling back. Returning the
+    per-repo path when absent-and-no-bundle keeps that message pointing at the
+    place a user would create one.
+    """
+    local = config_dir(root) / "best_practices.md"
+    if local.exists():
+        return local
+    return bundled_best_practices(root) or local
 
 
 def load_config(root: Path) -> dict:

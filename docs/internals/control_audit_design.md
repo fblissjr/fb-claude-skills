@@ -107,9 +107,10 @@ Sources, in this repo's shapes but stated generally:
 
 - Claude Code hooks: `.claude/settings.json`, plugin `hooks/` dirs, and
   per-plugin hook registrations — including hooks *disabled* by env or
-  config. A control that had to be turned off (`ENABLE_SECURITY_REMINDER=0`,
-  invariant 5) is a census row, not an omission; its retirement-condition
-  slot is the interesting one.
+  config. A control that had to be turned off (`ENABLE_SECURITY_REMINDER=0`;
+  see [gotchas.md](gotchas.md), "security-guidance plugin's PreToolUse hook is
+  disabled") is a census row, not an omission; its retirement-condition slot is
+  the interesting one.
 - Git hooks: `.git/hooks/` and `core.hooksPath`. These are **per-clone and
   untracked** (this repo's pre-commit is exactly that), so the census is
   machine-dependent here and must say so in its scope statement rather than

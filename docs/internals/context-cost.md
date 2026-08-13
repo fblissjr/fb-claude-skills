@@ -46,44 +46,33 @@ files. It was the single largest context consumer in that repo, by ~20x.
 A plugin cannot be judged good or bad in the abstract. It has to be measured
 where it runs.
 
-## The tier test
+## What the measurement decided
 
-For any rule, in order. The first match wins.
+The tier test these numbers produced is a **rule**, and it lives in
+`best_practices.md` under `always-loaded context`, together with the
+emission-not-invocation finding. This file keeps the evidence; that file states
+what to do about it.
 
-1. **Mechanically detectable violation?** → `PreToolUse` that blocks.
-   Zero cost until violated, and it catches the case where the model read the
-   rule and forgot it. Note `PreToolUse` `deny` blocks even in
-   `bypassPermissions` mode.
-2. **Mechanically detectable *condition*?** → `PostToolUse` notice.
-   Zero cost until true. Example: `ruff-diagnostics` notices a project using
-   `select` and says so once per session per project root.
-3. **Neither?** → ambient `SessionStart` text, **one line**, pointing at a skill.
+Two facts that belong with the evidence rather than the rule:
 
-This is the same shape as invariant 1's rule about duplicated fields: a thing
-earns its tier by what it can prove, not by how important it feels.
+- `PreToolUse` `deny` blocks even in `bypassPermissions` mode, which is what
+  makes tier 1 worth reaching for.
+- A hook's `if` field is an optimisation, not the enforcement boundary. Upstream:
+  the filter *"fails open, running your hook regardless of pattern, when the Bash
+  command can't be parsed"*, and *"use the permission system rather than a hook to
+  enforce a hard allow or deny."* Enforcement logic belongs **inside** the hook
+  script, parsing `tool_input` robustly; `if` only decides whether to spawn.
 
 ### DRY across tiers
 
-The tiers carry *different things*, not copies of one thing:
+The tiers carry *different things*, not copies of one thing: canonical prose in
+exactly one place (the skill, pull-based); hook messages as terse actionable
+statements, never a copy of the explanation; ambient as a pointer, not content.
 
-- **Canonical prose** lives in exactly one place — the skill. Pull-based, so it
-  costs nothing until invoked.
-- **Hook messages** are terse actionable statements, never a copy of the
-  explanation.
-- **Ambient** is a pointer, not content.
-
-Worked example: the ruff `select`/`extend-select` rule. Full reasoning in
-`python-tooling/SKILL.md`; one sentence in the `ruff-diagnostics` hook, fired
-only on projects that actually set `select`; nothing at all in the
+Worked example from this repo: the ruff `select`/`extend-select` rule. Full
+reasoning in `python-tooling/SKILL.md`; one sentence in the `ruff-diagnostics`
+hook, fired only on projects that actually set `select`; nothing at all in the
 `dev-conventions` SessionStart directive.
-
-### Enforcement caveat
-
-A hook's `if` field is an optimisation, not the enforcement boundary. Upstream:
-the filter *"fails open, running your hook regardless of pattern, when the Bash
-command can't be parsed"*, and *"use the permission system rather than a hook to
-enforce a hard allow or deny."* So enforcement logic belongs **inside the hook
-script**, parsing `tool_input` robustly. `if` only decides whether to spawn.
 
 ## Do not rebuild these
 
@@ -129,12 +118,28 @@ Useful attachment types: `hook_success` (`hookName`, `command`, `stdout`,
 
 ## Skill listing is a real budget
 
-The skill listing is always in context and scales at ~1% of the context window.
-When it overflows, Claude Code *"drops descriptions starting with the skills you
-invoke least"* — so an oversized installed set silently degrades discovery of
-the skills you use rarely but need. Descriptions are capped at 1,536 characters
-in the listing. Lead with words a request would actually contain.
+The mechanics — the allocation, the overflow behaviour, the per-entry cap, and
+the levers for staying inside it — are stated in `best_practices.md` under
+`distribution and budgets`. The measurements are here.
 
-Measured invocation rates here are ~0.2–0.4 per session. Low, but not zero — an
-earlier claim of "near-zero recall" came from a single unrepresentative repo and
-was wrong.
+**Measured 2026-08-13, by `/doctor`:** 26 listed entries, ~2,300 tokens. A 1%
+allocation gives ~2,000 at a 200k window and ~10,000 at 1M, so the set is
+marginally over at standard context and comfortable above it. The single largest
+entry is a bundled skill at ~400 tokens, which is not removable.
+
+**And a correction worth keeping, because the wrong method looked convincing.**
+A hand-rolled count the same day reported 4,391 tokens across 36 skills and was
+measuring a different quantity: every description *authored* in this repo,
+including plugins under `apps/` that are not enabled. The listing carries only
+enabled plus bundled skills. This repo contributes 8 of the 26 entries, ~1,358
+tokens, via four enabled plugins.
+
+Two lessons. Authored is not installed, and any repo shipping more plugins than
+it enables will overstate its own listing by counting files. And the "do not
+rebuild these" table below is not only about wasted effort: the built-in was
+right and the rebuild was wrong, on the first attempt, in the direction that
+would have justified unnecessary work.
+
+**Measured invocation rates** here are ~0.2–0.4 per session. Low, but not zero —
+an earlier claim of "near-zero recall" came from a single unrepresentative repo
+and was wrong.

@@ -1,20 +1,6 @@
 {
-  "description": "skill-maintainer hooks: auto-sync bundled best_practices.md on Edit/Write; nudge session-log-drafter on Stop for substantive sessions",
+  "description": "skill-maintainer hooks: nudge session-log-drafter on Stop for substantive sessions",
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash",
-            "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/skill-maintainer-sync-bundled-ref.sh"
-            ]
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [

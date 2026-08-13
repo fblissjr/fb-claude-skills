@@ -58,8 +58,6 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 # (SKILL.md no longer carries a version field -- plugin.json is the sole source)
 /skill-maintainer:sync-versions path-privacy 0.7.4
 
-# sync working copy -> bundled reference manually (hook does this automatically on Edit)
-
 # end-of-session cleanup before committing a substantive working session
 /skill-maintainer:finish-session
 ```

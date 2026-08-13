@@ -5,10 +5,18 @@ last updated: 2026-08-07
 For anyone shipping a skill, plugin, or marketplace that runs in Claude Code and
 related Claude products. Not specific to any one skill, plugin, or repo.
 
-The *why* behind all of this — attention as the scarce resource, precision as the
-constraint, descriptions as reverse queries, progressive disclosure as the
-mechanism — is not repeated here. It lives in `VISION.md` alongside this file in
-the source repo, and it changes on a different clock than anything below.
+The *why* behind all of this — attention as the scarce resource, context traded
+against friction, precision as the constraint, descriptions as reverse queries,
+progressive disclosure as the mechanism — is not repeated here. It lives in
+`VISION.md` alongside this file in the source repo, and it changes on a different
+clock than anything below. The architecture that retrieval model serves — agent
+topology, model tiering, harness coupling, state substrate — is a third clock
+again, in `docs/internals/architecture.md`.
+
+One rule governs all three: **one claim, one home, chosen by what reopens it.**
+`VISION.md` holds principles, this file holds rules and gates, and
+`docs/internals/` holds the measurements the rules cite. Where a sentence would
+appear in two of them, the lower tier keeps it and the higher tier points.
 
 ## how to read this
 
@@ -77,6 +85,37 @@ Apply per instruction, not per skill:
       skill owns that instead
 - [ ] Carry a scope caveat where the evidence behind a rule is narrow. A rule
       measured in one setting should say so rather than generalise silently
+- [ ] **Prompt the positive, not the prohibition.** Steering by ban drags the
+      forbidden behaviour into context and makes it *more* available; the
+      negation is a weak modifier over a strongly activated concept, so the ban
+      half-reads as an instruction to do the thing. State the target behaviour so
+      the banned one is never named. A prohibition earns its place only as a hard
+      guardrail that cannot be phrased positively, and even then it is paired
+      with the positive target. This governs behaviour steering in a body, not
+      the negative *scope* a description carries — see `description precision`
+- [ ] **Prefer a pretrained word to a coined one.** A compact term the model
+      already holds — *frontier*, *tracer bullet*, *red* — anchors a whole region
+      of behaviour in one token by recruiting priors, and repeating the token
+      accumulates a distributed definition. A coined word recruits nothing, so
+      you pay in definition tokens what an existing word gives free. Coin one
+      only when nothing existing fits
+- [ ] **Every step ends on a completion criterion, and it has two dimensions.**
+      *Clarity*: can the agent tell done from not-done? *Demand*: how much does
+      it require — "every modified model accounted for" forces work that "produce
+      a change list" does not. Demand is not step-bound; "every rule applied"
+      binds a body of flat reference the same way, which is how an all-reference
+      document still carries an exhaustiveness bar
+
+**Premature completion** is what the clarity dimension guards against. Steps
+still visible ahead pull attention toward being done, so a fuzzy bound invites
+ending the current one early. Fix in order: sharpen the bound first, because it
+is local and cheap; split the sequence only if the bound is irreducibly fuzzy
+*and* the rush is actually observed. Splitting works only across a real context
+boundary — a hand-off or a subagent dispatch — because an inline call leaves the
+later steps in context and clears nothing.
+
+The negation, leading-word, and completion-criterion items above were adapted
+from `mattpocock/skills` (`skills/productivity/writing-for-agents`, MIT).
 
 **Retrieval has a boundary.** Prefer a skill over the model's innate knowledge
 for knowledge that is versioned, project-specific, contested, or newer than the
@@ -124,10 +163,14 @@ whether or not it is used.
       chain deeper than that silently stops resolving
 - [ ] A rule earns its tier: mechanically detectable violation belongs in a
       `PreToolUse` block, a detectable condition in a `PostToolUse` notice, and
-      only what is neither becomes ambient prose. Cost is *emission*, not
-      registration — a hook that fires and stays silent is nearly free, while
-      `SessionStart` emits unconditionally and re-fires on resume, fork, clear
-      and compact
+      only what is neither becomes ambient prose — and ambient is a *pointer*,
+      one line, not the content. Cost is *emission*, not invocation: a hook
+      that fires and stays silent is nearly free, while `SessionStart` emits
+      unconditionally and re-fires on resume, fork, clear and compact. This is
+      the rule; the measurement behind it (5,109 silent `PreToolUse` firings at
+      zero bytes against 54 `SessionStart` firings at 53% of all hook output,
+      and the per-project variance that makes a plugin unjudgeable in the
+      abstract) lives in `docs/internals/context-cost.md`
 
 ### hooks
 
@@ -363,26 +406,40 @@ Thresholds apply to SKILL.md only, which is always loaded once the skill
 triggers. Reference files are on-demand and tracked separately, so thorough
 reference material is not penalised — that is what progressive disclosure is for.
 
-Upstream (`harness`):
+**Exactly one of these numbers is gated, and it is the one with a documented
+consequence.**
 
-- [ ] SKILL.md body under **500 lines**. This one is upstream's own guidance;
-      move detailed reference material to separate files
-- [ ] Stay under ~5,000 tokens if the skill must survive auto-compaction: only
-      the first 5,000 tokens of each re-attached skill are kept, and all
-      re-attached skills share a combined 25,000-token budget, filled from the
-      most recently invoked. Invoke many skills in one session and the older
-      ones are dropped entirely
+Upstream (`harness`) — the gate:
 
-House convention (`craft`) — defensible, but do not cite these as platform
-limits:
+- [ ] SKILL.md under **5,000 tokens**. Only the first 5,000 tokens of each
+      re-attached skill survive auto-compaction, and all re-attached skills
+      share a combined 25,000-token budget filled from the most recently
+      invoked. Above this, a skill is silently truncated in any session that
+      compacts, and invoking many skills drops the older ones entirely. This is
+      what `skill-maintain test` fails on
+- [ ] SKILL.md body under **500 lines**. Upstream's own guidance; move detailed
+      reference material to separate files
+
+House convention (`craft`) — reported, never gated. Do not cite these as
+platform limits, and do not fail a board on them:
 
 - [ ] SKILL.md under 4,000 tokens (2% of a 200k window). Estimation: chars / 4
-- [ ] SKILL.md under 8,000 tokens — hard ceiling; above this degrades attention
-      on everything else in context
+- [ ] SKILL.md under 8,000 tokens, the old hard ceiling
 - [ ] Heavy material in `references/`, not inline
 - [ ] Reference tokens reported but not budget-warned
 - [ ] Treat the estimate as a budget heuristic, not a measurement — real
       tokenization varies by content type
+
+**Why the split, recorded because the failure was instructive.** The gate used to
+fire at 4,000. That number is an opinion about attention, and it sat red on two
+skills that were 0.8% and 2.3% over — for long enough that the red stopped
+carrying information — while the skill *listing*, which is loaded
+unconditionally every session rather than only when a skill triggers, went
+unmeasured. A board that is permanently red about a house preference trains
+people to skim it, which costs more than the preference is worth. Demoted
+2026-08-13; the boundary is pinned by `test_token_budget_gate.py`, whose
+red-side arm exists because a threshold change is exactly the edit that can
+silently stop gating anything.
 
 ### description precision
 
@@ -404,6 +461,19 @@ undertrigger.
       ambiguous routing is a precision failure with no error message
 - [ ] Front-loads the core use case: `description` plus `when_to_use` is
       truncated at 1,536 characters in the listing
+
+**This section pulls against `distribution and budgets`, and the tension is
+real.** Negative scope and trigger phrases are what stop a description
+overtriggering, and they are also the expensive part of it — the longest
+descriptions in a well-tuned set are long for exactly the reason this section
+requires. The listing is the always-loaded cost, so precision here is paid there.
+Neither rule yields to the other: write the description the routing needs, then
+manage the total at the set level (fewer listed entries, or `skillOverrides`),
+not by shortening the descriptions that are earning their length.
+
+The negative scope required here is routing metadata read by a selector. It is
+not the behavioural prohibition that `authoring shape` tells you to avoid; those
+operate on different surfaces and neither licenses the other.
 
 Diagnosing which way it is failing: skills that do not load when they should,
 users manually enabling them, and questions about when to use it are
@@ -590,6 +660,45 @@ first; set low-priority entries to `"name-only"` in `skillOverrides` so they
 list without a description; or raise the fraction. `skillOverrides` also takes
 `off` and `user-invocable-only`, and `disableBundledSkills` removes the shipped
 set entirely.
+
+**`disable-model-invocation` is not one of those levers, and it is worth saying
+so because the mistake is natural.** Upstream: *"The listing always contains
+every skill name"*, and the field's own row says it *"prevent[s] Claude from
+automatically loading this skill"* plus blocking subagent preloading and
+scheduled-task auto-run. It governs **who may invoke**, not what the listing
+carries. A user-invoked skill still occupies a listing entry. If you want an
+entry to stop costing its description, the mechanism is `skillOverrides`
+`"name-only"`; if you want it gone entirely, uninstall it. Any argument of the
+form "make it user-invoked and it becomes free" is false, and an authoring model
+built on that premise will not save what it claims.
+
+**Measure this rather than assume it, and do not build a tool to.** The listing
+is the only unconditionally loaded part of a skill, so it is the number that
+matters most and the one least likely to be watched — the per-file body budgets
+above cap a cost that is conditional on the skill triggering. `/doctor` already
+reports skill-listing cost and `claude plugin details <name>` reports per-plugin
+always-on versus on-invoke; `docs/internals/context-cost.md` carries the standing
+"do not rebuild these" list.
+
+Worked example, and a caution about how to measure it. `/doctor` reported this
+repo's listing on 2026-08-13 at **26 entries, ~2,300 tokens**, against the ~2,000
+a 1% allocation gives at a 200k window: marginally over, and comfortable at a
+larger window.
+
+A hand-rolled count taken the same day said 4,391 tokens across 36 skills, and it
+was measuring the wrong set. Globbing `SKILL.md` across a repo counts every
+description *authored* there. The listing carries only the skills actually
+**enabled** in the session, plus the bundled ones — for this repo, 8 skills from
+four enabled plugins, ~1,358 tokens, with the rest of the 26 coming from
+elsewhere. Authored is not installed, and a repo that ships more plugins than it
+enables will overstate its own listing badly by counting files.
+
+So: read the number off `/doctor`. Two consequences of the mechanism are still
+worth generalising. Overflow is **silent** and drops the least-invoked first, so
+the skills you rarely reach for are exactly the ones that disappear. And the
+allocation is a *fraction of the window*, so "are we over budget" has a different
+answer per model — compute it against the window rather than asserting a constant
+character count.
 
 ### surface differences
 

@@ -1,295 +1,128 @@
 # design principles
 
-Skills are retrieval, and retrieval serves an architecture. This document covers both. First, the retrieval problem: precision-gated loading, progressive disclosure, and the principles that govern how skills, rules, and context should be designed, loaded, and maintained. Then, the architectural worldview that retrieval serves: agents are trees, the harness is the system, context isolation matters more than context size, and feedback loops compound.
-
-## the retrieval problem
-
-An LLM's context window is not memory -- it is attention. Everything loaded into the window competes for the model's attention. Irrelevant context doesn't just waste tokens. It degrades accuracy, causes unintended behavior, and dilutes the signal the model needs to do its job.
-
-The core problem: given a user's intent, retrieve the right context at the right time, and nothing else.
-
-This is precision and recall applied to context:
-
-- **Precision** (of loaded context): what fraction of the context window is relevant to the current task? Low precision means irrelevant context is loaded -- skill overtriggering, bloated SKILL.md files, ambient hooks injecting noise. The consequence is behavioral corruption: the model acts on information it shouldn't have.
-
-- **Recall** (of needed context): does the model have everything it needs? Low recall means the model falls back to training data, which is stale, unversioned, and unauditable. Controlled retrieval via skills is always preferable to hoping the model "knows" something.
-
-**High precision is the constraint. High recall is the goal.** Retrieve as much relevant context as possible without retrieving irrelevant context. The failure modes are asymmetric: low precision causes active harm (wrong behavior), low recall causes passive degradation (generic behavior). Both are bad. Low precision is worse because you can't un-pollute a context window mid-session.
-
-## what gets loaded and when
-
-Three loading levels, each gated by increasing specificity. Analogous to how a search engine works: index -> snippet -> full page.
-
-| Level | Type | What | When | Control |
-|-------|------|------|------|---------|
-| **L1** | Instructions | `<HOME>/.claude/CLAUDE.md` (global) | Always | Edit the file |
-| **L1** | Instructions | `./CLAUDE.md` (project) | Always | Edit the file |
-| **L1** | Memory | `MEMORY.md` (auto-memory, first 200 lines) | Always | Edit the file |
-| **L1** | Rule | `.claude/rules/general.md` (unconditional) | Always | Edit or delete |
-| **L1**\* | Rule | `.claude/rules/skills.md`, `plugins.md` (conditional) | When matching files are in context | Path globs in frontmatter |
-| **L1** | Skill | All installed SKILL.md frontmatter (~2% of context) | Always | Install/uninstall plugins |
-| **L1** | Settings | `.claude/settings.json` | Always | Edit the file |
-| **L2** | Skill | SKILL.md body | Intent matches frontmatter description | Description quality |
-| **L3** | Reference | `references/*.md` | Skill body links to them | Explicit link in SKILL.md |
-| **L3** | Script | `scripts/*.py` | Skill invokes them | `uv run` or subprocess call |
-
-*\* Conditional rules use the same static-load mechanism but are gated by path globs -- they only appear when matching files are in context.*
-
-Two other L1 sources exist in Claude Code's memory hierarchy but see no use here, so they're left out of the table above: managed-policy CLAUDE.md (org-wide, IT-deployed via MDM/Group Policy, outranks project memory) and `CLAUDE.local.md` (personal, auto-gitignored, loaded unconditionally the same way project CLAUDE.md is). A third, user-level `<HOME>/.claude/rules/`, is the personal-rules counterpart to `.claude/rules/general.md` -- also unused in this repo.
-
-### loading hierarchy
-
-```
-SESSION START
-  |
-  v
-+-----------------------------------------------------------+
-| L1: STATIC INDEX (always loaded)                          |
-|                                                           |
-|   CLAUDE.md (global + project)   instructions, routing    |
-|   MEMORY.md (200 lines)          persistent auto-memory   |
-|   .claude/rules/                 unconditional rules      |
-|   .claude/rules/*  (conditional) if matching files present*|
-|   SKILL.md frontmatter           all installed plugins    |
-|   settings.json                  permissions, config      |
-|                                                           |
-|   Cost: paid every session. Every line must earn its spot.|
-+-----------------------------------------------------------+
-  |
-  | user states intent -- PRECISION GATE
-  v
-+-----------------------------------------------------------+
-| L2: SKILL BODY (loaded on match)                          |
-|                                                           |
-|   Frontmatter description matched user intent?            |
-|     yes --> load full SKILL.md body                       |
-|     no  --> skill stays dormant                           |
-|                                                           |
-|   Descriptions are reverse queries -- they determine      |
-|   which skills activate.                                  |
-+-----------------------------------------------------------+
-  |
-  | skill body references deeper material
-  v
-+-----------------------------------------------------------+
-| L3: DEEP CONTEXT (loaded on demand)                       |
-|                                                           |
-|   references/*.md    detailed docs, schemas, examples     |
-|   scripts/*.py       executable logic (uv run)            |
-|                                                           |
-|   Only loaded when the active skill explicitly links to   |
-|   them. Maximum recall without polluting other tasks.     |
-+-----------------------------------------------------------+
-```
-
-Staged retrieval:
-- **L1** (static index): always loaded. Tiny, precise. Determines routing.
-- **L2** (skill body): loaded on match. Full instructions for the active workflow.
-- **L3** (deep context): loaded on demand. References and scripts when needed.
-
-## principles
-
-### 1. optimize for relevant context at the right time
-
-Not minimal context. Not maximal context. **Relevant** context. A complex workflow skill legitimately needs reference material -- but that material should load only when the skill is active, not when it's being considered for activation.
-
-Progressive disclosure is the mechanism: frontmatter is the filter, body is the payload, references are the deep store.
-
-### 2. precision is the constraint, recall is the goal
-
-Every piece of loaded context should be relevant to the current task (precision). Within that constraint, retrieve everything the model needs to avoid falling back to training data (recall).
-
-When in doubt, err on the side of not loading. The user can always ask for more context. They cannot remove context that's already been loaded.
-
-### 3. descriptions are queries in reverse
-
-A skill description is not documentation. It is a **reverse query** -- it describes the set of user intents that should match this skill. The same techniques that make search queries effective make skill descriptions effective: specific terms, explicit scope, negative conditions.
-
-A vague description is a broad query. It matches too much. A precise description with trigger phrases and scope boundaries is a targeted query. It matches what it should and nothing else.
-
-### 4. every always-loaded line must justify its presence
-
-CLAUDE.md, rules, memory, and skill descriptions load on every session. They are the fixed cost of this project. Treat them like a database index: essential for routing, deadly if bloated.
-
-If a rule applies only sometimes, scope it with path globs. If a CLAUDE.md section is only relevant during maintenance, move it to a referenced file. If a skill description is longer than necessary for routing, trim it.
-
-### 5. controlled retrieval over training data
-
-When the model needs domain knowledge, prefer retrieving it from a skill or reference file over relying on training data. Training data is:
-- Stale (frozen at a cutoff date)
-- Unversioned (you can't diff what the model "knows")
-- Unauditable (you can't inspect what it will retrieve from memory)
-
-A skill is versioned, inspectable, updatable, and testable. When you find yourself relying on the model's innate knowledge repeatedly for the same domain, that's a signal to create a skill.
-
-The boundary matters as much as the rule. This applies to knowledge that is versioned, project-specific, contested, or newer than the model. It does not apply to general competence: a skill that restates what the model already does well spends context to compete with it. Ask before writing, not after it underperforms -- **what does this supply that the model cannot derive?** If the answer is nothing, it is friction rather than retrieval. See "the model is a variable" in the architecture section.
-
-### 6. human feedback closes the loop
-
-Retrieval quality cannot be fully automated. Whether a skill triggered at the right time, whether the loaded context was helpful, whether the result was accurate -- these require human judgment. The maintenance workflow (`/maintain`, test suite, best practices review) keeps a human in the loop for quality decisions that can't be reduced to property checks.
-
-The loop reopens on events, not on a schedule: an upstream harness change, an audit finding, and -- the one with no mechanical detector today -- a model family release, which can invalidate a rule without changing a single byte of this repo.
-
-## the architecture
-
-### trees, not workflows
-
-Linear A-B-C workflows compound context at every handoff. By step six, the model treats everything as one big input -- the condition where things go wrong silently. Earlier steps bleed into later ones, contradictions accumulate, and the model has no mechanism to forget what it shouldn't have seen.
-
-The right topology is a tree. The orchestrator decomposes the problem to its lowest useful granularity, spins up focused subagents, they execute and return results to the orchestrator (not to each other), then disappear. Each subagent sees only its slice. The orchestrator synthesizes. This maps directly to the five invariant operations of selection under constraint: decompose, route, prune, synthesize, verify.
-
-```
-                      ORCHESTRATOR
-                (decompose, route, verify)
-                          |
-        +-----------------+-----------------+
-        |                 |                 |
-        v                 v                 v
-  +-----------+     +-----------+     +-----------+
-  | subagent A|     | subagent B|     | subagent C|
-  | (scoped   |     | (scoped   |     | (scoped   |
-  |  context) |     |  context) |     |  context) |
-  +-----------+     +-----------+     +-----------+
-        |                 |                 |
-        +-----------------+-----------------+
-                          |
-                          v
-                      ORCHESTRATOR
-                       (synthesize)
-
-  Subagents execute and return; they never talk to each other.
-```
-
-Parallelism heuristic: divide work the way you would for humans. If you can't explain a clean division of labor to a team, you can't explain it to agents either.
-
-### route to the cheapest capable model
-
-Routing has two axes: what context a subagent sees, and which model executes it. The tree topology above covers the first. The second is model tiering: a well-decomposed leaf task -- mechanical edits, data transformation, well-specified coding -- is precisely the thing that doesn't need the frontier model. Decomposition quality and model tiering are complements: the better the orchestrator scopes a subtask, the lower the tier that can execute it.
-
-Cost is a constraint alongside attention, with the same asymmetric failure modes: over-tiering wastes money silently; under-tiering produces wrong work that must be detected and redone. So the split follows judgment density. Design decisions, ambiguity resolution, user interaction, and verification of delegated results stay in the orchestrator on the strongest model. Execution of scoped, verifiable work routes down-tier, and the orchestrator checks what comes back.
-
-Tier names change with the model lineup; the principle doesn't. State delegation rules in terms of task properties (well-specified, mechanical, verifiable) with current tiers as examples, not as a fixed task-to-model table.
-
-### the harness is the system
-
-Model and harness (Claude Code, Codex, Gemini CLI) are a single compound AI system that jointly optimizes. The moat is the harness and everything you don't see -- tool orchestration, context management, permission models, caching, retry logic, output formatting.
-
-External wrappers can't optimize at the level the AI lab can. They break when the harness changes. They can't participate in the co-optimization loop between model and tooling.
-
-Build inside the harness. Guide it with data and structure -- skills, rules, metadata, retrieval indexes. New behavior is new data, not new code.
-
-Corollary: don't be model-agnostic for most use cases. The harness optimizes for specific model capabilities. Model-agnostic design sacrifices the tight coupling that makes the system work.
-
-### the model is a variable
-
-The section above frames model and harness as one compound system. The model
-side of that pair changes on its own schedule, and when it does, two things
-change with it: what a skill needs to say, and what shape it needs to take.
-
-**Capability absorbs content.** Knowledge a newer model carries makes the skill
-that supplied it redundant -- and worse than redundant, because an instruction
-restating general competence competes with a better plan the model already had.
-The cost is not only the tokens. It is the friction of overriding something the
-model does well by default.
-
-**Operating mode changes shape.** A generation that works from constraints on
-one side and an explicit definition of good -- metrics, gates -- on the other
-does not need the step decomposition an earlier one required. Constraints and
-gates travel across generations. Scaffolding does not.
-
-Three questions, asked per instruction rather than per skill:
-
-1. Does it carry what the model cannot derive -- versioned facts, project
-   conventions, measured findings, a threshold with evidence behind it? Keep.
-2. Does it override a default the model would otherwise follow? Keep, and state
-   which default and why. An unjustified override is indistinguishable from
-   noise and gets reasoned around rather than followed.
-3. Does it restate general competence -- output formats, step decompositions of
-   tasks the model plans better itself, "be specific", "handle errors"? Delete.
-
-The trigger is the release, not the calendar. A model family ships; the pass
-runs. Elapsed time says nothing about whether the model changed, and a rule
-written for a limitation that no longer exists does not announce itself -- it
-charges rent on every activation instead.
-
-The honest falsifier is a with-and-without comparison, not an opinion about
-which instructions feel necessary. The three questions narrow what is worth
-measuring; they do not settle it.
-
-### context isolation over context accumulation
-
-Each subagent gets only the precise context it needs. Precise beats bloated.
-
-This is the memory hierarchy from early computing applied to attention. Fewer things in context means fewer contradictions, less prompt injection surface, less behavioral corruption.
-
-Context isolation motivates the L1/L2/L3 loading hierarchy in the retrieval section above.
-
-### use it, then prepare it
-
-You don't prepare it first and use it second. You use it, and the using prepares it.
-
-LLMs consume semantically rich data -- PDFs, images, unstructured docs -- more efficiently than ETL pipelines can parse them. Don't perpetually "get ready." A subagent extracts structured data from the raw layout. Another writes tests and validates. A human reviews and corrects. The data is ready when it has been used, tested, and refined -- not when a pipeline declares it clean.
-
-The real investment is not bigger context windows but better indexing, richer metadata, and search that returns the right thing instead of everything.
-
-### structured outputs as state
-
-Store agent outputs as structured data. The invariant is the **shape**, not the substrate: append-only facts, explicit grain, versionable, queryable. Relational access is what makes that shape pay off -- queryable, debuggable, intuitive to data people, and LLMs are good at SQL.
-
-Knowledge graphs are seductive but brittle. Updates are impossible without breaking existing edges. Granularity changes invalidate the schema. What looks like flexibility is actually fragility at scale.
-
-**Substrate follows from consumers.** Ask what reads the artifact besides a query:
-
-- **Nothing else reads it** -- a database is the store. `readwise-reader` mirrors a remote SaaS with FTS indexes and staged reconciliation: no local file could be authoritative, because the truth is on someone else's server.
-
-  This case is rarer than it looks, and the cautionary tale is worth more than the rule. `agent-state` was cited here as the second example and did not survive its own test: watermarks duplicated `upstream_hashes.json` plus `changes.jsonl`, skill-version rows duplicated what git already stores, and the delegation table was one the same repo had already decided not to populate. What remained was run lineage with no producer. The package was retired on 2026-08-02. **Run the test on your own units before citing them as exemplars** -- a principle illustrated by something that fails it ships with a counterexample built in.
-- **Something else reads it** -- files are the store, and relational is a *lens* over them. A prompt that must stay re-runnable, a response another agent opens deliberately with Read, a manifest that is the only local record of remote state: none of those survive being flattened into a row. Query them in place instead. DuckDB reads JSON and JSONL directly, in memory by default, so relational access costs no ingestion step and creates no second copy.
-
-The second case is not a grudging exception to the first. It is the more common one, and this repo already lives by it. `postmortem-index` rebuilds its index from the directory every time it is asked and refuses to commit a listing, because "a listing that gets committed and trusted becomes a copy that drifts out of agreement with the directory." `gemini-bridge` writes run directories that are the handoff contract between models, plus an append-only `ledger.jsonl` queried in place.
-
-The failure this rule prevents is a copy with no reader. A copy earns its place only if it has a consumer other than the check that confirms it is a copy -- the same test CLAUDE.md invariant 1b applies to versions and changelogs.
-
-### verify by construction
-
-A green result is evidence only if the thing it certifies could have gone
-red. Measured twice in a sibling repo and confirmed here: *reading* an
-artifact to review it yields approximately nothing, while *constructing*
-the input that would refute it finds the real defects. Census, reading,
-and reports are targeting; construction is the instrument.
-
-The audit family (claim-audit, test-audit, control-audit, and the
-adversarial-verify primitive they dispatch to) shares one structural
-commitment: **audits are runs, not artifacts.** They re-derive everything
-from current state on every run, persist nothing that can drift, never
-rewrite what they audit, and end by stating their own scope -- lines read,
-claims derived, mutations run over arms in frame -- because a green report
-indistinguishable from a run that read nothing is the exact class they
-exist to catch. Two corollaries with teeth: a test born green (a pin) gets
-one mutation at birth to prove it can fail, and any pre-registered
-decision rule that consumes a rate or count must state its exposure basis,
-because an underpowered zero decides nothing.
-
-### feedback loops compound
-
-Each iteration of the compound system generates signal -- what gets created, what gets discarded, what succeeds, what fails. That signal feeds the next cycle. Coding agents are getting better because this loop exists.
-
-In this repo: pipeline creates skill, agent uses skill, human reviews, pipeline refines skill. The maintenance system (`/maintain`, quality checks, upstream detection) implements this loop explicitly.
-
-Build the feedback mechanism where users already spend their days. Adoption of new systems is hard. Signal that requires switching tools gets ignored.
-
-## what this means for this repo
-
-These principles govern everything in fb-claude-skills:
-
-- **Skill authoring**: descriptions are reverse queries (principle 3). Bodies use progressive disclosure (principle 1). Token budgets enforce index hygiene (principle 4).
-- **Plugin distribution**: marketplace listing is the catalog. Install/uninstall is the user controlling what's in their always-loaded index (principle 4).
-- **Maintenance**: `/maintain` detects when upstream changes affect retrieval quality. The test suite encodes measurable properties. Human review handles the rest (principle 6).
-- **Hooks**: must justify their trigger frequency and context injection. Nothing fires ambiently without documented rationale (principles 2 and 4).
-- **Rules**: unconditional rules are always-on cost. Conditional (path-scoped) rules are precision-gated retrieval (principle 1).
-- **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
-- **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
-- **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
-- **Model generations**: a model family release triggers a redundancy-and-friction pass over skill instructions -- keep what the model cannot derive, justify what overrides a default, delete what restates competence. Design record: [docs/internals/best_practices_maintenance.md](docs/internals/best_practices_maintenance.md) (the model is a variable).
-- **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (`readwise-reader`; the retired `agent-state` is the section's cautionary tale, not an example), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
-- **Verification**: greens must prove they can fail. Audits are runs, not artifacts -- re-derived per run, report-only, self-scoping; adversarial construction is the instrument and everything else is targeting (verify by construction).
-- **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).
+Skills are retrieval. This document holds the principles that govern what gets
+loaded, when, and at what cost. It is deliberately short and deliberately
+stable.
+
+What it is not: the practice. Field rules, harness constraints, thresholds, and
+the frontmatter reference live in `skill-maintainer`'s `best_practices.md`,
+which moves on a faster clock and is rechecked against sources. When the two
+disagree, the sourced document wins and this one gets corrected.
+
+The architecture worldview this retrieval model serves, agent topology, model
+tiering, harness coupling, state substrate, moved to
+[docs/internals/architecture.md](docs/internals/architecture.md).
+
+## context and friction
+
+Every instruction spends from two budgets, and the second is the one people
+forget.
+
+**Context** is attention. An LLM's window is not memory; everything in it
+competes. Irrelevant context does not merely waste tokens, it degrades accuracy
+and dilutes the signal. This is precision and recall applied to context:
+
+- **Precision**: what fraction of the window is relevant to the task at hand?
+  Low precision means skill overtriggering, bloated bodies, ambient hooks
+  injecting noise. The consequence is behavioral, the model acts on information
+  it should not have.
+- **Recall**: does the model have what it needs? Low recall means falling back
+  to training data, which is stale, unversioned, and unauditable.
+
+High precision is the constraint. High recall is the goal. The failure modes are
+asymmetric: low precision causes active harm, low recall causes passive
+degradation. Low precision is worse, because a polluted window cannot be
+un-polluted mid-session.
+
+**Friction** is what an instruction costs beyond its tokens. An instruction that
+restates what the model already does well does not sit there inertly, it
+competes with a better plan the model already had. Overriding competence is the
+real price, and it is charged on every activation.
+
+Friction also lands on the human. A skill nobody can remember exists is not free
+just because it loads nothing: someone has to be the index. That cost is worth
+paying where human judgement belongs in the loop, and worth removing where it
+does not, but it is never zero and it is not interchangeable with the context
+budget. Moving material out of context often just moves the cost onto a person.
+
+Neither budget is minimised on its own; they are traded. Spending context to
+remove friction is often right, and so is the reverse. Which way a given
+instruction goes is a rule rather than a principle, and the rule lives in
+`best_practices.md`, which carries the per-instruction test and the boundary it
+draws around retrieval.
+
+## progressive disclosure
+
+The mechanism that keeps precision high without sacrificing recall: stage the
+loading, and gate each stage on increasing specificity. Index, then snippet,
+then full page.
+
+| Level | What | When | Control |
+|-------|------|------|---------|
+| **L1** | CLAUDE.md (global + project), `MEMORY.md`, unconditional `.claude/rules/`, all installed skill descriptions, `settings.json` | Always | Edit, uninstall, or scope it |
+| **L1**\* | Path-scoped `.claude/rules/` | When matching files are in context | `paths` frontmatter |
+| **L2** | SKILL.md body | Intent matches the description | Description quality |
+| **L3** | `references/*`, `scripts/*` | The active skill links to them | Explicit link in SKILL.md |
+
+*\* Conditional rules use the same static-load mechanism, gated by path globs.*
+
+The asymmetry between the levels is the whole point. **L1 is unconditional cost,
+paid every session whether or not it is used.** L2 and L3 are earned: a large
+reference file that loads only when its skill is active is cheap, while one
+extra always-loaded line is expensive forever. Optimize for relevant context at
+the right time, not for minimal context and not for maximal context.
+
+This is also why sharding an always-loaded file for tidiness accomplishes
+nothing. An import still loads in full. Moving text is not moving cost; gating
+it is.
+
+## descriptions are reverse queries
+
+A skill description is not documentation. It describes the set of user intents
+that should match, so the techniques that make a search query effective are the
+ones that make a description effective: specific terms, explicit scope, negative
+conditions.
+
+A vague description is a broad query and matches too much. This is the highest-
+leverage text in a skill, because it is the only part that is always loaded and
+the only part that decides whether the rest is ever seen.
+
+## practices evolve; sources decide
+
+The principles above are stable. Almost nothing downstream of them is, and a
+practice document that does not say what would change its mind is an opinion
+with formatting.
+
+**The model is a variable.** Capability absorbs content: knowledge a newer model
+carries makes the skill that supplied it redundant, and worse than redundant.
+Operating mode changes shape: a generation working from constraints and an
+explicit definition of good does not need the step decomposition an earlier one
+required. Constraints and gates travel across generations. Scaffolding does not.
+
+**The harness is a variable too**, and a faster-moving one. Field rules about
+hooks, frontmatter, tool filters, and budgets are claims about a system someone
+else ships and changes without asking.
+
+So a practice carries the event that reopens it rather than a calendar, and it
+carries what would settle it. `best_practices.md` is where that is implemented:
+each section declares the evidence class naming its reopening event, states what
+enforces it, and cites the source it was last checked against. Those are the
+rules. This is why they exist.
+
+Retrieval quality cannot be fully automated. Whether a skill fired at the right
+moment, whether the loaded context helped, whether the answer was right: these
+need a human, and the maintenance loop exists to keep one in place.
+
+## what this means here
+
+- **Skill authoring**: descriptions are reverse queries; bodies stage their
+  material; every always-loaded line justifies itself.
+- **Instruction pruning**: on a model family release, take the always-loaded
+  rules and ask what the model still needs told. Delete or demote the rest.
+- **Rules and hooks**: unconditional is always-on cost. Path-scoped rules and
+  matcher-gated hooks are precision-gated retrieval. Ambient injection needs a
+  documented reason.
+- **Distribution**: the marketplace listing is the catalog, and install or
+  uninstall is the user controlling their own always-loaded index.
+- **Maintenance**: practices are rechecked on their triggering event, and the
+  recheck reads the source rather than trusting the summary.

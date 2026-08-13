@@ -7,6 +7,13 @@ treats `best_practices.md` as its north star and how drift in it gets caught.
 Every number below was derived that session; the commands are named so they can
 be re-run.
 
+**Partly superseded on 2026-08-13.** The two-copies question this record analyses
+was closed: there is now one file, `best_practices_file()` falls back to the
+bundled reference, and the mirror hook, the byte-identical test arm, and the
+gotchas entry are all deleted. Passages below describing that pair — and the
+`tests.py` line numbers around it — are the state as of filing, not now. The rest
+of the record stands.
+
 **Status, same day.** Steps 0-2 of the build list are SHIPPED; the analysis in
 sections 1-3 stands as the record of why.
 

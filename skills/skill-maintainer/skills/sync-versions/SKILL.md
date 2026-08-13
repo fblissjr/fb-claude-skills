@@ -72,13 +72,24 @@ Root `.claude-plugin/marketplace.json` -- find the entry by plugin name:
 
 Add an entry describing what changed and why. Semver only, no dates.
 
-### 3d. pyproject.toml (only if present)
+### 3d. pyproject.toml (only if present, and only if it shares the version)
 
-`tools/<plugin>/pyproject.toml` for plugins with a CLI counterpart, and the root
-`pyproject.toml` when the repo version moves (then `uv lock`):
+`tools/<plugin>/pyproject.toml` for plugins with a CLI counterpart:
 ```toml
 version = "X.Y.Z"
 ```
+
+**Check first whether the CLI ships with the plugin or separately.** Read the
+plugin's marketplace `source`. If it does not include `tools/`, the CLI is a
+separate artifact on its own version line, and setting it to the plugin's number
+is wrong — often a downgrade. Observed 2026-08-13: `skill-maintainer` the plugin
+was at 0.23.3 while its CLI was at 0.32.0, so following this step literally
+would have moved the CLI backwards by eight minor versions. Bump the two
+independently in that case, and say so in the changelog entry.
+
+The root `pyproject.toml` is never bumped: it is a virtual workspace root and
+carries no version. If a real repo-level version ever moves, run `uv lock`
+after.
 
 ## Step 4 -- Do NOT touch SKILL.md
 

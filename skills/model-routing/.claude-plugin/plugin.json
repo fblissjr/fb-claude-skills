@@ -1,6 +1,6 @@
 {
   "name": "model-routing",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop, with optional fast-executor / task-coder agent definitions. Installation is paused pending measurement and the skill is user-invoked only; removal is unaffected.",
   "author": {
     "name": "Fred Bliss"

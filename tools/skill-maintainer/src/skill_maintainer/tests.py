@@ -28,7 +28,7 @@ from skill_maintainer.shared import (
     STALE_DAYS,
     freshness_mode,
     get_review_interval,
-    TOKEN_BUDGET_CRITICAL,
+    TOKEN_BUDGET_REATTACH,
     TOKEN_BUDGET_WARN,
     _skipped,
     check_description_quality,
@@ -82,13 +82,21 @@ def test_skills(root: Path) -> list[Result]:
         # 2. Token budget (skill_tokens only; refs are on-demand)
         token_info = measure_tokens(skill_dir)
         skill_tokens = token_info["skill_tokens"]
-        budget_pass = skill_tokens < TOKEN_BUDGET_WARN
-        detail = f"{skill_tokens:,} (refs: {token_info['ref_tokens']:,})"
+        # Gate on the re-attachment cap, not the house soft thresholds.
+        # Demoted 2026-08-13: 4,000/8,000 are an opinion about attention, and
+        # gating on them meant two skills sat ~1% over and red indefinitely
+        # while nothing measured the listing, which is the cost that is always
+        # paid. 5,000 is where behaviour actually changes -- above it a skill is
+        # silently truncated on re-attach after a compaction. The soft number is
+        # still reported so growth stays visible without failing the board.
+        budget_pass = skill_tokens < TOKEN_BUDGET_REATTACH
+        refs = f"(refs: {token_info['ref_tokens']:,})"
         if not budget_pass:
-            if skill_tokens >= TOKEN_BUDGET_CRITICAL:
-                detail = f"{skill_tokens:,} > {TOKEN_BUDGET_CRITICAL:,} (refs: {token_info['ref_tokens']:,})"
-            else:
-                detail = f"{skill_tokens:,} > {TOKEN_BUDGET_WARN:,} (refs: {token_info['ref_tokens']:,})"
+            detail = f"{skill_tokens:,} > {TOKEN_BUDGET_REATTACH:,}, truncated on re-attach {refs}"
+        elif skill_tokens > TOKEN_BUDGET_WARN:
+            detail = f"{skill_tokens:,} over house soft {TOKEN_BUDGET_WARN:,}, not gated {refs}"
+        else:
+            detail = f"{skill_tokens:,} {refs}"
         results.append(Result("skill", name, "token budget", budget_pass, detail))
 
         # 3. Body size
@@ -1229,31 +1237,12 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 else f"fetched {age}d ago > {STALE_DAYS}d -- run `skill-maintain upstream`",
             ))
 
-    # 6. best_practices.md copies in sync
-    #    Canonical: skills/skill-maintainer/references/best_practices.md
-    #    Per-repo:  .skill-maintainer/best_practices.md
-    #    Only checked when both exist (i.e., within the skill-maintainer repo itself).
-    canonical_bp = _find_canonical_best_practices(root)
-    if canonical_bp and bp_path.exists() and canonical_bp != bp_path:
-        in_sync = canonical_bp.read_text() == bp_path.read_text()
-        results.append(Result(
-            "repo", "", "best_practices.md copies in sync",
-            in_sync,
-            "" if in_sync else f"{canonical_bp.relative_to(root)} != {bp_path.relative_to(root)}",
-        ))
+    # There was a sixth arm here asserting the two best_practices.md copies were
+    # identical. Retired 2026-08-13 with the second copy: `best_practices_file`
+    # now falls back to the bundled reference, so there is one file and nothing
+    # to compare. A check whose subject no longer exists is not a passing check.
 
     return results
-
-
-def _find_canonical_best_practices(root: Path) -> Path | None:
-    """Find the plugin-bundled best_practices.md (canonical copy).
-
-    Searches for skills/skill-maintainer/references/best_practices.md
-    relative to root. Returns None if not found (i.e., not in the
-    skill-maintainer source repo).
-    """
-    candidate = root / "skills" / "skill-maintainer" / "references" / "best_practices.md"
-    return candidate if candidate.exists() else None
 
 
 # ---------------------------------------------------------------------------
