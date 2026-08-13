@@ -16,6 +16,7 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [plugin-versioning.md](internals/plugin-versioning.md) | Full version cascade for plugin content changes; `sync-versions` coverage gaps; worked example |
 | [plugin-patterns.md](internals/plugin-patterns.md) | Required plugin structure; hooks vs. skills; composable directives; scaffolder-not-broadcaster; bracket-the-hook; agents; bash 3.2 portability |
 | [maintenance.md](internals/maintenance.md) | Automatic checks, on-demand commands, state files, workspace members |
+| [phase_boundaries.md](internals/phase_boundaries.md) | The ordered tree at a phase boundary: continue, clear, hand off, subagent, compact. Why continue is ruled out first and compact is the default rather than the first reach. Adopted from mattpocock/skills 2026-08-13 |
 | [gotchas.md](internals/gotchas.md) | security-hook disable, pre-commit re-install, path-privacy edges, CLAUDE.md size creep |
 | [gemini_bridge_design.md](internals/gemini_bridge_design.md) | **Frozen record** (2026-08-02) of the gemini-bridge design session and the live probing that corrected it. History, not documentation |
 | [foreign_capability_bridge.md](internals/foreign_capability_bridge.md) | The seven invariants a second bridge should follow; the capability/opinion/agent split and why mutation is the boundary; why it is a contract rather than a library at N=1 |

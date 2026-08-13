@@ -1,7 +1,7 @@
 {
   "name": "writing",
-  "version": "0.5.0",
-  "description": "Writing skills for clear, accessible prose — an American plain-language house style plus voice matching",
+  "version": "0.6.0",
+  "description": "Skills for how the agent writes and explains: an American plain-language house style, voice matching, replacing prose with compact visuals, and re-pitching a message that did not land",
   "author": {
     "name": "Fred Bliss"
   },

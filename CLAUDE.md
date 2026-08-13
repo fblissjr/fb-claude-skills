@@ -61,6 +61,7 @@ documents cite these by number, so entries are removed rather than renumbered.
 | The version cascade and what is deliberately NOT in it | [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md) |
 | Where context cost actually goes; which tier a rule belongs in; built-in introspection not to rebuild | [docs/internals/context-cost.md](docs/internals/context-cost.md) |
 | Maintenance commands, freshness windows, upstream drift flow | [docs/internals/maintenance.md](docs/internals/maintenance.md) |
+| Whether to continue, clear, hand off, delegate, or compact at a phase boundary | [docs/internals/phase_boundaries.md](docs/internals/phase_boundaries.md) |
 | Repo-specific gotchas: the security-guidance hook disabled here, the retired plugin disables and the `renames` caution, pipefail trap, path-privacy edges | [docs/internals/gotchas.md](docs/internals/gotchas.md) |
 | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started | [docs/internals/postmortem_output_formats.md](docs/internals/postmortem_output_formats.md) |
 | The audit family, SHIPPED 2026-08-04: claim-audit (diff prose audited by execution, `skills/claim-audit/`), control-audit (census + live-fire over hooks, validators, reminders) and the adversarial-verify primitive it dispatches to (postmortem plugin); the docs are the design records | [docs/internals/claim_audit_design.md](docs/internals/claim_audit_design.md), [docs/internals/control_audit_design.md](docs/internals/control_audit_design.md) |

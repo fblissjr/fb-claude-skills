@@ -1,0 +1,9 @@
+{
+  "name": "grilling",
+  "version": "0.1.0",
+  "description": "A relentless design interview: work the problem as a tree, ask every question whose prerequisites are settled in one round, and treat fact-finding as the agent's job rather than the user's",
+  "author": {
+    "name": "fbliss"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}
