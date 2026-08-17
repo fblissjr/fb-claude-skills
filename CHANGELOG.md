@@ -1,5 +1,11 @@
 # changelog
 
+## 1.35.2
+
+### changed
+- **`dev-conventions` 0.17.0 → 0.18.0 — `dep-audit` finally got the pass its two siblings got in 0.17.0, and it needed it most.** It was the longest of the three at 86 lines and the most derivable, and it was the only one that never stated what it carried that a reader could not work out alone — `python-tooling` opens by saying Claude already knows uv and this file holds only the traps, and `doc-conventions` says it holds only what a repo cannot tell you by being read. `dep-audit` made no such claim and could not have. Out went interpreting the tools' output (running them shows you that), a generic audit-assess-upgrade-record workflow, a "when to audit" list that was the same already-default-behaviour class cut from `doc-conventions`, and a flag table reproducing `--help`. What stayed is the actual payload, now stated as the reason the file exists: **both uv and bun ship a native audit subcommand**, which is the non-obvious part, because without knowing that the reflex is to reach for `pip-audit` or `safety` and never find them. Plus the two judgment calls that survive any tool release — check reachability before upgrading on sight, and report the delta rather than pasting a dependency tree. The file now also marks which of its claims are about someone else's tool and therefore the perishable ones, so a future review knows what to re-derive rather than re-reading everything. 86 lines to 52; every remaining command re-verified against uv 0.11.32 and bun 1.3.14.
+- **The plugin's identity question resolves as a non-question.** `dep-audit` had been flagged twice as misfiled — a security procedure sitting in a conventions plugin. That was the wrong diagnosis: the topic fits the stated center (what a repo cannot state by being read) and what did not fit was the writing. Slimmed, it belongs where it is, and no move is needed.
+
 ## 1.35.1
 
 ### fixed
