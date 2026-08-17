@@ -187,7 +187,11 @@ Resolve in this order, stopping at the first hit:
 1. **Explicit** — a `--out=<dir>` flag on the invocation, or a per-repo config
    key. `dev-conventions` established the per-repo override pattern with a
    tracked `.dev-conventions.json`; whether postmortem reads that same file, its
-   own, or a shared one is an open question below.
+   own, or a shared one was an open question here. **Settled: its own.** A
+   shared file would couple plugins that release independently, and there was
+   exactly one consumer. Confirmed the right call on 2026-08-17, when
+   `.dev-conventions.json` was retired with the rest of that plugin's hook
+   machinery — a shared config would have taken `.postmortem.json` down with it.
 2. **Inferred from the repo's existing conventions** — if there is a session-log
    directory, put postmortems beside it; if the repo keeps working notes under
    `docs/`, use that. The repo has already answered "where does prose about this

@@ -8,6 +8,7 @@ description: >-
   defaults, or when asked to suppress type errors in a Python project.
 metadata:
   last_verified: "2026-07-26"
+  review_interval_days: "90"
 ---
 
 # Python conventions and type-checking traps
@@ -30,9 +31,13 @@ suppression: `references/type-checking.md`.
 The same file covers Pyright config precedence — `pyrightconfig.json` always
 outranks `[tool.pyright]`, which is why a config block can appear to do nothing.
 
+## After an edit, stop
+
+Do not auto-run linters, formatters, or tests after an edit unless asked. This
+is the one behavioural default worth overriding here: the reflex is strong, the
+output is long, and it buries the change the user actually wants to look at.
+
 ## Adjacent, owned elsewhere
 
 - Lint config and ruff findings — `ruff-diagnostics` plugin.
 - Pointing Pyright at the project venv — `pyright-autoconfig` plugin.
-- `pip` and `uv.lock` edits are blocked by this plugin's PreToolUse hook, so the
-  package-manager preference is enforced rather than explained.

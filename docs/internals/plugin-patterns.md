@@ -160,6 +160,18 @@ like the scaffolded prose), and the regex demotes to a fallback for repos
 that wrote their rules by hand, where `--explain` is what makes it
 debuggable.
 
+**Closed 2026-08-17, overtaken rather than done.** dev-conventions 0.17.0
+retired the hooks, the directives, `init` and `.dev-conventions.json`
+outright, so there is no regex left to demote and no config left to record
+into. The measurement that decided it: across 4,700 transcripts the
+PreToolUse enforcement hook denied work three times, all three false
+positives, two of them blocking `git diff` on the hook's own source. The
+whole ground-coverage apparatus existed to stop an ambient broadcast from
+duplicating rules a repo had already written — and the cheaper answer was to
+stop broadcasting. The paragraphs above are kept as the design record of an
+approach that was reasoned through and then removed, not as current
+behaviour.
+
 ## Agent vs. skill
 
 - **Skill** (in `skills/<name>/SKILL.md`): static reference. Loads when the description matches the user's intent. Read by the model in the main session.

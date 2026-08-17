@@ -1,8 +1,18 @@
-last updated: 2026-08-03
+last updated: 2026-08-17
 
 # dev-conventions
 
-Development conventions with automatic project detection. A SessionStart hook detects Python/JS project markers and injects the relevant conventions into Claude's context. Skills provide detailed reference tables on demand.
+Three on-demand references. Each carries only what a repo cannot state by being
+read — a house preference, a structural choice, or a failure that reliably gets
+misdiagnosed. Everything that was already default behaviour has been removed.
+
+**No hooks, no ambient injection.** Earlier versions shipped a PreToolUse hook
+that blocked `pip` in uv projects and a SessionStart hook that injected
+convention prose. Both were retired in 0.17.0: across 4,700 transcripts the
+enforcement hook denied work three times and all three were false positives,
+including two that blocked reading its own source. Conventions belong in a
+repo's own always-loaded files, where they also reach collaborators who never
+installed a plugin.
 
 ## installation
 
@@ -14,62 +24,41 @@ Development conventions with automatic project detection. A SessionStart hook de
 /plugin install dev-conventions@fb-claude-skills
 ```
 
-For development/testing without installing:
+For development without installing:
 
 ```bash
-claude --plugin-dir /path/to/fb-claude-skills/skills/dev-conventions
+claude --plugin-dir ./skills/dev-conventions
 ```
-
-## hooks
-
-| Hook | Event | What it does |
-|------|-------|--------------|
-| `session-start.sh` | SessionStart | Detects Python/JS markers in cwd (root + 2 levels deep for monorepos), injects matching directives as additionalContext -- skipping any block whose ground the repo's own files already cover, and any block muted in `.dev-conventions.json`. |
-
-### detection markers
-
-| Marker | Directive injected |
-|--------|--------------------|
-| `pyproject.toml`, `*.py` (root or 2 levels deep) | `python.md` -- uv, pinning, lock file policy |
-| `package.json`, `tsconfig.json`, `bun.lock` (root or 2 levels deep) | `javascript.md` -- bun, JS/TS conventions |
-| Any Python or JS marker | `tdd.md` -- red/green TDD as a directive |
-| `internal/` or `internal/log/` directory | `doc-conventions.md` -- session logging, last-updated dates |
-
-### composable directives
-
-All injected content lives in `hooks/directives/` as standalone `.md` files. The hook concatenates whichever directives match and returns them as a single `additionalContext` block.
-
-To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/dev-conventions-session-start.sh`.
-
-### ground coverage: blocks silence themselves where local rules exist
-
-Each directive declares its *ground* as a regex in its leading metadata block (`# ground: ...`, line 2 by convention). Before injecting a block, the hook greps that pattern across the repo's own conventions surfaces -- root `CLAUDE.md`, `.claude/rules/*.md`, and `rules[]` in `.dev-conventions.json`. Covered ground means that block stays silent, per block: a CLAUDE.md that only describes module layout silences nothing; a repo that states its own package-manager rule silences exactly that block. Silencing gates prose only -- the PreToolUse enforcement hook never consults it.
-
-Coverage is grepped over prose only: fenced code blocks are stripped first (a documented command is not a stated rule; inline code spans stay, so "use `bun add`, never `npm install`" still counts). The strip can only remove coverage, so it errs toward a block loading -- the recoverable direction.
-
-Two gates decide each block, in order, and they are not interchangeable: the *trigger* (project markers) fires first and short-circuits; *ground coverage* runs only for blocks whose trigger fired. "Why is this block silent" therefore has two different answers, plus a third (muted). To see which applies, run the hook by hand: `hooks/dev-conventions-session-start.sh --explain <repo-root>` prints, per directive, the gate that stopped it and the exact line that matched. `force` (explicit `true` in the `directives` map) overrides both gates.
-
-To make the conventions local in the first place, `/dev-conventions:init` scaffolds tailored convention lines into the repo's own files (skipping ground already covered), after which the blocks are silent here automatically -- and the scaffolded text reaches every collaborator's Claude through normal context loading, including people who never installed this plugin.
-
-### per-repo muting
-
-The manual override, for ground the coverage pattern cannot see (a local rule phrased in repo-specific vocabulary). Mute by filename in the tracked `.dev-conventions.json` (`/dev-conventions:configure mute tdd`, or by hand):
-
-```json
-{ "directives": { "tdd": false, "doc-conventions": false } }
-```
-
-Muting trims the shipped defaults only -- the repo's own `rules[]` still load even with every directive muted. The inverse override also exists: an explicit `true` force-loads a block, skipping coverage -- the escape for a ground pattern that over-matches and wrongly silences a block the repo never stated. An absent key means coverage decides, which is the default. The injected block opens with a standing supersession line: a repo-local rule covering the same ground wins over any shipped block.
 
 ## skills
 
-| Skill | Invocation | What it does |
-|-------|------------|--------------|
-| `python-tooling` | `/dev-conventions:python-tooling` | Full uv conversion tables, pinning strategy, lock file workflow (detailed reference) |
-| `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, lowercase filenames, session logs, dependency change tracking, document the "why" |
-| `dep-audit` | `/dev-conventions:dep-audit` | Dependency security audit: uv audit, bun audit, transitive analysis, remediation workflow |
-| `init` | `/dev-conventions:init` | Scaffold the conventions into the repo's own files, once -- detects the stack, skips covered ground, writes tailored lines; the ambient blocks then silence themselves here |
+| Skill | Invocation | What it carries |
+|-------|------------|-----------------|
+| `python-tooling` | `/dev-conventions:python-tooling` | The house pinning policy (apps exact, libraries floors), the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls, Pyright config precedence, and the one behavioural override worth stating: do not auto-run linters, formatters, or tests after an edit unless asked |
+| `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, where unshared notes and session logs live, the dependency-change record format, and the rule against decorative counts in prose |
+| `dep-audit` | `/dev-conventions:dep-audit` | Dependency CVE audit across `uv audit` and `bun audit`, including the transitives a manifest read by hand will miss |
 
-## how it works
+## invocation examples
 
-When a session begins, the hook checks `cwd` for project markers (`pyproject.toml`, `package.json`, `*.py`, `bun.lock`). It first checks the project root, then falls back to scanning up to 2 levels deep for monorepo layouts (e.g., `backend/pyproject.toml`, `web/frontend-app/package.json`). Skips `node_modules`, `.venv`, `.git`, `dist`, `build`, `.next`, `.output`. For each detected marker, the hook reads the corresponding directive file from `hooks/directives/`, drops any block whose ground the repo's own files already cover (or that the repo muted), and concatenates what remains into a single `additionalContext` block -- no manual invocation needed. A repo that states all its own conventions gets complete silence. For full conversion tables or detailed methodology, invoke the skills directly.
+```
+/dev-conventions:python-tooling
+/dev-conventions:doc-conventions
+/dev-conventions:dep-audit
+```
+
+They also load on their own phrasing — "pyright reports a wall of errors",
+"update the README", "session log", "numbers in prose", "check for CVEs",
+"is this dependency safe", "vulnerability scan".
+
+## what is deliberately not here
+
+Lowercase filenames, organising docs into subfolders, "explain the why not just
+the what", and the uv-over-pip and bun-over-npm preferences themselves. The
+first three are already default behaviour; the last two are visible from a
+`uv.lock` or `bun.lock` sitting in the repo. Restating any of them costs context
+to change nothing.
+
+Per-repo scaffolding is also gone. `/dev-conventions:init` wrote conventions
+into a repo's own files and `/dev-conventions:configure` managed a
+`.dev-conventions.json` read only by the retired hooks; both went with them.
+Write the conventions into `CLAUDE.md` or `.claude/rules/` directly.

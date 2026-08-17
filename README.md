@@ -14,7 +14,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [dev-conventions](skills/dev-conventions/) | Hooks + Skills | Three tiers: a PreToolUse hook blocks pip in uv projects, npm in bun projects, and lockfile edits; SessionStart directives carry what no hook can enforce and silence themselves per block where the repo's own files cover the same ground; `/dev-conventions:init` scaffolds the conventions into the repo's own files so they reach every collaborator, plugin installed or not. Per-repo overrides in a tracked `.dev-conventions.json`. |
+| [dev-conventions](skills/dev-conventions/) | Skills | Three on-demand references carrying only what a repo cannot state by being read: the house Python pinning policy and the two mistakes behind most Pydantic/Pyright diagnostic walls; documentation conventions (dates, where unshared notes live, dependency-change records, no decorative counts in prose); and a `uv`/`bun` dependency CVE audit. Hooks and ambient injection were retired in 0.17.0 — conventions belong in each repo's own always-loaded files. |
 | [dimensional-modeling](skills/dimensional-modeling/) | Skill | Kimball-style dimensional modeling for DuckDB star schemas. A skill you invoke when designing a schema -- the SessionStart hook was removed, since the principles are needed at a decision point rather than before every session. |
 | [writing](skills/writing/) | Skill | Writing skills for clear, accessible prose. `plain-language-us` — an American plain-language house style (plain English, active voice, front-loaded content, sentence case, no bold for emphasis). `voice-match` — write in the user's own voice, learned from the conversation and a saved profile; overrides the house style where they conflict. `show-me` — answer with a compact visual (pseudocode, call tree, component tree, file tree, types-and-signatures, a diff of any of those, mermaid, or one focused HTML page) instead of a paragraph about structure. `wait-what` — user-invoked only: rewrite the last message when it did not land, with more context and the project's own vocabulary. |
 | [claim-audit](skills/claim-audit/) | Skill | Audit the added prose of a diff as untrusted claims — every count, status, and attribution re-derived by executing a command whose output is that claim, never by reading. Unsourceable claims get labeled (`(memory)`, `(local)`, `(reported)`) or recommended for deletion; the report states its own scope (lines read, claims extracted, claims derived) so a green result is distinguishable from a run that read nothing. Report, don't rewrite — the caller weighs the findings. |
@@ -177,11 +177,9 @@ Once installed, invoke as namespaced slash commands:
 /plugin-toolkit                # Analyze and manage plugins
 /dimensional-modeling          # Star schema design patterns
 
-/dev-conventions:python-tooling  # Full uv conversion tables, pinning, lock file workflow
-/dev-conventions:init           # Scaffold the conventions into this repo's own files, once
-/dev-conventions:configure      # Per-repo convention overrides
-/dev-conventions:dep-audit     # Full bun conversion tables
-/dev-conventions:doc-conventions # Documentation standards
+/dev-conventions:python-tooling  # Pinning policy, Pydantic/Pyright diagnostic traps
+/dev-conventions:doc-conventions # Dates, where notes live, no decorative counts in prose
+/dev-conventions:dep-audit       # Dependency CVE audit across uv and bun
 
 /json-query                      # JSON query tool selection + jg syntax
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns

@@ -1,7 +1,7 @@
 {
   "name": "dev-conventions",
-  "version": "0.16.0",
-  "description": "Development conventions in three tiers: a PreToolUse hook blocks pip in uv projects, npm/yarn/pnpm in bun projects, and hand-edited lockfiles; SessionStart directives carry the preferences no hook can enforce, and silence themselves per block wherever the repo's own files cover the same ground; /dev-conventions:init scaffolds the conventions into the repo's own files so they reach every collaborator, plugin installed or not; skills hold what Claude cannot derive. Per-repo overrides live in a tracked .dev-conventions.json -- disable an enforcement block, mute an ambient directive block, or add house rules with /dev-conventions:configure.",
+  "version": "0.17.0",
+  "description": "Three on-demand references carrying only what a repo cannot state by being read: the house Python pinning policy plus the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls; documentation conventions (last-updated dates, where unshared notes and session logs live, how dependency changes are recorded, and the rule against decorative counts in prose); and a dependency CVE audit across uv and bun including transitives. No hooks and no ambient injection -- conventions belong in each repo's own always-loaded files, where they reach collaborators who never installed a plugin.",
   "author": {
     "name": "fblissjr"
   },
