@@ -30,6 +30,22 @@ proof red-first gives every other arm -- so prove it once at birth: mutate
 the pinned behavior, confirm red, revert. A pin that cannot go red is
 decoration (specimen: 2026-08-04, one of eighteen arms).
 
+## After an edit, stop
+
+Do not auto-run linters, formatters, or tests after an edit unless asked. The
+reflex is strong, the output is long, and it buries the change the user
+actually wants to look at.
+
+## Numbers in prose
+
+Before writing a number into prose, substitute a different plausible value. If
+the reader's next action is unchanged, the number is decorative -- delete it.
+A number that survives is either normative (a limit being set, which cannot
+drift) or descriptive, and a descriptive one needs an observation point -- a
+date, a commit, an attribution, past tense -- and belongs only in a dated
+record. Binding is not a lesser fix for a decorative number: it makes the claim
+permanently true and permanently useless. Delete first; bind only what passed.
+
 ## JSON
 
 Use `orjson` for all Python JSON serialization and deserialization.

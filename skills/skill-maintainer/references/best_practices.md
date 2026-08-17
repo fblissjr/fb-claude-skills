@@ -735,7 +735,24 @@ The same skill does not behave identically everywhere.
 
 ### composable directive pattern
 
-<!-- class: craft | last_verified: 2026-07-26 -->
+<!-- class: craft | last_verified: 2026-08-17 -->
+
+**Reach for this only after the cheaper answer fails.** The cheaper answer is to
+write the convention into the repo's own always-loaded files, where it also
+reaches collaborators who never installed the plugin. Measured 2026-08-17 in the
+repo that authored this pattern: three of its four shipped directives were
+permanently silent there, because a repo that cares enough to install a
+conventions plugin has usually already written the conventions down — and the
+whole ground-coverage apparatus below exists to detect that and get out of the
+way. A mechanism whose success condition is silence is a bootstrap, not a
+feature. That repo retired its own implementation the same day; the pattern is
+documented here because it is still the right shape *if* you have behavioural
+content a repo genuinely cannot state for itself, which is rarer than it looks.
+
+Pair it with a measurement before you trust it: grep your transcripts for the
+hook's own output, and separate real emissions from the transcript merely
+quoting the source. A control that has never fired is not the same as a control
+that works.
 
 For plugins with behavioural content that should persist across sessions:
 

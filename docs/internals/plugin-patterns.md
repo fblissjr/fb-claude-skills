@@ -163,9 +163,12 @@ debuggable.
 **Closed 2026-08-17, overtaken rather than done.** dev-conventions 0.17.0
 retired the hooks, the directives, `init` and `.dev-conventions.json`
 outright, so there is no regex left to demote and no config left to record
-into. The measurement that decided it: across 4,700 transcripts the
-PreToolUse enforcement hook denied work three times, all three false
-positives, two of them blocking `git diff` on the hook's own source. The
+into. The measurement that decided it: across 4,700 transcripts, every
+identifiable denial by the PreToolUse enforcement hook was either a command
+*searching* for the banned string or a deliberate test of the hook, never an
+attempt to run it. The mechanism was `command_heads()` splitting on `;|&`
+including pipes inside quoted strings, so a `grep` alternation became a fake
+command head that matched. The
 whole ground-coverage apparatus existed to stop an ambient broadcast from
 duplicating rules a repo had already written — and the cheaper answer was to
 stop broadcasting. The paragraphs above are kept as the design record of an

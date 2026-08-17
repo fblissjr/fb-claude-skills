@@ -8,11 +8,11 @@ misdiagnosed. Everything that was already default behaviour has been removed.
 
 **No hooks, no ambient injection.** Earlier versions shipped a PreToolUse hook
 that blocked `pip` in uv projects and a SessionStart hook that injected
-convention prose. Both were retired in 0.17.0: across 4,700 transcripts the
-enforcement hook denied work three times and all three were false positives,
-including two that blocked reading its own source. Conventions belong in a
-repo's own always-loaded files, where they also reach collaborators who never
-installed a plugin.
+convention prose. Both were retired in 0.17.0: across 4,700 transcripts, every
+denial that could be identified was either a command *searching* for the banned
+string or a deliberate test of the hook itself — never an attempt to run the
+banned command. Conventions belong in a repo's own always-loaded files, where
+they also reach collaborators who never installed a plugin.
 
 ## installation
 

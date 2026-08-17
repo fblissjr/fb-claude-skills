@@ -1,8 +1,12 @@
 ---
 name: python-tooling
 description: >-
-  Python type-checking failures that look like unfixable Pydantic/Pyright noise but
-  are two mechanical mistakes. Use when pyright reports a wall of "Arguments missing
+  House Python conventions plus the type-checking failures that get misdiagnosed:
+  the dependency pinning policy (applications exact, libraries floors), the rule
+  that linters, formatters and tests are never auto-run after an edit unless asked,
+  and the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls. Use
+  when adding or pinning a dependency with uv add, when about to run ruff, pytest or
+  a formatter after editing Python, when pyright reports a wall of "Arguments missing
   for parameters" or reportCallIssue, when a [tool.pyright] block seems to have no
   effect, when type errors appear on BaseModel subclasses whose fields have
   defaults, or when asked to suppress type errors in a Python project.
