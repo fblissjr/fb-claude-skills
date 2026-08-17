@@ -36,7 +36,7 @@ claude --plugin-dir ./skills/dev-conventions
 |-------|------------|-----------------|
 | `python-tooling` | `/dev-conventions:python-tooling` | The house pinning policy (apps exact, libraries floors), the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls, Pyright config precedence, and the one behavioural override worth stating: do not auto-run linters, formatters, or tests after an edit unless asked |
 | `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, where unshared notes and session logs live, the dependency-change record format, and the rule against decorative counts in prose |
-| `dep-audit` | `/dev-conventions:dep-audit` | Dependency CVE audit across `uv audit` and `bun audit`, including the transitives a manifest read by hand will miss |
+| `dep-audit` | `/dev-conventions:dep-audit` | That `uv` and `bun` both ship a native CVE audit subcommand at all — without which the reflex is `pip-audit` or `safety` — plus reachability-before-upgrade and report-the-delta |
 
 ## invocation examples
 

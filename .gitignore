@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 .DS_Store
 coderef/
-internal/
 update-coderef.sh
 snapshots/
 
