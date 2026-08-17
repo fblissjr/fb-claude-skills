@@ -1,12 +1,5 @@
 # changelog
 
-## 1.36.0
-
-### added
-- **`dev-conventions` 0.18.0 → 0.19.0 — `doc-architecture`, which establishes where a project's writing lives without telling it what to believe.** Two things nearly every project lacks: a slow-clock home for principles that a fast-moving rules file cannot hold, and a `CLAUDE.md` shaped as a routing index rather than the place rules accumulate. The design constraint came from a sentence written into `VISION.md` an hour earlier — broadcasting a preference into someone else's repo is worth less than the hour they spend writing their own — which rules out shipping a pre-written set of principles. So the skill ships **the slot and the criteria, never the content**: a starter `VISION.md` that reads as obviously incomplete, because a template that looks finished never gets edited. The criteria are the what-reopens-this test made into a table (principle: evidence contradicts it; rule: its source moves; design record: premises change; incident: nothing, it already happened), plus the instruction to write down a tie-breaker where two homes could hold the same claim — the part most often skipped and the part that makes the split hold.
-- **It looks before it writes, and it will not undo a deletion.** A principles home may already exist as `PRINCIPLES.md`, `PHILOSOPHY.md`, `docs/design-principles.md`, or as a section inside `CLAUDE.md` already doing the job; the skill checks in order, reports which matched, and stops rather than creating a second. A missing `VISION.md` in a repo that once had one is treated as a decision rather than an oversight — the precedent is `model-routing`, which pauses its own install for exactly that reason. `CLAUDE.md` is proposed against, never rewritten, because it is always-loaded and usually load-bearing.
-- **Checked against every other plugin that writes into a target repo, and it collides with none.** `advisor` owns `.claude/rules/advisor.md` and `.claude/advisor.json`; `model-routing` owns `.claude/rules/model-delegation.md`; `path-privacy` and `skill-maintainer` own git hooks; `postmortem` owns `.postmortem.json`; `pyright-autoconfig` owns `pyrightconfig.json`. Nothing writes `CLAUDE.md` or `VISION.md`, so the target files were unclaimed. The skill stays out of `.claude/rules/` entirely — that is namespaced territory — and inherits the shared convention that removal is deletion, since it installs no machinery.
-
 ## 1.35.2
 
 ### changed

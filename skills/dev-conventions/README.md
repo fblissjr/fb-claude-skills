@@ -37,7 +37,6 @@ claude --plugin-dir ./skills/dev-conventions
 | `python-tooling` | `/dev-conventions:python-tooling` | The house pinning policy (apps exact, libraries floors), the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls, Pyright config precedence, and the one behavioural override worth stating: do not auto-run linters, formatters, or tests after an edit unless asked |
 | `doc-conventions` | `/dev-conventions:doc-conventions` | Last-updated dates, where unshared notes and session logs live, the dependency-change record format, and the rule against decorative counts in prose |
 | `dep-audit` | `/dev-conventions:dep-audit` | That `uv` and `bun` both ship a native CVE audit subcommand at all — without which the reflex is `pip-audit` or `safety` — plus reachability-before-upgrade and report-the-delta |
-| `doc-architecture` | `/dev-conventions:doc-architecture` | Where a project's writing lives: a slow-clock home for principles, and `CLAUDE.md` shaped as a routing index rather than an accumulating pile. Creates the slot and the criteria for what earns a line in it; ships no principles of its own |
 
 ## invocation examples
 
@@ -45,7 +44,6 @@ claude --plugin-dir ./skills/dev-conventions
 /dev-conventions:python-tooling
 /dev-conventions:doc-conventions
 /dev-conventions:dep-audit
-/dev-conventions:doc-architecture
 ```
 
 They also load on their own phrasing — "pyright reports a wall of errors",

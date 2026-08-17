@@ -197,10 +197,9 @@ Once installed, invoke as namespaced slash commands:
 /plugin-toolkit                # Analyze and manage plugins
 /dimensional-modeling          # Star schema design patterns
 
-/dev-conventions:python-tooling   # Pinning policy, Pydantic/Pyright diagnostic traps
-/dev-conventions:doc-conventions  # Dates, where notes live, no decorative counts in prose
-/dev-conventions:dep-audit        # Dependency CVE audit across uv and bun
-/dev-conventions:doc-architecture # Where writing lives: a principles home, CLAUDE.md as index
+/dev-conventions:python-tooling  # Pinning policy, Pydantic/Pyright diagnostic traps
+/dev-conventions:doc-conventions # Dates, where notes live, no decorative counts in prose
+/dev-conventions:dep-audit       # Dependency CVE audit across uv and bun
 
 /json-query                      # JSON query tool selection + jg syntax
 /scan-for-secrets:scan-for-secrets  # Pre-share scan: literal secrets + regex privacy patterns

@@ -1,7 +1,7 @@
 {
   "name": "dev-conventions",
-  "version": "0.19.0",
-  "description": "Four on-demand references carrying only what a repo cannot state by being read: where a project's writing lives (a slow-clock home for principles, CLAUDE.md as a routing index rather than an accumulating pile); the house Python pinning policy plus the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls; documentation conventions (last-updated dates, where unshared notes and session logs live, how dependency changes are recorded, and the rule against decorative counts in prose); and that uv and bun both ship a native CVE audit subcommand at all. No hooks and no ambient injection -- conventions belong in each repo's own always-loaded files.",
+  "version": "0.18.0",
+  "description": "Three on-demand references carrying only what a repo cannot state by being read: the house Python pinning policy plus the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls; documentation conventions (last-updated dates, where unshared notes and session logs live, how dependency changes are recorded, and the rule against decorative counts in prose); and a dependency CVE audit across uv and bun including transitives. No hooks and no ambient injection -- conventions belong in each repo's own always-loaded files, where they reach collaborators who never installed a plugin.",
   "author": {
     "name": "fblissjr"
   },
