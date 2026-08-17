@@ -101,7 +101,7 @@
       "name": "claim-audit",
       "source": "./skills/claim-audit",
       "description": "Audit the added prose of a diff as untrusted claims -- every count, status, and attribution re-derived by executing commands, never by reading. Reports claims beside their deriving commands and states its own scope.",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "name": "postmortem",

@@ -1,5 +1,10 @@
 # changelog
 
+## 1.35.1
+
+### fixed
+- **`claim-audit` 0.2.0 → 0.3.0 — a single-line `grep` over hard-wrapped prose produces false negatives, and the skill did not say so.** Step 3 already warned that piping a validator through `tail` masks exit status; this is the same class and it bites harder, because the verdict it corrupts is "this rule is stated nowhere" — the one that leads to deleting things. Three instances in one day: a check reported the TDD claim-recoverability rule as uncovered when the phrase merely wrapped between two lines, minutes before a delete that would have relied on it; a check reported `VISION.md` as having no tie-breaker twenty minutes after the sentence had been read aloud, because "when the two / disagree" spans a break; and a third used `\|` inside `grep -E`, where it is a literal pipe rather than alternation, so five rules were reported missing that were all present. The step now says to join lines before deriving an absence claim, and flags the dialect trap. This is the instrument correcting itself with its own evidence, which is the only reason it clears the tripwire.
+
 ## 1.35.0
 
 ### removed

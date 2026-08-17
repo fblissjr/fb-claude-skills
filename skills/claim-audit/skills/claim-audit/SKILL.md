@@ -63,6 +63,17 @@ Never pipe a validator through `tail` or `grep` for the verdict — exit-status
 masking has bitten repeatedly. Capture the exit status, then filter for
 display.
 
+**A single-line `grep` over hard-wrapped prose produces false negatives, and a
+green from one is not evidence of absence.** Most repos wrap docs near 80
+columns, so any phrase longer than a few words spans a line break and no
+single-line pattern can match it. Join lines first (`tr '\n' ' '`) when the
+claim is "this rule is stated nowhere" — that verdict is the one this failure
+mode silently inverts, and acting on it deletes things. Three instances in one
+day on record, one of which nearly removed a rule that was plainly present.
+Watch the regex dialect too: `\|` means alternation in `grep`'s default syntax
+and a literal pipe under `-E`, so the same pattern reports opposite results
+depending on the flag.
+
 ### 4. Run them; record both sides
 
 One row per claim: the sentence, the command, its actual output, the verdict.
