@@ -13,6 +13,28 @@ The architecture worldview this retrieval model serves, agent topology, model
 tiering, harness coupling, state substrate, moved to
 [docs/internals/architecture.md](docs/internals/architecture.md).
 
+## personal by construction, not by accident
+
+If high precision is the constraint, then a skill earns its place by being
+*exactly* what this reader needs at this moment — and "this reader" is a
+particular person with particular habits, working in particular repos. A rule
+written to be true for everyone is written to be sharp for no one. It hedges,
+it qualifies, it degrades into advice, and advice is what a model already has.
+
+So the personalization is not a limitation of this collection, it is the
+mechanism working. What survives here survived because someone used it and
+measured what failed, which is why the rules that remain are specific enough to
+be wrong — and therefore specific enough to be useful.
+
+Two consequences worth stating plainly, because both were learned the expensive
+way. **Say the stance once, at the top, rather than hedging every instance:** a
+qualifier inside a skill body loads on every activation and buys nothing a
+reader of the README already knows. And **broadcasting a preference into someone
+else's repo is worth less than the hour they spend writing their own** — a
+conventions mechanism whose success condition is silence is a bootstrap, not a
+feature. The right invitation is to fork this and let it diverge, not to install
+it and be told.
+
 ## context and friction
 
 Every instruction spends from two budgets, and the second is the one people

@@ -1,4 +1,4 @@
-last updated: 2026-08-13
+last updated: 2026-08-17
 
 # fb-claude-skills
 
@@ -10,6 +10,7 @@ Plugin marketplace and extension system for Claude Code. Bundles skills, agents,
 
 - At session end, update what is actually relevant: `internal/log/log_YYYY-MM-DD.md`, this file (only if a hub-level rule changed), READMEs of impacted units, `pyproject.toml` of impacted units. Do not bulk-update untouched files.
 - `.claude/rules/` already covers language tooling (uv, bun, orjson), TDD, and doc conventions. `path-privacy`'s SessionStart hook covers path rules. Do not restate any of it here.
+- **Do not hedge skill bodies for hypothetical installers.** That these are one person's house style is stated once in `README.md` and `VISION.md`. A per-instance qualifier ("this is the owner's preference, not a universal layout") loads on every activation and tells the reader nothing the front door did not. State the rule flatly; put the stance in the plugin README where it costs nothing per activation.
 
 ## Repo invariants
 

@@ -1,10 +1,30 @@
-last updated: 2026-08-13
+last updated: 2026-08-17
 
 # fb-claude-skills
 
 > **[Design Principles (VISION.md)](VISION.md)** -- Skills are retrieval. High precision is the constraint, high recall is the goal, and every instruction spends from two budgets: context and friction.
 
 A collection of Claude Code plugins, skills, and MCP Apps. Installable as a plugin marketplace in Claude Code, Cowork, and Claude Desktop.
+
+## what this is, and how to use it
+
+**These exist because I wanted them, and they are personalized to how I work.**
+That is stated up front rather than hedged into every skill body: the pinning
+policy, where unshared notes live, what counts as evidence for a finding, the
+tone -- all of it is one person's house style, arrived at by using it and
+measuring what failed.
+
+Some of it is directly useful to anyone. The privacy and pre-share scanners, the
+postmortem and audit family, and the plugin-maintenance tooling make no
+assumptions about how you work. Take those as they are.
+
+For the rest, the more interesting move is not to install it. **Point your own
+harness at this repo and adapt what fits.** Fork it, strip what does not match
+how you work, keep the shapes that do, and let your version diverge -- that is
+the whole point. A conventions plugin that broadcasts someone else's preferences
+into your repo is worth less than the hour you spend writing your own, which is
+a lesson this repo learned the expensive way and recorded in
+[docs/postmortems/](docs/postmortems/).
 
 ## plugins
 
