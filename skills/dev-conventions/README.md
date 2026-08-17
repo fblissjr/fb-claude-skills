@@ -2,7 +2,7 @@ last updated: 2026-08-17
 
 # dev-conventions
 
-Three on-demand references. Each carries only what a repo cannot state by being
+On-demand references. Each carries only what a repo cannot state by being
 read — a house preference, a structural choice, or a failure that reliably gets
 misdiagnosed. Everything that was already default behaviour has been removed.
 
