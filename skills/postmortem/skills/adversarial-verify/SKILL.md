@@ -22,10 +22,11 @@ is that move, stated once, as two separate judgments:
 
 2. **Verify the needle was threaded.** Before trusting either outcome, prove
    the attempted violation actually reached the subject's input. The
-   recurring ways an attempt silently misses are listed in the agent's
-   step 4 — that list is the constructor's own checklist, maintained there
-   and only there. A green whose needle never threaded is the worst
-   outcome of all: an open question converted into a settled one.
+   recurring ways an attempt silently misses are listed under the agent's
+   *verify the control actually ran* step — that list is the constructor's
+   own checklist, maintained there and only there. A green whose needle
+   never threaded is the worst outcome of all: an open question converted
+   into a settled one.
 
 Constructor and verifier are separate judgments, kept separate on purpose:
 judge the gate and the outcome separately, because a control can be right
@@ -34,6 +35,28 @@ constructor grade its own needle — the verification is a fresh pass over the
 run's evidence (its diff, its command transcript, its measurements), by the
 caller or a second dispatch, answering only "did the violation reach the
 subject", not "was the verdict right".
+
+## How a control couples to its subject
+
+Two failure modes sit at opposite ends of one axis, and both yield a control
+that tells you nothing:
+
+- **Derived from the subject.** A control whose input is computed from the
+  thing it checks cannot fail — the expectation moves with the subject. This
+  is the common one, and it survives review because the code looks correct.
+- **Duplicating the subject.** A control carrying a copy of its subject's
+  content goes red when the subject is *correctly* changed. A false red is
+  worse than no check, because it teaches people to override the gate.
+
+The stable middle is coupling by **stable identifier** — a symbol name, a path,
+an ID. `path::symbol` is the checkable form: it survives insertions above the
+target and fails only when the named thing stops existing. Never couple by
+position (`path:line`, "step 4", "the third bullet"), which misaims silently
+and so fails without ever looking wrong. Never couple by content.
+
+Where an enumeration's order carries meaning, a third option is to **freeze the
+numbering** — state in the document that entries are removed rather than
+renumbered, making the position a stable identifier by fiat.
 
 ## When a thing is "about to be trusted"
 

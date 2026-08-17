@@ -167,6 +167,45 @@ revisited as fresh work rather than corrected — a second migration attempt, a
 rebuilt feature. The test: if the old document's verdicts still stand and only
 one is now wrong, annotate. If its whole framing has been overtaken, supersede.
 
+## Closing out prior forward items
+
+Before writing a new file, scan the resolved directory for **forward items
+carrying no closure annotation** and annotate the ones that have since
+resolved. Section 5 items are written to be checkable, so each names the
+condition that settles it — derive that condition against the tree rather than
+recalling it.
+
+A postmortem's body is past tense and cannot become false, which is what makes
+a dated record safe to leave alone. **Its forward items are the exception.**
+They are claims about the future sitting inside a frozen document, so they do
+not inherit the freeze, and an unannotated one reads as open work forever. A
+reader — more often a model — then acts on a question answered months ago, or
+rebuilds something that already exists.
+
+The write-back is also a derivation pass, and that is where its second value
+lies: checking a condition is how you find the item was half-met, or met
+differently than it was framed. That finding belongs in the annotation.
+
+Bound the scan rather than sweeping a growing directory forever — the same
+scope always, plus whatever the current run's evidence already touches. An
+item whose condition you cannot cheaply derive stays unannotated, which is
+honest.
+
+## A citation the reader cannot reach
+
+A body citation or `artifacts` entry naming a **file path** the reader of this
+postmortem cannot open — a gitignored tree, a private sibling repo, anywhere
+outside what this directory's tracked-ness covers — must carry the load-bearing
+sentence inline. Quote it, attribute it to the unreachable source, and the
+finding stands without the pointer.
+
+Scope is file paths only. A commit hash is a stable identifier anyone holding
+the repo resolves, and a command is reproducible; neither needs quoting.
+
+Without this, "no citation, no finding" holds only for readers who share the
+author's filesystem, and a postmortem published wider than its evidence quietly
+degrades into assertion.
+
 ## Cross-linking
 
 If a plan doc for this scope exists, add a one-line pointer to the postmortem in

@@ -239,6 +239,12 @@ models/
 internal/
 research/schema-processing/results/
 
+# postmortem --html renders. Derived artifacts: a transform of the markdown
+# beside them, never a second analysis. A committed render drifts the moment
+# its source gains an annotation, and a generated artifact that cannot be
+# committed cannot be mistaken for truth.
+docs/postmortems/*.html
+
 # explainer-video per-run scratch dirs (pid-suffixed, cleaned in finally)
 .wk-*
 # smoke.js template check-copies. Cleaned in a finally, but a SIGINT during the

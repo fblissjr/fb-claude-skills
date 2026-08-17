@@ -75,9 +75,22 @@ A claim with no deriving command gets one of:
 
 - rewritten to past tense with an observation time ("as of the 10:30 run, ..."),
 - tagged `(memory)`, `(local)`, or `(reported)` — stating where it came from,
+- **out of scope** — a judgment or design rationale ("we chose X because Y") is
+  unsourceable by construction, and that is what makes it worth writing. Leave
+  it and count it. A pass that only preserves derivable prose starves the class
+  of writing docs exist for,
 - or recommended for deletion.
 
 These are report recommendations for the caller — see step 7.
+
+**Counts take one more question, including the ones that derived green.**
+Substitute a plausible different value: if the reader's next action is
+unchanged, the number is decorative and the recommendation is deletion, not a
+corrected figure. A live count that derives green today and stays unbound in
+the prose drifts on the next commit, so a green verdict on one is a temporary
+result recorded as permanent. Order is **delete, then bind, then derive** —
+binding a decorative number makes it permanently true and permanently useless,
+and still charges the reader a reconciliation.
 
 ### 6. Run the extra arms when the diff qualifies
 
@@ -104,13 +117,13 @@ cases. Present findings as claims-with-evidence; let the caller weigh them.
 
 ## The report states its own scope
 
-Every report ends with three numbers: lines read, claims extracted, claims
-derived by execution. A green report that cannot be told from a run that read
-nothing is exactly the class this skill exists to catch — and that applies to
-the skill's own output first.
+Every report ends with its own tallies: lines read, claims extracted, claims
+derived by execution, claims labeled, claims held out of scope. A green report
+that cannot be told from a run that read nothing is exactly the class this
+skill exists to catch — and that applies to the skill's own output first.
 
 ```
-scope: 214 added lines read, 17 claims extracted, 14 derived, 3 labeled
+scope: 214 added lines read, 17 claims extracted, 14 derived, 2 labeled, 1 out of scope
 ```
 
 ## Grounding in this repo's record

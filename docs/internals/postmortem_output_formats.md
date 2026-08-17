@@ -172,10 +172,15 @@ the plan doc rather than living inside it.**
 
 ### Where: resolved, never hardcoded
 
-`internal/postmortems/` is *this* repo's answer, not the design. `internal/` is
-a convention here and is gitignored here; a plugin that ships to other repos has
-no business assuming either. Whether postmortems are local scratch or a tracked,
-shared record is the repo owner's call, and it changes the answer completely.
+`docs/postmortems/` is *this* repo's answer, not the design, and it was
+`internal/postmortems/` until 2026-08-17 — which is the point. A plugin that
+ships to other repos has no business assuming either. Whether postmortems are
+local scratch or a tracked, shared record is the repo owner's call, it changes
+the answer completely, and it can change over a repo's life. That is why the
+answer lives in `.postmortem.json` (the config rung) rather than in inference:
+inference reads the sibling session-log directory, which still says `internal/`
+here and would keep sending postmortems back to a directory this repo no longer
+publishes from.
 
 Resolve in this order, stopping at the first hit:
 

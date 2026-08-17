@@ -54,23 +54,22 @@ are; it dates a real fetch now rather than any file a second writer touches.
 
 1. **Release notes as a tracked source** (step 3). Still the best single
    addition, and it likely *reduces* the maintenance pass rather than adding to
-   it: six of the drift backlog's items are version-gated (`v2.1.207+`,
-   `v2.1.214+`), and release notes state what changed instead of requiring a
-   +807-line diff to be read. Verify the canonical URL before wiring it.
-2. **Give the drift backlog a disposition field.** It sits at 40 unabsorbed and
-   cannot distinguish "not yet considered" from "considered and rejected", so it
-   can only grow. Three states — absorbed / rejected-with-reason / deferred-with-
-   trigger. Cheap, and it unblocks actually working the list.
-3. **Mechanise the hooks section** (step 5). Sixteen hook constraints and seven
-   agent ones are enforced by nothing, and they are the class that has already
+   it: drift backlog items are version-gated (`v2.1.207+`, `v2.1.214+`), and
+   release notes state what changed instead of requiring the whole diff to be
+   read. Verify the canonical URL before wiring it.
+2. **Give the drift backlog a disposition field.** It cannot distinguish "not
+   yet considered" from "considered and rejected", so it can only grow. Three
+   states — absorbed / rejected-with-reason / deferred-with-trigger. Cheap, and
+   it unblocks actually working the list.
+3. **Mechanise the hooks section** (step 5). The hook constraints and the agent
+   ones are enforced by nothing, and they are the class that has already
    produced real bugs here (the 1000x timeout, exit-0-approves). Several are
    statically checkable against this repo's own `hooks.json` files.
-4. **Reconcile the source lists** (step 6, half done). `upstream_urls` is clean
-   at eleven. But there are **18 repos under `coderef/` and 10 in
-   `tracked_repos`** — eight clones are kept current by the update script and
-   silently ignored by `skill-maintain sources`. Decide each: track it or stop
-   cloning it.
-5. **The four unbound annotations.** Three cite `coderef/agentskills`, one the
+4. **Reconcile the source lists** (step 6, half done). `upstream_urls` is clean.
+   But `coderef/` holds more clones than `tracked_repos` lists, and the surplus
+   is kept current by the update script while `skill-maintain sources` ignores
+   it silently. Decide each: track it or stop cloning it.
+5. **The unbound annotations.** Most cite `coderef/agentskills`, one the
    `plugins` page. They go green only when someone reads the source and stamps a
    `verified_hash`. Do not stamp without reading — that mistake was made and
    caught within this session.

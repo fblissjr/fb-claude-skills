@@ -27,8 +27,9 @@ artifact that cannot be committed cannot be mistaken for truth.
 ## Finding the postmortems
 
 Use the same resolution ladder as filing —
-`../postmortem/references/filing.md` — with one difference: **rung 4 does not
-apply.** Do not propose a location and do not create a directory. There is
+`../postmortem/references/filing.md` — with one difference: **the
+propose-then-remember rung does not apply.** Do not propose a location and do
+not create a directory. There is
 nothing to browse in a repo that has never written a postmortem; say so and
 stop. Report which rung located the directory.
 
