@@ -5,10 +5,17 @@ Working code for the parts that are heylook-specific: SSE framing with no
 requires. Adapt rather than copy wholesale — the parts worth keeping are the
 event handling and the block separation.
 
+Both streaming clients below were executed against a server emitting the
+grammar in `wire_reference.md`, covering the thinking/text split,
+`message_stop` termination, the in-band `error` event, and a 503 with
+`Retry-After`. The image recipes were not executed; they are transcribed from
+the settings heylook's own frontend uses.
+
 ## Python: streaming client
 
 ```python
 import json
+import uuid
 from dataclasses import dataclass, field
 
 import httpx
@@ -40,7 +47,11 @@ def stream_message(
         body["system"] = system
     body.update({k: v for k, v in sampling.items() if v is not None})
 
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        # Echoed back, and how the server correlates this request in its logs.
+        "X-Request-ID": str(uuid.uuid4()),
+    }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
