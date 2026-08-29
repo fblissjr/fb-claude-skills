@@ -1,9 +1,10 @@
 # `/v1/messages` wire reference
 
 Complete field, block, event and error reference for heylook's Messages
-endpoint. Verified against heylookitsanllm 1.79.41
-(`src/heylook_llm/schema/messages.py`, `content_blocks.py`, `responses.py`,
-`converters.py`, `messages_api.py`).
+endpoint, read out of `src/heylook_llm/schema/messages.py`,
+`content_blocks.py`, `responses.py`, `converters.py` and `messages_api.py`.
+The heylookitsanllm version this was verified against is in SKILL.md's
+frontmatter — one home, so there is no second copy here to drift.
 
 Servers before 1.79.39 differ on three payloads: the image block accepted
 only the flat spelling, the thinking block and delta carried only `text`,
@@ -160,14 +161,28 @@ the flat form);** it is the single most likely way a correctly-written
 Anthropic-style client fails against an older heylook. A flat field that is
 actually set still wins over the nested object on every version.
 
-**Two different failures, and only one of them is a 422.** A block carrying
-neither `source` nor `source_type` fails validation (422). A block whose
-source type IS set — nested `source.type`, or the flat `source_type` —
-but which carries no `data` and no `url` validates, then gets **silently
-dropped** during conversion: the request succeeds, the text parts survive,
-and the model never sees the image. Both spellings behave identically here;
-a nested `source` missing its `type` is the 422 case, not the silent one. If a vision answer
-describes nothing, inspect the block rather than waiting for a status code.
+**A payload-less block is a 422 as of 1.79.42, and was a SILENT DROP before
+it.** A block carrying neither `source` nor `source_type` has always failed
+validation. A block whose source type IS set — nested `source.type`, or the
+flat `source_type` — but which carries no `data` and no `url` used to
+validate and then get **silently dropped** during conversion: the request
+returned **200**, the text parts survived, and the model never saw the image,
+so the caller got a confident answer about a picture that was never sent.
+1.79.42 rejects it with a message naming the missing field. Both spellings
+behave identically, and a nested `source` missing its `type` was always the
+422 case.
+
+**Against servers at or below 1.79.41 this is the failure to defend
+against**, because no status code reveals it: if a vision answer describes
+nothing, inspect the block's payload rather than trusting the 200.
+
+**Filling from `source` is per FIELD as of 1.79.42.** 1.79.41 suppressed the
+whole nested object as soon as any flat field was set, so
+`{"source_type":"base64","source":{...,"data":"..."}}` resolved the type and
+dropped the image. The nested object is ignored wholesale only when the two
+spellings DISAGREE about the kind of source (flat `source_type:"url"` against
+nested `type:"base64"`), where merging would build a block you never
+described.
 
 ### Audio — gguf only
 
@@ -292,6 +307,7 @@ follows it. The message is diagnostic text and never model output.
 | Code | Condition | Body |
 |---|---|---|
 | 400 | Unknown or disabled `model`; or no `model` given and no server `default_model` | reason plus available ids in `detail` |
+| 400 | The loaded model refuses the input: on the MLX path, images to a text-only model or audio to any MLX model (non-streaming only — see in-band errors) | message in `detail` |
 | 422 | Body failed validation — an out-of-range sampler value, or a media block carrying neither `source` nor `source_type` | FastAPI validation detail |
 | 500 | Model exists but failed to load: corrupt weights, unsupported architecture | message in `detail` |
 | 503 | Generation queue full | `{"error":{"code":"model_overloaded"}}`, `Retry-After` and `X-RateLimit-*` headers |
@@ -314,6 +330,11 @@ Loopback traffic is **exempt from the API-key gate by default**, so it
 appears only when the client is on another machine — or when the operator has
 set `HEYLOOK_API_KEY_ENFORCE_LOOPBACK=true`. Comparison is constant-time.
 
+The gate is a per-route dependency on the inference routes, not middleware,
+so **discovery is never gated**: `/v1/models` and `/v1/capabilities` answer
+without a key on a server that has one set. A 401 from either is something
+in front of heylook, not heylook.
+
 Send `X-Request-ID` on every request; it is echoed back and is how a request
 is correlated in the server's logs.
 
@@ -331,6 +352,26 @@ is correlated in the server's logs.
 
 `capabilities` is what the server will serve. `modalities` is the
 checkpoint author's description. Gate on the former.
+
+**`capabilities` can over-report.** It is derived from the model's registry
+entry, while the refusal is decided from the model as loaded, so the two can
+disagree: on the MLX path a variant whose entry still declares vision
+advertises `vision` and is refused at generation time. Audio to any MLX model
+is the same shape — the towers are stripped at load. The refusal reaches you
+as a **400 non-streaming**, or, because the guard fires at the first token
+when streaming, as an in-band `error` event typed `invalid_request_error`
+(both branches live in the Messages route, not only the OpenAI one). Gate to
+decide what to offer; handle the refusal anyway.
+
+**Only MLX has a capability guard.** A gguf entry gets `vision` from an
+`mmproj_path` or a declared modality, and the gguf provider forwards
+`request.messages` to `llama-server` rather than checking them. The outcome
+splits on what that subprocess does. A 400 from it is normalized into the
+same refusal the MLX guard raises and arrives in the two shapes above, so
+that branch needs no extra client handling. If it accepts the block and
+ignores it, nothing refuses: a 200 describing an image the model never used.
+Which branch you land on is decided by the model's GGUF/mmproj packaging
+rather than by heylook, so test it against the build you are targeting.
 
 `GET /v1/capabilities` returns `server_version`, `optimizations`, Metal
 device info, `samplers.available` (the named-bundle roster), an `endpoints`

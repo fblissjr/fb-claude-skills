@@ -19,8 +19,10 @@ The code is derived once and both renderers return it, because the two used
 to disagree: `--need vision` against an empty roster exited 0 in text mode
 and 2 in --json.
 
-Auth: --api-key, else $HEYLOOK_API_KEY. The gate is loopback-exempt, so it
-matters exactly when probing another machine. The key is never printed.
+Auth: --api-key, else $HEYLOOK_API_KEY. heylook's own key gate is a
+per-route dependency on the inference routes, so the two endpoints read here
+are open even when it is set -- the key is for a server behind something
+that gates discovery anyway. Never printed.
 
 Standard library only; no install step.
 """
@@ -103,9 +105,9 @@ def fetch(base: str, path: str, timeout: float, api_key: str | None = None) -> d
                 "HEYLOOK_API_KEY on the server, and that you are not hitting "
                 "a different server than you think."
                 if api_key else
-                "that gate is HEYLOOK_API_KEY. Pass --api-key or set "
-                "HEYLOOK_API_KEY -- it is loopback-exempt, so it applies "
-                "only when you probe from another machine."
+                "heylook does not gate discovery, so this is something in "
+                "front of it. Pass --api-key or set HEYLOOK_API_KEY with "
+                "whatever credential that proxy expects."
             )
             raise Unreadable(f"{base} answered HTTP {e.code} for {path}.", hint) from e
         raise Unreadable(

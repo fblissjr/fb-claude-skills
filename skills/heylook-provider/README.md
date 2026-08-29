@@ -38,7 +38,8 @@ single-user**:
 - Model ids are **install-local** — the registry is override-only, so the
   served roster is whatever the operator downloaded. Discovery is not
   optional, and a literal id in source is a 400 on another machine.
-- **Capabilities are per-model**, and narrower than the declared modalities.
+- **Capabilities are per-model**, and narrower than the declared modalities
+  — and they can still over-report, so the refusal has to be handled too.
 - `/v1/messages` has **no server-side image resize**; the client downscales.
 - `max_tokens` is **optional** — absent means the server's sampler cascade
   decides, so a client-side default carried over from Anthropic code
@@ -46,9 +47,10 @@ single-user**:
 - A busy server answers **503 with `Retry-After`**, which is a queue rather
   than a quota.
 
-Plus the closed list of deliberate spec differences (`thinking` is a bool
-not a config object, no tools, the `error` stop reason, and heylook's
-request and stream extensions).
+Plus the deliberate spec differences (`thinking` is a bool not a config
+object, no tools, no `stop_sequences`, and heylook's request and stream
+extensions). That list is hand-maintained and has shipped incomplete, so the
+skill says so and defers to the server's `/openapi.json`.
 
 Beyond the skill body: four reference files (full wire reference, the OpenAI
 wire, Gemini migration, working client code in Python and TypeScript) and a
@@ -56,11 +58,13 @@ stdlib `probe.py` that prints a capability matrix from a live server.
 
 ## Source of truth
 
-The skill is written against heylookitsanllm 1.79.40 and cites the running
-server's `/openapi.json` — generated from the code at boot, with no committed
-artifact to drift — as authoritative over its own prose. The longer-form
-version of the same contract lives in that repo at
+The skill's frontmatter names the heylookitsanllm version it was verified
+against — one home for that number, so this page does not carry a copy to
+drift. It cites the running server's `/openapi.json` — generated from the
+code at boot, with no committed artifact to drift — as authoritative over
+its own prose. The longer-form version of the same contract lives in that
+repo at
 [docs/api_integration.md](https://github.com/fblissjr/heylookitsanllm/blob/main/docs/api_integration.md).
 
-Reverify when heylook's schema module or Messages route changes; the skill
-declares a 90-day review interval as a backstop, not as the primary signal.
+Reverify when heylook's schema module or Messages route changes. That is the
+signal; nothing here runs on a calendar.

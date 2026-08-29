@@ -11,13 +11,13 @@ Four of these went red against the 0.1.0 script:
     The documented invocation (SKILL.md) has no `--json`, so the reachable
     path was the wrong one, and a gate written from the skill body passed on
     a server serving nothing.
-  - an HTTP error (401 from an authenticated off-machine server) was caught
-    as a connection failure and answered "start the server", which is wrong
-    advice for a server that is already running.
+  - an HTTP error (401 from a gated deployment) was caught as a connection
+    failure and answered "start the server", which is wrong advice for a
+    server that is already running.
   - a non-JSON body -- the wrong service on :8000 -- raised JSONDecodeError
     as a traceback. It is a ValueError, so the OSError handler never saw it.
-  - there was no way to send a bearer token at all, so the probe could not
-    reach the authenticated remote server the skill tells you to expect.
+  - there was no way to send a bearer token at all, so a heylook sitting
+    behind something that gates discovery could not be probed.
 
 The exit code is computed ONCE and both renderers return it; the
 mode-agreement tests below are what keeps that true.
@@ -219,9 +219,12 @@ class TestUnreadableServers:
 
 
 class TestAuth:
-    """The API-key gate is loopback-exempt, so it appears exactly when the
-    app runs off-machine -- the case the skill tells you to plan for and the
-    one 0.1.0 could not probe at all."""
+    """heylook's own key gate is a per-route dependency on the inference
+    routes, so the two endpoints the probe reads are open even when it is
+    set. The credential is for a deployment that gates discovery in front of
+    heylook -- the case 0.1.0 could not probe at all. What is pinned here is
+    the plumbing (header sent, env default, never echoed), which is the same
+    either way."""
 
     def test_api_key_flag_sends_a_bearer_header(self):
         # RED at 0.1.0: no such flag existed.

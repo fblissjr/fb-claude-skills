@@ -44,7 +44,10 @@ a static enum needs a discovery seam before heylook fits it.
 **Capabilities are per-model, not per-provider.** With Gemini you can assume
 vision. With heylook, one served model does vision, another is text-only,
 and only gguf models take audio. Read `capabilities` on each `/v1/models`
-row and gate the features you expose.
+row and gate the features you expose — then handle the refusal anyway, because
+`capabilities` can over-report (`references/wire_reference.md`, discovery
+endpoints). Gemini has no equivalent of a model that advertises a modality and
+then declines it.
 
 **Message roles are validated by the model's own chat template, not by the
 server.** Gemini enforces strict `user`/`model` alternation itself. heylook
