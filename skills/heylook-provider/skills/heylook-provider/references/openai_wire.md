@@ -6,8 +6,11 @@ supported, not deprecated.
 
 ## When this wire is the better choice
 
-- **You want server-side image downscaling.** This is the only functional
-  capability `/v1/messages` lacks.
+- **You want server-side image downscaling.** `/v1/messages` has no resize
+  params at all, so the client does that work; here it is a request field.
+- **You need `continue_final_message`.** A `ChatRequest` field with no
+  Messages-wire equivalent, so prefill and "keep going" only work here. Read
+  the traps below first — it is narrower than it looks.
 - **You have a working OpenAI SDK client.** Changing `base_url` is cheaper
   than rewriting a request builder.
 - **You are fronting heylook with something that speaks OpenAI** — a proxy, a
@@ -36,12 +39,13 @@ resp = client.chat.completions.create(
 | | `/v1/chat/completions` | `/v1/messages` |
 |---|---|---|
 | System prompt | `{"role":"system"}` in `messages` | top-level `system` |
-| Image part | `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` | flat `{"type":"image","source_type":"base64",...}` |
+| Image part | `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` | `{"type":"image","source":{"type":"base64",...}}` |
 | Image data | `data:` URI | raw base64, no prefix |
 | Thinking flag | `enable_thinking` | `thinking` |
 | Server-side resize | yes | no |
 | Response | `choices[0].message.content` (string) | `content` (typed block list) |
 | Reasoning | `choices[0].message.thinking` | a `thinking` block |
+| Stop field | `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
 | Stream terminator | `data: [DONE]` | `message_stop`, no sentinel |
 | Usage in stream | final chunk, needs `stream_options.include_usage` | `message_delta` |
 

@@ -13,8 +13,8 @@ second backend.
 | `contents[].role: "user"` | `role: "user"` |
 | `contents[].role: "model"` | `role: "assistant"` |
 | `parts[].text` | `{ "type": "text", "text": ... }` |
-| `parts[].inlineData { mimeType, data }` | `{ "type": "image", "source_type": "base64", "media_type": ..., "data": ... }` |
-| `parts[].fileData { fileUri }` | `{ "type": "image", "source_type": "url", "url": ... }` |
+| `parts[].inlineData { mimeType, data }` | `{ "type": "image", "source": { "type": "base64", "media_type": ..., "data": ... } }` |
+| `parts[].fileData { fileUri }` | `{ "type": "image", "source": { "type": "url", "url": ... } }` |
 | `generationConfig.maxOutputTokens` | `max_tokens` |
 | `generationConfig.temperature` | `temperature` |
 | `generationConfig.topP` / `topK` | `top_p` / `top_k` |
@@ -23,7 +23,7 @@ second backend.
 | `generationConfig.responseSchema` | no equivalent; prompt for the shape |
 | `generationConfig.thinkingConfig` | `thinking` plus `reasoning_effort` |
 | `candidates[].content.parts[].text` | a `text` output block |
-| `candidates[].finishReason` | `stop_reason` (`stop` / `length` / `error`) |
+| `candidates[].finishReason` | `stop_reason` (`end_turn` / `max_tokens` / `stop_sequence` / `error`) |
 | `usageMetadata.promptTokenCount` | `usage.input_tokens` |
 | `usageMetadata.candidatesTokenCount` | `usage.output_tokens` |
 | streaming chunk `candidates[].content.parts[].text` | `content_block_delta` → `delta.text` |

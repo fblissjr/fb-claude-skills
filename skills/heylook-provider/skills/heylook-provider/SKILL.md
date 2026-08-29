@@ -1,9 +1,9 @@
 ---
 name: heylook-provider
-description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic-style /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, or when sending images or audio to a local model. Carries the shapes that differ from the APIs it resembles - the flat image block, the absent [DONE] terminator, and capability discovery against a registry whose model ids are install-local. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
+description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the closed list of deliberate spec differences. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
   last_verified: "2026-08-29"
-  verified_against: "heylookitsanllm 1.79.37"
+  verified_against: "heylookitsanllm 1.79.39"
   review_interval_days: 90
 ---
 
@@ -12,9 +12,12 @@ metadata:
 Local inference server: FastAPI, Apple Silicon, MLX (text and vision) plus
 gguf through a `llama-server` subprocess. Default base `http://localhost:8000`.
 
-It resembles two APIs it is not. Most of the cost of integrating comes from
-that resemblance, so this skill carries the divergences rather than the
-parts an SDK habit already gets right.
+`/v1/messages` conforms to Anthropic's Messages API and
+`/v1/chat/completions` to OpenAI's, so an SDK habit mostly transfers. What
+does not transfer is everything that follows from the server being **local
+and single-user**: model ids belong to the install, capabilities vary per
+model, images are resized by you, and a busy server queues rather than
+scales. That is what this skill carries.
 
 ## Discover before writing client code
 
@@ -37,8 +40,15 @@ The bundled probe prints both as a capability matrix, standard library only:
 python3 ${CLAUDE_SKILL_DIR}/scripts/probe.py --base http://localhost:8000 --need vision
 ```
 
-It exits 2 when no served model has a required capability, which is the
-answer to "can this machine do the thing I am about to build".
+It exits 2 when no served model has every required capability — an empty
+roster counts — which is the answer to "can this machine do the thing I am
+about to build". Exit 1 is a different answer: it could not read the server,
+and the message says whether that was unreachable, refused, or a reply that
+is not heylook's shape.
+
+Probing another machine needs the key — `--api-key`, or `HEYLOOK_API_KEY` in
+the environment. Loopback is exempt from that gate, so a local probe needs
+neither.
 
 Each `/v1/models` row carries `provider`, `modalities` and `capabilities`.
 **Gate features on `capabilities`.** It is what the server will actually
@@ -62,39 +72,45 @@ for you (`resize_max` and friends — Messages has no such param) or you are
 repointing an existing OpenAI SDK client at a new `base_url`. Fully
 supported, not deprecated. Details in `references/openai_wire.md`.
 
-## Four divergences from the API this resembles
+## Where it differs from Anthropic's Messages API
 
-Each costs an afternoon if discovered by debugging.
+Since heylook 1.79.39 the payloads conform — nested `source` on media
+blocks, `thinking` on thinking blocks and deltas, Anthropic's `stop_reason`
+vocabulary, the same event grammar with no `[DONE]` sentinel. **Assume
+Anthropic's published spec is the answer** unless it is on this list, which
+is closed:
 
-**1. Image blocks are flat.** heylook's `ImageBlock` puts the source fields
-at the top level of the block:
+- **`max_tokens` is optional**, unlike Anthropic's required field. Absent
+  means heylook's sampler cascade decides (per-model config, named sampler
+  bundle, server floor). This is the one that bites by habit: a client-side
+  default carried over from Anthropic code silently overrides the model's
+  configured floor on every request that had no opinion. Send what you have
+  an opinion about; omit the rest.
+- **`thinking` is a bool**, not Anthropic's `{"type": "adaptive"}` config
+  object. It is the local-model `enable_thinking` template switch — a
+  different mechanism that happens to share a name. Depth is
+  `reasoning_effort`, a separate field with a per-model vocabulary.
+- **No tools.** No `tools`, `tool_use`, `tool_result`, or `tool_use` stop
+  reason.
+- **`stop_reason` can be `error`**, which Anthropic has no counterpart for
+  (there, a failure is an `error` event). heylook sets it on the
+  non-streaming failure path.
+- **No server-side image resize** — next section.
+- **Extensions**: `sampler`, `vision_tokens`, `reasoning_effort`,
+  `show_special_tokens` on the request; a `heylook_logprobs` event and
+  `message_stop.performance` on the stream.
 
-```jsonc
-{ "type": "image", "source_type": "base64",
-  "media_type": "image/jpeg", "data": "..." }
-```
+Two heylook facts that are not spec divergences but cost the same time:
+model ids are **install-local** (above), and a thinking model returns a
+`thinking` block alongside `text` — join only the `text` blocks, or the
+model's reasoning lands in your product's output.
 
-Anthropic's nested `source` object is a 422 here. `data` is raw base64 with
-no `data:` URI prefix. `source_type` may be `"url"` instead, with `url` set
-and `data` omitted. Audio blocks take the same flat shape with
-`type: "audio"` and reach only gguf models — MLX answers 400 for audio.
-
-Worth knowing if you also touch conversation storage: `/v1/conversations`
-messages *do* use a nested `source`. Two surfaces, two spellings.
-
-**2. The stream ends at `message_stop`.** There is no `data: [DONE]`
-sentinel on `/v1/messages`. A reader that waits for one hangs until timeout.
-(`/v1/chat/completions` does send it — this is the classic port-over bug.)
-
-**3. A response is a list of typed blocks.** A thinking model returns a
-`thinking` block *and* a `text` block. Join the `text` blocks for the answer;
-surface `thinking` separately or not at all.
-
-**4. An absent knob means the server decides.** Every sampler field is
-optional and falls through to heylook's own cascade (per-model config, named
-sampler bundle, server floor). `max_tokens` is optional here unlike
-Anthropic's required field, so a client-side default silently overrides the
-model's configured floor. Send what you have an opinion about; omit the rest.
+**Older servers differ.** Before 1.79.39 the image block was flat
+(`source_type` on the block, nested `source` a 422), the thinking field was
+`text` only, and `stop_reason` was `"stop"`/`"length"`. The flat image
+spelling is still accepted, and thinking blocks still carry `text` alongside
+`thinking`. Read `server_version` from `/v1/capabilities` if you must
+support both.
 
 ## Client-side image resize is your job
 
@@ -114,7 +130,7 @@ the more direct lever, and it is available on both wires.
 | 400 | Pick a different model | Unknown/disabled id, or none given with no server default. Reason and available ids in `detail` |
 | 500 | That model is broken | It exists but failed to load |
 | 503 | Backpressure, retry | `{"error":{"code":"model_overloaded"}}` plus `Retry-After` |
-| 422 | Malformed body | Usually the image block shape |
+| 422 | Malformed body | Media block missing both `data` and `url`, or an out-of-range sampler value |
 
 503 is normal operation, not an outage: the server is single-user and
 serialises generation, so queueing behind a long request is expected. Retry

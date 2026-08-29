@@ -1,5 +1,12 @@
 # changelog
 
+## 1.37.0
+
+### changed
+- **`heylook-provider` 0.1.0 → 0.2.0 — the upstream server was fixed, so most of what this skill carried stopped being true, in the best way.** 0.1.0 was built around four divergences between `/v1/messages` and the Anthropic Messages API it advertises. Checking them against Anthropic's actual published shapes rather than the skill author's memory turned up a fifth and reclassified a second: the thinking block and its delta named the field `text` where Anthropic names it `thinking`, so a conformant reader found the block and no content in it; and `stop_reason` carried the provider's OpenAI `finish_reason` vocabulary (`"stop"`/`"length"`) straight onto an otherwise Anthropic-shaped response. Meanwhile the missing `[DONE]` sentinel, listed in 0.1.0 as a trap, is Anthropic being Anthropic — heylook was already right, and the trap only exists for someone porting from the OpenAI wire one route over. heylook 1.79.39 fixed all three real ones (nested `source` accepted alongside the flat form, both thinking spellings emitted, Anthropic's stop vocabulary mapped through one table), so the skill now says "assume Anthropic's spec is the answer" and carries a **closed list** of what is deliberately different: `max_tokens` optional, `thinking` a bool rather than a config object, no tools, the `error` stop reason, and the request/stream extensions.
+- **This is the version-of-record for why conformance beats documentation.** The flat-image explanation existed in five prose locations across two repos, and 0.1.0's own changelog entry recorded that nothing watched the set. Fixing the server deleted four of them. What remains is a note that the older spelling still works and a version boundary for anyone who has to support both — which is the difference between a fact you maintain forever and one that maintains itself.
+- Both streaming recipes were re-executed against the new grammar and read `thinking` with a `text` fallback. The `probe.py` shipped here gained `--api-key` and a paginated-payload guard from a parallel session and was re-exercised across all four of its paths.
+
 ## 1.36.0
 
 ### added

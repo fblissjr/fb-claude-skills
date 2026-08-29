@@ -8,8 +8,14 @@ event handling and the block separation.
 Both streaming clients below were executed against a server emitting the
 grammar in `wire_reference.md`, covering the thinking/text split,
 `message_stop` termination, the in-band `error` event, and a 503 with
-`Retry-After`. The image recipes were not executed; they are transcribed from
-the settings heylook's own frontend uses.
+`Retry-After`. The Pillow resize recipe was executed on Pillow 12.3.0 against
+PNG and JPEG inputs on both sides of `MAX_EDGE`. The `sharp` recipe was not
+executed; its settings are transcribed from heylook's own frontend.
+
+That split is not bookkeeping. The Pillow recipe shipped with a bug the note
+predicted: `keep_png` read `.format` after `exif_transpose`, which returns a
+new image whose `.format` is `None`, so every PNG was re-encoded to JPEG and
+the PNG branch had never run.
 
 ## Python: streaming client
 
@@ -72,7 +78,9 @@ def stream_message(
                     # running counter across the message, not a stable slot.
                     delta = data["delta"]
                     if delta["type"] == "thinking_delta":
-                        out.thinking += delta["text"]
+                        # Anthropic's field; `text` is also present for
+                        # back-compat on this server.
+                        out.thinking += delta.get("thinking", delta.get("text", ""))
                     else:
                         out.text += delta["text"]
                         if on_text:
@@ -107,14 +115,28 @@ def _sse(lines):
             yield event, json.loads(line[6:])
 
 
+class Overloaded(RuntimeError):
+    """503. Normal operation on a server that serialises generation for one
+    user, so it is a queue signal rather than a failure."""
+
+    def __init__(self, retry_after: float | None = None):
+        super().__init__("model_overloaded")
+        self.retry_after = retry_after
+
+
 def _http_error(r: httpx.Response) -> Exception:
+    # 503 is decided BEFORE the body is parsed: the retry path must not
+    # depend on the error body happening to be JSON.
+    if r.status_code == 503:
+        try:
+            retry = float(r.headers.get("Retry-After", ""))
+        except ValueError:
+            retry = None
+        return Overloaded(retry)
     try:
         payload = r.json()
     except Exception:
         return RuntimeError(f"HTTP {r.status_code}: {r.text[:200]}")
-    if r.status_code == 503:
-        retry = r.headers.get("Retry-After")
-        return RuntimeError(f"model_overloaded; retry after {retry}s")
     detail = payload.get("detail") or payload.get("error", {}).get("message")
     return RuntimeError(f"HTTP {r.status_code}: {detail}")
 ```
@@ -129,10 +151,13 @@ def with_backoff(fn, attempts=5):
     for i in range(attempts):
         try:
             return fn()
-        except RuntimeError as e:
-            if "model_overloaded" not in str(e) or i == attempts - 1:
+        except Overloaded as e:
+            if i == attempts - 1:
                 raise
-            time.sleep(min(2 ** i, 30))
+            # The server sends Retry-After because it knows its own queue
+            # depth. Exponential growth is only the fallback for when it
+            # does not.
+            time.sleep(min(e.retry_after if e.retry_after is not None else 2 ** i, 30))
 ```
 
 ## Python: discovery and capability gating
@@ -221,7 +246,7 @@ export async function streamMessage(
 
         if (event === "content_block_delta") {
           const d = payload.delta;
-          if (d.type === "thinking_delta") out.thinking += d.text;
+          if (d.type === "thinking_delta") out.thinking += d.thinking ?? d.text;
           else {
             out.text += d.text;
             onText?.(d.text);
@@ -259,9 +284,11 @@ const body = {
       { type: "text", text: instruction },
       {
         type: "image",
-        source_type: "base64",          // flat, not Anthropic's nested source
-        media_type: "image/jpeg",
-        data: base64,                   // raw, no "data:" prefix
+        source: {                       // Anthropic's nested source
+          type: "base64",
+          media_type: "image/jpeg",
+          data: base64,                 // raw, no "data:" prefix
+        },
       },
     ],
   }],
@@ -326,10 +353,14 @@ def prepare_image(path_or_bytes) -> tuple[str, str]:
     """Return (base64 data, media_type). Raw base64, no data: prefix."""
     src = io.BytesIO(path_or_bytes) if isinstance(path_or_bytes, bytes) else path_or_bytes
     img = Image.open(src)
+
+    # Read .format BEFORE transforming. exif_transpose returns a NEW image
+    # whose .format is None, so the same check after it is always False and
+    # every screenshot silently becomes JPEG.
+    keep_png = (img.format or "").upper() == "PNG"
+
     img = ImageOps.exif_transpose(img)      # apply EXIF orientation
     img.thumbnail((MAX_EDGE, MAX_EDGE), Image.LANCZOS)  # never enlarges
-
-    keep_png = (img.format or "").upper() == "PNG"
     buf = io.BytesIO()
     if keep_png:
         img.save(buf, format="PNG", optimize=True)
@@ -343,6 +374,11 @@ def prepare_image(path_or_bytes) -> tuple[str, str]:
 
 `thumbnail` resizes in place and never enlarges, so a small image passes
 through untouched.
+
+`.format` is set by `Image.open` and by nothing else. Every operation that
+returns a new image drops it, and `exif_transpose` returns a new image even
+when there is no orientation tag to apply, so the read has to happen first.
+`sharp` has no equivalent trap: its `metadata()` describes the input.
 
 **How much resolution to send is a model question, not a transport one.**
 Dynamic-resolution towers consume whatever they are given and charge for it

@@ -1,9 +1,13 @@
 # `/v1/messages` wire reference
 
 Complete field, block, event and error reference for heylook's Messages
-endpoint. Verified against heylookitsanllm 1.79.37
+endpoint. Verified against heylookitsanllm 1.79.39
 (`src/heylook_llm/schema/messages.py`, `content_blocks.py`, `responses.py`,
-`messages_api.py`).
+`converters.py`, `messages_api.py`).
+
+Servers before 1.79.39 differ on three payloads: the image block accepted
+only the flat spelling, the thinking block and delta carried only `text`,
+and `stop_reason` was `"stop"` / `"length"` / `"error"`.
 
 The live `/openapi.json` outranks this file — it is generated from the same
 Pydantic models at boot. Use this when you want the shape and the reasoning;
@@ -79,28 +83,38 @@ built for.
 { "type": "text", "text": "..." }
 ```
 
-### Image — flat, not Anthropic's nested `source`
+### Image
+
+Anthropic's nested `source`, which is what an Anthropic SDK sends:
+
+```json
+{ "type": "image", "source": { "type": "base64",
+  "media_type": "image/jpeg", "data": "<raw base64>" } }
+```
+
+```json
+{ "type": "image", "source": { "type": "url", "url": "https://..." } }
+```
+
+heylook's original flat spelling is also accepted and normalizes to the
+same block, so existing clients keep working:
 
 ```json
 { "type": "image", "source_type": "base64",
   "media_type": "image/jpeg", "data": "<raw base64>" }
 ```
 
-```json
-{ "type": "image", "source_type": "url", "url": "https://..." }
-```
-
-| Field | Notes |
+| Field (flat form) | Notes |
 |---|---|
-| `source_type` | required, `"base64"` or `"url"` |
+| `source_type` | `"base64"` or `"url"`; from `source.type` in the nested form |
 | `media_type` | required for base64, e.g. `image/jpeg` |
 | `data` | base64 with **no** `data:` URI prefix |
-| `url` | used when `source_type` is `"url"` |
+| `url` | used when the source type is `"url"` |
 
-Anthropic's `{"type":"image","source":{"type":"base64",...}}` fails
-validation with a 422. The block union is
-`TextBlock | ImageBlock | AudioBlock`, and a nested `source` matches none of
-them.
+The generated JSON Schema at `/openapi.json` describes the **flat** fields,
+because the nested form is flattened by a validator that runs before
+validation and so cannot be expressed in the schema. Both are valid on the
+wire; the block docstring says so.
 
 A block missing both `data` and `url` is **silently dropped** during
 conversion rather than rejected, so a malformed image can present as the
@@ -109,12 +123,12 @@ model simply not seeing the picture.
 ### Audio — gguf only
 
 ```json
-{ "type": "audio", "source_type": "base64",
-  "media_type": "audio/wav", "data": "<raw base64>" }
+{ "type": "audio", "source": { "type": "base64",
+  "media_type": "audio/wav", "data": "<raw base64>" } }
 ```
 
-Same flat shape. `media_type` is advisory; codecs are sniffed. MLX models
-answer 400 for any audio part, because audio towers are stripped at load —
+Both spellings, exactly as for images. `media_type` is advisory; codecs are
+sniffed. MLX models answer 400 for any audio part, because audio towers are stripped at load —
 that refusal is deliberate and loud rather than a silent drop.
 
 ## Non-streaming response
@@ -126,11 +140,11 @@ that refusal is deliberate and loud rather than a silent drop.
   "role": "assistant",
   "model": "...",
   "content": [
-    { "type": "thinking", "text": "..." },
+    { "type": "thinking", "thinking": "...", "text": "..." },
     { "type": "text", "text": "..." },
     { "type": "logprobs", "tokens": [ ... ] }
   ],
-  "stop_reason": "stop" | "length" | "error",
+  "stop_reason": "end_turn" | "max_tokens" | "stop_sequence" | "error",
   "usage": { "input_tokens": 0, "output_tokens": 0,
              "thinking_tokens": null, "content_tokens": null },
   "performance": null
@@ -144,6 +158,14 @@ thinking block.
 Join `text` blocks for the answer. A `thinking` block is the model's
 reasoning, not its response.
 
+A thinking block carries its content under **both** `thinking` (Anthropic's
+field name) and `text` (heylook's original, kept so existing readers keep
+working). Read `thinking`.
+
+`stop_reason` is Anthropic's vocabulary. `error` is the one addition — it has
+no Anthropic counterpart, since a failure there is an `error` event; heylook
+sets it on the non-streaming failure path.
+
 ## Streaming
 
 Set `stream: true`. Events in order:
@@ -153,16 +175,18 @@ event: message_start
 data: {"type":"message_start","message":{"id","type","role","model","content":[],"usage":{"input_tokens","output_tokens"}}}
 
 event: content_block_start
-data: {"type":"content_block_start","index":0,"content_block":{"type":"text"|"thinking"}}
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","text":""}}
 
 event: content_block_delta
-data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta"|"thinking_delta","text":"..."}}
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"..."}}
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"...","text":"..."}}
 
 event: content_block_stop
 data: {"type":"content_block_stop","index":0}
 
 event: message_delta
-data: {"type":"message_delta","delta":{"stop_reason":"stop"},"usage":{...}}
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{...}}
 
 event: message_stop
 data: {"type":"message_stop","performance":{"total_duration_ms":1234, ...}}
@@ -174,6 +198,9 @@ Blocks open and close as the content type switches, so a thinking model emits
 a `thinking` block, closes it, then opens a `text` block. Key on
 `delta.type` rather than on the block index — index is a running counter
 across the whole message, not a stable slot.
+
+`thinking_delta` carries the text under both `thinking` (conformant) and
+`text` (heylook's original). Read `thinking`.
 
 ### heylook extensions on the same stream
 
@@ -210,7 +237,7 @@ follows it. The message is diagnostic text and never model output.
 | Code | Condition | Body |
 |---|---|---|
 | 400 | Unknown or disabled `model`; or no `model` given and no server `default_model` | reason plus available ids in `detail` |
-| 422 | Body failed validation — most often the image block shape | FastAPI validation detail |
+| 422 | Body failed validation — an out-of-range sampler value, or a media block with neither a base64 nor a url source | FastAPI validation detail |
 | 500 | Model exists but failed to load: corrupt weights, unsupported architecture | message in `detail` |
 | 503 | Generation queue full | `{"error":{"code":"model_overloaded"}}`, `Retry-After` and `X-RateLimit-*` headers |
 

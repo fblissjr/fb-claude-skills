@@ -1,7 +1,7 @@
 {
   "name": "heylook-provider",
-  "version": "0.1.0",
-  "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider — Messages and OpenAI wires, capability discovery, and the shapes that differ from the APIs it resembles",
+  "version": "0.2.0",
+  "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider — Messages and OpenAI wires, runtime capability discovery, and the closed list of deliberate differences from Anthropic's spec",
   "author": {
     "name": "fblissjr"
   },

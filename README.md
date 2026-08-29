@@ -72,6 +72,12 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [gemini-bridge](apps/gemini-bridge/) | CLI + Skill + Command | Hand a perceptual task to a Gemini model when Claude cannot do it directly — comparing two renders and reporting what a person would notice, rather than falling back to pixel statistics. Recipes are data (frontmatter plus a system instruction), every call writes an auditable run directory, and the API surface was established by live probing rather than documentation. Secret-manager agnostic. |
 
+### provider integrations
+
+| Plugin | Type | Description |
+|--------|------|-------------|
+| [heylook-provider](skills/heylook-provider/) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes an Anthropic Messages-conformant `/v1/messages` beside an OpenAI-compatible `/v1/chat/completions`, so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. |
+
 ### privacy & pre-share safety
 
 | Plugin | Type | Description |
@@ -120,6 +126,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install gemini-bridge@fb-claude-skills
 /plugin install dangling-refs@fb-claude-skills
 /plugin install grilling@fb-claude-skills
+/plugin install heylook-provider@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -218,6 +225,7 @@ Once installed, invoke as namespaced slash commands:
 /postmortem:adversarial-verify   # Refute one claim by construction; verify the needle threaded
 /postmortem:control-audit        # Census + live-fire audit of hooks, validators, reminders
 /gemini                          # Hand a perceptual task to Gemini; answer lands in a run directory
+/heylook-provider:heylook-provider  # Wire an app to heylook: the wire contract and capability discovery
 /dangling-refs:retire            # Remove a unit without leaving references behind
 
 
