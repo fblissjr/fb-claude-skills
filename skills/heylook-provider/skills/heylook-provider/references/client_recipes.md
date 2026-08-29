@@ -8,8 +8,10 @@ event handling and the block separation.
 Both streaming clients below were executed against a server emitting the
 grammar in `wire_reference.md`, covering the thinking/text split,
 `message_stop` termination, the in-band `error` event, and a 503 with
-`Retry-After`. The Pillow resize recipe was executed on Pillow 12.3.0 against
-PNG and JPEG inputs on both sides of `MAX_EDGE`. The `sharp` recipe was not
+`Retry-After`. The Pillow resize recipe is executed by
+`tests/test_image_recipe.py`, which extracts this file's own code block rather
+than copying it and runs it on Pillow 12.3.0 across PNG and JPEG on both sides
+of `MAX_EDGE` plus an EXIF-orientation case. The `sharp` recipe was not
 executed; its settings are transcribed from heylook's own frontend.
 
 That split is not bookkeeping. The Pillow recipe shipped with a bug the note

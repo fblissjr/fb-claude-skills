@@ -1,5 +1,11 @@
 # changelog
 
+## 1.40.1
+
+### fixed
+- **The unbacked Pillow claim in 1.40.0's `### known` is closed: the recipe now has a committed harness.** `tests/test_image_recipe.py` extracts the `prepare_image` block from `client_recipes.md` rather than copying it — a copy would drift from the text it claims to verify — and runs it on a pinned Pillow 12.3.0 across PNG and JPEG on both sides of `MAX_EDGE` plus an EXIF-orientation case. Proved to catch the defect it exists for by reintroducing the original ordering bug (reading `.format` after `exif_transpose`) and confirming three of its cases redden. The note in `client_recipes.md` now names the harness instead of asserting an execution nobody can re-run, so the claim is recoverable by a reader rather than resting on a scratch directory that was never in the tree.
+- One of that harness's own tests was born fragile and caught it. The ordering assertion compared the bare strings `keep_png` and `exif_transpose`, which failed against *correct* code because the comment explaining the ordering names `exif_transpose` on the line above the assignment it explains. Anchored on the assignment and the call instead.
+
 ## 1.40.0
 
 ### fixed
@@ -12,7 +18,7 @@
 - The probe suite is 23 cases to 30. The three pins the review found shipping without a fallibility proof now carry one, each verified by mutation: reporting every id rather than the matched ones, sending an auth header unconditionally, and interpolating the key into the 401 diagnostic all redden their test. The module docstring no longer claims every pin was proved at birth; it records that 14 of 30 are pins, that three shipped unproved, and that review caught it rather than the suite — a suite cannot notice a pin nothing has tried to break.
 
 ### known
-- `client_recipes.md` still asserts the Pillow recipe "was executed on Pillow 12.3.0" with no committed harness. It was executed, in a scratch directory that is not in the tree, so the claim is unrecoverable by anyone reading the repo — the same defect class as 1.36.0's "exercised across all four paths", one file over and not yet closed. Closing it means either adding Pillow as a dev dependency with a test that extracts and runs the recipe, or downgrading the sentence to what a reader can check.
+- **Closed in 1.40.1.** ~~`client_recipes.md` still asserts the Pillow recipe "was executed on Pillow 12.3.0" with no committed harness. It was executed, in a scratch directory that is not in the tree, so the claim is unrecoverable by anyone reading the repo — the same defect class as 1.36.0's "exercised across all four paths", one file over and not yet closed. Closing it means either adding Pillow as a dev dependency with a test that extracts and runs the recipe, or downgrading the sentence to what a reader can check.~~
 
 ## 1.39.1
 

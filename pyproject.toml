@@ -15,4 +15,9 @@ exclude = ["apps/readwise-reader"]
 skill-maintainer = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=7.0", "ruff>=0.16", "skill-maintainer"]
+dev = [
+    "pillow==12.3.0",
+    "pytest>=7.0",
+    "ruff>=0.16",
+    "skill-maintainer",
+]
