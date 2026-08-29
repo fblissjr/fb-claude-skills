@@ -1,5 +1,12 @@
 # changelog
 
+## 1.42.0
+
+### changed
+- **The sweep control gets the three parts its first draft left out, and the third is the one that makes it a control rather than an intention.** Where the known-false list comes from: the string you just replaced is the sweep input, which gives the procedure a defined moment and a defined input instead of asking a reader to somehow know what is false. What a clean sweep proves: those strings are absent, never that the artifact is correct — it is only as good as its list. And that the sweep must report what it **examined**, not only what it matched, because "0 hits" cannot be distinguished from a sweep that never ran. The item also gains the specimen it was missing: sweeping the source had already missed two instances that one pass over the generated schema found.
+- **The no-op modes were verified here rather than transcribed, and the reported mechanism was wrong.** The claim arriving from the other session was that a failed glob and a clean run both exit 0. They do not: bare, **both exit 1**; through a pipe, **both exit 0**. The real finding is stronger than the reported one — within either form the two are *identical*, so an exit-code check cannot separate them in either direction, and the common `| head` shape resolves both to success. There is a second mode with nothing on screen at all: this environment's `grep` is a shim over `ugrep -I`, which skips any file containing a NUL byte silently. Both recorded in the repo notes.
+- Occasioned by a live instance: the commit that shipped 1.41.1 ran a sweep whose glob the shell mangled, and the summary read "nothing above = no surviving instance" underneath the error message. Caught on re-read, re-run properly, and the sweep was in fact clean — but that is a green produced by a run that checked nothing, one section away from the file warning about exactly that.
+
 ## 1.41.1
 
 ### fixed

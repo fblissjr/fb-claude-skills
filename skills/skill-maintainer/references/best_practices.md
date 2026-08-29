@@ -416,7 +416,23 @@ from the original: nothing is red, so nothing is looked at.
       you know are false catches route descriptions, headers, examples and
       endpoint maps at once, where sweeping the source catches whichever file
       you thought to open. This is a procedure; "remember to also check X" is
-      a habit, and habits are not controls
+      a habit, and habits are not controls. Specimen: sweeping the source had
+      already missed two instances that one pass over the generated schema
+      found
+- [ ] **The string you just replaced is the sweep input, and a clean sweep
+      proves only that those strings are absent.** Taking the list from the
+      fix gives the control a defined moment and a defined input, instead of
+      asking the reader to somehow know what is false. It never proves the
+      artifact is correct — a sweep is only as good as its list
+- [ ] **Report what was EXAMINED, not only what matched.** "0 hits" cannot be
+      distinguished from a sweep that never ran, and the failure is not
+      exotic: a failed shell glob and a genuinely clean run exit *identically*
+      — both 1 when bare, both 0 through a pipe, so the common `| head` shape
+      masks it in the direction that reads as success. Verified here
+      2026-08-29, three glob failures in one day. This environment's `grep`
+      adds a silent second mode: it skips any file containing a NUL byte with
+      no output and no message. "Scanned 66 route descriptions, 0 hits" is a
+      result; "0 hits" is not
 - [ ] **The copy with the widest reach is the one the editing loop never looks
       at.** A skill `description` is loaded into every session's listing and
       sits above the prose being edited, so it is simultaneously the
