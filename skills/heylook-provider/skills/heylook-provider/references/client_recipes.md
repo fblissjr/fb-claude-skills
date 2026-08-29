@@ -157,9 +157,11 @@ def with_backoff(fn, attempts=5):
             if i == attempts - 1:
                 raise
             # The server sends Retry-After because it knows its own queue
-            # depth. Exponential growth is only the fallback for when it
-            # does not.
-            time.sleep(min(e.retry_after if e.retry_after is not None else 2 ** i, 30))
+            # depth. Exponential growth is the fallback for when it does not.
+            # Floor at 1s: `Retry-After: 0` is legal and would otherwise
+            # sleep zero, turning backoff into a hot loop against a server
+            # that has just said it is saturated.
+            time.sleep(min(max(e.retry_after or 2 ** i, 1), 30))
 ```
 
 ## Python: discovery and capability gating

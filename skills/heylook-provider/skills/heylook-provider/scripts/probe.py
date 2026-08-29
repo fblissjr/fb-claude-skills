@@ -28,15 +28,43 @@ Standard library only; no install step.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 EXIT_OK = 0
 EXIT_UNREADABLE = 1
 EXIT_UNMATCHED = 2
+
+
+def _origin(url: str) -> tuple:
+    p = urllib.parse.urlsplit(url)
+    return (p.scheme, p.hostname, p.port or (443 if p.scheme == "https" else 80))
+
+
+class _StripAuthAcrossOrigins(urllib.request.HTTPRedirectHandler):
+    """Drop the bearer token when a redirect leaves the origin it was for.
+
+    urllib copies every header onto the redirected request, so without this a
+    302 hands the key to whatever host the Location names. Same-origin
+    redirects keep it: an http path rewrite on the same server is a real
+    deployment and breaking it would push people back to no auth at all.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and _origin(newurl) != _origin(req.full_url):
+            for store in (new.headers, new.unredirected_hdrs):
+                for k in [k for k in store if k.lower() == "authorization"]:
+                    del store[k]
+        return new
+
+
+_OPENER = urllib.request.build_opener(_StripAuthAcrossOrigins)
 
 
 class Unreadable(Exception):
@@ -58,7 +86,7 @@ def fetch(base: str, path: str, timeout: float, api_key: str | None = None) -> d
         headers["Authorization"] = f"Bearer {api_key}"
 
     try:
-        with urllib.request.urlopen(
+        with _OPENER.open(
             urllib.request.Request(url, headers=headers), timeout=timeout
         ) as r:
             body = r.read()
@@ -67,15 +95,29 @@ def fetch(base: str, path: str, timeout: float, api_key: str | None = None) -> d
         # HTTPError subclasses URLError subclasses OSError, so it must be
         # caught FIRST -- a 401 from a running server is not a dead server.
         if e.code in (401, 403):
-            raise Unreadable(
-                f"{base} answered HTTP {e.code} for {path}.",
+            # Branch on whether a key was actually sent. Telling someone to
+            # pass --api-key when they just did is the same defect as telling
+            # them to start a server that is already running.
+            hint = (
+                "that key was rejected. Check it is the value of "
+                "HEYLOOK_API_KEY on the server, and that you are not hitting "
+                "a different server than you think."
+                if api_key else
                 "that gate is HEYLOOK_API_KEY. Pass --api-key or set "
                 "HEYLOOK_API_KEY -- it is loopback-exempt, so it applies "
-                "only when you probe from another machine.",
-            ) from e
+                "only when you probe from another machine."
+            )
+            raise Unreadable(f"{base} answered HTTP {e.code} for {path}.", hint) from e
         raise Unreadable(
             f"{base} answered HTTP {e.code} for {path}.",
             f"a heylook server serves {path}. Check the base URL and port.",
+        ) from e
+    except http.client.HTTPException as e:
+        # NOT an OSError: BadStatusLine when something that is not an HTTP
+        # server answers, IncompleteRead when a body is cut off mid-load.
+        raise Unreadable(
+            f"{base} did not speak HTTP for {path} ({type(e).__name__}: {e}).",
+            "is that a heylook server?",
         ) from e
     except (urllib.error.URLError, OSError) as e:
         raise Unreadable(
@@ -101,20 +143,28 @@ def fetch(base: str, path: str, timeout: float, api_key: str | None = None) -> d
     return payload
 
 
-def models_from(payload: dict, base: str) -> list[dict]:
+def models_from(payload: dict, base: str) -> tuple[list[dict], int]:
+    """Usable rows plus the count skipped.
+
+    One malformed row is not an unreadable server: the rest of the roster is
+    still the answer to "what can this machine serve". Exit 1 is reserved for
+    a roster with nothing usable in it, because that is the only case where
+    the operator has no model to pick.
+    """
     rows = payload.get("data")
     if not isinstance(rows, list):
         raise Unreadable(
             f"{base} returned /v1/models with no `data` list.",
             "is that a heylook server?",
         )
-    for i, row in enumerate(rows):
-        if not isinstance(row, dict) or not row.get("id"):
-            raise Unreadable(
-                f"{base} returned a /v1/models row (index {i}) with no `id`.",
-                "the roster is unusable: an id is what a client would send.",
-            )
-    return rows
+    usable = [r for r in rows if isinstance(r, dict) and r.get("id")]
+    skipped = len(rows) - len(usable)
+    if rows and not usable:
+        raise Unreadable(
+            f"{base} returned {len(rows)} /v1/models row(s), none with an `id`.",
+            "the roster is unusable: an id is what a client would send.",
+        )
+    return usable, skipped
 
 
 def _samplers(caps: dict) -> list:
@@ -146,18 +196,24 @@ def main(argv: list[str] | None = None) -> int:
     api_key = args.api_key or os.environ.get("HEYLOOK_API_KEY") or None
 
     try:
-        models = models_from(fetch(args.base, "/v1/models", args.timeout, api_key), args.base)
+        models, skipped = models_from(
+            fetch(args.base, "/v1/models", args.timeout, api_key), args.base
+        )
     except Unreadable as e:
         print(str(e), file=sys.stderr)
         if e.hint:
             print(e.hint, file=sys.stderr)
         return EXIT_UNREADABLE
 
+    if skipped:
+        print(f"note: skipped {skipped} /v1/models row(s) with no `id`.", file=sys.stderr)
+
     # Capabilities are best-effort extra context; a server that answers
-    # /v1/models but not this is still usable.
+    # /v1/models but not this is still usable. Deliberately broad: the roster
+    # is already in hand, so NOTHING here is worth failing the probe over.
     try:
         caps = fetch(args.base, "/v1/capabilities", args.timeout, api_key)
-    except Unreadable:
+    except Exception:
         caps = {}
 
     need = set(args.need)
