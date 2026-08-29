@@ -1,5 +1,11 @@
 # changelog
 
+## 1.41.1
+
+### fixed
+- **`gemini_migration.md` still listed an `error` stop reason that 1.79.40 removed.** Verified against the server source rather than the report: `StopReason` is exactly `end_turn`, `max_tokens`, `stop_sequence` (`schema/responses.py`). The heylook session had corrected this claim in SKILL.md and `wire_reference.md` and missed the third file — the sixth instance in three days of a fix stopping short of another copy, and the first since the pattern was written down. Found by the accuracy review the owner asked for, which is the control working: the copy that survives is the one nobody was editing.
+- Three imprecisions in the same pass, all confirmed by execution against 1.79.40 before editing. The pre-1.79.39 note implied clients might have seen an `error` stop reason; it was declared but never reachable, which is why it was removed rather than fixed. `wire_reference.md` now also records that only `end_turn` and `max_tokens` occur in practice, and why `stop_sequence` is kept while `error` was not: unreachable-and-standard costs a client nothing because its own spec already defines it, unreachable-and-bespoke makes every client write a branch for you. SKILL.md's conformance paragraph attributed all of it to 1.79.39 when the `error` removal and the schema-visible nested `source` landed in 1.79.40 — a reader pinned to exactly 1.79.39 gets an `/openapi.json` that rejects the spelling this skill recommends. And the 422-versus-silently-dropped boundary was described only in the flat `source_type` spelling while the document recommends the nested one, so a reader following the recommendation had to translate; it now names both and states which nested shape is the 422.
+
 ## 1.41.0
 
 ### added

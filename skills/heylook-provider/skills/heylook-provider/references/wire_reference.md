@@ -7,7 +7,16 @@ endpoint. Verified against heylookitsanllm 1.79.40
 
 Servers before 1.79.39 differ on three payloads: the image block accepted
 only the flat spelling, the thinking block and delta carried only `text`,
-and `stop_reason` was `"stop"` / `"length"` / `"error"`.
+and `stop_reason` was `"stop"` / `"length"`. Those versions also declared an
+`"error"` stop reason that nothing could emit — it was removed in 1.79.40
+rather than fixed, so no client ever needed a branch for it.
+
+In practice only `end_turn` and `max_tokens` occur. `stop_sequence` is
+declared and mapped but unreachable, since both engines report OpenAI's
+`stop`/`length`; it is kept because Anthropic's own spec defines it, so a
+client written against that spec already handles it and declaring it costs
+nothing. That is the distinction `"error"` failed: unreachable-and-standard
+is harmless, unreachable-and-bespoke makes clients write a branch for you.
 
 The live `/openapi.json` outranks this file — it is generated from the same
 Pydantic models at boot. Use this when you want the shape and the reasoning;
@@ -123,9 +132,11 @@ schema-validating proxy, would reject the spelling the docs recommend.
 
 **Two different failures, and only one of them is a 422.** A block carrying
 neither `source` nor `source_type` fails validation (422). A block whose
-`source_type` IS set but which carries no `data` and no `url` validates,
-then gets **silently dropped** during conversion — the request succeeds, the
-text parts survive, and the model never sees the image. If a vision answer
+source type IS set — nested `source.type`, or the flat `source_type` —
+but which carries no `data` and no `url` validates, then gets **silently
+dropped** during conversion: the request succeeds, the text parts survive,
+and the model never sees the image. Both spellings behave identically here;
+a nested `source` missing its `type` is the 422 case, not the silent one. If a vision answer
 describes nothing, inspect the block rather than waiting for a status code.
 
 ### Audio — gguf only

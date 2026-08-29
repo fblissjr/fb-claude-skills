@@ -23,7 +23,7 @@ second backend.
 | `generationConfig.responseSchema` | no equivalent; prompt for the shape |
 | `generationConfig.thinkingConfig` | `thinking` plus `reasoning_effort` |
 | `candidates[].content.parts[].text` | a `text` output block |
-| `candidates[].finishReason` | `stop_reason` (`end_turn` / `max_tokens` / `stop_sequence` / `error`) |
+| `candidates[].finishReason` | `stop_reason` (`end_turn` / `max_tokens` / `stop_sequence`) |
 | `usageMetadata.promptTokenCount` | `usage.input_tokens` |
 | `usageMetadata.candidatesTokenCount` | `usage.output_tokens` |
 | streaming chunk `candidates[].content.parts[].text` | `content_block_delta` → `delta.text` |

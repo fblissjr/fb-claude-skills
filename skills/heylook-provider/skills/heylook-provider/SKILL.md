@@ -74,7 +74,11 @@ supported, not deprecated. Details in `references/openai_wire.md`.
 
 Since heylook 1.79.39 the payloads conform — nested `source` on media
 blocks, `thinking` on thinking blocks and deltas, Anthropic's `stop_reason`
-vocabulary, the same event grammar with no `[DONE]` sentinel. Anthropic's
+vocabulary, the same event grammar with no `[DONE]` sentinel. Two later
+fixes matter if you are pinned to exactly 1.79.39: the unreachable `error`
+stop reason was still declared until 1.79.40, and the nested `source` was
+validator-only until then, so that version's `/openapi.json` rejects the
+spelling this skill recommends even though the server accepts it. Anthropic's
 published spec answers most questions this skill does not. The list below
 is hand-maintained and has been wrong — 1.79.39 shipped it claiming to be
 closed while omitting four real entries — so treat it as the best current
