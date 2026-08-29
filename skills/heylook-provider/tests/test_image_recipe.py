@@ -21,6 +21,7 @@ from __future__ import annotations
 import base64
 import io
 import re
+from functools import lru_cache
 from pathlib import Path
 
 import pytest
@@ -30,18 +31,35 @@ DOC = (
     Path(__file__).resolve().parents[1]
     / "skills" / "heylook-provider" / "references" / "client_recipes.md"
 )
-MAX_EDGE = 2048
 
 
-def _prepare_image():
-    """Compile the shipped recipe. Extracting rather than copying is the whole
-    point: a copy here would drift from the text it claims to verify."""
+@lru_cache(maxsize=1)
+def _recipe_source() -> str:
+    """The shipped recipe's text. One extraction rule, one home -- a first
+    draft carried this regex and its `def prepare_image` filter in two places,
+    so a fence change would have fixed one and silently altered the other."""
     blocks = re.findall(r"```python\n(.*?)```", DOC.read_text(), re.S)
     recipe = [b for b in blocks if "def prepare_image" in b]
     assert len(recipe) == 1, f"expected one prepare_image block, found {len(recipe)}"
+    return recipe[0]
+
+
+@lru_cache(maxsize=1)
+def _recipe_ns() -> dict:
+    """Compile the shipped recipe once. Extracting rather than copying is the
+    whole point: a copy here would drift from the text it claims to verify --
+    which is why MAX_EDGE is read out of this namespace and not restated."""
     ns: dict = {}
-    exec(compile(recipe[0], "client_recipes.md:prepare_image", "exec"), ns)
-    return ns["prepare_image"]
+    exec(compile(_recipe_source(), "client_recipes.md:prepare_image", "exec"), ns)
+    return ns
+
+
+def _prepare_image():
+    return _recipe_ns()["prepare_image"]
+
+
+def _max_edge() -> int:
+    return _recipe_ns()["MAX_EDGE"]
 
 
 def _encode(fmt: str, size: tuple[int, int], **kw) -> bytes:
@@ -70,10 +88,15 @@ def test_format_survives_the_transform(fmt, size, expect):
 
 @pytest.mark.parametrize("size", [(3000, 1800), (800, 600)])
 def test_longest_edge_is_capped_and_small_images_pass_through(size):
+    """MAX_EDGE comes from the recipe, not from a copy. Hand-restating 2048
+    here would make this test assert `out.size == size` against a stale bound
+    if the recipe's value moved -- failing with "thumbnail must never enlarge"
+    for a bug that is nothing of the sort."""
+    max_edge = _max_edge()
     data, _ = _prepare_image()(_encode("JPEG", size))
     out = _decode(data)
-    assert max(out.size) <= MAX_EDGE
-    if max(size) <= MAX_EDGE:
+    assert max(out.size) <= max_edge
+    if max(size) <= max_edge:
         assert out.size == size, "thumbnail must never enlarge"
 
 
@@ -93,8 +116,7 @@ def test_the_recipe_reads_format_before_transforming():
     """The defect was an ORDERING one, so pin the order rather than only the
     outcome: a future edit that moves the read back below exif_transpose
     reproduces the bug while every assertion above still passes on JPEG."""
-    blocks = re.findall(r"```python\n(.*?)```", DOC.read_text(), re.S)
-    recipe = next(b for b in blocks if "def prepare_image" in b)
+    recipe = _recipe_source()
     # Anchor on the assignment and the CALL. A first draft compared bare
     # "keep_png" against "exif_transpose" and failed on correct code, because
     # the comment explaining the ordering names exif_transpose above the line

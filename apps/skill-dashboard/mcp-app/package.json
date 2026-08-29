@@ -2,7 +2,7 @@
   "name": "@fb-claude-skills/skill-dashboard-mcp-app",
   "private": true,
   "type": "module",
-  "description": "MCP App for interactive skill quality dashboard with pass/fail checks, token budgets, and freshness",
+  "description": "MCP App for interactive skill quality dashboard with pass/fail checks and token budgets",
   "license": "MIT",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",

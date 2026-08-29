@@ -2,7 +2,7 @@
 name: quality
 description: >-
   Run the skill quality report for this repo — spec compliance, token budget,
-  freshness, description quality, version alignment. Use when the user says "check
+  description quality, version alignment. Use when the user says "check
   quality", "quality report", "check my skills", "are my skills ok", "skill health",
   or names a specific skill to check.
 argument-hint: "[skill names to filter, space-separated]"
@@ -22,7 +22,7 @@ reading files yourself — the thresholds, the verb list, and the discovery rule
 live in the tool, and a hand-run version drifts from it silently.
 
 Related commands, all `uv run skill-maintain <cmd>`: `validate` (spec only),
-`freshness` (staleness only), `measure` (token budget only), `test` (the full
+`measure` (token budget only), `test` (the full
 red/green suite including repo hygiene).
 
 ## Acting on the results

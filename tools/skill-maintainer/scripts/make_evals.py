@@ -135,7 +135,7 @@ S["quality"] = ([
     "how big are my skill files? am i blowing the token budget anywhere",
     "which of my skill descriptions are weak or too short to trigger properly",
     "check quality on the postmortem skill specifically",
-    "are any of my skills stale? i want the freshness check across the repo",
+    "give me a quality report across the repo",
     "do my plugin.json versions line up with marketplace.json across all the plugins here",
     "give me a health report for all the skills in this repo before i publish",
     "i want to see spec compliance for my skills, i think a couple have malformed frontmatter",

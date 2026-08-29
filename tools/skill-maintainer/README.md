@@ -36,7 +36,7 @@ INPUTS                      PROCESSING                      STATE / OUTPUT
 
 SKILL.md files              validate ──────────────────┐
 (local, discovered          quality ────────────────────┤
- by glob)                   freshness ──────────────────┤──► CLI reports
+ by glob)                   provenance ─────────────────┤──► CLI reports
                             measure ────────────────────┤    (tables, pass/fail,
 upstream docs               upstream ──────────────────►┤     exit codes for CI)
 (llms-full.txt via HTTP)    sources ───────────────────►┤
@@ -78,7 +78,7 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 |---------|-------------|
 | `init` | Create `.skill-maintainer/config.json` in the target repo |
 | `validate` | Validate skills against Agent Skills spec + best practices |
-| `quality` | Unified report: validation + token budget + freshness + description quality |
+| `quality` | Unified report: validation + token budget + description quality |
 | `measure` | Token budget measurement with per-file breakdown |
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
 | `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
@@ -216,7 +216,7 @@ skill-maintain validate --skill path-privacy --verbose
 
 ### quality
 
-Unified report: validation + token budget + staleness + description quality, one row per skill.
+Unified report: validation + token budget + description quality, one row per skill.
 
 For each skill:
 - **Validation:** `skills_ref.validator.validate()`

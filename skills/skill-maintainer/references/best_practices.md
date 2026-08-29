@@ -425,14 +425,17 @@ from the original: nothing is red, so nothing is looked at.
       asking the reader to somehow know what is false. It never proves the
       artifact is correct — a sweep is only as good as its list
 - [ ] **Report what was EXAMINED, not only what matched.** "0 hits" cannot be
-      distinguished from a sweep that never ran, and the failure is not
-      exotic: a failed shell glob and a genuinely clean run exit *identically*
-      — both 1 when bare, both 0 through a pipe, so the common `| head` shape
-      masks it in the direction that reads as success. Verified here
-      2026-08-29, three glob failures in one day. This environment's `grep`
-      adds a silent second mode: it skips any file containing a NUL byte with
-      no output and no message. "Scanned 66 route descriptions, 0 hits" is a
-      result; "0 hits" is not
+      distinguished from a sweep that never ran. Through a pipe the two are
+      identical in every shell — a failed glob and a clean run both exit 0,
+      because the pipeline reports `head`'s status — so the common `| head`
+      shape masks the failure in the direction that reads as success. Bare,
+      it depends on the shell and is not safe to rely on: zsh exits 1 for
+      both, while bash distinguishes them (2 for the failed glob, 1 for
+      clean). Your `grep` may also skip files silently — a shim over `ugrep
+      -I` passes over anything containing a NUL byte with no output and no
+      message, where GNU and BSD grep say "Binary file X matches". Check
+      which yours does rather than assuming. "Scanned 66 route descriptions,
+      0 hits" is a result; "0 hits" is not
 - [ ] **The copy with the widest reach is the one the editing loop never looks
       at.** A skill `description` is loaded into every session's listing and
       sits above the prose being edited, so it is simultaneously the

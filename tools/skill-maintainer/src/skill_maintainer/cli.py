@@ -53,18 +53,56 @@ Examples:
 """
 
 
+def resolve_root(argv: list[str]) -> Path:
+    """Where to look for a vendored copy of this tool.
+
+    Honours --dir like every other command, then walks up from the working
+    directory, so `cd tools && skill-maintain quality` still finds the repo.
+    The first version looked only at ./tools/skill-maintainer and so disabled
+    itself from any subdirectory without saying so.
+
+    Deliberately NOT the uv tool receipt, which records the tree the binary
+    was BUILT from. The question here is whether the build matches the source
+    you are presently reading, and that is the working directory.
+    """
+    def vendors(p: Path) -> bool:
+        return (p / "tools" / "skill-maintainer" / "pyproject.toml").exists()
+
+    # --dir names the repo being ACTED ON, which is not necessarily where this
+    # tool's source lives -- `init --dir /fresh/repo` targets a repo that
+    # vendors nothing. Use it only when it actually holds a vendored copy,
+    # then fall back to the tree we are standing in.
+    if "--dir" in argv:
+        i = argv.index("--dir")
+        if i + 1 < len(argv):
+            target = Path(argv[i + 1])
+            if vendors(target):
+                return target
+    here = Path(".").resolve()
+    for candidate in (here, *here.parents):
+        if vendors(candidate):
+            return candidate
+    return here
+
+
 def source_version(root: Path) -> str | None:
     """The version declared by a vendored copy of this tool, if one is here.
 
-    Returns None outside a repo that vendors it, and on any parse failure:
-    this runs ahead of every command and must never be why one fails.
+    Returns None outside a repo that vendors it, and on ANY malformed input.
+    This runs ahead of every command, so an escape here takes down the whole
+    CLI -- the first version caught only (OSError, KeyError, ValueError),
+    which covers unparseable TOML but not a well-formed file whose `project`
+    key is a string. A non-string version is also rejected: comparing it
+    against the running version can never be equal, so the warning would fire
+    on every command and the reinstall it recommends would never clear it.
     """
     pyproject = Path(root) / "tools" / "skill-maintainer" / "pyproject.toml"
     try:
         with open(pyproject, "rb") as fh:
-            return tomllib.load(fh)["project"]["version"]
-    except (OSError, KeyError, ValueError):
+            declared = tomllib.load(fh)["project"]["version"]
+    except Exception:
         return None
+    return declared if isinstance(declared, str) else None
 
 
 def staleness_warning(root: Path, running: str | None = None) -> str | None:
@@ -112,6 +150,13 @@ def main():
     # Strip the command name so subcommand argparse sees the right args
     sys.argv = [f"skill-maintain {command}"] + sys.argv[2:]
 
+    # Before EVERY command, init included. init is where a stale build does
+    # the most damage: install_pre_commit_hook writes the hook template out of
+    # the running build, so an old binary scaffolds an outdated hook silently.
+    warning = staleness_warning(resolve_root(sys.argv[1:]))
+    if warning:
+        print(warning, file=sys.stderr)
+
     if command == "init":
 
         from skill_maintainer.config import init_config
@@ -132,10 +177,6 @@ def main():
         hook_status = install_pre_commit_hook(root, force=force_hook)
         print(f"Pre-commit hook: {hook_status}")
         sys.exit(0)
-
-    warning = staleness_warning(Path("."))
-    if warning:
-        print(warning, file=sys.stderr)
 
     # Dynamic import and dispatch
     import importlib

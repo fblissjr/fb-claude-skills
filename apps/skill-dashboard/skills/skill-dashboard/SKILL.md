@@ -3,9 +3,9 @@ name: skill-dashboard
 description: >
   Show an interactive dashboard of all tracked skills, plugins, and repo hygiene in this project.
   Use when the user says "show skill dashboard", "skill status", "show me skill health",
-  "what skills are stale", "check skill freshness", "skill budget overview", "show dashboard",
+  "skill budget overview", "show dashboard",
   or "run quality checks". Renders an interactive MCP App with pass/fail indicators for spec
-  compliance, description quality, token budgets, freshness, plugin checks, and repo hygiene.
+  compliance, description quality, token budgets, plugin checks, and repo hygiene.
 ---
 
 # skill-dashboard
@@ -24,9 +24,9 @@ Or trigger via natural language: "show skill dashboard", "skill status", "which 
 
 The `skill-quality-check` tool accepts an optional `filter` parameter (skill name substring) and returns structured content with:
 
-- Per-skill checks: spec compliance, description quality, freshness, token budget, body size
+- Per-skill checks: spec compliance, description quality, token budget, body size
 - Per-plugin checks: manifest fields, marketplace listing, README existence
-- Repo hygiene: gitignore rules, ambient hooks, state files, duplicate names, best_practices.md freshness
+- Repo hygiene: gitignore rules, ambient hooks, state files, duplicate names, best_practices.md provenance
 - Summary: passed/failed/total counts
 - Meta: generation timestamp, budget thresholds (warn: 4000, critical: 8000)
 
@@ -53,7 +53,7 @@ The `skill-quality-check` tool accepts an optional `filter` parameter (skill nam
 
 ### Repo hygiene
 
-Pass/fail list: gitignore rules, ambient hooks, state files, duplicate names, best_practices.md freshness, version alignment.
+Pass/fail list: gitignore rules, ambient hooks, state files, duplicate names, best_practices.md provenance, version alignment.
 
 ## Server
 

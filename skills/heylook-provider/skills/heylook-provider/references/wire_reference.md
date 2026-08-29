@@ -7,9 +7,11 @@ endpoint. Verified against heylookitsanllm 1.79.40
 
 Servers before 1.79.39 differ on three payloads: the image block accepted
 only the flat spelling, the thinking block and delta carried only `text`,
-and `stop_reason` was `"stop"` / `"length"`. Those versions also declared an
-`"error"` stop reason that nothing could emit — it was removed in 1.79.40
-rather than fixed, so no client ever needed a branch for it.
+and `stop_reason` was `"stop"` / `"length"`. Separately, **every version
+through 1.79.39** declared an `"error"` stop reason that nothing could emit;
+1.79.40 removed it rather than making it reachable, so no client ever needed
+a branch for it. That scope includes 1.79.39 itself, which is otherwise the
+first conforming release.
 
 In practice only `end_turn` and `max_tokens` occur. `stop_sequence` is
 declared and mapped but unreachable, since both engines report OpenAI's
@@ -183,8 +185,9 @@ working). Read `thinking`.
 
 `stop_reason` is Anthropic's vocabulary, with no additions. A non-streaming
 failure produces no response at all — it is an HTTP 4xx/5xx — so there is no
-error member and no branch to write for one. (1.79.39 briefly declared one
-on a mechanism that did not exist; 1.79.40 removed it.)
+error member and no branch to write for one. (Declared through 1.79.39 on a
+mechanism that did not exist; 1.79.40 removed it — see the version note at
+the top of this file.)
 
 ## Streaming
 

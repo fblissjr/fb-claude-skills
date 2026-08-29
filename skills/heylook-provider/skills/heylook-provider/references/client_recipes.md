@@ -8,11 +8,14 @@ event handling and the block separation.
 Both streaming clients below were executed against a server emitting the
 grammar in `wire_reference.md`, covering the thinking/text split,
 `message_stop` termination, the in-band `error` event, and a 503 with
-`Retry-After`. The Pillow resize recipe is executed by
-`tests/test_image_recipe.py`, which extracts this file's own code block rather
-than copying it and runs it on Pillow 12.3.0 across PNG and JPEG on both sides
-of `MAX_EDGE` plus an EXIF-orientation case. The `sharp` recipe was not
-executed; its settings are transcribed from heylook's own frontend.
+`Retry-After`. The Pillow resize recipe has a harness that extracts this
+file's own code block rather than copying it and runs it on Pillow 12.3.0
+across PNG and JPEG on both sides of `MAX_EDGE` plus an EXIF-orientation
+case: `uv run pytest skills/heylook-provider/tests/`. Nothing runs it
+automatically — the repo has no CI and `skill-maintain test` carries no
+pytest dependency by design — so it is a check you can re-run, not a gate
+that will notice drift on its own. The `sharp` recipe was not executed; its
+settings are transcribed from heylook's own frontend.
 
 That split is not bookkeeping. The Pillow recipe shipped with a bug the note
 predicted: `keep_png` read `.format` after `exif_transpose`, which returns a

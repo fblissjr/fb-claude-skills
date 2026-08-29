@@ -57,8 +57,8 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, freshness, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
-| [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, freshness, version alignment |
+| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
+| [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, version alignment |
 
 ### MCP servers & apps
 
@@ -253,7 +253,7 @@ Plugins with MCP Apps expose tools that the model calls automatically during con
 | `mece-validate` | mece-decomposer | Validate and display score gauges + issues |
 | `mece-refine-node` | mece-decomposer | Edit nodes from the UI (app-only) |
 | `mece-export-sdk` | mece-decomposer | Preview generated Agent SDK code |
-| `skill-quality-check` | skill-dashboard | Quality checks, token budgets, freshness, version alignment |
+| `skill-quality-check` | skill-dashboard | Quality checks, token budgets, version alignment |
 | `skill-measure` | skill-dashboard | Per-file token breakdown for a single skill |
 | `skill-verify` | skill-dashboard | Mark a skill as verified (app-only, updates SKILL.md on disk) |
 
@@ -310,7 +310,7 @@ Common CLI commands:
 
 ```bash
 uv run skill-maintain test              # red/green test suite
-uv run skill-maintain quality           # validation + budget + freshness report
+uv run skill-maintain quality           # validation + budget + description report
 uv run skill-maintain upstream          # check Claude Code docs for changes
 uv run skill-maintain sources           # pull tracked repos, detect changes
 uv run skill-maintain lint              # wiki sanity: orphans, count drift, broken links

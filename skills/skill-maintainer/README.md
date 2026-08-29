@@ -2,7 +2,7 @@ last updated: 2026-08-04
 
 # skill-maintainer
 
-Maintenance tools for any Claude Code skills repo. Validates skills against the Claude Code skill schema (a superset of the Agent Skills spec, so Claude Code frontmatter fields are accepted), checks token budgets, tracks freshness against each skill's own `metadata.review_interval_days` window, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks version alignment repo-wide across every copy that can drift (plugin.json, marketplace.json, pyproject.toml, and any authored package.json), reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
+Maintenance tools for any Claude Code skills repo. Validates skills against the Claude Code skill schema (a superset of the Agent Skills spec, so Claude Code frontmatter fields are accepted), checks token budgets, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks version alignment repo-wide across every copy that can drift (plugin.json, marketplace.json, pyproject.toml, and any authored package.json), reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
 
 ## installation
 
@@ -25,7 +25,7 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 | Skill | Invocation | What it does |
 |-------|------------|--------------|
 | `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: upstream checks, source pulls, quality report, best practices review |
-| `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, freshness, description quality |
+| `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, description quality |
 | `init-maintenance` | `/skill-maintainer:init-maintenance` | Set up persistent maintenance config and state in a repo |
 | `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` atomically. No longer touches SKILL.md -- `metadata.version` was removed from skill frontmatter, and `plugin.json` is the sole version source |
 | `finish-session` | `/skill-maintainer:finish-session` | Orchestrate end-of-session cleanup: draft log, sync refs, flag version bumps, quality scan |
