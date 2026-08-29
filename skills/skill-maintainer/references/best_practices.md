@@ -390,6 +390,40 @@ watches it.
 - [ ] **Bracket the control itself**: prove it can go red, pin its silent edges,
       and check that any examples its messages cite still resolve
 
+### one claim in several places
+
+<!-- class: craft | source: five same-day instances across heylookitsanllm and this repo, 2026-08-29 | last_verified: 2026-08-29 -->
+
+A claim that exists once is maintained. The same claim in four places is
+maintained in one of them and stale in three, and the copies fail differently
+from the original: nothing is red, so nothing is looked at.
+
+- [ ] **Per-path tests cannot see cross-path divergence.** Where two code paths
+      must agree, tests that assert each path's behaviour are individually
+      correct and collectively blind: the bug lives between them and every test
+      passes. Specimen: a `stop_reason` passthrough existed in two modules,
+      one was fixed, and 1,700 tests stayed green while the routes disagreed.
+      Assert that the paths *agree* — that every write goes through the shared
+      mapper — not that each produces the right answer
+- [ ] **"Hand-copied constant" does not reach a copied shape.** The usual
+      framing catches duplicated values. It does not catch a duplicated
+      *description* of a structure, especially in a documentary model or a
+      docstring that no assertion reads, so those drift in the same commit
+      that fixes the other copy
+- [ ] **Sweep the generated artifact, not the source.** Every widest-reach copy
+      of a claim ends up in something rendered — a generated schema, a
+      published listing, a manifest. One pass over that artifact for strings
+      you know are false catches route descriptions, headers, examples and
+      endpoint maps at once, where sweeping the source catches whichever file
+      you thought to open. This is a procedure; "remember to also check X" is
+      a habit, and habits are not controls
+- [ ] **The copy with the widest reach is the one the editing loop never looks
+      at.** A skill `description` is loaded into every session's listing and
+      sits above the prose being edited, so it is simultaneously the
+      most-read instance of a claim and the least-reread. Specimen: a "closed
+      list" claim survived three fixes to the body it described because all
+      three were edits to the body
+
 ## part 2 — gates
 
 A gate names the command that produces its number. Anything here without one is

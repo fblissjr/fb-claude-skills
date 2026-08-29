@@ -1,6 +1,8 @@
 """CLI entry point for skill-maintain."""
 
 import sys
+import tomllib
+from pathlib import Path
 
 
 COMMANDS = {
@@ -51,6 +53,50 @@ Examples:
 """
 
 
+def source_version(root: Path) -> str | None:
+    """The version declared by a vendored copy of this tool, if one is here.
+
+    Returns None outside a repo that vendors it, and on any parse failure:
+    this runs ahead of every command and must never be why one fails.
+    """
+    pyproject = Path(root) / "tools" / "skill-maintainer" / "pyproject.toml"
+    try:
+        with open(pyproject, "rb") as fh:
+            return tomllib.load(fh)["project"]["version"]
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def staleness_warning(root: Path, running: str | None = None) -> str | None:
+    """Warn when the running build is not the source tree it is inspecting.
+
+    There are two installs called `skill-maintain`: the `uv tool install` on
+    PATH, and the editable workspace install that `uv run` resolves. The tool
+    install's receipt points at this directory, so it reads as tracking the
+    source while being pinned at whatever version it was built from. They
+    diverge in silence, and the skills shipped from this repo instruct the
+    bare command -- so a stale build is what actually runs the maintenance
+    workflow and reports its results as verification.
+    """
+    declared = source_version(root)
+    if declared is None:
+        return None
+    if running is None:
+        from importlib.metadata import PackageNotFoundError, version
+        try:
+            running = version("skill-maintainer")
+        except PackageNotFoundError:
+            return None
+    if running == declared:
+        return None
+    return (
+        f"warning: running skill-maintain {running}, but the source here "
+        f"declares {declared}. These are two different installs; results "
+        f"below come from {running}. Refresh with: "
+        f"uv tool install --reinstall ./tools/skill-maintainer"
+    )
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
         print(HELP)
@@ -67,7 +113,6 @@ def main():
     sys.argv = [f"skill-maintain {command}"] + sys.argv[2:]
 
     if command == "init":
-        from pathlib import Path
 
         from skill_maintainer.config import init_config
         from skill_maintainer.scaffold import install_pre_commit_hook
@@ -87,6 +132,10 @@ def main():
         hook_status = install_pre_commit_hook(root, force=force_hook)
         print(f"Pre-commit hook: {hook_status}")
         sys.exit(0)
+
+    warning = staleness_warning(Path("."))
+    if warning:
+        print(warning, file=sys.stderr)
 
     # Dynamic import and dispatch
     import importlib
