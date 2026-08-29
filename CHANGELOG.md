@@ -1,5 +1,12 @@
 # changelog
 
+## 1.43.1
+
+### fixed
+- **heylook-provider 0.4.4: the nested `source` spelling this skill recommends was a 422 on every server it had been verified against.** heylook's normalizer tested key PRESENCE in two places -- the gate and the `setdefault` under it -- so a client that serializes absent optionals as explicit nulls (anything generated from `/openapi.json`, or any pydantic client calling `model_dump()` without `exclude_none`) sent `"source_type": null` beside the nested object and was rejected as "requires `source_type`". Server-side fix is heylook 1.79.41; the skill now documents the payload, the `exclude_none` workaround for servers at or below 1.79.40, and that a set flat field still wins. Worth naming because the skill was accuracy-passed against 1.79.40 twice without catching it: both passes checked that the nested form is ACCEPTED, which it is -- for the hand-written payload the reviewer typed, not for the one a generated client emits.
+- **`stop_sequences` was undocumented in both the skill and the wire reference.** Anthropic takes it on the request; heylook has no such field, so it is ignored rather than honoured and generation runs past the intended stop with no error to notice. This is the silent-failure shape a porting client hits by habit, and neither document mentioned it in any form.
+- Two request fields were missing from the wire reference's body block (`include_performance`, `metadata`), and `verified_against` moves to 1.79.41.
+
 ## 1.43.0
 
 ### fixed

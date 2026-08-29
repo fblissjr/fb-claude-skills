@@ -1,7 +1,7 @@
 # `/v1/messages` wire reference
 
 Complete field, block, event and error reference for heylook's Messages
-endpoint. Verified against heylookitsanllm 1.79.40
+endpoint. Verified against heylookitsanllm 1.79.41
 (`src/heylook_llm/schema/messages.py`, `content_blocks.py`, `responses.py`,
 `converters.py`, `messages_api.py`).
 
@@ -57,9 +57,17 @@ use the schema when you want to confirm a bound.
   "show_special_tokens":     false,         // return declared specials instead of stripping
 
   "stream":                  true,
-  "stream_options":          { "include_usage": true }
+  "stream_options":          { "include_usage": true },
+  "include_performance":     false,        // tps + memory on the response
+  "metadata":                {}           // passed through to the response
 }
 ```
+
+**`stop_sequences` is NOT accepted.** Anthropic takes it on the request;
+heylook's request model has no such field, so it is ignored rather than
+honoured — a port that relies on it generates straight past the sequence it
+was meant to stop at, with no error to notice. There is no server-side
+equivalent; stop on the client, or rely on the model's own end-of-turn.
 
 **Absent means the server cascade decides** — per-request, then the named
 sampler bundle, then the model's `default_sampler`, then the server floor.
@@ -131,6 +139,26 @@ post-validation check keeping it mandatory in fact. Before that the nested
 form existed only in a `mode="before"` validator, which contributes nothing
 to the schema — so a client generated from `/openapi.json`, or a
 schema-validating proxy, would reject the spelling the docs recommend.
+
+**Explicit `null` flat fields beside a nested `source` are fine as of
+1.79.41 — and were a 422 before it.** Because `source_type` is optional in
+the schema, a client generated from `/openapi.json`, or any pydantic client
+calling `model_dump()` without `exclude_none`, emits every unset optional
+rather than omitting it:
+
+```json
+{ "type": "image", "source_type": null, "media_type": null, "data": null,
+  "source": { "type": "base64", "media_type": "image/jpeg", "data": "..." } }
+```
+
+Through 1.79.40 the normalizer tested key PRESENCE in two places — the gate
+and the `setdefault` under it — so those nulls suppressed the flattening and
+the block was rejected as "requires `source_type`", on the exact spelling
+this reference recommends. 1.79.41 treats null as absent in both. **If you
+target servers at or below 1.79.40, serialize with `exclude_none` (or send
+the flat form);** it is the single most likely way a correctly-written
+Anthropic-style client fails against an older heylook. A flat field that is
+actually set still wins over the nested object on every version.
 
 **Two different failures, and only one of them is a 422.** A block carrying
 neither `source` nor `source_type` fails validation (422). A block whose

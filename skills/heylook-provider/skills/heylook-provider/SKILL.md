@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.40"
+  verified_against: "heylookitsanllm 1.79.41"
 ---
 
 # heylook as an inference provider
@@ -74,11 +74,15 @@ supported, not deprecated. Details in `references/openai_wire.md`.
 
 Since heylook 1.79.39 the payloads conform — nested `source` on media
 blocks, `thinking` on thinking blocks and deltas, Anthropic's `stop_reason`
-vocabulary, the same event grammar with no `[DONE]` sentinel. Two later
-fixes matter if you are pinned to exactly 1.79.39: the unreachable `error`
-stop reason was still declared until 1.79.40, and the nested `source` was
+vocabulary, the same event grammar with no `[DONE]` sentinel. Three later
+fixes matter if you are pinned below 1.79.41: the unreachable `error`
+stop reason was still declared until 1.79.40; the nested `source` was
 validator-only until then, so that version's `/openapi.json` rejects the
-spelling this skill recommends even though the server accepts it. Anthropic's
+spelling this skill recommends even though the server accepts it; and
+through 1.79.40 a nested `source` sent alongside explicit `null` flat fields
+— what a generated or `model_dump()`-based client emits — was a 422 saying
+`source_type` is required. Serialize with `exclude_none` against those
+builds. Anthropic's
 published spec answers most questions this skill does not. The list below
 is hand-maintained and has been wrong — 1.79.39 shipped it claiming to be
 closed while omitting four real entries — so treat it as the best current
@@ -100,6 +104,11 @@ account, and let `/openapi.json` win where they disagree:
   `signature_delta`. Nothing to verify, nothing to echo back.
 - **No `stop_sequence` field.** `message_delta.delta` carries `stop_reason`
   alone; `message_start.message` omits both.
+- **`stop_sequences` is not accepted on the request.** Anthropic takes it;
+  heylook has no such field, so it is ignored rather than honoured and
+  generation runs past the sequence you meant to stop at, with no error.
+  Stop client-side. (Separate from the response-side `stop_sequence`
+  omission above.)
 - **`message_start.usage.input_tokens` is 0.** The event is emitted before
   the first chunk is absorbed. Anthropic puts input tokens there; read them
   off `message_delta.usage` instead.
