@@ -52,7 +52,7 @@
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "description": "JSON query tool selection and syntax \u2014 jg (jsongrep) for fast extraction, jq for transformations",
+      "description": "JSON query tool selection and syntax — jg (jsongrep) for fast extraction, jq for transformations",
       "version": "0.1.2"
     },
     {
@@ -106,7 +106,7 @@
     {
       "name": "postmortem",
       "source": "./skills/postmortem",
-      "description": "The audit family: evidence-grounded session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files, optionally rendered to self-contained HTML), a generated browsable index over them, a test-suite audit checking each test's claim, oracle, and reachability envelope with keep/rewrite/delete verdicts, a controls audit (census of everything check-shaped outside the test suite \u2014 hooks, validators, reminders \u2014 with live-fire violation of unwatched controls), and the adversarial-verify primitive (construct the refutation, then separately verify it reached the subject) with the control-builder agent the audits dispatch to",
+      "description": "The audit family: evidence-grounded session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files, optionally rendered to self-contained HTML), a generated browsable index over them, a test-suite audit checking each test's claim, oracle, and reachability envelope with keep/rewrite/delete verdicts, a controls audit (census of everything check-shaped outside the test suite — hooks, validators, reminders — with live-fire violation of unwatched controls), and the adversarial-verify primitive (construct the refutation, then separately verify it reached the subject) with the control-builder agent the audits dispatch to",
       "version": "0.9.0"
     },
     {
@@ -130,8 +130,8 @@
     {
       "name": "heylook-provider",
       "source": "./skills/heylook-provider",
-      "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider \u2014 Messages and OpenAI wires, runtime capability discovery, and the deliberate differences from Anthropic's spec",
-      "version": "0.3.0"
+      "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider — Messages and OpenAI wires, runtime capability discovery, and the deliberate differences from Anthropic's spec",
+      "version": "0.3.1"
     }
   ],
   "renames": {

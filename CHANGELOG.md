@@ -1,5 +1,10 @@
 # changelog
 
+## 1.39.1
+
+### fixed
+- **`heylook-provider` 0.3.0 → 0.3.1 — the skill's own description still advertised "the closed list of deliberate spec differences".** 0.3.0 removed that claim from the body, having learned it was false in five ways, and left it standing in the `description` — which is the reverse query loaded into every session's skill listing, so it was the most-read copy of the sentence and the last one fixed. Same defect one field up from where the fix stopped, which is the third instance of that shape in two days.
+
 ## 1.39.0
 
 ### removed
