@@ -68,23 +68,25 @@ def stream_message(
                 r.read()
                 raise _http_error(r)
 
-            block_type = None
             for event, data in _sse(r.iter_lines()):
-                if event == "content_block_start":
-                    block_type = data["content_block"]["type"]
-
-                elif event == "content_block_delta":
+                if event == "content_block_delta":
                     # Key on delta.type, not on the block index: index is a
                     # running counter across the message, not a stable slot.
+                    # And key on the types you HANDLE -- an else branch that
+                    # assumes text_delta breaks on Anthropic's signature_delta
+                    # (KeyError here, the literal "undefined" appended in JS).
                     delta = data["delta"]
                     if delta["type"] == "thinking_delta":
-                        # Anthropic's field; `text` is also present for
-                        # back-compat on this server.
-                        out.thinking += delta.get("thinking", delta.get("text", ""))
-                    else:
-                        out.text += delta["text"]
-                        if on_text:
-                            on_text(delta["text"])
+                        # `thinking` is Anthropic's field; heylook also sends
+                        # `text`. `or`, not .get(key, default): an explicit
+                        # JSON null is present-but-None, so a default-on-
+                        # absence lookup would return None and blow up on +=.
+                        out.thinking += delta.get("thinking") or delta.get("text") or ""
+                    elif delta["type"] == "text_delta":
+                        chunk = delta.get("text") or ""
+                        out.text += chunk
+                        if on_text and chunk:
+                            on_text(chunk)
 
                 elif event == "message_delta":
                     out.stop_reason = data["delta"].get("stop_reason")
@@ -245,11 +247,16 @@ export async function streamMessage(
         const payload = JSON.parse(data);
 
         if (event === "content_block_delta") {
+          // Key on the delta types you handle. An else branch that assumes
+          // text_delta appends the literal "undefined" when Anthropic sends
+          // signature_delta on a thinking block.
           const d = payload.delta;
-          if (d.type === "thinking_delta") out.thinking += d.thinking ?? d.text;
-          else {
-            out.text += d.text;
-            onText?.(d.text);
+          if (d.type === "thinking_delta") {
+            out.thinking += d.thinking ?? d.text ?? "";
+          } else if (d.type === "text_delta") {
+            const chunk = d.text ?? "";
+            out.text += chunk;
+            if (chunk) onText?.(chunk);
           }
         } else if (event === "message_delta") {
           out.stopReason = payload.delta?.stop_reason;

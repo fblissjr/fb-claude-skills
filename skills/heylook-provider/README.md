@@ -17,7 +17,7 @@ not for working inside the server codebase.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `heylook-provider` | "add heylook as a provider", "heylook API", a 422/400/503 from a heylook request, parsing its SSE stream, sending images to a local model | The wire contract, capability discovery, and the divergences from the APIs heylook resembles |
+| `heylook-provider` | "add heylook as a provider", "heylook API", a 422/400/503 from a heylook request, parsing its SSE stream, sending images to a local model | Runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec |
 
 ## Invocation
 
@@ -56,7 +56,7 @@ stdlib `probe.py` that prints a capability matrix from a live server.
 
 ## Source of truth
 
-The skill is written against heylookitsanllm 1.79.39 and cites the running
+The skill is written against heylookitsanllm 1.79.40 and cites the running
 server's `/openapi.json` — generated from the code at boot, with no committed
 artifact to drift — as authoritative over its own prose. The longer-form
 version of the same contract lives in that repo at

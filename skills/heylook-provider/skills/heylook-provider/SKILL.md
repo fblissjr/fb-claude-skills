@@ -2,9 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the closed list of deliberate spec differences. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  last_verified: "2026-08-29"
-  verified_against: "heylookitsanllm 1.79.39"
-  review_interval_days: 90
+  verified_against: "heylookitsanllm 1.79.40"
 ---
 
 # heylook as an inference provider
@@ -76,9 +74,11 @@ supported, not deprecated. Details in `references/openai_wire.md`.
 
 Since heylook 1.79.39 the payloads conform — nested `source` on media
 blocks, `thinking` on thinking blocks and deltas, Anthropic's `stop_reason`
-vocabulary, the same event grammar with no `[DONE]` sentinel. **Assume
-Anthropic's published spec is the answer** unless it is on this list, which
-is closed:
+vocabulary, the same event grammar with no `[DONE]` sentinel. Anthropic's
+published spec answers most questions this skill does not. The list below
+is hand-maintained and has been wrong — 1.79.39 shipped it claiming to be
+closed while omitting four real entries — so treat it as the best current
+account, and let `/openapi.json` win where they disagree:
 
 - **`max_tokens` is optional**, unlike Anthropic's required field. Absent
   means heylook's sampler cascade decides (per-model config, named sampler
@@ -92,9 +92,15 @@ is closed:
   `reasoning_effort`, a separate field with a per-model vocabulary.
 - **No tools.** No `tools`, `tool_use`, `tool_result`, or `tool_use` stop
   reason.
-- **`stop_reason` can be `error`**, which Anthropic has no counterpart for
-  (there, a failure is an `error` event). heylook sets it on the
-  non-streaming failure path.
+- **Thinking blocks carry no `signature`**, and there is no
+  `signature_delta`. Nothing to verify, nothing to echo back.
+- **No `stop_sequence` field.** `message_delta.delta` carries `stop_reason`
+  alone; `message_start.message` omits both.
+- **`message_start.usage.input_tokens` is 0.** The event is emitted before
+  the first chunk is absorbed. Anthropic puts input tokens there; read them
+  off `message_delta.usage` instead.
+- **`logprobs` can be a content block**, not only a stream extension: a
+  non-streaming response carries one in `content` when `logprobs: true`.
 - **No server-side image resize** — next section.
 - **Extensions**: `sampler`, `vision_tokens`, `reasoning_effort`,
   `show_special_tokens` on the request; a `heylook_logprobs` event and
@@ -130,7 +136,14 @@ the more direct lever, and it is available on both wires.
 | 400 | Pick a different model | Unknown/disabled id, or none given with no server default. Reason and available ids in `detail` |
 | 500 | That model is broken | It exists but failed to load |
 | 503 | Backpressure, retry | `{"error":{"code":"model_overloaded"}}` plus `Retry-After` |
-| 422 | Malformed body | Media block missing both `data` and `url`, or an out-of-range sampler value |
+| 422 | Malformed body | A media block with no `source`/`source_type`, or an out-of-range sampler value |
+
+**A media block that validates can still vanish.** `source_type` present but
+no `data` and no `url` passes validation and is then dropped during
+conversion — the request succeeds, the text survives, and the model simply
+never sees the image. Only a *missing* `source`/`source_type` is a 422. If a
+vision answer describes nothing, check the block's payload rather than
+waiting for a status code.
 
 503 is normal operation, not an outage: the server is single-user and
 serialises generation, so queueing behind a long request is expected. Retry

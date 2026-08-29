@@ -130,8 +130,8 @@
     {
       "name": "heylook-provider",
       "source": "./skills/heylook-provider",
-      "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider — Messages and OpenAI wires, runtime capability discovery, and the closed list of deliberate differences from Anthropic's spec",
-      "version": "0.2.0"
+      "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider — Messages and OpenAI wires, runtime capability discovery, and the deliberate differences from Anthropic's spec",
+      "version": "0.3.0"
     }
   ],
   "renames": {
