@@ -7,9 +7,6 @@ description: >-
   updating documentation, READMEs, design docs, or session logs. Invoke with
   /dev-conventions:doc-conventions. Triggers on "write docs", "update README",
   "document this", "add a design doc", "session log", "numbers in prose".
-metadata:
-  last_verified: "2026-08-17"
-  review_interval_days: "365"
 ---
 
 # Documentation conventions

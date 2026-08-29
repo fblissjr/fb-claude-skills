@@ -482,24 +482,6 @@ users disabling them, and confusion about purpose are overtriggering — add
 negative scope. Zero invocations is ambiguous between the two and needs the
 tuning harness to separate, not a guess.
 
-### freshness
-
-<!-- class: craft | last_verified: 2026-08-04 -->
-
-**Command:** `skill-maintain freshness`
-
-- [ ] Every SKILL.md carries `metadata.last_verified`
-- [ ] `last_verified` is written ONLY after a human reviewed the skill against
-      its source. A version bump says "bytes changed", not "someone checked this"
-- [ ] The window is `metadata.review_interval_days`, tiered by how fast the
-      source actually moves. A single global window makes the board permanently
-      red, and a permanently-red board is an ignored board
-- [ ] Where the source's movement is observable — in-repo code, tracked upstream
-      hashes — use the change event, not the calendar. A calendar window is a
-      proxy for source movement, and a lazy one where movement is observable
-- [ ] A date may pre-commit *when to look*. It must never decide what to
-      conclude: elapsed time is not evidence, exposure is
-
 ### versioning and packaging
 
 <!-- class: craft | last_verified: 2026-08-04 -->

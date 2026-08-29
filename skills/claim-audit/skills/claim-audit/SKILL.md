@@ -2,9 +2,6 @@
 name: claim-audit
 argument-hint: "[diff ref, files, or quoted claims to audit]"
 description: "Audit the added prose of a diff as untrusted claims: every count, status, and attribution re-derived by executing commands, never by reading. Reports each claim beside the command whose output is that claim, labels what cannot be derived, and states its own scope so a green report is distinguishable from a run that read nothing. Use when the user says 'audit the claims', 'claim audit', 'verify this summary against the code', 'check what the changelog says actually happened', 'is this doc telling the truth', or before committing prose that describes work — session logs, changelogs, READMEs, postmortem summaries. Do NOT use for auditing a test suite (use test-audit) or for reviewing code changes themselves (use a code review)."
-metadata:
-  last_verified: "2026-08-04"
-  review_interval_days: "365"
 ---
 
 # Claim audit

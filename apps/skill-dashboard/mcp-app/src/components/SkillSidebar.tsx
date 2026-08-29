@@ -6,22 +6,16 @@ interface Props {
   skillName: string;
   measureResult: SkillMeasureContent | null;
   loading: boolean;
-  verifying: boolean;
-  verifiedDate: string | null;
   meta: QualityMeta;
   onClose: () => void;
-  onVerify: () => void;
 }
 
 export function SkillSidebar({
   skillName,
   measureResult,
   loading,
-  verifying,
-  verifiedDate,
   meta,
   onClose,
-  onVerify,
 }: Props) {
   return (
     <div className="dashboard-sidebar">
@@ -61,21 +55,6 @@ export function SkillSidebar({
         </>
       )}
 
-      <div style={{ marginTop: 8 }}>
-        {verifiedDate ? (
-          <span className="verify-confirmed">
-            Verified: last_verified set to {verifiedDate}
-          </span>
-        ) : (
-          <button
-            className="verify-btn"
-            onClick={onVerify}
-            disabled={verifying}
-          >
-            {verifying ? "Verifying..." : "Mark Verified"}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

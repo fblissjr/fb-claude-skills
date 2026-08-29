@@ -29,7 +29,7 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | End-of-session wrap-up (orchestrates drafter → sync → bumps → quality) | `/skill-maintainer:finish-session` |
 | Red/green test suite | `skill-maintain test` |
 | Full maintenance pass (pulls sources, checks upstream, runs quality, proposes best-practices updates) | `/skill-maintainer:maintain` |
-| Quick quality / budget / freshness | `/skill-maintainer:quality` or `skill-maintain quality` |
+| Quick quality / budget | `/skill-maintainer:quality` or `skill-maintain quality` |
 | Upstream Claude Code doc change detection (per-page snapshots, line/char deltas) | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
@@ -44,7 +44,6 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 ```bash
 skill-maintain validate --all                    # validate all skills
 skill-maintain measure                           # token budget report
-skill-maintain freshness                         # SKILL.md staleness check (metadata.last_verified + review_interval_days; skills with metadata.freshness: "cascade" are calendar-exempt)
 skill-maintain init                              # initialize .skill-maintainer/ in a new repo
 uv run skill-maintain validate path/to/SKILL.md  # validate a single skill against the Claude Code schema (called by pre-commit; add --strict for portability)
 ```
@@ -56,7 +55,7 @@ All commands accept `--dir <path>` to target a different repo.
 - `.skill-maintainer/state/upstream_hashes.json` — page content hashes for upstream change detection (auto-generated, gitignored)
 - `.skill-maintainer/state/pages/<slug>.md` — per-page content snapshots for line/char delta computation (v0.4.0+, auto-generated)
 - `.skill-maintainer/state/changes.jsonl` — append-only audit log of quality reports, upstream checks, source pulls (consumed by `skill-maintain log`)
-- Each `SKILL.md`'s `metadata.last_verified` — date a human last reviewed the skill against its source. Not part of the version cascade: a version bump does not establish that a human checked the content, so nothing bumps this mechanically. Consumed by `skill-maintain freshness` together with `metadata.review_interval_days` (default 30) — the per-skill staleness window, tiered 30 days (content derived from Claude Code docs), 90 days (tracks a third-party SDK or API), or 365 days (methodology). Replaces the old single global 30-day window. Skills whose source is code in this repo declare `metadata.freshness: "cascade"` instead of a window (migration step 1, 2026-08-04): the version cascade surfaces their drift, so elapsed time is not evidence there; `last_verified` remains as the record of the last human review. One mechanism per skill — declaring both is reported as a config error.
+- **Retired 2026-08-29.** `metadata.last_verified`, `metadata.review_interval_days` and `metadata.freshness` are gone from every SKILL.md, together with the `skill-maintain freshness` subcommand, the staleness arm of `skill-maintain test`, and the dashboard's freshness column and skill-verify tool. What survives is the version cascade and upstream hash tracking, both change-triggered. The sections below are kept as the record of how the calendar mechanism was reasoned about and why it went; they describe a system that no longer exists.
 
 ### The tiers are now measurable, and the 30-day one checks out
 
@@ -172,10 +171,11 @@ historical `path-privacy` drift, and why the explainer-video blank-frame check
 was verified against a deliberately empty scene. A check nobody has seen fail is
 not known to work.
 
-### Freshness checks do not catch wrongness
+### Drift checks do not catch wrongness
 
-`review_interval_days` and `check_version_alignment` both detect **drift over
+A calendar window and `check_version_alignment` both detect **drift over
 time**. Neither catches a document that was wrong on the day it was written.
+This is the argument that outlived the calendar mechanism itself.
 
 The worked example: `references/method.md` has stated since day one that 3-4
 seconds per beat is the pacing that reads. The example shipped alongside it ran
@@ -245,12 +245,14 @@ date really a good idea, for anything?"). The answer that survived:
   One such date was minted and retracted the same day (postmortem
   2026-08-04, forward item 2 annotation).
 
-Migration status. Step 1 shipped 2026-08-04 (CLI 0.20.0): skills whose
-source is in-repo code declare `metadata.freshness: "cascade"` and leave
-the calendar window entirely — 14 SKILL.mds across six plugins converted
-(the content-triage case, 124 days elapsed with zero drift, is the
-evidence class). Steps 2 and 3 stay filed, not built: measure the 90-day
-tier's churn before letting its number survive, and change-triggered
-freshness for tracked sources (source file hash beside `last_verified`,
-review prompted on mismatch), with the calendar interval retained only for
-skills whose sources live outside observation.
+Migration status — **closed 2026-08-29 by retiring the calendar entirely.**
+Step 1 had shipped 2026-08-04 (CLI 0.20.0): skills whose source is in-repo
+code declared `metadata.freshness: "cascade"` and left the calendar window,
+14 SKILL.mds across six plugins (the content-triage case, 124 days elapsed
+with zero drift, was the evidence class). Steps 2 and 3 were filed and never
+built. Rather than measure the 90-day tier or add hash-triggered review, the
+owner directed removal of the rule on 2026-08-29; the principle above — that
+the honest trigger is the change event wherever movement is observable — is
+what the removal follows to its conclusion, since every source this repo
+tracks is either in-repo code or an upstream page whose hash is already
+snapshotted.

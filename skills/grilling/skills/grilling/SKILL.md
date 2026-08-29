@@ -11,9 +11,6 @@ description: >-
   agent's job; only decisions go to the user. Do NOT use to review work already
   done (use a postmortem or code review) or to answer a question the codebase
   can settle on its own.
-metadata:
-  last_verified: "2026-08-13"
-  review_interval_days: "365"
 ---
 
 # Grilling

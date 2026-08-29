@@ -1,9 +1,6 @@
 ---
 name: retire
 description: Remove a unit from a repo without leaving references behind - a plugin, package, module, directory, dependency, or feature. Sweeps tracked content for every mention BEFORE the delete, sorts the hits into what must change, what must stay as history, and what reaches users, then names the cascade the removal actually triggers. Use when the user says "retire this plugin", "delete this package", "remove this module", "drop this dependency", "deprecate X", "clean up after removing Y", "is anything still referencing Z", or is about to delete a tracked directory. Deletion-induced breakage is non-local - the files that break are ones nobody touched - so no edit-time check or language server catches it.
-metadata:
-  last_verified: "2026-08-02"
-  review_interval_days: "365"
 ---
 
 Deleting a unit is the easy half. The references outlive it, and they break in

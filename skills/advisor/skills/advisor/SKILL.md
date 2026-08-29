@@ -3,9 +3,6 @@ name: advisor
 argument-hint: "[--model opus|fable|sonnet] [--words N] [question]"
 description: Consult a higher-tier advisor model about the current session. Reconstructs the session transcript into a digest, spawns a bounded advisor subagent on the model the user named, and reports its guidance. User-invoked only -- typing /advisor is the sole path that authorizes the spend, and the hooks enforce it.
 disable-model-invocation: true
-metadata:
-  last_verified: "2026-08-01"
-  review_interval_days: "90"
 ---
 
 Consult a stronger model about what this session is doing, or configure how the

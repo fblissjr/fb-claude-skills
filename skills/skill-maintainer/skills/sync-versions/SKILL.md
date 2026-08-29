@@ -10,9 +10,6 @@ description: >-
   them. Use when the user says "sync versions",
   "bump version", "align versions", or "/sync-versions path-privacy 0.9.0".
   Pass plugin name and target version as arguments.
-metadata:
-  last_verified: "2026-07-21"
-  freshness: "cascade"
 ---
 
 # Sync Versions
@@ -98,10 +95,6 @@ after.
 duplicate still matched -- work that produced no information and forced up to
 six file edits per bump. Do not re-add it. The pre-commit hook still validates
 the field *if present*, so a stray re-addition is caught rather than drifting.
-
-Do not touch `metadata.last_verified` either. It asserts that a human reviewed
-the skill against its source, which a version bump does not establish. Write it
-only when you actually did that review.
 
 ## Step 5 -- Report
 

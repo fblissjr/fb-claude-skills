@@ -6,7 +6,6 @@ import sys
 COMMANDS = {
     "validate": "skill_maintainer.validate",
     "quality": "skill_maintainer.quality",
-    "freshness": "skill_maintainer.freshness",
     "measure": "skill_maintainer.measure",
     "upstream": "skill_maintainer.upstream",
     "sources": "skill_maintainer.sources",
@@ -25,8 +24,7 @@ Usage: skill-maintain <command> [options]
 Commands:
   init        Initialize .skill-maintainer/ config in the current directory
   validate    Validate skills against Agent Skills spec + best practices
-  quality     Unified quality report (validation, budget, freshness, description)
-  freshness   Check last_verified staleness
+  quality     Unified quality report (validation, budget, description)
   measure     Token budget measurement
   test        Red/green test suite (skills, plugins, repo hygiene)
   upstream    Check for upstream doc changes (llms-full.txt)

@@ -3,7 +3,6 @@ import type { ViewProps } from "./mcp-app-wrapper.js";
 import type {
   QualityCheckContent,
   SkillMeasureContent,
-  SkillVerifyContent,
 } from "./types.js";
 import { SummaryBar } from "./components/SummaryBar.js";
 import { SkillTable } from "./components/SkillTable.js";
@@ -19,8 +18,6 @@ export default function SkillDashboardApp(props: ViewProps) {
   const [measureResult, setMeasureResult] =
     useState<SkillMeasureContent | null>(null);
   const [measureLoading, setMeasureLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [verifiedDate, setVerifiedDate] = useState<string | null>(null);
 
   // Route tool results by type
   useEffect(() => {
@@ -37,17 +34,6 @@ export default function SkillDashboardApp(props: ViewProps) {
         setMeasureResult(sc as SkillMeasureContent);
         setMeasureLoading(false);
         break;
-      case "skill-verify": {
-        const verify = sc as SkillVerifyContent;
-        setVerifiedDate(verify.newDate);
-        setVerifying(false);
-        // Refresh quality data
-        callServerTool({
-          name: "skill-quality-check",
-          arguments: {},
-        });
-        break;
-      }
     }
   }, [toolResult, callServerTool]);
 
@@ -56,34 +42,20 @@ export default function SkillDashboardApp(props: ViewProps) {
       // Toggle off
       setSelectedSkill(null);
       setMeasureResult(null);
-      setVerifiedDate(null);
       return;
     }
     setSelectedSkill(name);
     setMeasureResult(null);
     setMeasureLoading(true);
-    setVerifiedDate(null);
-    setVerifying(false);
     callServerTool({
       name: "skill-measure",
       arguments: { skillName: name },
     });
   };
 
-  const handleVerify = () => {
-    if (!selectedSkill) return;
-    setVerifying(true);
-    callServerTool({
-      name: "skill-verify",
-      arguments: { skillName: selectedSkill },
-    });
-  };
-
   const handleCloseSidebar = () => {
     setSelectedSkill(null);
     setMeasureResult(null);
-    setVerifiedDate(null);
-    setVerifying(false);
   };
 
   if (!data) {
@@ -145,11 +117,8 @@ export default function SkillDashboardApp(props: ViewProps) {
             skillName={selectedSkill}
             measureResult={measureResult}
             loading={measureLoading}
-            verifying={verifying}
-            verifiedDate={verifiedDate}
             meta={data.meta}
             onClose={handleCloseSidebar}
-            onVerify={handleVerify}
           />
         )}
       </div>

@@ -3,9 +3,6 @@ name: model-routing
 argument-hint: "[install | remove]"
 description: Install, update, or remove the per-project down-tier model-delegation rule (.claude/rules/model-delegation.md), optionally with fast-executor / task-coder agent definitions. Installation is currently paused pending measurement, and this skill is user-invoked only -- it will not load on its own judgment.
 disable-model-invocation: true
-metadata:
-  last_verified: "2026-08-01"
-  review_interval_days: "365"
 ---
 
 > **Status: installation paused (2026-08-01).**

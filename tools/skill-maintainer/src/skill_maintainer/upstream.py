@@ -225,7 +225,7 @@ def main(args=None):
         print(f"Page snapshots written to {pages_dir(root)}", file=sys.stderr)
         # Stamp the fetch itself. `upstream_hashes.json`'s mtime cannot serve
         # here -- `sources.py` rewrites that file on every git-pull-only run --
-        # so the freshness arm dates this marker instead.
+        # so the upstream fetch arm dates this marker instead.
         record_fetch(root)
 
     if changed and not parsed.no_log:

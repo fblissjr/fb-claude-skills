@@ -6,9 +6,6 @@ description: >
   "what skills are stale", "check skill freshness", "skill budget overview", "show dashboard",
   or "run quality checks". Renders an interactive MCP App with pass/fail indicators for spec
   compliance, description quality, token budgets, freshness, plugin checks, and repo hygiene.
-metadata:
-  last_verified: "2026-04-02"
-  freshness: "cascade"
 ---
 
 # skill-dashboard
@@ -42,7 +39,6 @@ The `skill-quality-check` tool accepts an optional `filter` parameter (skill nam
 | Skill name | SKILL.md frontmatter | auto-discovered |
 | Spec compliance | Agent Skills spec validation | green/red dot |
 | Description quality | WHAT verb + WHEN trigger check | green/red dot, detail on hover |
-| Freshness | metadata.last_verified | days since verified |
 | Token budget | .md file size estimate | bar chart, warn >4k, crit >8k |
 | Body size | SKILL.md line count | warn >500 lines |
 

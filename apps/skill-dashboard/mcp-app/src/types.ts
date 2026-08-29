@@ -12,7 +12,6 @@ export interface SkillResult {
     specCompliance: CheckResult;
     tokenBudget: CheckResult;
     bodySize: CheckResult;
-    staleness: CheckResult;
     descriptionQuality: CheckResult;
   };
 }
@@ -69,15 +68,7 @@ export interface SkillMeasureContent {
   budget: { warn: number; critical: number };
 }
 
-export interface SkillVerifyContent {
-  type: "skill-verify";
-  skillName: string;
-  previousDate: string | null;
-  newDate: string;
-  path: string;
-}
 
 export type StructuredContent =
   | QualityCheckContent
-  | SkillMeasureContent
-  | SkillVerifyContent;
+  | SkillMeasureContent;

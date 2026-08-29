@@ -10,8 +10,6 @@ description: >-
   sentence case, no bold or italics for emphasis, no em dashes. For reports,
   research write-ups, guidance, documentation, and summaries.
 argument-hint: "[draft|edit|check]"
-metadata:
-  last_verified: "2026-07-26"
 ---
 
 # Plain-language house style

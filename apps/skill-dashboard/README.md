@@ -2,13 +2,13 @@ last updated: 2026-03-13
 
 # skill-dashboard
 
-Interactive ext-apps MCP App dashboard for the fb-claude-skills project. Discovers all skills and plugins, runs quality checks, and renders results in an interactive UI with pass/fail indicators, token budget bars, and freshness status. Click any skill row to see a per-file token breakdown and mark it as verified.
+Interactive ext-apps MCP App dashboard for the fb-claude-skills project. Discovers all skills and plugins, runs quality checks, and renders results in an interactive UI with pass/fail indicators and token budget bars. Click any skill row to see a per-file token breakdown.
 
 ## skills
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| skill-dashboard | "show skill dashboard", "skill status", "which skills are stale?" | Interactive quality check dashboard |
+| skill-dashboard | "show skill dashboard", "skill status", "which skills are over budget?" | Interactive quality check dashboard |
 
 ## architecture
 
@@ -42,14 +42,6 @@ Per-file token breakdown for a single skill. Visible to both model and app.
 - **Output**: structuredContent with per-file breakdown (path, chars, tokens, pctOfTotal), totalTokens, budget thresholds
 - **Text fallback**: "skill-name: N tokens across M files (file1: X, file2: Y, ...)"
 
-### skill-verify
-
-Mark a skill as verified (updates `metadata.last_verified` in SKILL.md frontmatter). App-only tool.
-
-- **Input**: `{ skillName: string }`
-- **Output**: structuredContent with previousDate, newDate, path
-- **Text fallback**: "Verified skill-name: last_verified updated to YYYY-MM-DD"
-- **Visibility**: app-only (not callable by the model)
 
 ## building
 
@@ -83,11 +75,10 @@ node apps/skill-dashboard/mcp-app/dist/index.cjs
 
 ## what it checks
 
-### per-skill (5 checks)
+### per-skill (4 checks)
 - Spec compliance (name format, required fields, allowed fields, description constraints)
 - Token budget (sum .md chars/4, warn >4000, critical >8000)
 - Body size (line count, warn >500)
-- Freshness (days since metadata.last_verified, warn >30)
 - Description quality (WHAT verb + WHEN trigger presence)
 
 ### per-plugin (3 checks)
@@ -100,4 +91,4 @@ node apps/skill-dashboard/mcp-app/dist/index.cjs
 - No broad ambient hooks on high-frequency events
 - State files gitignored
 - No duplicate skill names
-- best_practices.md freshness
+- best_practices.md provenance join (annotation hashes vs tracked upstream)

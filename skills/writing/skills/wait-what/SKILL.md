@@ -4,9 +4,6 @@ description: >-
   Rewrite the last message when it did not land: re-pitched with more context,
   in plainer terms, using the project's own vocabulary for things.
 disable-model-invocation: true
-metadata:
-  last_verified: "2026-08-13"
-  review_interval_days: "365"
 ---
 
 Wait. I don't follow where you've got to.

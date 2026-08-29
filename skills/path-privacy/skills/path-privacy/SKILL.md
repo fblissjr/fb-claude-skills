@@ -9,9 +9,6 @@ description: >-
   "scan for path leaks", "check for leaked paths", "are we leaking my home path",
   "scrub external paths", "install path-privacy hooks", "find absolute paths in this repo",
   "remove $HOME references", "block path leaks", "audit before commit", "privacy scan paths".
-metadata:
-  last_verified: "2026-07-21"
-  freshness: "cascade"
 allowed-tools: "Bash,Read,Edit"
 ---
 

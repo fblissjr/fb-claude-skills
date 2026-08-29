@@ -64,7 +64,7 @@ def fetch_marker(root: Path) -> Path:
     successful fetch). `upstream_hashes.json` cannot answer this: `sources.py`
     rewrites it on every run to store tracked-repo HEADs while fetching zero
     pages, so its mtime dates the last git pull, not the last fetch. The
-    freshness arm read that mtime and reported `fetched 0d ago` immediately
+    upstream fetch arm read that mtime and reported `fetched 0d ago` immediately
     after a `skill-maintain sources` run (2026-08-07) -- a green produced by an
     operation that touched no documentation page.
     """

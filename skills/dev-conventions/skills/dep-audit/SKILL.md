@@ -8,9 +8,6 @@ description: >-
   safe, whether anything has a published advisory against it, for a CVE check, a
   vulnerability scan, or a dependency security audit, and before any release,
   publish, or handoff. Covers Python and JS/TS in a single pass.
-metadata:
-  last_verified: "2026-08-17"
-  review_interval_days: "90"
 ---
 
 # Dependency security audit

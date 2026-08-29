@@ -27,13 +27,13 @@ A description containing `<` or `>` is a hard validation error upstream (skill-c
 
 No `metadata.author` and no `metadata.version` in SKILL.md. The whole file, frontmatter included, loads into context when the skill activates -- a name or a duplicated version there is standing context cost with no runtime use. Authorship and version live in `plugin.json`; attribution detail goes in the plugin README.
 
-Metadata values are strings. The spec defines `metadata` as a string-to-string map, so quote scalars that YAML would otherwise type as a date or number: `last_verified: "2026-07-24"`, `review_interval_days: "365"`.
+Metadata values are strings. The spec defines `metadata` as a string-to-string map, so quote scalars that YAML would otherwise type as a date or number.
 
 ## Script paths
 
 All `uv run` commands in SKILL.md must use paths relative to the project root (where `uv run` is called from), not relative to the SKILL.md file.
 
-Correct: `skill-maintain freshness`, or `uv run python tools/<pkg>/scripts/<script>.py` for a script that really is bundled.
+Correct: `skill-maintain quality`, or `uv run python tools/<pkg>/scripts/<script>.py` for a script that really is bundled.
 Wrong: `uv run python scripts/<script>.py` — resolved against the SKILL.md, which is not where `uv run` starts.
 
 The example here used to name `skill-maintainer/scripts/check_freshness.py`, a

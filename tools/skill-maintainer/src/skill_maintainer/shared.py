@@ -47,6 +47,11 @@ TOKEN_BUDGET_CRITICAL = 8000
 # a behaviour change rather than a style preference.
 TOKEN_BUDGET_REATTACH = 5000
 
+
+
+# Age at which the cached upstream page snapshots count as stale. Consumed by
+# the "upstream fetch fresh" arm only -- the per-skill calendar review rule
+# that also used it was retired.
 STALE_DAYS = 30
 
 
@@ -132,77 +137,6 @@ def measure_tokens(skill_dir: Path) -> dict[str, int]:
         "ref_tokens": ref_chars // 4,
         "total": (skill_chars + ref_chars) // 4,
     }
-
-
-def get_last_verified(metadata: dict) -> tuple[str | None, int | None]:
-    """Extract last_verified date and days-ago from parsed frontmatter metadata.
-
-    Returns (date_str, days_ago). Either or both may be None.
-    """
-    from datetime import date
-
-    meta = metadata.get("metadata", {})
-    if not isinstance(meta, dict):
-        return None, None
-    lv = meta.get("last_verified")
-    if not lv:
-        return None, None
-    lv_str = str(lv)
-    try:
-        lv_date = date.fromisoformat(lv_str)
-        days_ago = (date.today() - lv_date).days
-        return lv_str, days_ago
-    except ValueError:
-        return lv_str, None
-
-
-def get_review_interval(metadata: dict) -> int:
-    """Days a skill may go unverified before it counts as stale.
-
-    Reads `metadata.review_interval_days`, falling back to the global
-    STALE_DAYS. A single global window is wrong for a repo tracking sources of
-    very different volatility -- the Claude Code docs move weekly, Kimball
-    dimensional modeling has not moved in decades. Forcing both to 30 days
-    keeps the board permanently red, which is how a signal stops being read.
-
-    Invalid values fall back rather than raise: frontmatter is user input, and
-    a typo must not silently grant an unbounded window.
-    """
-    meta = metadata.get("metadata")
-    if not isinstance(meta, dict):
-        return STALE_DAYS
-    raw = meta.get("review_interval_days")
-    if raw is None or isinstance(raw, bool):
-        return STALE_DAYS
-    try:
-        days = int(raw)
-    except (TypeError, ValueError, OverflowError):
-        return STALE_DAYS
-    return days if days > 0 else STALE_DAYS
-
-
-def freshness_mode(metadata: dict) -> str:
-    """How this skill's freshness is established: 'cascade', 'conflict', or 'calendar'.
-
-    `metadata.freshness: "cascade"` records that the skill's source is code in
-    this repo, whose changes the version cascade already surfaces -- elapsed
-    time is not evidence of drift there, so the calendar window is dropped
-    (dates-are-look-triggers migration, 2026-08-04). The calendar interval
-    remains the fallback for sources whose drift cannot be observed.
-
-    Declaring cascade AND review_interval_days together is 'conflict': one
-    skill, one mechanism -- a quiet precedence choice would let the pair drift.
-    Unknown mechanism values are ignored (calendar): frontmatter is user input,
-    and a typo must not silently grant an unbounded window.
-    """
-    meta = metadata.get("metadata")
-    if not isinstance(meta, dict):
-        return "calendar"
-    if meta.get("freshness") == "cascade":
-        if meta.get("review_interval_days") is not None:
-            return "conflict"
-        return "cascade"
-    return "calendar"
 
 
 # Verbs a description may lead with. Deliberately broad and non-exhaustive:

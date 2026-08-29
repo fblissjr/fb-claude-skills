@@ -58,11 +58,11 @@ package version.
   standing context cost with no runtime use. Attribution lives in
   `plugin.json` and the plugin README, which are never context-loaded. Do not
   re-add it.
-- **`metadata.last_verified`.** It means "a human checked this is still
-  correct", which a version bump does not establish. Bumping eight plugins for
-  a mechanical hook change on 2026-07-21 would have marked 17 unreviewed skills
-  freshly verified and moved staleness failures 11 → 5 on no evidence. Write it
-  only when you actually reviewed the skill against its source.
+- **`metadata.last_verified` and `metadata.review_interval_days`.** Retired
+  entirely on 2026-08-29 along with the calendar review rule they served, so
+  there is nothing left to bump. Do not re-add them. Drift is surfaced by this
+  cascade and by upstream hash tracking, both of which key on an observed
+  change rather than elapsed time.
 
 ## Worked example: `skill-maintainer 0.6.3 → 0.6.4`
 
@@ -78,7 +78,7 @@ Files touched in one commit:
 Six files. The root `pyproject.toml` is not touched: it is a virtual workspace
 root with no version. **No SKILL.md is touched** — `metadata.version` was removed from
 every SKILL.md on 2026-07-21 and must not be re-added; see above. An earlier
-version of this example listed six SKILL.md edits and a `last_verified` bump,
+version of this example listed six SKILL.md edits and a review-date bump,
 which is now exactly the wrong thing to copy.
 
 ## Common mistakes

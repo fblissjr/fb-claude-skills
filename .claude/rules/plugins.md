@@ -28,9 +28,6 @@ SKILL.md on 2026-07-21: it duplicated `plugin.json`, and its only reader was the
 check confirming the duplicate matched. The pre-commit still validates the field
 *if present*, so a re-addition is caught rather than drifting.
 
-**Do NOT bump `metadata.last_verified` as part of a cascade.** It asserts a human
-reviewed the skill against its source; a version bump does not establish that.
-
 ## Removing a plugin
 
 Delete the directory. Git history is the archive; a parallel `_deprecated/` tree

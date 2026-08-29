@@ -23,7 +23,7 @@ documents cite these by number, so entries are removed rather than renumbered.
 - Plus `tools/<plugin>/pyproject.toml` where it exists, but only when the CLI ships *with* the plugin. Read the marketplace `source` first: if it excludes `tools/`, plugin and CLI version independently, and setting them equal is often a downgrade.
 - The root `pyproject.toml` is a virtual workspace root with no version. Never bumped.
 - "Plugin content" is whatever the `source` ships, minus what has no runtime effect for an installer. A plugin's own `CLAUDE.md` ships and is inert, so it is outside the cascade. A `SKILL.md` body, a `references/` file a skill reads, and a hook script are all inside it.
-- **`SKILL.md` frontmatter is not in the cascade.** `metadata.version` and `metadata.author` are removed classes; never re-add them. `metadata.last_verified` is written only after an actual human review, never bumped mechanically.
+- **`SKILL.md` frontmatter is not in the cascade.** `metadata.version`, `metadata.author`, `metadata.last_verified` and `metadata.review_interval_days` are removed classes; never re-add them.
 - Without the bump, `marketplace update` never reaches installed users.
 - Detail: [docs/internals/plugin-versioning.md](docs/internals/plugin-versioning.md).
 
@@ -84,7 +84,7 @@ documents cite these by number, so entries are removed rather than renumbered.
 ## State
 
 - `.skill-maintainer/state/` — per-repo maintenance state (upstream hashes, page snapshots, `changes.jsonl` audit log; gitignored).
-- Each `SKILL.md`'s `metadata.last_verified` — the date a human last reviewed that skill against its source. Never bumped mechanically; see invariant 1. Its window is `metadata.review_interval_days` (default 30), tiered 30 / 90 / 365 by how fast the source moves. Skills declaring `metadata.freshness: "cascade"` are exempt: their source is in-repo code, so the version cascade surfaces drift and no calendar window applies.
+- Calendar review state was retired on 2026-08-29: `metadata.last_verified`, `metadata.review_interval_days` and `metadata.freshness` are gone from every SKILL.md, along with the `freshness` subcommand, the staleness gate and the dashboard column. Skill drift is now surfaced by the version cascade and by upstream hash tracking, both of which key on an observed change rather than on elapsed time. The `last_verified` inside `best_practices.md`'s provenance annotations is a different mechanism and stays.
 
 ## Cross-repo
 

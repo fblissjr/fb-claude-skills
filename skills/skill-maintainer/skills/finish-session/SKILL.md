@@ -7,9 +7,6 @@ description: >-
   before commit. Use when the user says "finish session", "wrap up", "end of
   session cleanup", "close out this session", or before committing a substantive
   work session. Invoke with /skill-maintainer:finish-session.
-metadata:
-  last_verified: "2026-07-21"
-  freshness: "cascade"
 ---
 # Finish Session
 

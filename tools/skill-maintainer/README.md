@@ -79,7 +79,6 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 | `init` | Create `.skill-maintainer/config.json` in the target repo |
 | `validate` | Validate skills against Agent Skills spec + best practices |
 | `quality` | Unified report: validation + token budget + freshness + description quality |
-| `freshness` | Check `metadata.last_verified` staleness across all skills, honoring each skill's `metadata.review_interval_days` |
 | `measure` | Token budget measurement with per-file breakdown |
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
 | `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
@@ -108,9 +107,6 @@ skill-maintain measure --skill path-privacy
 
 # see last 5 audit log entries
 skill-maintain log --tail 5
-
-# check staleness only, suppress passing skills
-skill-maintain freshness --quiet
 ```
 
 ## workflow
@@ -165,7 +161,6 @@ skill-maintain init --dir /path/to/other-skill-repo
 # validate and check quality
 skill-maintain validate --all --dir /path/to/other-skill-repo
 skill-maintain quality --dir /path/to/other-skill-repo
-skill-maintain freshness --dir /path/to/other-skill-repo
 skill-maintain measure --dir /path/to/other-skill-repo
 ```
 
@@ -198,7 +193,6 @@ skill-maintain init --dir /path/to/other-repo
 skill-maintain quality --dir /path/to/other-repo
 
 # 4. fix what the report flags
-#    - add metadata.last_verified to SKILL.md frontmatter
 #    - add WHAT verb + WHEN trigger to descriptions
 #    - trim skills over budget (move content to references/)
 ```
@@ -227,7 +221,6 @@ Unified report: validation + token budget + staleness + description quality, one
 For each skill:
 - **Validation:** `skills_ref.validator.validate()`
 - **Token budget:** chars / 4 estimate. Warn >4000, critical >8000
-- **Staleness:** days since `metadata.last_verified`, compared against that skill's `metadata.review_interval_days` (default 30 if absent or invalid)
 - **Description quality:** checks for WHAT verb ("handles", "generates", etc.) and WHEN trigger ("use when", "when user", etc.)
 
 Exits 1 if any skill fails validation.
@@ -235,19 +228,6 @@ Exits 1 if any skill fails validation.
 ```bash
 skill-maintain quality
 skill-maintain quality --no-log   # skip audit log entry
-```
-
-### freshness
-
-Checks `metadata.last_verified` dates across all skills against each skill's own staleness window.
-
-The window is `metadata.review_interval_days` from that skill's frontmatter (default 30 when the field is absent, non-numeric, zero, or negative -- a typo in frontmatter must not silently grant an unbounded window). `--threshold` overrides every skill's own interval with a single value, for cases like a pre-release audit where the user wants a stricter global bar.
-
-```bash
-skill-maintain freshness                    # show all, per-skill review_interval_days
-skill-maintain freshness --quiet            # only show stale
-skill-maintain freshness --threshold 14     # override every skill's interval with 14 days
-skill-maintain freshness --skill path-privacy # check one skill
 ```
 
 ### measure
@@ -339,7 +319,7 @@ skill-maintain log --type upstream_check
 
 Some questions get asked rarely enough that a subcommand would cost more than it returns: a flag to document and keep working, and a `duckdb` dependency on a tool that otherwise has none. Those live as plain `.sql` files in `queries/` and get run by hand.
 
-`upstream_churn.sql` answers **how fast does each tracked upstream page actually move?** from `.skill-maintainer/state/changes.jsonl`. That question has a consumer: `review_interval_days` is tiered 30 / 90 / 365 by how fast a skill's source moves, and until someone runs this, those tiers are set from intuition while the evidence sits unread in a gitignored file.
+`upstream_churn.sql` answers **how fast does each tracked upstream page actually move?** from `.skill-maintainer/state/changes.jsonl`. It had a consumer in the retired `review_interval_days` tiers; with those gone the query is exploratory, and worth running before anyone proposes a new time-based gate.
 
 Run it from the repo root:
 
@@ -406,25 +386,23 @@ Append-only audit log. One JSON object per line. Three event types:
 {"type": "quality_report", "date": "2026-03-06", "skills": 9, "valid": 9, "over_budget": 5, "stale": 0}
 ```
 
-### metadata.last_verified (in SKILL.md files)
+### metadata.last_verified (removed from SKILL.md)
 
-Each SKILL.md has this in frontmatter:
+Retired 2026-08-29 with the calendar review rule it served, along with
+`metadata.review_interval_days` and `metadata.freshness`. The `freshness`
+subcommand, the staleness arm of `test`, and the freshness column in `quality`
+went with them. Do not re-add the fields; nothing reads them.
 
-```yaml
-metadata:
-  last_verified: 2026-03-06
-  review_interval_days: 90
-```
+The reasoning is recorded in `docs/internals/maintenance.md`. In short: a
+calendar window is a proxy for source movement and a lazy one wherever movement
+is observable, and every source this repo tracks is either in-repo code, whose
+drift the version cascade surfaces, or an upstream page whose hash is already
+snapshotted. Both triggers are change-based, so the elapsed-time proxy was
+carrying no signal the repo did not already have.
 
-`last_verified` means strictly that a human reviewed the skill against its source -- not that its content changed. It is no longer bumped as part of a version cascade (see `metadata.version` below): a version bump says bytes changed, not that anyone checked. Update it by hand when you actually review the skill. `freshness`, `quality`, and `test` all read this field.
-
-`review_interval_days` (integer, default 30) sets that skill's own staleness window, replacing a single global 30-day cutoff for every skill. This repo tiers it by how fast the skill's source moves:
-
-- **30 days** -- content derived from the Claude Code docs
-- **90 days** -- content tracking a third-party SDK or API
-- **365 days** -- methodology, or a skill documenting the user's own code, where the code review is the real trigger and the date is only a backstop
-
-Invalid values (non-numeric, zero, negative) fall back to the 30-day default rather than raising -- frontmatter is user input, and a typo must not silently grant an unbounded window. `skill-maintain freshness --threshold N` still overrides every skill's own interval when a single global cutoff is wanted for one run.
+Unrelated despite the shared name: the `last_verified` inside
+`best_practices.md`'s per-section provenance comments. That is hash-triggered,
+still live, and read by the `best_practices provenance` arm of `test`.
 
 ### metadata.version (removed from SKILL.md)
 

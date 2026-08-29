@@ -9,14 +9,10 @@ from skill_maintainer.cc_schema import validate_cc as validate
 
 from skill_maintainer.config import append_event
 from skill_maintainer.shared import (
-    STALE_DAYS,
     TOKEN_BUDGET_CRITICAL,
     TOKEN_BUDGET_WARN,
     check_description_quality,
     discover_skills,
-    freshness_mode,
-    get_last_verified,
-    get_review_interval,
     measure_tokens,
 )
 
@@ -31,8 +27,6 @@ def analyze_skill(skill_dir: Path) -> dict:
         "errors": [],
         "tokens": 0,
         "budget_status": "OK",
-        "last_verified": None,
-        "days_ago": None,
         "desc_issues": [],
     }
 
@@ -62,13 +56,6 @@ def analyze_skill(skill_dir: Path) -> dict:
     except Exception:
         return result
 
-    # last_verified
-    lv_str, days_ago = get_last_verified(metadata)
-    result["last_verified"] = lv_str
-    result["days_ago"] = days_ago
-    result["review_interval"] = get_review_interval(metadata)
-    result["freshness_mode"] = freshness_mode(metadata)
-
     # Description quality
     description = metadata.get("description", "")
     result["desc_issues"] = check_description_quality(
@@ -80,18 +67,6 @@ def analyze_skill(skill_dir: Path) -> dict:
     return result
 
 
-def _is_stale(r: dict) -> bool:
-    """Stale relative to the skill's own review interval, not a global window.
-
-    Cascade-covered skills (metadata.freshness: "cascade") are never
-    calendar-stale -- their source is in-repo code whose drift the version
-    cascade surfaces; see shared.freshness_mode.
-    """
-    if r.get("freshness_mode") == "cascade":
-        return False
-    return r["days_ago"] is not None and r["days_ago"] > r.get("review_interval", STALE_DAYS)
-
-
 def _log_event(root: Path, results: list[dict]) -> None:
     """Append quality report event to changes.jsonl."""
     append_event(root, {
@@ -100,7 +75,6 @@ def _log_event(root: Path, results: list[dict]) -> None:
         "skills": len(results),
         "valid": sum(1 for r in results if r["valid"]),
         "over_budget": sum(1 for r in results if r["budget_status"] != "OK"),
-        "stale": sum(1 for r in results if _is_stale(r)),
     })
 
 
@@ -123,28 +97,25 @@ def main(args=None):
         results.append(result)
 
     # Table header
-    print(f"{'Skill':<25} {'Valid':>5} {'Skill':>7} {'Refs':>7} {'Budget':>8} {'Verified':>12} {'Age':>5}  Desc Issues")
-    print("-" * 105)
+    print(f"{'Skill':<25} {'Valid':>5} {'Skill':>7} {'Refs':>7} {'Budget':>8}  Desc Issues")
+    print("-" * 80)
 
     for r in results:
         valid_str = "OK" if r["valid"] else "FAIL"
-        age_str = str(r["days_ago"]) + "d" if r["days_ago"] is not None else "n/a"
-        verified_str = r["last_verified"] or "n/a"
         desc_str = ", ".join(r["desc_issues"]) if r["desc_issues"] else "OK"
         ref_tokens = r.get("ref_tokens", 0)
 
         print(
-            f"{r['name']:<25} {valid_str:>5} {r['tokens']:>7,} {ref_tokens:>7,} {r['budget_status']:>8} "
-            f"{verified_str:>12} {age_str:>5}  {desc_str}"
+            f"{r['name']:<25} {valid_str:>5} {r['tokens']:>7,} {ref_tokens:>7,} {r['budget_status']:>8}"
+            f"  {desc_str}"
         )
 
     # Summary
     total = len(results)
     valid = sum(1 for r in results if r["valid"])
     over = sum(1 for r in results if r["budget_status"] != "OK")
-    stale = sum(1 for r in results if _is_stale(r))
     print()
-    print(f"{valid}/{total} valid, {over} over budget, {stale} stale (per-skill review interval)")
+    print(f"{valid}/{total} valid, {over} over budget")
 
     if not parsed.no_log:
         _log_event(parsed.dir, results)

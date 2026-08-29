@@ -2,9 +2,6 @@
 name: adversarial-verify
 argument-hint: "[the claim, check, or green result to verify]"
 description: "Verify something about to be trusted by trying to refute it, in two separate judgments: construct the experiment that would prove it false (dispatched to the control-builder agent), then independently verify the attempt actually reached the subject before believing either outcome. Use when the user says 'adversarially verify this', 'build the control', 'try to refute this', 'prove this check can fail', 'did that green actually test anything', or when a new check, threshold, or 'this technique helps' belief is about to be trusted, or a result came back green where red was expected. Do NOT use for auditing a whole test suite (use test-audit) or for auditing prose claims (use claim-audit) — this is the single-claim primitive those audits dispatch to."
-metadata:
-  last_verified: "2026-08-04"
-  review_interval_days: "365"
 ---
 
 # Adversarial verify

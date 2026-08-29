@@ -10,7 +10,6 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import fs from "node:fs/promises";
 import path from "node:path";
-import matter from "gray-matter";
 import { z } from "zod";
 import {
   findSkillPath,
@@ -58,7 +57,7 @@ export function createServer(): McpServer {
     {
       title: "Skill Quality Check",
       description:
-        "Run quality checks across all skills, plugins, and repo hygiene. Returns pass/fail results with token budgets, freshness, spec compliance, and description quality.",
+        "Run quality checks across all skills, plugins, and repo hygiene. Returns pass/fail results with token budgets, spec compliance, and description quality.",
       inputSchema: {
         filter: z
           .string()
@@ -157,81 +156,6 @@ export function createServer(): McpServer {
         return {
           content: [
             { type: "text", text: `Skill measure failed: ${msg}` },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // =========================================================================
-  // Tool: skill-verify
-  // =========================================================================
-  registerAppTool(
-    server,
-    "skill-verify",
-    {
-      title: "Skill Verify",
-      description:
-        "Mark a skill as verified by updating metadata.last_verified in its SKILL.md frontmatter to today's date.",
-      inputSchema: {
-        skillName: z.string().describe("Name of the skill to verify"),
-      },
-      _meta: { ui: { resourceUri, visibility: ["app"] } },
-    },
-    async (params: { skillName: string }): Promise<CallToolResult> => {
-      try {
-        const skillPath = findSkillPath(REPO_ROOT, params.skillName);
-        if (!skillPath) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Skill not found: ${params.skillName}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const content = await fs.readFile(skillPath, "utf-8");
-        const parsed = matter(content);
-        const meta = (parsed.data.metadata || {}) as Record<string, unknown>;
-        const prev = meta.last_verified;
-        const previousDate =
-          prev instanceof Date
-            ? prev.toISOString().slice(0, 10)
-            : prev
-              ? String(prev)
-              : null;
-        const newDate = new Date().toISOString().slice(0, 10);
-        meta.last_verified = newDate;
-        parsed.data.metadata = meta;
-        const updated = matter.stringify(parsed.content, parsed.data);
-        await fs.writeFile(skillPath, updated, "utf-8");
-
-        const relPath = path.relative(REPO_ROOT, skillPath);
-
-        return {
-          structuredContent: {
-            type: "skill-verify",
-            skillName: params.skillName,
-            previousDate,
-            newDate,
-            path: relPath,
-          },
-          content: [
-            {
-              type: "text",
-              text: `Verified ${params.skillName}: last_verified updated to ${newDate}`,
-            },
-          ],
-        };
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        return {
-          content: [
-            { type: "text", text: `Skill verify failed: ${msg}` },
           ],
           isError: true,
         };

@@ -13,7 +13,7 @@ plugin-name/
   README.md                # last updated date, installation, skills table
   skills/
     skill-name/
-      SKILL.md             # frontmatter: name, description, metadata.last_verified (no author/version -- context-loaded on activation)
+      SKILL.md             # frontmatter: name, description (no author/version -- context-loaded on activation)
   hooks/                   # optional: SessionStart/PreToolUse hooks
     hooks.json             # hook registration (event -> command)
     session-start.sh       # detection logic + directive assembly

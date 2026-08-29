@@ -1,9 +1,6 @@
 ---
 name: gemini-multimodal
 description: Send a task to a Gemini model and get a structured answer back - perceptual work Claude cannot do directly, or any ad-hoc question worth a second model's take. Handles images, video, audio, and PDFs, singly or mixed in one call. Use when comparing two renders or screenshots to find visual differences, when checking that a change had no visual effect, or when a visual question is being answered with pixel math, histograms, or diff statistics because looking at the images is not working. Use for anything involving a video or audio file, which Claude cannot open at all - "watch this video", "what happens in this screen recording", "turn this recording into code", "transcribe this audio". Also use when the user says "ask Gemini", "have Gemini compare these", "send this to Gemini", or names Gemini alongside a question or file. Calls need no recipe - model, thinking level, system prompt, and schema are all settable per call. Every call is an explicit, billed external request that leaves a run directory on disk.
-metadata:
-  last_verified: "2026-08-01"
-  freshness: "cascade"
 ---
 
 Hand a perceptual task to a Gemini model when direct inspection is not working.

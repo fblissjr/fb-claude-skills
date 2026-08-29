@@ -133,8 +133,10 @@ rediscovered expensively.
 
 ## Missing: a consistency check
 
-`review_interval_days` and `check_version_alignment` both detect drift over
+A calendar window and `check_version_alignment` both detect drift over
 time. Nothing detects a document that was wrong on the day it was written.
+(The calendar window was retired 2026-08-29; the gap this section names is
+unaffected, since it was never the calendar that would have closed it.)
 
 Concrete instance was in a plugin since retired from this repo; the general point stands.
 
@@ -145,14 +147,18 @@ confident region rather than warning.
 
 ## Convention worth reconsidering
 
-**`last_verified` should probably leave the version cascade.** Invariant 1 bumps
-`metadata.version` and `metadata.last_verified` together. But a version bump
-means "these bytes changed" while `last_verified` means "someone checked this is
-still correct", and those are different claims. Converting eight plugins to
-exec-form hooks on 2026-07-21 would have marked 17 skills freshly verified on no
-evidence, dropping staleness failures 11 -> 5 without anyone reading a line. The
-dates were restored by hand. Either drop `last_verified` from the cascade, or
-split it into `last_changed` (mechanical) and `last_verified` (a human claim).
+**~~`last_verified` should probably leave the version cascade.~~ CLOSED
+2026-08-29 — it left the repo.** The item proposed either dropping
+`last_verified` from the cascade or splitting it into `last_changed`
+(mechanical) and `last_verified` (a human claim). Neither was taken: the owner
+directed removal of the calendar review rule altogether, so the field, its
+interval, its cascade exemption, and the gate that read them are all gone. The
+original argument is preserved because it is the reasoning the removal rests
+on — a version bump means "these bytes changed" while a review date means
+"someone checked this is still correct", and converting eight plugins to
+exec-form hooks on 2026-07-21 would have marked 17 skills freshly verified on
+no evidence, dropping staleness failures 11 -> 5 without anyone reading a
+line.
 
 ## Repo gaps worth deciding on
 

@@ -12,9 +12,6 @@ description: >-
   inside a published page use artifact-diagramming; to fix the register of prose
   that stays prose, use plain-language-us.
 allowed-tools: "Read, Grep, Glob, Write, Edit, Skill, Artifact, Bash(open:*), Bash(xdg-open:*)"
-metadata:
-  last_verified: "2026-08-13"
-  review_interval_days: "365"
 ---
 
 # Show me

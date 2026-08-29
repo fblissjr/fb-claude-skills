@@ -1,5 +1,17 @@
 # changelog
 
+## 1.39.0
+
+### removed
+- **The calendar review rule is gone: `metadata.last_verified`, `metadata.review_interval_days` and `metadata.freshness` are removed from all 38 SKILL.md files, and every gate that read them is deleted.** That is the `skill-maintain freshness` subcommand, the staleness arm of `skill-maintain test`, the Verified/Age columns and stale count in `skill-maintain quality`, the freshness section of the shipped `best_practices.md`, and on the dashboard side the Fresh column, the `staleness` check, the `skill-verify` MCP tool and the Mark Verified button. Directed by the owner. The mechanism was doing what it was built to do — 281 passed / 5 failed at the time of removal, the five being 34-39 days past a 30-day window, with the long-elapsed entries (json-query 155d, dimensional-modeling 132d) green because `review_interval_days` tiering was working — so this is not a red board being silenced. It is the elapsed-time proxy being dropped in favour of the change-triggered signals the repo already has.
+- **The reasoning it rests on was already written in the thing being deleted.** `best_practices.md`'s freshness section said a calendar window "is a proxy for source movement, and a lazy one where movement is observable", and the 2026-08-04 `freshness: "cascade"` migration had already conceded the point for skills whose source is in-repo code. Every source this repo tracks is either in-repo code, whose drift the version cascade surfaces, or an upstream page whose hash is already snapshotted — so there was no remaining class for which elapsed time was the best available trigger. The `upstream_drift_backlog.md` item proposing to split the field into `last_changed` and `last_verified` is closed as superseded rather than deleted, because it is the argument the removal follows.
+- **Two mechanisms share the name and only one went.** The `last_verified` inside `best_practices.md`'s per-section provenance comments (`<!-- class: harness | source: ... | verified_hash: ... | last_verified: ... -->`) is untouched: it is hash-triggered, not calendar-triggered, and is read by the `best_practices provenance` arm of `test`. `STALE_DAYS` and `daysSince` survive in both the Python and TypeScript check suites for the same reason — their other consumer is the upstream-snapshot age check, which asks whether a cached page was refetched, not whether a human reviewed a skill.
+- Retired with the rule: `tools/skill-maintainer/src/skill_maintainer/freshness.py`, the `get_last_verified` / `get_review_interval` / `freshness_mode` helpers in `shared.py`, `tests/test_review_interval.py` and `tests/test_freshness_mechanism.py`. `skill-maintain test` 248 passed / 0 failed, `quality` 38/38 valid, `validate --all` clean, the CLI suite 157 passed, and the dashboard typechecks.
+
+### changed
+- `skill-maintainer` 0.25.0 → 0.26.0 (shipped `best_practices.md` and three SKILL.md bodies), `skill-dashboard` 1.2.0 → 1.3.0 (checks, types, UI, server tool), `skill-maintain` CLI 0.33.0 → 0.34.0 (a subcommand removed). The other 30-odd skills changed only in frontmatter, which invariant 1 keeps out of the cascade, so nothing else is bumped.
+- CLAUDE.md invariant 1 now lists the two fields as removed classes beside `metadata.version` and `metadata.author`, and the State section records the retirement and the surviving provenance mechanism. `docs/internals/maintenance.md` keeps its reasoning and gains a dated note that it describes a system which no longer exists.
+
 ## 1.38.0
 
 ### fixed

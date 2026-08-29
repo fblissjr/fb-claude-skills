@@ -2,9 +2,6 @@
 name: control-audit
 argument-hint: "[scope: hooks, validators, reminders, or named controls]"
 description: "Census and live-fire audit of a repo's controls: everything check-shaped that fires outside the test suite (git hooks, Claude Code hooks, CLI validators, ambient reminders). Per control, four slots are re-derived from current code — fires-via, guarded-by, retirement-condition, disclosed-uncontrolled-edges — with 'nothing' in a slot as a reportable finding; controls nothing watches get deliberately violated on a scratch branch to confirm they fire. Use when the user says 'audit the controls', 'control audit', 'do our hooks actually fire', 'census the hooks', 'is anything watching this check', 'would the gate actually catch it'. Do NOT use for auditing a test suite (use test-audit) or prose claims (use claim-audit)."
-metadata:
-  last_verified: "2026-08-04"
-  review_interval_days: "365"
 ---
 
 # Control audit

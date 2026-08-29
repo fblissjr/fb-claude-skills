@@ -10,9 +10,6 @@ description: >-
   for parameters" or reportCallIssue, when a [tool.pyright] block seems to have no
   effect, when type errors appear on BaseModel subclasses whose fields have
   defaults, or when asked to suppress type errors in a Python project.
-metadata:
-  last_verified: "2026-07-26"
-  review_interval_days: "90"
 ---
 
 # Python conventions and type-checking traps

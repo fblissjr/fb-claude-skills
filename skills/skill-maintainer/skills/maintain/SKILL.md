@@ -6,9 +6,6 @@ description: >-
   checks, and review best practices for updates. Use when user says "maintain", "maintenance pass",
   "check upstream", "pull sources", "review best practices", "run maintenance".
   Invoke with /skill-maintainer:maintain.
-metadata:
-  last_verified: "2026-07-21"
-  freshness: "cascade"
 ---
 
 # Full Maintenance Pass
@@ -64,9 +61,6 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 
 ### Body size
 - SKILL.md under 500 lines
-
-### Freshness
-- `metadata.last_verified` present and within that skill's own `metadata.review_interval_days` (default 30 when the field is absent). The windows are tiered by how fast each skill's source moves — a flat 30 days across the board makes the report permanently red, and a permanently-red board is an ignored board. Skills declaring `metadata.freshness: "cascade"` are exempt from the window: their source is code in the same repo, whose drift the version cascade surfaces — `last_verified` stays as the record of the last human review
 
 ### Description quality
 - Description contains a WHAT verb (handles, generates, validates, designs, checks, runs, creates, builds, manages, monitors, tracks, reports)

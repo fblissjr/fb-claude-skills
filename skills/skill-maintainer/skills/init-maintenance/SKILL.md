@@ -6,8 +6,6 @@ description: >-
   maintenance", "set up maintenance", "initialize skill-maintainer", or "add
   maintenance to this repo".
 argument-hint: "[--force-hook]"
-metadata:
-  last_verified: "2026-07-26"
 ---
 
 # Initialize maintenance in this repo

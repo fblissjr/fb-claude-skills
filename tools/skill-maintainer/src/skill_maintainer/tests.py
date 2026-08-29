@@ -26,15 +26,12 @@ from skill_maintainer.config import (
 from skill_maintainer.provenance import join_provenance, parse_annotations
 from skill_maintainer.shared import (
     STALE_DAYS,
-    freshness_mode,
-    get_review_interval,
     TOKEN_BUDGET_REATTACH,
     TOKEN_BUDGET_WARN,
     _skipped,
     check_description_quality,
     discover_plugins,
     discover_skills,
-    get_last_verified,
     measure_tokens,
 )
 
@@ -59,7 +56,7 @@ class Result:
 
 
 def test_skills(root: Path) -> list[Result]:
-    """Run per-skill checks: spec, budget, body size, staleness, description."""
+    """Run per-skill checks: spec, budget, body size, description."""
     results = []
     skills = discover_skills(root)
 
@@ -108,39 +105,13 @@ def test_skills(root: Path) -> list[Result]:
             f"{line_count} lines" if line_count <= 500 else f"{line_count} lines > 500",
         ))
 
-        # 4. Staleness
+        # 4. Description quality
         try:
             metadata, _ = parse_frontmatter(content)
         except Exception:
-            results.append(Result("skill", name, "staleness", False, "failed to parse frontmatter"))
             results.append(Result("skill", name, "description quality", False, "failed to parse frontmatter"))
             continue
 
-        lv_str, days_ago = get_last_verified(metadata)
-        interval = get_review_interval(metadata)
-        mode = freshness_mode(metadata)
-        if mode == "conflict":
-            results.append(Result(
-                "skill", name, "staleness", False,
-                "declares both freshness: cascade and review_interval_days; keep one",
-            ))
-        elif mode == "cascade" and lv_str and days_ago is not None:
-            results.append(Result(
-                "skill", name, "staleness", True,
-                f"cascade-covered (last human review {days_ago}d ago)",
-            ))
-        elif lv_str and days_ago is not None:
-            results.append(Result(
-                "skill", name, "staleness",
-                days_ago <= interval,
-                f"{days_ago}d" if days_ago <= interval else f"{days_ago}d > {interval}d",
-            ))
-        elif lv_str:
-            results.append(Result("skill", name, "staleness", False, f"invalid date: {lv_str}"))
-        else:
-            results.append(Result("skill", name, "staleness", False, "missing metadata.last_verified"))
-
-        # 5. Description quality
         description = metadata.get("description", "")
         issues = check_description_quality(
             description,

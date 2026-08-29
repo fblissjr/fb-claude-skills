@@ -2,9 +2,6 @@
 name: postmortem-index
 argument-hint: "[--out=<dir>]"
 description: "Build a browsable HTML index of every postmortem in a repo — date, mode, scope, one-line conclusion, and the artifacts each one examined, plus a by-artifact view answering 'has anything been written about this file'. Reads frontmatter only; superseded postmortems are shown and marked, never hidden. Use when the user says 'browse postmortems', 'postmortem index', 'show me past postmortems', 'what have we written about X', 'list our retrospectives', or wants to find an earlier postmortem without knowing its filename. Do NOT use to run a postmortem (use postmortem) or to audit tests (use test-audit)."
-metadata:
-  last_verified: "2026-07-26"
-  review_interval_days: "365"
 ---
 # Postmortem index
 

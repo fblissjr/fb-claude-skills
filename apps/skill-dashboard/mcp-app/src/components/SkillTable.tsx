@@ -18,7 +18,6 @@ export function SkillTable({ skills, meta, selectedSkill, onSelect }: Props) {
             <th>Skill</th>
             <th>Spec</th>
             <th>Description</th>
-            <th>Fresh</th>
             <th>Body</th>
             <th>Tokens</th>
           </tr>
@@ -50,12 +49,6 @@ export function SkillTable({ skills, meta, selectedSkill, onSelect }: Props) {
                   <StatusDot
                     passed={skill.checks.descriptionQuality.passed}
                     title={skill.checks.descriptionQuality.detail}
-                  />
-                </td>
-                <td className="cell-status">
-                  <StatusDot
-                    passed={skill.checks.staleness.passed}
-                    title={skill.checks.staleness.detail}
                   />
                 </td>
                 <td className="cell-status">

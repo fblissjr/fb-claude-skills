@@ -2,7 +2,7 @@
  * Quality check logic ported from Python skill_maintainer.
  *
  * Discovers skills and plugins, runs validation checks, measures token budgets,
- * checks freshness, and verifies repo hygiene.
+ * and verifies repo hygiene.
  */
 
 import matter from "gray-matter";
@@ -32,6 +32,8 @@ const SKIP_DIRS = new Set([
 
 const TOKEN_BUDGET_WARN = 4000;
 const TOKEN_BUDGET_CRITICAL = 8000;
+// Age at which the cached upstream hash state counts as stale. Sole consumer
+// is the upstream arm; the per-skill review rule that shared it was retired.
 const STALE_DAYS = 30;
 
 const PLUGIN_REQUIRED_FIELDS = [
@@ -263,7 +265,7 @@ export function findSkillPath(root: string, skillName: string): string | null {
 }
 
 // ============================================================================
-// Freshness
+// Dates
 // ============================================================================
 
 function daysSince(dateStr: string): number | null {
@@ -362,7 +364,6 @@ export function checkSkills(
             detail: "skipped",
           },
           bodySize: { name: "body size", passed: false, detail: "skipped" },
-          staleness: { name: "staleness", passed: false, detail: "skipped" },
           descriptionQuality: {
             name: "description quality",
             passed: false,
@@ -408,56 +409,7 @@ export function checkSkills(
           : `${lineCount} lines > 500`,
     };
 
-    // 4. Staleness
-    const meta =
-      typeof frontmatter.metadata === "object" && frontmatter.metadata !== null
-        ? (frontmatter.metadata as Record<string, unknown>)
-        : {};
-    const lastVerified = meta.last_verified;
-    let stalenessCheck: CheckResult;
-    if (lastVerified && typeof lastVerified === "string") {
-      const days = daysSince(lastVerified);
-      if (days !== null) {
-        stalenessCheck = {
-          name: "staleness",
-          passed: days <= STALE_DAYS,
-          detail:
-            days <= STALE_DAYS
-              ? `${days}d`
-              : `${days}d > ${STALE_DAYS}d`,
-        };
-      } else {
-        stalenessCheck = {
-          name: "staleness",
-          passed: false,
-          detail: `invalid date: ${lastVerified}`,
-        };
-      }
-    } else if (lastVerified instanceof Date) {
-      const lvStr = lastVerified.toISOString().slice(0, 10);
-      const days = daysSince(lvStr);
-      if (days !== null) {
-        stalenessCheck = {
-          name: "staleness",
-          passed: days <= STALE_DAYS,
-          detail: days <= STALE_DAYS ? `${days}d` : `${days}d > ${STALE_DAYS}d`,
-        };
-      } else {
-        stalenessCheck = {
-          name: "staleness",
-          passed: false,
-          detail: "unparseable date",
-        };
-      }
-    } else {
-      stalenessCheck = {
-        name: "staleness",
-        passed: false,
-        detail: "missing metadata.last_verified",
-      };
-    }
-
-    // 5. Description quality
+    // 4. Description quality
     const description =
       typeof frontmatter.description === "string"
         ? frontmatter.description
@@ -475,7 +427,6 @@ export function checkSkills(
         specCompliance: specCheck,
         tokenBudget: budgetCheck,
         bodySize: bodySizeCheck,
-        staleness: stalenessCheck,
         descriptionQuality: descCheck,
       },
     });

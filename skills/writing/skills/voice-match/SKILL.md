@@ -12,8 +12,6 @@ description: >-
   the profile carry the specific rhythm, vocabulary, and habits that make a draft
   read as theirs.
 argument-hint: "[draft|reply|edit]"
-metadata:
-  last_verified: "2026-07-26"
 ---
 
 # Write in the user's voice

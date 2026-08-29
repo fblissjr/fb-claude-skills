@@ -178,7 +178,7 @@ cross-referenced against the arm names in `tests.py` and `cc_schema.py`:
 | frontmatter fields | 11 | most, via `cc_schema.validate_cc` |
 | spec compliance | 8 | all, same place |
 | token budget / description precision | 13 | most |
-| maintenance | 9 | partly (`freshness`, version alignment) |
+| maintenance | 9 | partly (version alignment) |
 
 The single hooks-adjacent arm (`tests.py:1082`) checks `settings.json` for
 high-frequency events without a matcher. That is the "always-loaded context"
@@ -604,6 +604,12 @@ where movement is observable*. Fourteen SKILL.mds went to
 `metadata.freshness: "cascade"` that day. `best_practices.md` is the last
 significant holdout, and it is the file where the observation infrastructure
 already exists and sits unused.
+
+**2026-08-29.** The SKILL.md side went further than cascade: the calendar rule
+was retired outright, frontmatter fields and all. This file's per-section
+provenance annotations are unaffected — they are hash-triggered, which is the
+mechanism this section argues for, and are what `best_practices provenance`
+now checks.
 
 ### Make the green state its scope
 
