@@ -233,7 +233,12 @@ diagnostic text, not model output.
   operator set `HEYLOOK_API_KEY_ENFORCE_LOOPBACK`.
   `HEYLOOK_ADMIN_TOKEN` gates admin routes via `X-Heylook-Admin-Token`; an
   integration should not need it.
-- **Send `X-Request-ID` on every request.** It is echoed back on both wires,
+- **Send `X-Request-ID` on every request, and make it unique per request** —
+  a fresh UUID each time, not one stable id per session or per client. The
+  server maps an id to a **set** of in-flight generations, so a reused id is a
+  cancel that stops every request sharing it. This is the one that bites by
+  habit: log correlation invites a stable id, and cancellation makes that
+  destructive. It is echoed back on both wires,
   it correlates the server's logs, and it is the handle you cancel by:
   `DELETE /v1/requests/{request_id}` stops a generation that is still
   running, addressed by the id *you* chose. A request that arrived without

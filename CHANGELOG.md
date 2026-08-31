@@ -1,5 +1,11 @@
 # changelog
 
+## 1.47.3
+
+### fixed
+- **heylook-provider 0.8.3: the id-uniqueness rule was in the checklist and not in the instruction it corrects, which is the index rule broken from the other end.** `Done means` said "every call carries a **fresh** `X-Request-ID`, one per request" and pointed at *Operational shape*; that section said only "send `X-Request-ID` on every request" and never mentioned uniqueness. So the index pointed at a section that did not contain the rule, and a reader implementing headers -- who goes to the operational section, not the completion checklist -- satisfied "every request" with one stable id per session, the ordinary log-correlation habit, whose first cancel then stops every request sharing it. This is the same defect this repo reported into the server's `§6` two rounds earlier, arriving here with the halves swapped: there the warning sat below an instruction that invited the mistake, here it sat in the checklist below the same instruction. Uniqueness and its reason now live in the instruction, because "unique" reads as fussiness until you know the server maps one id to a **set**.
+- Found by a per-file presence count over a phrase expected in more than one place -- grep for the uniqueness language, and `SKILL.md` returned the checklist hit alone. Worth recording that the same technique under-reported on the first attempt here: the pattern missed both client recipes, which carry the rule in different words ("Fresh per request, not per session"). A presence count is only as good as the phrasing it guesses, which is the failure the server session hit the same day when a plain-string sweep for a moved route missed it written as an escaped regex. Cheap and worth doing; not a control, and not recorded as one.
+
 ## 1.47.2
 
 ### added
