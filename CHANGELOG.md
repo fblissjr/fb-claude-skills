@@ -1,5 +1,12 @@
 # changelog
 
+## 1.50.1
+
+### fixed
+- **heylook-provider 0.11.1: 0.11.0 corrected the wall-clock advice at the right place and left the wrong word standing inside it.** The sentence still read "beat dividing tokens by **client** wall-clock", with the correction appended after it. The narrowing is the defect: a reader who takes only that clause away still concludes a server-supplied duration is safe, which is the belief the whole finding exists to break. The hazard is the **span** -- any elapsed time covering the whole request -- not whose clock measured it, and the server ships one of those spans in the same object. Rewritten so the first statement is the correct one rather than one an adjacent sentence has to undo.
+- Prompted by the server session finding the identical sentence live in its own guide, where its correction sat twenty lines below as a new bullet and the original was never touched. Same defect, different placement: theirs was unreachable to a reader who stopped at the paragraph, mine was reachable but arrived after a false clause. Third instance in one day of precision-added-beside-the-imprecise-original, and the first where the person who wrote the precise version left the imprecise one standing.
+- The 1.50.0 completeness claim now carries its version and its boundary: the per-field split is complete for the `performance` object's rate and telemetry fields as of 1.79.55, and complete for nothing else on the wire. A closed enumeration beats a list of sightings only if a reader can tell which they are holding.
+
 ## 1.50.0
 
 ### added
@@ -7,7 +14,7 @@
 - **`queue_wait_ms` absent means zero, not unknown**, and it is the exact mirror of the `prompt_tps` trap 0.10.1 carried. Both modes spell it `or None` and the emitter skips nulls, so a request that waited no time in the generation gate -- the common case on an idle server -- is indistinguishable from one where the wait was never measured. `prompt_tps` emits an unmeasured value as a measurement; this hides a measurement as unmeasured. Stated because this skill tells readers the server nets queue wait out of its own timings, which invites them to do the same.
 
 ### fixed
-- The sweep confirmed 0.10.1's reading of the other half rather than leaving it inferred: `peak_memory_gb`, `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` are spelled `or None` identically in both modes, and `prompt_tps` is the only raw assignment in either. So the per-field split this skill now documents is complete for the rate and telemetry fields, not merely the two instances that happened to surface.
+- The sweep confirmed 0.10.1's reading of the other half rather than leaving it inferred: `peak_memory_gb`, `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` are spelled `or None` identically in both modes, and `prompt_tps` is the only raw assignment in either. So the per-field split this skill now documents is complete for the `performance` object's rate and telemetry fields **as of 1.79.55**, not merely the two instances that happened to surface -- and complete for nothing else on the wire. A closed enumeration is worth more than a list of sightings only if a reader can tell which one they are holding, so the boundary is stated with it.
 
 ### not carried
 - MODEL_BUSY reaches six routes that do not answer 503 -- the 1.79.53 defect generalized -- but none is on this skill's documented surface. The nearest is `/v1/chat/completions` in batch processing mode, which answers 500 for backpressure; recorded here rather than in the skill because the skill tells readers to leave `processing_mode` unset. Reported upstream and unfixed; it is a wire change.

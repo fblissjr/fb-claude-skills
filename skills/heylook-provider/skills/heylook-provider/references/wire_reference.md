@@ -252,15 +252,19 @@ Populated on this path: `prompt_tps`, `generation_tps`, `total_duration_ms`,
 `draft_acceptance`.
 
 The rates **prefer** the engine's own measurements, taken tightly around
-prefill and decode, which beat dividing tokens by client wall-clock because
-that folds in queue wait and any model load. **Do not sanity-check them
-against `total_duration_ms` on this path** — that number folds in the same two
-spans, so the comparison is between a tight rate and a loose one and will
-always look wrong on a cold load. See the clock note under Streaming. But `generation_tps` here is not
-purely that: this builder runs it through a helper that falls back to
-tokens-over-elapsed when the engine reported no native rate, so a value on this
-path may be either. The streaming path does not fall back — see below, because
-that difference is not visible in the schema.
+prefill and decode. What they beat is **dividing tokens by any elapsed time
+that spans the whole request** — the hazard is the span, not whose clock
+measured it, and the server ships one of those spans in the same object.
+`total_duration_ms` on this path folds in queue wait and model load, so using
+it as a denominator reproduces exactly the error the engine's rates exist to
+avoid, and on a cold load the result will look badly wrong while both numbers
+are correct. See the clock note under Streaming.
+
+`generation_tps` here is not purely the engine's figure either: this builder
+runs it through a helper that falls back to tokens-over-elapsed when the engine
+reported no native rate, so a value on this path may be either. The streaming
+path does not fall back — see below, because that difference is not visible in
+the schema.
 
 **`prompt_tps` is `0.0` when the engine never measured it, on this path, on
 every version.** It is assigned raw from the telemetry accumulator, whose field
