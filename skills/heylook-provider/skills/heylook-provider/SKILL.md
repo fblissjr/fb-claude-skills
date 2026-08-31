@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.52"
+  verified_against: "heylookitsanllm 1.79.53"
 ---
 
 # heylook as an inference provider
@@ -181,7 +181,7 @@ the more direct lever, and it is available on both wires.
 |---|---|---|
 | 400 | Pick a different model | Unknown/disabled id, or none given with no server default (reason and available ids in `detail`); or the loaded model refusing the input it advertised |
 | 500 | That model is broken | It exists but failed to load |
-| 503 | Backpressure, retry | `{"error":{"code":"model_overloaded"}}` plus `Retry-After` |
+| 503 | Backpressure, retry | `{"error":{"code":"model_overloaded"}}` plus `Retry-After`; no `X-Request-ID` echo. `POST /v1/models/{id}/load` answers it too since 1.79.53 — through .52 that route returned 500 for the same condition |
 | 422 | Malformed body | A media block with no `source`/`source_type`, or an out-of-range sampler value |
 
 **A media block that validates can still vanish — on servers at or below
@@ -215,6 +215,15 @@ diagnostic text, not model output.
   label**, and adds no work — without `warm` it is the same `get_provider` the
   generate call performs on its way in, so a resident model answers in a round
   trip. Unknown or disabled id is a 400, the same answer generate would give.
+  **Backpressure here is a 503** with `Retry-After` and the same
+  `model_overloaded` envelope the inference routes return — raised when every
+  loaded model is generating so there is no slot to load into — and a 500 is a
+  genuine load failure and nothing else. **That split is 1.79.53 and later.**
+  Through .52 this route had no backpressure branch: the same condition fell
+  through to a generic handler and came back as a **500 carrying the identical
+  sentence**, so status alone could not separate transient busy from a broken
+  model. Against those builds, key on the `MODEL_BUSY` token in `detail` — that
+  is the correct reading for an older server, not a workaround.
   `?warm=true` additionally runs a 1-token generation to pay the Metal kernel
   JIT, and that takes the process-global FIFO generation gate, so it can queue
   behind another request's long run: use it for startup or model-switch
@@ -238,8 +247,10 @@ diagnostic text, not model output.
   server maps an id to a **set** of in-flight generations, so a reused id is a
   cancel that stops every request sharing it. This is the one that bites by
   habit: log correlation invites a stable id, and cancellation makes that
-  destructive. It is echoed back on both wires,
-  it correlates the server's logs, and it is the handle you cancel by:
+  destructive. It is echoed back on both wires — **except on a busy 503**,
+  whose envelope carries `Retry-After` and the rate-limit headers and no echo,
+  so a backpressure response is the one you cannot correlate by id. It
+  correlates the server's logs, and it is the handle you cancel by:
   `DELETE /v1/requests/{request_id}` stops a generation that is still
   running, addressed by the id *you* chose. A request that arrived without
   the header got a server-generated one, which on the non-streaming path you

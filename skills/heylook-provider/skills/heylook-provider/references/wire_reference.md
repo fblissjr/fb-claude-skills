@@ -440,7 +440,10 @@ not per session or per client. It is how a request is correlated in the
 server's logs, and it is the handle you cancel by, so a reused id is a cancel
 that stops every in-flight request sharing it. It is echoed back as a response
 header: on the streaming path since 1.79.44, on the non-streaming path only
-since 1.79.46 (see below).
+since 1.79.46 (see below). **Not on a busy 503** — that envelope is built in
+one shared place carrying `Retry-After` and the `X-RateLimit-*` pair, and no
+echo, on every route that returns it. So the one response class you most want
+to correlate in the logs is the one you cannot correlate by id.
 
 ## Cancelling a request
 

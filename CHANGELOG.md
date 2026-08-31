@@ -1,5 +1,11 @@
 # changelog
 
+## 1.48.0
+
+### changed
+- **heylook-provider 0.9.0: `POST /v1/models/{id}/load` reports backpressure as a 503 from heylook 1.79.53, and returned a 500 for the same condition before it.** When every loaded model is generating there is no slot to load into, the router raises `MODEL_BUSY`, and the inference routes have always turned that into a 503 with `Retry-After` and the `model_overloaded` envelope. The load route added in .48 never reached that shared responder: it fell through to a generic handler and answered **500 carrying the identical sentence**, on a route where 500 also means "this model exists and genuinely failed to load". The skill documented the 400 and the 500 and had no backpressure branch at all, so a client following it sent a transient, self-clearing wait down its broken-model path. Version-gated deliberately: on .53+ classify by status like any other backpressure, and through .52 key on the `MODEL_BUSY` token in `detail`, because status alone is not decidable there. That is the correct reading for an older server rather than a workaround, and it is what a consuming client is running today. Found by that client measuring the route live -- not by either documentation side.
+- **A busy 503 carries no `X-Request-ID` echo, and both copies said the id is echoed back without qualifying it.** `model_busy_response` builds one envelope for every route that returns it, with `Retry-After` and the `X-RateLimit-*` pair and no echo. Verified by reading the responder rather than from the report. So the response class a client most wants to correlate in the logs is the one it cannot correlate by id. Carried as a carve-out in both the operational instruction and the reference's echo sentence, which is where the version-gating for that claim already lives. Upstream has it logged rather than fixed, since the better fix is middleware setting the header on every response rather than four call sites.
+
 ## 1.47.3
 
 ### fixed
