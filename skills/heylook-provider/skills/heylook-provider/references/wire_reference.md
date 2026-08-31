@@ -338,6 +338,16 @@ across the whole message, not a stable slot.
 The entry shape matches the OpenAI wire's `logprobs.content`, so a parser
 ported from `/v1/chat/completions` keeps working.
 
+**Neither mode's `performance` is a superset of the other.** `prompt_tps` and
+`generation_tps` are **non-streaming only** — nothing on the stream carries
+them — while `kv_cache_bytes`, `queue_wait_ms` and the draft counters are
+streaming only. `PerformanceInfo` nonetheless declares both rates **required**,
+so a client generating types from `/openapi.json` gets two required fields the
+streaming payload never sends, and a strict deserializer fails on every
+`message_stop`. Treat the rates as optional whatever the schema says. Upstream
+documents this as a caveat rather than a fix — closing it means either
+loosening the model or emitting the rates on the stream.
+
 `message_stop.performance` merges optional telemetry beside
 `total_duration_ms`: `thinking_duration_ms`, `content_duration_ms`,
 `peak_memory_gb`, `kv_cache_bytes`, `queue_wait_ms`, `draft_tokens`,
@@ -424,7 +434,8 @@ The streaming path carried the header from .44.
 | Response | Meaning |
 |---|---|
 | `200 {"cancelled": N, "request_id": "..."}` | N in-flight generations were signalled. A **count, not a boolean**: ids are client-supplied, so two in-flight requests may share one and cancelling it cancels both |
-| `404` | Nothing is running under that id. Ids are tracked only while in flight, so the usual cause is that it already finished — but a rejected or never-sent id lands here too, and the `detail` names both causes. Treat it as "too late", not as an error |
+| `404` | Nothing is running under that id, and the id was well-formed. Ids are tracked only while in flight, so the usual cause is that it already finished; the other is that the original request carried no `X-Request-ID` and is tracked under a generated one. Treat it as "too late", not as an error |
+| `422` | **The id is malformed and could never have been tracked** (1.79.52). Not the usual "your request was invalid" — the POST end rewrites an unusable `X-Request-ID` to a generated id, so an id failing this check was never registered and never could be. It means *fix your id generator*; retrying cannot help, and no run was stopped. Through 1.79.51 this case answered 404, so a client emitting bad ids saw permanent "too late" and could reasonably conclude cancellation was broken |
 
 **This matters most for non-streaming calls.** A streaming request is already
 cancellable by hanging up: the server is writing chunks, so it notices the

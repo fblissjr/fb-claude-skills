@@ -1,5 +1,17 @@
 # changelog
 
+## 1.47.0
+
+### added
+- **heylook-provider 0.8.0: neither mode's `performance` object is a superset of the other, and the schema says otherwise.** `prompt_tps` and `generation_tps` are non-streaming only -- `message_stop.performance` starts from `total_duration_ms`, adds the thinking/content durations, and merges caller telemetry, never the rates -- while `kv_cache_bytes`, `queue_wait_ms` and the draft counters are streaming only. `PerformanceInfo` declares both rates **required** regardless, so a client generating types from `/openapi.json` gets two required fields the streaming payload never sends and a strict deserializer fails on every `message_stop`. Verified against the .52 export (`required: ["prompt_tps", "generation_tps"]`) and the emitter. Upstream carries it as a caveat rather than a fix, since closing it means loosening the model or emitting the rates, so the skill says to treat them as optional whatever the schema says -- the one place in this skill that tells a reader to distrust the generated artifact it otherwise defers to.
+
+### changed
+- **A malformed cancel id is a 422 as of heylook 1.79.52, and the row means something no ordinary 422 means.** 0.7.3 removed that row on the grounds that nothing could fire it -- correct then, since `cancel_request` took a bare string. Upstream made the branch reachable rather than dropping the declaration, and the reasoning is specific: `request_id` is the only path param in that API whose charset the server itself defines, because the POST end rewrites an unusable `X-Request-ID` to a generated one. So an id failing the check was never registered and never could be, where 404 had conflated that with "the run already finished" -- a client quietly emitting bad ids saw permanent "too late" and could conclude cancellation was broken. The row is restored with that meaning stated (*fix your generator; retrying cannot help; nothing was stopped*) rather than as the generic validation error, and version-gated, since through 1.79.51 the same call answered 404. The 404 row keeps the two causes that remain: already finished, or an original request that carried no header.
+
+### fixed
+- **"Telemetry is unconditional in both modes" overstated it in two ways.** The claim was about the absent `include_performance` flag and got written as a claim about the object: a run producing no tokens returns `performance: null` (the builder gates on elapsed and token count), and the rates asymmetry above means the object's shape differs by mode as well. `wire_reference.md` already carried the null case correctly; SKILL.md did not, which is the recurring direction -- the summary generalizes what the reference states precisely.
+- `verified_against` moves to 1.79.52. The cancel endpoint's `HEYLOOK_API_KEY` gate and per-request id uniqueness, both raised here against the server's own copy, landed upstream in .51 and are now stated on both sides.
+
 ## 1.46.3
 
 ### fixed

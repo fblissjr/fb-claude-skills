@@ -107,9 +107,10 @@ correlation while `/v1/messages` ignored it and generated its own. So an
 existing OpenAI-wire client is likely already sending a usable id, and 1.79.44
 is what made it cancellable. Everything else is the same: non-streaming is
 where it matters, cancellation is cooperative, and a `404` means nothing is
-running under that id — usually because it finished, but a rejected or
-never-sent id lands there too, so it is not proof a cancel arrived late.
-Detail in `wire_reference.md`.
+running under that id — usually because it finished, but an id that was never
+sent as a header lands there too, so it is not proof a cancel arrived late. A
+**malformed** id is a separate 422 since 1.79.52, meaning it could never have
+been tracked at all. Detail in `wire_reference.md`.
 
 One consequence lands here: **`finish_reason: "length"` is overloaded.** A
 cancelled run reports it, so on this wire it means either the token budget was

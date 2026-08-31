@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.50"
+  verified_against: "heylookitsanllm 1.79.52"
 ---
 
 # heylook as an inference provider
@@ -257,11 +257,15 @@ diagnostic text, not model output.
   `/v1/conversations` it persists what it produced, so a cancelled turn leaves
   a truncated assistant message you did not read. Field detail is in
   `references/wire_reference.md`.
-- **Telemetry on `/v1/messages` is unconditional**, in both modes — there is
+- **Telemetry on `/v1/messages` is not opt-in**, in either mode — there is
   no `include_performance` to ask for (the field existed through 1.79.48,
   controlled nothing, and was removed in .49). Do not send it here; keep
   sending it on `/v1/chat/completions`, where absent really does mean no
-  performance block. And **time to first token is never returned**: the server
+  performance block. It is not guaranteed present either: a run that produced
+  no tokens returns `performance: null`, and the two rates the schema marks
+  required are absent from every streaming payload — test for presence, and do
+  not trust generated types here. And **time to first token is never
+  returned**: the server
   computes it and keeps it. You can time the first delta on a stream, but a
   non-streaming TTFT is not observable from the response — if you need one,
   do not derive it from `total_duration_ms`. Detail in
