@@ -259,8 +259,14 @@ tokens-over-elapsed when the engine reported no native rate, so a value on this
 path may be either. The streaming path does not fall back — see below, because
 that difference is not visible in the schema.
 
-An unmeasured value is `null` from 1.79.54 and was `0.0` before it, so on
-older builds a dropped rate is indistinguishable from a measured zero.
+**`prompt_tps` is `0.0` when the engine never measured it, on this path, on
+every version.** It is assigned raw from the telemetry accumulator, whose field
+defaults to `0.0` and latches only on a truthy value, so a run with no prefill
+rate emits a real zero rather than omitting the key. **Never read
+`prompt_tps == 0` here as "the server measured zero"** — on the streaming path
+that same run omits the field entirely. 1.79.54 fixed this shape one layer
+down, in the converter's `.get(key, 0)` default, but the builder above it still
+hands the converter a genuine `0.0`, so the fix does not reach this field.
 
 What is absent here, and whether you may rely on it, differs by field — the
 three cases are set out once under
@@ -356,12 +362,17 @@ and `draft_acceptance`. Both modes now emit the rates, and the non-streaming
 response carries the three telemetry keys it had been omitting. Read every
 field as optional and test for presence.
 
-**An absent rate is `null` from 1.79.54, and was `0.0` before it.** The
-converter used `.get(key, 0)`, so a rate the server never measured arrived as
-a measured zero. **A client reading `prompt_tps == 0` as "the server measured
-zero" inverts at .54** — it now means "not reported" and zero means zero.
-This is the one change in this release pair that silently changes an existing
-client's behaviour rather than adding to it.
+**An unmeasured rate is reported differently by each mode, and `prompt_tps`
+is the one that lies.** On the stream both rates are spelled `or None` and a
+null is skipped, so an unmeasured rate is an **absent key**. Non-streaming,
+`generation_tps` runs through a helper that substitutes tokens-over-elapsed,
+and `prompt_tps` is assigned **raw** from a field defaulting to `0.0` — so it
+arrives as a measured-looking zero. 1.79.54 removed the same trap from the
+converter beneath (`.get(key, 0)` became `.get(key)`), which is why it is
+tempting to read that release as having closed it; it did not, because the
+builder supplies a real `0.0` and the converter never sees an absent key.
+Upstream has this reported and unfixed as of 1.79.55: it is a wire change
+rather than a docs correction.
 
 **`generation_tps` can still be present non-streaming and absent on the stream
 for the same request.** The two paths compute it differently: the non-streaming

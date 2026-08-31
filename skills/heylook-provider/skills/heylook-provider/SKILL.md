@@ -279,11 +279,11 @@ diagnostic text, not model output.
   sending it on `/v1/chat/completions`, where absent really does mean no
   performance block. It is not guaranteed present either: a run that produced
   no tokens returns `performance: null`, and every field inside it is optional
-  from 1.79.54 — test for presence. Two traps: an unmeasured rate is `null`
-  from .54 and was `0.0` before, so a client reading `prompt_tps == 0` as
-  "measured zero" inverts on upgrade; and `generation_tps` can be present
-  non-streaming and absent on the stream for the same request, because only
-  the non-streaming path falls back to wall-clock. Below .54 the object is
+  from 1.79.54 — test for presence. The trap is that the two modes report an
+  unmeasured rate differently: the stream omits the key, while non-streaming
+  substitutes a wall-clock figure for `generation_tps` and a bare **`0.0`** for
+  `prompt_tps`. **Never read `prompt_tps == 0` as "measured zero"** on the
+  non-streaming path, on any version. Below .54 the object is
   asymmetric both ways and the generated schema is wrong about it in both
   directions — `references/wire_reference.md` has the version detail. And
   **time to first token is never returned**: the server
@@ -333,6 +333,6 @@ a section or notice you are writing a second copy of something.
 - Every call carries a **fresh** `X-Request-ID`, one per request, and
   non-streaming calls have a path that DELETEs it. → *Operational shape*
 - Telemetry is read defensively: `performance` can be `null`, every field in
-  it is optional, and an unmeasured rate is `null` rather than `0`. →
+  it is optional, and non-streaming `prompt_tps == 0` means unmeasured. →
   *Operational shape*, and `references/wire_reference.md`
 - A real request has run against a live server, not just typechecked.

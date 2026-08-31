@@ -1,5 +1,13 @@
 # changelog
 
+## 1.49.1
+
+### fixed
+- **heylook-provider 0.10.1: 0.10.0 told clients that `prompt_tps == 0` now means the server measured zero. On the non-streaming path it still means unmeasured, on every version.** 1.79.54 removed that trap from the response converter -- `.get(key, 0)` became `.get(key)` -- and 0.10.0 read that as having closed it. It did not: the builder above the converter assigns `prompt_tps` **raw** from the telemetry accumulator, whose field defaults to `0.0` and latches only on a truthy value, so a run where the engine reported no prefill rate hands the converter a genuine `0.0` and the absent-key path is never reached. The streaming half spells both rates `or None` and skips nulls, so the same run omits the key there. Verified at the three sites -- the accumulator's default and truthy latch, the non-streaming assignment, the streaming `or None` -- not from the report. This is the worst kind of error this skill can ship: an inverted reading of a value a client branches on, stated with a version gate that made it look checked.
+- `generation_tps` and `prompt_tps` fail differently on the same path, which 0.10.0 blurred by treating "the rates" as one thing. Non-streaming, `generation_tps` goes through a helper that substitutes tokens-over-elapsed, so it produces a plausible number where the engine gave none; `prompt_tps` has no such fallback and produces `0.0`. Both are now stated per field.
+- **Recorded as read-from-source, not measured.** 1.79.54 and .55 are committed and unpushed upstream, and that server is running .53, so nothing in 0.10.0 or this release has been observed on a live wire -- the schema was exported from source and the behaviour read at the call sites. The `prompt_tps` defect is reported upstream and unfixed as of .55, since it is a wire change rather than a docs correction.
+- Deliberately not carried: `POST /v1/conversations/{id}/generate` calls the same terminal-event builder with no telemetry, so its `performance` object holds the durations alone while `/v1/messages` carries the full set. Real, and outside this skill's scope -- it documents single-shot integration and does not describe the conversation surface.
+
 ## 1.49.0
 
 ### changed
