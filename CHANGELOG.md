@@ -1,5 +1,13 @@
 # changelog
 
+## 1.47.2
+
+### added
+- **heylook-provider 0.8.2: the schema mismatch runs both ways, and the direction neither copy had is the one a client cannot see.** 0.8.0 carried the declared-but-unsent half -- `PerformanceInfo` marks both rates required and the stream never sends them. The other half: `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` are sent on every `message_stop` that has them and are **not declared on `PerformanceInfo` at all**. By the argument that settled the 422 question, this is the worse direction -- a declared-but-unsent field costs a generated client a dead branch it can see, while an undeclared-but-sent field is invisible: three telemetry values are dropped off every event with no error anywhere. Confirmed against the .52 export (six declared properties, none of them these) and `schema/streaming.py`. Carried with the reason, because the reason tells a reader which document to believe here: `MessageStopEvent.performance` is typed `Optional[PerformanceInfo]`, but the streaming payload is assembled as a raw dict and written straight to the wire, so nothing validates it -- the one place on this wire where the generated schema describes the payload without governing it. Found by the server session applying this repo's own omission-versus-decision split back to its `§3`.
+
+### fixed
+- **The three absent-field cases now have three standings instead of two, and the claim has one home instead of two.** Splitting them (rates: unresolved; the three telemetry keys: open omission, do not key on it; `thinking_duration_ms` and `content_duration_ms`: streaming-only by design, safe to rely on) was written into the streaming section while the non-streaming section still carried its own copy of the durations claim -- a second copy created in the same commit that fixed the under-specification, which is the defect `best_practices.md` calls "one claim in several places". The non-streaming section now points at the streaming one rather than restating it. Same rule the `Done means` index adopted one release earlier, applied where it was immediately broken.
+
 ## 1.47.1
 
 ### fixed

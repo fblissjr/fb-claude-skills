@@ -254,9 +254,9 @@ better than dividing tokens by client wall-clock — which folds in queue wait
 and any model load. Absent telemetry is omitted rather than sent as a fake
 `0.0`.
 
-`thinking_duration_ms` and `content_duration_ms` are **streaming-only** and
-deliberately so: the block translator times them as it emits, so there is
-nothing non-streaming to measure. Expect them absent here.
+What is absent here, and whether you may rely on it, differs by field — the
+three cases are set out once under
+[Streaming](#heylook-extensions-on-the-same-stream) rather than twice.
 
 **`peak_memory_gb` is blank on a non-streaming response before 1.79.50.** It
 was declared on the model and populated on the other three response paths —
@@ -338,8 +338,9 @@ across the whole message, not a stable slot.
 The entry shape matches the OpenAI wire's `logprobs.content`, so a parser
 ported from `/v1/chat/completions` keeps working.
 
-**Neither mode's `performance` is a superset of the other**, and the two
-directions have different standing.
+**Neither mode's `performance` is a superset of the other**, and the missing
+fields do not all have the same standing — one case is a design you may rely
+on, one is unresolved, one is an open bug.
 
 `prompt_tps` and `generation_tps` are **non-streaming only** — nothing on the
 stream carries them — while `PerformanceInfo` declares both **required**. So a
@@ -358,6 +359,31 @@ left `peak_memory_gb` null on that path until 1.79.50, with five separate
 sites assembling telemetry for the wire. So code for their absence today, but
 do not build on it — that gap is expected to close, and a client keying on
 "non-streaming never has these" would be keying on a bug.
+
+`thinking_duration_ms` and `content_duration_ms` are the third case and the
+only stable one: streaming-only **by design**, because the translator times
+them as it emits. Their absence non-streaming is a contract you may rely on.
+
+**Those same three telemetry keys are not declared in the schema at all**, and
+that is the direction that costs you most. `PerformanceInfo` declares six
+fields; `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` are none of
+them, yet every `message_stop` that has them sends them. A declared-but-unsent
+field (the two rates) costs a generated client a dead branch it can see. An
+undeclared-but-sent field is **invisible** — a client generated from
+`/openapi.json` drops three telemetry values off every `message_stop` with no
+error anywhere. If you want them, read them off the raw event rather than
+through a generated type.
+
+The reason both mismatches went unnoticed is worth knowing, because it tells
+you which document to believe on this path: `MessageStopEvent.performance` is
+typed `Optional[PerformanceInfo]`, but the streaming payload is assembled as a
+**raw dict** and written straight to the wire. Nothing validates it against
+that model, so the model is documentation rather than a constraint here — the
+one place on this wire where the generated schema describes the payload
+without governing it. Upstream tracks the three fixes (emit the rates, declare
+the keys, validate `message_stop` through its model) as one entangled decision,
+since declaring the keys is also what would let the non-streaming builder carry
+them.
 
 `message_stop.performance` merges optional telemetry beside
 `total_duration_ms`: `thinking_duration_ms`, `content_duration_ms`,
