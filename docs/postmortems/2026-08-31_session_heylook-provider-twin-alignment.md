@@ -21,6 +21,8 @@ artifacts:
   - 7b330ed
   - 912ccd8
   - 545c7f4
+  - 445f233
+  - 3080f20
 ---
 
 The task as given: check that `skills/heylook-provider/` is aligned with the
@@ -139,6 +141,25 @@ quoted inline, as above.
   *Structural version: a precise statement added beside the vague one it
   supersedes starts out agreeing with it, so the moment of duplication carries
   no signal.*
+
+  *Annotation 2026-08-31, later same day:* the structural version above is
+  right about detection and was wrong about the fix, which this finding did not
+  state. Two further instances landed after it was written — one here
+  (`0.11.0`, `445f233`) and one in the server repo — and in both, a correct new
+  sentence was placed **beside** a claim that still sent the reader wrong. The
+  first framing of the remedy was placement: put the correction where the
+  reader hits it. That is a symptom. This session's copy had the better
+  placement — the correction sat at the claim, not twenty lines below it — and
+  still failed, because the false word survived inside the sentence being
+  corrected (`0.11.1`). The rule is that a correction must **replace** the
+  claim, not accompany it — adjacent is not a fix, it is a race between two
+  sentences decided by how far the reader reads.*
+
+  *And the reason authors do not catch their own: writing a correction feels
+  like an act of reading the original carefully, so it leaves a false memory of
+  having audited it. The server session put it exactly — it had read the
+  paragraph "for what to append, not for what it said". That is why all four
+  instances across the two repos were found by the other side.*
 
 - **A presence-count grep under-reported on its first run here.** Run across
   five files to check where the uniqueness rule had landed, it returned zero for
