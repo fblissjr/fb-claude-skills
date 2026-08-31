@@ -243,15 +243,24 @@ Output block union: `text`, `thinking`, `logprobs`, `hidden_states`.
 thinking block.
 
 `performance` is present on any run that produced tokens (it is `null` only
-when the generation yielded none — test for presence, not for truthiness), and
-on this path it carries exactly three populated fields: `prompt_tps`,
-`generation_tps` and `total_duration_ms`. The rates are the **engine's own**
+when the generation yielded none — test for presence, not for truthiness). Four
+of its six fields are populated on this path: `prompt_tps`, `generation_tps`,
+`total_duration_ms` and `peak_memory_gb`. The rates are the **engine's own**
 measurements, taken tightly around prefill and decode, so they are strictly
 better than dividing tokens by client wall-clock — which folds in queue wait
-and any model load. `peak_memory_gb`, `thinking_duration_ms` and
-`content_duration_ms` are declared on the model and left `null` here; the
-first is populated on the streaming wire's `message_stop.performance`, which
-carries a wider set.
+and any model load. Absent telemetry is omitted rather than sent as a fake
+`0.0`.
+
+`thinking_duration_ms` and `content_duration_ms` are **streaming-only** and
+deliberately so: the block translator times them as it emits, so there is
+nothing non-streaming to measure. Expect them absent here.
+
+**`peak_memory_gb` is blank on a non-streaming response before 1.79.50.** It
+was declared on the model and populated on the other three response paths —
+the streaming half of this wire, and both halves of the OpenAI wire — while
+this one builder dropped it, so a client rendering it got an empty field with
+no reason why. If you target older servers, read it off a stream or treat its
+absence as uninformative rather than as zero.
 
 **Time to first token is not returned, on either mode.** The server computes
 it (net of FIFO queue wait) and keeps it for its own collector; no response

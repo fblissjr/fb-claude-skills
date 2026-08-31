@@ -1,5 +1,11 @@
 # changelog
 
+## 1.46.1
+
+### fixed
+- **heylook-provider 0.7.1: the `performance` field set 0.7.0 documented was accurate for one release.** 0.7.0 reported that `peak_memory_gb`, `thinking_duration_ms` and `content_duration_ms` arrive null on a non-streaming Messages response -- traced here at the read sites, and correct against 1.79.49. heylook 1.79.50 fixed the code rather than the doc: the non-streaming builder was the only one of four response paths dropping `peak_memory_gb`, the value was already in `ChunkTelemetry`, and it now copies it with the same `or None` spelling the streaming half uses, so absent telemetry stays omitted rather than becoming a fake `0.0`. Four of six fields are populated on that path now. `thinking_duration_ms` and `content_duration_ms` stay streaming-only by design -- the block translator times them as it emits, so there is nothing non-streaming to measure -- and are pinned absent upstream by a test rather than left ambiguous. The version caveat is kept because it changes what a reader should do: before 1.79.50 that field is blank on this path, and its absence is uninformative rather than zero.
+- `verified_against` moves to 1.79.50.
+
 ## 1.46.0
 
 ### changed
