@@ -1,5 +1,16 @@
 # changelog
 
+## 1.49.0
+
+### changed
+- **heylook-provider 0.10.0: the `performance` asymmetry 0.8.0 and 0.8.2 documented is closed in heylook 1.79.54, in both directions at once.** `PerformanceInfo` now declares nine fields and **none are required**: both modes emit the two rates, and the non-streaming response carries `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance`, which are declared for the first time. That closes the declared-but-unsent half (a strict client generated from `/openapi.json` used to fail on every `message_stop`) and the undeclared-but-sent half (it used to drop three telemetry values per event with no error) together. Verified against the exported schema at .55 -- nine properties, no `required` key -- rather than from the report. The old behaviour is kept as a version-gated paragraph because a reader targeting .53 or below meets both directions.
+- **An unmeasured rate is `null` from 1.79.54 and was `0.0` before it**, because the converter used `.get(key, 0)`. This is the only change in the pair that alters an existing client's behaviour rather than adding to it: `prompt_tps == 0` used to mean "not reported" and now means the server measured zero. Called out in the skill body and the reference, since a client that treats zero as a measurement inverts on upgrade.
+- **1.79.55 makes the streaming payload unable to carry an undeclared key**, by filtering the emitted dict to the model's declared fields at the point of assembly. So from .55 a new telemetry field reaches the schema before it reaches the wire, never after, and `/openapi.json` is trustworthy on the one path where this skill had told readers to distrust it. That exception is now version-scoped rather than standing.
+
+### fixed
+- **This skill said the rates were the engine's own measurements, and on the non-streaming path that is only sometimes true.** Corrected by the server session, which found it by measuring after a textual check had agreed with the wrong reading. `generation_tps` can be present non-streaming and absent from `message_stop` for the same request: the non-streaming builder runs it through a helper that falls back to tokens-over-elapsed when the engine reported no native rate, while the streaming payload passes the engine's value through and drops it when there is none. Same field name, two guarantees, so comparing the modes compares different quantities -- and nothing in `/openapi.json` expresses it, which is why it has to be prose. Upstream tracks the divergence rather than having picked a reading.
+- The `Done means` index still carried "the rates the schema marks required are absent on the stream", a claim this release falsifies. Caught by grepping the phrase being changed rather than by re-reading the section -- the index rule adopted in 0.8.1 makes the checklist a pointer, which does not stop its own text going stale.
+
 ## 1.48.0
 
 ### changed

@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.53"
+  verified_against: "heylookitsanllm 1.79.55"
 ---
 
 # heylook as an inference provider
@@ -278,10 +278,15 @@ diagnostic text, not model output.
   controlled nothing, and was removed in .49). Do not send it here; keep
   sending it on `/v1/chat/completions`, where absent really does mean no
   performance block. It is not guaranteed present either: a run that produced
-  no tokens returns `performance: null`, and the two rates the schema marks
-  required are absent from every streaming payload — test for presence, and do
-  not trust generated types here. And **time to first token is never
-  returned**: the server
+  no tokens returns `performance: null`, and every field inside it is optional
+  from 1.79.54 — test for presence. Two traps: an unmeasured rate is `null`
+  from .54 and was `0.0` before, so a client reading `prompt_tps == 0` as
+  "measured zero" inverts on upgrade; and `generation_tps` can be present
+  non-streaming and absent on the stream for the same request, because only
+  the non-streaming path falls back to wall-clock. Below .54 the object is
+  asymmetric both ways and the generated schema is wrong about it in both
+  directions — `references/wire_reference.md` has the version detail. And
+  **time to first token is never returned**: the server
   computes it and keeps it. You can time the first delta on a stream, but a
   non-streaming TTFT is not observable from the response — if you need one,
   do not derive it from `total_duration_ms`. Detail in
@@ -327,7 +332,7 @@ a section or notice you are writing a second copy of something.
   distinct meanings*
 - Every call carries a **fresh** `X-Request-ID`, one per request, and
   non-streaming calls have a path that DELETEs it. → *Operational shape*
-- Telemetry is read defensively: `performance` can be `null`, and the rates
-  the schema marks required are absent on the stream. → *Operational shape*,
-  and `references/wire_reference.md`
+- Telemetry is read defensively: `performance` can be `null`, every field in
+  it is optional, and an unmeasured rate is `null` rather than `0`. →
+  *Operational shape*, and `references/wire_reference.md`
 - A real request has run against a live server, not just typechecked.
