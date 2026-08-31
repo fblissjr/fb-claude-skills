@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.58"
+  verified_against: "heylookitsanllm 1.79.59"
 ---
 
 # heylook as an inference provider
@@ -284,7 +284,9 @@ diagnostic text, not model output.
   what its name says, absent means this mode could not measure it. Nothing is
   synthesized. `total_duration_ms` is retired on this wire in favour of
   `request_duration_ms` (includes queue wait and model load) and
-  `generation_duration_ms` (excludes both — the throughput denominator);
+  `generation_duration_ms` (excludes both — the throughput denominator, but
+  **only from 1.79.59**: on .58 it still contains the queue wait, so net it out
+  yourself there);
   `/v1/chat/completions` keeps the old name. **Through 1.79.57 the two modes
   disagreed per field** — most sharply, non-streaming `prompt_tps` was `0.0`
   when unmeasured, so never read it as a measured zero on those builds.
@@ -337,6 +339,6 @@ a section or notice you are writing a second copy of something.
   non-streaming calls have a path that DELETEs it. → *Operational shape*
 - Telemetry is read defensively: `performance` can be `null`, every field in
   it is optional, absent means unmeasurable, and the throughput denominator is
-  `generation_duration_ms`. →
+  `generation_duration_ms` — netted yourself on 1.79.58. →
   *Operational shape*, and `references/wire_reference.md`
 - A real request has run against a live server, not just typechecked.

@@ -1,5 +1,17 @@
 # changelog
 
+## 1.52.0
+
+### fixed
+- **heylook-provider 0.13.0: 0.12.0 told readers `queue_wait_ms: 0` is a measurement. It is a non-answer, and on gguf it is one every single time.** That was 1.79.58's rule and its premise was false, which measurement settled rather than argument: the wait is an elapsed-counter difference, so an idle gate yields a tiny nonzero float -- `0.0044`, `0.0037`, `0.0024` ms on live runs, never `0.0`. The "measured zero on an idle server" the rule existed to rescue does not occur. What emits exactly `0.0` is the unmeasured set and only it, and **the gguf provider never assigns the field at all** -- it bypasses the server's FIFO gate and queues inside `llama-server`, so a gguf request that genuinely waited seconds published `0.0`. 1.79.59 restores absent-means-unmeasured. Verified at the emit site (`if telemetry.queue_wait_ms:`) rather than from the report.
+- **`generation_duration_ms` contained the queue wait its own name excludes, on 1.79.58** -- the release that introduced it to remove exactly that ambiguity. The route body is a generator function, so the FIFO gate is acquired on the first `next()` inside the consume loop, after the span clock started; a request queued 30s and generating 5s reported `35000`. A client following 0.12.0's "this is the throughput denominator" computed a seventh of the true rate. 1.79.59 subtracts the wait server-side, clamped at zero.
+- **Both are live defects, not forward-looking notes, and that is why they are stated as traps rather than as version history.** 1.79.59 is committed and not running; the server is on .58. So the running wire today publishes the bogus zero and the inflated denominator, and a reader on it needs to net the wait out by hand -- using a field that, on gguf, they must first know is meaningless. The `.58`-only section says that plainly.
+- The pre-.58 entry for `queue_wait_ms` is **kept and re-verdicted rather than deleted**: `or None` was read as hiding a measured zero, on this side and the server's, and it was correct all along. An entry recording that both parties reasoned wrong and only a measurement settled it is worth more than one that quietly agrees with the current behaviour.
+- A response example carried `"queue_wait_ms": 0`, a value the wire cannot produce under the restored rule. Changed to a real observed figure.
+
+### verification standing
+- Schema and emit-site claims derived here from source at 1.79.59. The live figures are the server session's, quoted so the claim stands without them; loopback remains unreachable from this session, so nothing here is confirmed against a running wire. The schema is unchanged across .58 and .59 -- same ten `PerformanceInfo` fields, none required -- so generated types are unaffected and only the prose contract moved, which is the half this skill carries.
+
 ## 1.51.1
 
 ### fixed

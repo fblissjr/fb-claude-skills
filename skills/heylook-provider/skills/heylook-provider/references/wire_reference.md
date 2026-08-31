@@ -237,7 +237,7 @@ that refusal is deliberate and loud rather than a silent drop.
              "thinking_tokens": null, "content_tokens": null },
   "performance": { "prompt_tps": 0.0, "generation_tps": 0.0,
                    "request_duration_ms": 0, "generation_duration_ms": 0,
-                   "queue_wait_ms": 0, "peak_memory_gb": 0.0,
+                   "queue_wait_ms": 0.0044, "peak_memory_gb": 0.0,
                    "thinking_duration_ms": null, "content_duration_ms": null }
 }
 ```
@@ -379,6 +379,16 @@ Both modes report both. If you divide tokens by a duration, it is
 `generation_duration_ms`; `request_duration_ms` is the number that makes a cold
 load look like a hang, because it is measuring the load.
 
+**On 1.79.58 exactly, `generation_duration_ms` is not yet that denominator.**
+It contained the queue wait its own name excludes: the route's body is a
+generator function, so the FIFO gate is acquired on the first `next()` inside
+the consume loop — after the span clock has started. A request that queued 30s
+and generated 5s reported `35000`, and a client following the rule above
+computed a seventh of the true rate. **1.79.59 subtracts the wait
+server-side**, clamped at zero. Against a .58 server, net it out yourself
+using `queue_wait_ms` — with the caveat immediately below about what that field
+means there.
+
 **`/v1/chat/completions` is unchanged and still sends `total_duration_ms`.**
 That wire has its own timing model, untouched by 1.79.58, so the retirement is
 Messages-only — a client speaking both wires needs both names.
@@ -386,15 +396,35 @@ Messages-only — a client speaking both wires needs both names.
 Absent-versus-zero is decided per field, on whether zero is a meaningful
 measurement of that quantity:
 
-- **Durations and `queue_wait_ms`: zero is real and always emitted.** A
-  request that waited no time in the FIFO gate genuinely waited zero, so
-  `queue_wait_ms: 0` is a measurement and absent means unmeasurable.
-- **Rates, `peak_memory_gb`, `kv_cache_bytes`: zero is never real**, so it is
-  spelled as absence. A rate of zero would mean no tokens in unbounded time.
+- **Durations: zero is real.** The builder is handed an explicit integer or
+  nothing, so absence is a statement that the span was not measurable.
+- **Everything read off the telemetry accumulator — both rates,
+  `peak_memory_gb`, `kv_cache_bytes` and `queue_wait_ms`: zero is never
+  real**, so it is spelled as absence. A rate of zero would mean no tokens in
+  unbounded time, and a wait of exactly `0.0` is not something the gate can
+  produce.
+
+**`queue_wait_ms` is in that second group, and 1.79.58 briefly put it in the
+first on a premise that measurement refuted.** That release emitted the zero,
+reasoning that it rescued a real measurement on an idle server. There is no
+such measurement: the wait is an elapsed-counter difference, so an idle gate
+yields a tiny nonzero float — live runs reported `0.0044`, `0.0037` and
+`0.0024` ms, never `0.0`. What produces exactly `0.0` is the unmeasured set and
+only it. **1.79.59 restores the correct rule: absent means not measured, and
+`0` never appears.**
 
 `thinking_duration_ms` and `content_duration_ms` remain streaming-only, and
 under this rule that stops being an exception: they are spans the non-streaming
 path genuinely cannot measure.
+
+**On 1.79.58 exactly, `queue_wait_ms: 0.0` is a non-answer.** That release
+emits the field unconditionally, and the gguf provider never assigns it — gguf
+bypasses this server's FIFO gate and queues inside `llama-server` at `-np 1`,
+so a gguf request that genuinely waited seconds still publishes `0.0`. An MLX
+run that yields no chunk loses the tag the same way, since it rides the first
+one. So on a .58 server: **on gguf, `queue_wait_ms` is always meaningless**,
+and on MLX a `0.0` means the run produced nothing. Treat `0.0` as absent there
+and you have the .59 rule early.
 
 ### Below 1.79.58 the two modes disagreed, per field
 
@@ -415,9 +445,13 @@ above, and none of them was visible in `/openapi.json`.
 - **`generation_tps` was synthesized non-streaming** — run through a helper
   substituting tokens-over-elapsed when the engine reported no rate, while the
   stream dropped it instead. Same name, two guarantees.
-- **`queue_wait_ms` hid a measured zero.** Both modes spelled it `or None` and
-  nulls were skipped, so no wait on an idle server was indistinguishable from
-  no measurement — the exact mirror of the `prompt_tps` trap.
+- **`queue_wait_ms` was spelled `or None`, which turned out to be correct.**
+  It was read here and upstream as hiding a measured zero on an idle server —
+  the mirror of the `prompt_tps` trap. Measurement refuted that: an idle gate
+  reports a tiny nonzero float, so the dropped zero was never a measurement.
+  1.79.58 "fixed" it and 1.79.59 restored it. This entry is kept rather than
+  deleted because the reasoning was wrong on both this side and the server's,
+  and only a measurement settled it.
 
 Before **1.79.54** the object was also asymmetric in its declared shape: the
 two rates were declared **required** while the stream never sent them, so a
