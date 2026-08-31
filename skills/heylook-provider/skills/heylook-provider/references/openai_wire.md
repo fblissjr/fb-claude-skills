@@ -91,8 +91,12 @@ data: [DONE]
 ```
 
 The usage chunk appears only with `stream_options: {"include_usage": true}`.
-Its `timing` object carries the same telemetry vocabulary as the Messages
-wire's `message_stop.performance`.
+Its `timing` object shares most of its vocabulary with the Messages wire's
+`message_stop.performance` — **but not since 1.79.58**, which retired
+`total_duration_ms` on the Messages wire only. This wire's timing model is
+untouched and still sends it, so a client speaking both needs both names:
+`total_duration_ms` here, `request_duration_ms` and `generation_duration_ms`
+there.
 
 `delta.thinking` is a separate field from `delta.content` — an OpenAI client
 that reads only `content` will silently drop reasoning, which is usually what

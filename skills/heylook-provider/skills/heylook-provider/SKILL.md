@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.55"
+  verified_against: "heylookitsanllm 1.79.58"
 ---
 
 # heylook as an inference provider
@@ -279,20 +279,20 @@ diagnostic text, not model output.
   sending it on `/v1/chat/completions`, where absent really does mean no
   performance block. It is not guaranteed present either: a run that produced
   no tokens returns `performance: null`, and every field inside it is optional
-  from 1.79.54 — test for presence. The trap is that the two modes report an
-  unmeasured rate differently: the stream omits the key, while non-streaming
-  substitutes a wall-clock figure for `generation_tps` and a bare **`0.0`** for
-  `prompt_tps`. **Never read `prompt_tps == 0` as "measured zero"** on the
-  non-streaming path, on any version. Below .54 the object is
-  asymmetric both ways and the generated schema is wrong about it in both
-  directions — `references/wire_reference.md` has the version detail. And
-  **time to first token is never returned**: the server
+  from 1.79.54 — test for presence. **From 1.79.58 one builder serves both
+  modes** and the rule is one line: a field present is a real measurement of
+  what its name says, absent means this mode could not measure it. Nothing is
+  synthesized. `total_duration_ms` is retired on this wire in favour of
+  `request_duration_ms` (includes queue wait and model load) and
+  `generation_duration_ms` (excludes both — the throughput denominator);
+  `/v1/chat/completions` keeps the old name. **Through 1.79.57 the two modes
+  disagreed per field** — most sharply, non-streaming `prompt_tps` was `0.0`
+  when unmeasured, so never read it as a measured zero on those builds.
+  `references/wire_reference.md` has the per-field account and the version
+  boundaries. And **time to first token is never returned**: the server
   computes it and keeps it. You can time the first delta on a stream, but a
   non-streaming TTFT is not observable from the response — if you need one,
-  do not derive it from `total_duration_ms` — which is itself not one
-  quantity: non-streaming it includes queue wait and model load, streaming it
-  excludes both, so the same work reports wildly different totals across modes
-  on a cold load and neither number is labelled. Detail in
+  do not derive it from a duration field. Detail in
   `references/wire_reference.md`.
 - `reasoning_effort` values are **model-specific** and the schema accepts the
   union of every model's set, so a wrong-for-this-model value reaches the
@@ -336,6 +336,7 @@ a section or notice you are writing a second copy of something.
 - Every call carries a **fresh** `X-Request-ID`, one per request, and
   non-streaming calls have a path that DELETEs it. → *Operational shape*
 - Telemetry is read defensively: `performance` can be `null`, every field in
-  it is optional, and non-streaming `prompt_tps == 0` means unmeasured. →
+  it is optional, absent means unmeasurable, and the throughput denominator is
+  `generation_duration_ms`. →
   *Operational shape*, and `references/wire_reference.md`
 - A real request has run against a live server, not just typechecked.

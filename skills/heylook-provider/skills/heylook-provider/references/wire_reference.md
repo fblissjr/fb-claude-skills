@@ -236,7 +236,8 @@ that refusal is deliberate and loud rather than a silent drop.
   "usage": { "input_tokens": 0, "output_tokens": 0,
              "thinking_tokens": null, "content_tokens": null },
   "performance": { "prompt_tps": 0.0, "generation_tps": 0.0,
-                   "total_duration_ms": 0, "peak_memory_gb": 0.0,
+                   "request_duration_ms": 0, "generation_duration_ms": 0,
+                   "queue_wait_ms": 0, "peak_memory_gb": 0.0,
                    "thinking_duration_ms": null, "content_duration_ms": null }
 }
 ```
@@ -247,24 +248,23 @@ thinking block.
 
 `performance` is present on any run that produced tokens (it is `null` only
 when the generation yielded none — test for presence, not for truthiness).
-Populated on this path: `prompt_tps`, `generation_tps`, `total_duration_ms`,
-`peak_memory_gb`, and — from 1.79.54 — `kv_cache_bytes`, `queue_wait_ms` and
-`draft_acceptance`.
+The object is built by one shared function for both modes from **1.79.58**, so
+the field set is the same on both paths and the reading rule is one line:
 
-The rates **prefer** the engine's own measurements, taken tightly around
-prefill and decode. What they beat is **dividing tokens by any elapsed time
-that spans the whole request** — the hazard is the span, not whose clock
-measured it, and the server ships one of those spans in the same object.
-`total_duration_ms` on this path folds in queue wait and model load, so using
-it as a denominator reproduces exactly the error the engine's rates exist to
-avoid, and on a cold load the result will look badly wrong while both numbers
-are correct. See the clock note under Streaming.
+> Every field, when present, is a real measurement of exactly the thing its
+> name says. Absent means this mode or engine could not measure it.
 
-`generation_tps` here is not purely the engine's figure either: this builder
-runs it through a helper that falls back to tokens-over-elapsed when the engine
-reported no native rate, so a value on this path may be either. The streaming
-path does not fall back — see below, because that difference is not visible in
-the schema.
+Absent has two spellings and one meaning: streaming omits the key,
+non-streaming returns an explicit `null` (its response is materialised through
+`PerformanceInfo`, so every declared field appears). Test for `None`, not for
+key presence, if you want one branch that works on both.
+
+The rates are the engine's own measurements, taken tightly around prefill and
+decode. **Nothing is synthesized from 1.79.58** — `generation_tps` is the
+engine's figure or absent, never a wall-clock stand-in. What that beats is
+dividing tokens by an elapsed time spanning the whole request; the hazard is
+the span, not whose clock measured it, and the server ships spans of both kinds
+(see the duration fields under Streaming).
 
 **`prompt_tps` is `0.0` when the engine never measured it, on this path, on
 every version.** It is assigned raw from the telemetry accumulator, whose field
@@ -333,7 +333,7 @@ event: message_delta
 data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{...}}
 
 event: message_stop
-data: {"type":"message_stop","performance":{"total_duration_ms":1234, ...}}
+data: {"type":"message_stop","performance":{"request_duration_ms":1234, ...}}
 ```
 
 **`message_stop` terminates the stream. There is no `data: [DONE]`.**
@@ -359,59 +359,77 @@ across the whole message, not a stable slot.
 The entry shape matches the OpenAI wire's `logprobs.content`, so a parser
 ported from `/v1/chat/completions` keeps working.
 
-**The two modes' `performance` objects converged in 1.79.54, and one field
-still differs in a way the schema cannot show.**
+**One builder, one rule, from 1.79.58.** Both modes and both Messages routes
+emit through a single function, so the per-field divergences below are closed
+rather than documented. The declared set is `request_duration_ms`,
+`generation_duration_ms`, `prompt_tps`, `generation_tps`, `peak_memory_gb`,
+`kv_cache_bytes`, `queue_wait_ms`, `draft_acceptance`, `thinking_duration_ms`
+and `content_duration_ms` — none required.
 
-Since **1.79.54** `PerformanceInfo` declares nine fields and **none are
-required**: both rates, `peak_memory_gb`, the two durations,
-`total_duration_ms`, and — newly declared — `kv_cache_bytes`, `queue_wait_ms`
-and `draft_acceptance`. Both modes now emit the rates, and the non-streaming
-response carries the three telemetry keys it had been omitting. Read every
-field as optional and test for presence.
+**`total_duration_ms` is retired on this wire, not aliased.** It named two
+different spans depending on mode, so it was replaced by two fields that each
+name one:
 
-**An unmeasured rate is reported differently by each mode, and `prompt_tps`
-is the one that lies.** On the stream both rates are spelled `or None` and a
-null is skipped, so an unmeasured rate is an **absent key**. Non-streaming,
-`generation_tps` runs through a helper that substitutes tokens-over-elapsed,
-and `prompt_tps` is assigned **raw** from a field defaulting to `0.0` — so it
-arrives as a measured-looking zero. 1.79.54 removed the same trap from the
-converter beneath (`.get(key, 0)` became `.get(key)`), which is why it is
-tempting to read that release as having closed it; it did not, because the
-builder supplies a real `0.0` and the converter never sees an absent key.
-Upstream has this reported and unfixed as of 1.79.55: it is a wire change
-rather than a docs correction.
+| Field | Span | Use it for |
+|---|---|---|
+| `request_duration_ms` | arrival to done — **includes** queue wait and model load | user-perceived latency |
+| `generation_duration_ms` | generation only — **excludes** both | the throughput denominator |
 
-**`generation_tps` can still be present non-streaming and absent on the stream
-for the same request.** The two paths compute it differently: the non-streaming
-builder runs it through `headline_tps`, which falls back to tokens-over-elapsed
-when the engine reported no native rate, while the streaming payload passes the
-engine's value through and drops it when there is none. Same field name, two
-guarantees — so comparing the modes compares different quantities, and a
-missing streaming rate is not evidence the non-streaming one would be missing
-too. Both readings of "generation tok/s" are defensible; upstream tracks the
-divergence rather than having picked one. Nothing in `/openapi.json` expresses
-this, which is why it is here.
+Both modes report both. If you divide tokens by a duration, it is
+`generation_duration_ms`; `request_duration_ms` is the number that makes a cold
+load look like a hang, because it is measuring the load.
 
-**`total_duration_ms` measures a different span in each mode, and nothing on
-the wire says which.** Non-streaming starts its clock when the request is
-accepted — before the provider is resolved — so it **includes** FIFO queue wait
-and any model load. Streaming starts its clock when the event translator is
-constructed, which is after the provider is in hand, so it **excludes** both;
-the streaming path is not even passed the earlier timestamp and structurally
-cannot include it. On a warm resident model the two nearly agree. On a cold
-load they do not: the same work reports the whole load in one mode and none of
-it in the other, and both numbers look equally plausible. So it is not a
-duration you may compare across modes, and it is not a denominator — dividing
-tokens by it reproduces exactly the wall-clock error the engine's rates exist
-to avoid, but only in one of the two modes.
+**`/v1/chat/completions` is unchanged and still sends `total_duration_ms`.**
+That wire has its own timing model, untouched by 1.79.58, so the retirement is
+Messages-only — a client speaking both wires needs both names.
 
-**`queue_wait_ms` absent means zero, not unknown.** Both modes spell it
-`or None` and a null is skipped, so a request that waited no time in the
-generation gate — the common case on an idle server — is indistinguishable
-from one where the wait was never measured. This is the mirror of the
-`prompt_tps` trap: that one emits an unmeasured value as a measurement, this
-one hides a measurement as unmeasured. If you net queue wait out of a timing
-of your own, treat absent as `0`.
+Absent-versus-zero is decided per field, on whether zero is a meaningful
+measurement of that quantity:
+
+- **Durations and `queue_wait_ms`: zero is real and always emitted.** A
+  request that waited no time in the FIFO gate genuinely waited zero, so
+  `queue_wait_ms: 0` is a measurement and absent means unmeasurable.
+- **Rates, `peak_memory_gb`, `kv_cache_bytes`: zero is never real**, so it is
+  spelled as absence. A rate of zero would mean no tokens in unbounded time.
+
+`thinking_duration_ms` and `content_duration_ms` remain streaming-only, and
+under this rule that stops being an exception: they are spans the non-streaming
+path genuinely cannot measure.
+
+### Below 1.79.58 the two modes disagreed, per field
+
+Real, shipped, and live for anyone on an older build — all four are closed
+above, and none of them was visible in `/openapi.json`.
+
+- **`total_duration_ms` measured a different span in each mode.**
+  Non-streaming started its clock at request arrival, before the provider was
+  resolved, so it **included** queue wait and model load; streaming started at
+  event-translator construction and **excluded** both. Warm, they nearly
+  agreed; on a cold load the same work reported the whole load in one mode and
+  none of it in the other, with nothing marking which clock produced a value.
+- **`prompt_tps` was `0.0` when unmeasured, non-streaming** — assigned raw
+  from a field defaulting to zero and latching only on truthy. **On 1.79.54
+  through .57, never read `prompt_tps == 0` as "measured zero" on that path.**
+  1.79.54 removed the same trap from the converter beneath it, which is why
+  that release looks like it closed this and did not.
+- **`generation_tps` was synthesized non-streaming** — run through a helper
+  substituting tokens-over-elapsed when the engine reported no rate, while the
+  stream dropped it instead. Same name, two guarantees.
+- **`queue_wait_ms` hid a measured zero.** Both modes spelled it `or None` and
+  nulls were skipped, so no wait on an idle server was indistinguishable from
+  no measurement — the exact mirror of the `prompt_tps` trap.
+
+Before **1.79.54** the object was also asymmetric in its declared shape: the
+two rates were declared **required** while the stream never sent them, so a
+strict client generated from `/openapi.json` failed on every `message_stop`;
+and `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` were sent on the
+stream while the model declared none of them, so a generated client dropped
+three values per event with no error. Both were possible because the streaming
+payload was assembled as a raw dict that nothing checked against the model.
+**1.79.55** closed that by filtering the emitted keys to the declared fields;
+1.79.58 moved that filter into the shared builder, which is also what makes the
+opposite direction — a field declared and emitted by nothing — visible for the
+first time.
 
 `thinking_duration_ms` and `content_duration_ms` remain **streaming-only by
 design** — the translator times them as it emits, so there is nothing
@@ -436,11 +454,15 @@ appears in the schema *before* it appears on the wire, never after — so from
 .55 the generated document is trustworthy on this path, where before .54 it
 was the one place on this wire it was not.
 
-`message_stop.performance` merges optional telemetry beside
-`total_duration_ms`: `thinking_duration_ms`, `content_duration_ms`,
-`peak_memory_gb`, `kv_cache_bytes`, `queue_wait_ms`, `draft_tokens`,
-`draft_accepted`, `draft_acceptance`. **Absent telemetry is omitted, never
-null** — test for key presence, not for a null value.
+`message_stop.performance` carries the same declared set as the non-streaming
+object from 1.79.58 — see the reading rule above. On the stream **absent
+telemetry is omitted rather than sent as null**, so test for key presence here
+where the non-streaming path wants a `None` check.
+
+Through 1.79.57 this object was keyed on `total_duration_ms` with the
+telemetry merged beside it, and `draft_tokens` / `draft_accepted` appeared
+alongside `draft_acceptance`; the shared builder emits only the model's
+declared fields, so the two raw draft counters are no longer on the wire.
 
 ### In-band errors
 

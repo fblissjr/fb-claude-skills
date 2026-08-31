@@ -1,5 +1,18 @@
 # changelog
 
+## 1.51.0
+
+### changed
+- **heylook-provider 0.12.0: heylook 1.79.58 replaced the per-field split this skill spent three releases documenting with a single rule, and retired `total_duration_ms`.** One shared builder now emits the Messages `performance` object for both modes and both routes, under one contract: a field present is a real measurement of exactly the thing its name says, absent means this mode or engine could not measure it. Absent has two spellings and one meaning -- streaming omits the key, non-streaming returns explicit `null`, because its response is materialised through `PerformanceInfo`. So the four divergences 0.10.1 and 0.11.0 documented are closed rather than described, and they move into a version-scoped section for anyone on an older build. That window is not hypothetical: it is 1.79.54 through .57, and .57 is what the owner's server is actually running.
+- **`total_duration_ms` is retired on the Messages wire, not aliased**, because it named two different spans depending on mode. `request_duration_ms` is arrival-to-done and includes queue wait and model load; `generation_duration_ms` excludes both and is the throughput denominator. Both modes report both. Verified against the exported schema: exactly one property removed and two added, and `GenerationTiming` -- the OpenAI wire's own model -- untouched, so **that wire still sends `total_duration_ms`** and a client speaking both needs both names. That cross-wire split is new and is stated in `openai_wire.md`.
+- **Nothing is synthesized from .58.** `generation_tps` is the engine's measurement or absent; the wall-clock fallback stays for the server's internal perf records where provenance is not on a wire. And absent-versus-zero is now decided per field on whether zero is a real measurement of that quantity -- durations and `queue_wait_ms` emit zero because a request that waited no time genuinely waited zero, while a zero rate or zero KV cache is never a state a run reaches and is spelled as absence. That closes the `queue_wait_ms` mirror 0.11.0 raised.
+
+### fixed
+- Three examples still showed `total_duration_ms` as a current field -- the non-streaming response body, the `message_stop` SSE line, and the streaming telemetry list -- while the prose above them documented its retirement. Found by grepping the retired name rather than by re-reading the sections, which is the only reason all three were caught in one pass. The streaming list also still named `draft_tokens` and `draft_accepted`; the shared builder emits only declared fields, so those two counters are no longer on the wire.
+
+### not verified
+- **All of the above is read from source and the generated schema, not observed on a wire.** 1.79.58 is not running: the server was restarted mid-work to 1.79.57, so .56 and .57 are live and the entire performance change is not. This is the same standing as 0.10.0-0.11.1 and is recorded here rather than discovered later, at the server session's prompting. The live server was also unreachable from this session, so even the .57 claim is taken on report rather than confirmed here.
+
 ## 1.50.1
 
 ### fixed
