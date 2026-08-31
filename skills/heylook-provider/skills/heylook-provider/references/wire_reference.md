@@ -279,12 +279,15 @@ What is absent here, and whether you may rely on it, differs by field — the
 three cases are set out once under
 [Streaming](#heylook-extensions-on-the-same-stream) rather than twice.
 
-**`peak_memory_gb` is blank on a non-streaming response before 1.79.50.** It
-was declared on the model and populated on the other three response paths —
-the streaming half of this wire, and both halves of the OpenAI wire — while
-this one builder dropped it, so a client rendering it got an empty field with
-no reason why. If you target older servers, read it off a stream or treat its
-absence as uninformative rather than as zero.
+**`peak_memory_gb` is MLX-only, on every path and in both modes.** It is
+`mx.get_peak_memory()`, reported per chunk by the MLX engine; the gguf provider
+never sets it, because generation happens inside a `llama-server` subprocess
+that does not report it. **So absent there means "this model runs on the other
+backend", not "this server is old"** — and reading it off a stream instead, the
+obvious workaround, fails for the same reason. Only if you see it absent on an
+*MLX* model is it a version question, and then the answer is 1.79.50: before
+that release the non-streaming builder dropped it while the streaming half and
+both OpenAI-wire halves carried it.
 
 **Time to first token is not returned, on either mode.** The server computes
 it (net of FIFO queue wait) and keeps it for its own collector; no response
@@ -374,6 +377,11 @@ name one:
 |---|---|---|
 | `request_duration_ms` | arrival to done — **includes** queue wait and model load | user-perceived latency |
 | `generation_duration_ms` | generation only — **excludes** both | the throughput denominator |
+
+On a server older than 1.79.58 you get `total_duration_ms` instead, and **which
+new field it corresponds to depends on the mode**: treat it as
+`request_duration_ms` non-streaming and `generation_duration_ms` streaming.
+That per-mode split is exactly the ambiguity the rename removed.
 
 Both modes report both. If you divide tokens by a duration, it is
 `generation_duration_ms`; `request_duration_ms` is the number that makes a cold
@@ -517,7 +525,7 @@ follows it. The message is diagnostic text and never model output.
 | 400 | The loaded model refuses the input: on the MLX path, images to a text-only model or audio to any MLX model (non-streaming only — see in-band errors) | message in `detail` |
 | 422 | Body failed validation — an out-of-range sampler value, or a media block carrying neither `source` nor `source_type` | FastAPI validation detail |
 | 500 | Model exists but failed to load: corrupt weights, unsupported architecture | message in `detail` |
-| 503 | Generation queue full | `{"error":{"code":"model_overloaded"}}`, `Retry-After` and `X-RateLimit-*` headers |
+| 503 | Backpressure — the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. **No `X-Request-ID` echo** — this is the one response class you cannot correlate by id. `error.message` names the blocking models and what to do (`"cannot make room -- ['<id>'] is generating"`), so show it rather than a generic retry notice |
 
 400 means pick a different model; 500 means that model is broken. The split
 is deliberate and worth honouring in client logic — a 400 is recoverable by

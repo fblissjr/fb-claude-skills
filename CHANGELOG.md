@@ -1,5 +1,18 @@
 # changelog
 
+## 1.53.0
+
+### changed
+- **heylook-provider 0.14.0: first live verification of this skill's performance claims, against a running 1.79.59 the owner pointed this session at.** Everything since 0.10.0 had been derived from source and the exported schema, and recorded as such. Measured on a real MLX run, non-streaming: `request_duration_ms: 7457`, `queue_wait_ms: 7340.06`, `generation_duration_ms: 117` -- and **7457 - 7340 = 117**, so the 1.79.59 queue-wait subtraction is confirmed arithmetically rather than by reading the clamp. Streaming, same model: `3052 - 2926.57 = 126`. On 1.79.58 that first run would have published 7457 as the throughput denominator, a sixty-fourfold error, which is the defect stated with numbers instead of a call graph. Also confirmed live: `total_duration_ms` absent from both modes, both spans present in both, absent fields rendered as explicit `null` non-streaming and **omitted** streaming (the two-spellings rule, seen from both sides in one pair of runs), the rates present on the stream, `content_duration_ms` present streaming and null non-streaming, and no `data: [DONE]`.
+
+### fixed
+- **`peak_memory_gb` absent is a backend fact, not a version fact, and this skill said the opposite.** It is `mx.get_peak_memory()` and the gguf provider never sets it -- verified in the source, where the MLX provider is the only writer and `llama_server_provider.py` has no reference at all. So absent means the model runs on gguf, and the advice this skill gave for that case -- "read it off a stream" -- fails for the same reason, because the stream omits it too. The version question is real only on an MLX model, and then the answer is 1.79.50. Caught by reading the server's own §3 rather than by taking a summary of it, which is what the owner's question about the docs was for.
+- **A pre-1.79.58 `total_duration_ms` maps to a different new field per mode** -- `request_duration_ms` non-streaming, `generation_duration_ms` streaming. This skill described the two spans and never gave the migration, which is the half a reader on an older server actually needs.
+- **The 503 row understated what the body carries and omitted what the headers do not.** Measured: `Retry-After: 1`, `X-RateLimit-Limit: 1`, `X-RateLimit-Remaining: 0`, and **no `X-Request-ID`** on a request that sent one -- confirming live the claim carried from source since 0.9.0. The message is also actionable now rather than generic (`"cannot make room -- ['<id>'] is generating"`, naming the blocking model), so the row says to show it rather than substituting a retry notice.
+
+### verification standing
+- Live against 1.79.59 for everything above. The gguf arm of the `peak_memory_gb` claim is **source-verified only**: confirming it live means loading a gguf model, which on a single-user server evicts what other sessions are using, and this session met sustained 503s from real contention while testing -- twenty-one consecutive retries over roughly a hundred seconds, which is itself the clearest demonstration of the backpressure this skill tells clients to expect.
+
 ## 1.52.0
 
 ### fixed
