@@ -155,6 +155,17 @@ this session's own output.
 5. **The unpushed stack (12 at writing) reaches origin.** Checkable:
    `git log origin/main..HEAD` empty.
 
+   *Annotation 2026-08-31:* RESOLVED, and met differently than framed. That
+   stack is on origin — `9d85970`, the claim-audit 0.1.0 commit this document
+   cites, is an ancestor of `origin/main`. But the checkable as written is a
+   *state*, not an event, so it went false again eleven times on 2026-08-31
+   (`fc39c4f`..`545c7f4`) and is true again only because the owner pushed at
+   the end. A condition phrased as "the working tree is currently clean of X"
+   cannot record that X once happened; it re-opens every time normal work
+   resumes. The item it should have been: *this specific stack reaches
+   origin*, naming a commit. Carried into the 2026-08-31 postmortem's forward
+   items as a phrasing rule rather than restated here.
+
 ## Routing
 
 Everything routable already routed during the session itself: the
