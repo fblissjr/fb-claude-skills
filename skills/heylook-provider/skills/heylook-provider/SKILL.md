@@ -292,19 +292,26 @@ in the heylook repo.
 
 ## Done means
 
-- Model ids resolved at runtime, never literal in source.
-- Every capability-gated feature you expose (vision, audio, thinking,
-  reasoning depth) reads the model's `capabilities` before it is offered,
-  *and* the client still handles the refusal that gating does not prevent —
-  a 400, or an in-band `invalid_request_error` on a stream. On gguf, also the
-  refusal that never comes: a 200 describing an image the model ignored has no
-  status code, so a vision answer that describes nothing gets the block
-  inspected rather than trusted.
-- Images downscaled client-side before the request is built.
+**This is an index, not a summary.** Each line names a section above that
+states the rule precisely, because a checklist restating a caveat always
+states it more loosely than the section it came from — this one shipped three
+such items in a single day. If you are adding a line here, either point it at
+a section or notice you are writing a second copy of something.
+
+- Model ids resolved at runtime, never literal in source. → *Discover before
+  writing client code*
+- Capability-gated features read `capabilities` before offering, **and** the
+  client still handles all three outcomes gating does not prevent: the 400,
+  the in-band `invalid_request_error` on a stream, and the gguf case with no
+  status code at all. → *Discover before writing client code*
+- Images downscaled client-side before the request is built. → *Client-side
+  image resize is your job*
 - 503 retried with backoff; in-band `error` events terminate the stream and
-  never reach a rendered transcript as model output.
-- Every call carries a **fresh** `X-Request-ID` you chose — one per request,
-  since cancelling an id cancels everything sharing it — and non-streaming
-  calls have a path that DELETEs it, because abandoning one does not stop the
-  run.
+  never reach a rendered transcript as model output. → *Status codes carry
+  distinct meanings*
+- Every call carries a **fresh** `X-Request-ID`, one per request, and
+  non-streaming calls have a path that DELETEs it. → *Operational shape*
+- Telemetry is read defensively: `performance` can be `null`, and the rates
+  the schema marks required are absent on the stream. → *Operational shape*,
+  and `references/wire_reference.md`
 - A real request has run against a live server, not just typechecked.

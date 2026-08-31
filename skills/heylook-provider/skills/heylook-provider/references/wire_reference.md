@@ -338,15 +338,26 @@ across the whole message, not a stable slot.
 The entry shape matches the OpenAI wire's `logprobs.content`, so a parser
 ported from `/v1/chat/completions` keeps working.
 
-**Neither mode's `performance` is a superset of the other.** `prompt_tps` and
-`generation_tps` are **non-streaming only** — nothing on the stream carries
-them — while `kv_cache_bytes`, `queue_wait_ms` and the draft counters are
-streaming only. `PerformanceInfo` nonetheless declares both rates **required**,
-so a client generating types from `/openapi.json` gets two required fields the
+**Neither mode's `performance` is a superset of the other**, and the two
+directions have different standing.
+
+`prompt_tps` and `generation_tps` are **non-streaming only** — nothing on the
+stream carries them — while `PerformanceInfo` declares both **required**. So a
+client generating types from `/openapi.json` gets two required fields the
 streaming payload never sends, and a strict deserializer fails on every
-`message_stop`. Treat the rates as optional whatever the schema says. Upstream
-documents this as a caveat rather than a fix — closing it means either
-loosening the model or emitting the rates on the stream.
+`message_stop`. **Treat the rates as optional whatever the schema says.** This
+is the one place this skill tells you to distrust the generated document it
+otherwise defers to, and it is deliberate: upstream carries it unresolved
+because the fix is a choice between loosening the model and emitting the rates
+(heylook's CHANGELOG, 1.79.51, "Known, not fixed").
+
+`kv_cache_bytes`, `queue_wait_ms` and the draft counters go the other way —
+present on the stream, absent non-streaming. Read that as an **open omission
+rather than a design**: upstream tracks it as the same class of defect that
+left `peak_memory_gb` null on that path until 1.79.50, with five separate
+sites assembling telemetry for the wire. So code for their absence today, but
+do not build on it — that gap is expected to close, and a client keying on
+"non-streaming never has these" would be keying on a bug.
 
 `message_stop.performance` merges optional telemetry beside
 `total_duration_ms`: `thinking_duration_ms`, `content_duration_ms`,

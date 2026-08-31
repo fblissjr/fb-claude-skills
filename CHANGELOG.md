@@ -1,5 +1,11 @@
 # changelog
 
+## 1.47.1
+
+### fixed
+- **heylook-provider 0.8.1: `Done means` was a summary, and a checklist that restates a caveat always states it more loosely than the section it came from.** Three items drifted that way in one day -- the refusal item omitted the gguf case with no status code, the `X-Request-ID` item narrowed "every request" to non-streaming, and the telemetry item did not exist while the body warned twice about reading it defensively. Each was fixed individually as it was found, which is the shape that guarantees a fourth. The section now opens by saying it is an **index, not a summary**, every line names the section that states the rule precisely, and it tells the next person adding a line to either point at a section or notice they are writing a second copy. That is a rule about the form, so it survives the person who wrote it. Independently arrived at on the server side against the same defect in its own §8, from this repo's report of the three -- the diagnosis generalized, which is the argument for fixing the form rather than the instances.
+- **The `performance` asymmetry had two directions and this skill gave them the same standing.** The rates being non-streaming-only is unresolved upstream, because closing it is a choice between loosening `PerformanceInfo` and emitting them on the stream; `kv_cache_bytes`, `queue_wait_ms` and the draft counters being streaming-only is an **open omission** of exactly the class that left `peak_memory_gb` null on the non-streaming path until 1.79.50, with five sites assembling telemetry for the wire. Stated as designed, the second reads as a contract a client may key on -- and a client keying on "non-streaming never has these" would be keying on a bug that is expected to close. Now split, with the unresolved half citing heylook's CHANGELOG 1.79.51 "Known, not fixed" rather than a peer report, so the claim survives the conversation that produced it.
+
 ## 1.47.0
 
 ### added
