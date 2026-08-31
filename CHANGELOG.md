@@ -1,5 +1,10 @@
 # changelog
 
+## 1.46.2
+
+### fixed
+- **heylook-provider 0.7.2: the `X-Request-ID` echo the cancel advice depends on reached the non-streaming path two releases after the endpoint did.** The skill told a client to compare the echoed id against the one it sent when a DELETE unexpectedly 404s -- the only way to learn the server rejected a malformed id and tracked a generated one instead. heylook added that header to the non-streaming Messages response in 1.79.46 (`messages_api.py`, the `Response(...)` with explicit headers replacing a bare model return); .44 and .45 returned the body with no header on that path, so on those two builds the advice names a check a client cannot perform. The streaming path carried it from .44. Found by opening the two server commits that touched the Messages route but were not part of any report -- a sweep the twin doc's own delta would not have surfaced, since the doc does not version-gate the echo.
+
 ## 1.46.1
 
 ### fixed

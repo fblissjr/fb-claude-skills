@@ -409,7 +409,11 @@ it. Usable means `[A-Za-z0-9._:-]`, 1 to 128 characters, matched whole — a
 UUID string qualifies. On the non-streaming path you never learn a generated
 id in time, so **sending the header is the precondition for being able to
 cancel at all**; the response echoes the id actually tracked, so compare it if
-a cancel unexpectedly 404s.
+a cancel unexpectedly 404s. **That echo reached the non-streaming Messages
+response only in 1.79.46** — .44 and .45 returned the body with no
+`X-Request-ID` header on that path, so a client there could not tell that its
+own id had been rejected and a later DELETE 404'd with nothing to explain why.
+The streaming path carried the header from .44.
 
 | Response | Meaning |
 |---|---|
