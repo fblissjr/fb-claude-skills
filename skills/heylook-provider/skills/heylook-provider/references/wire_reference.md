@@ -253,7 +253,10 @@ Populated on this path: `prompt_tps`, `generation_tps`, `total_duration_ms`,
 
 The rates **prefer** the engine's own measurements, taken tightly around
 prefill and decode, which beat dividing tokens by client wall-clock because
-that folds in queue wait and any model load. But `generation_tps` here is not
+that folds in queue wait and any model load. **Do not sanity-check them
+against `total_duration_ms` on this path** — that number folds in the same two
+spans, so the comparison is between a tight rate and a loose one and will
+always look wrong on a cold load. See the clock note under Streaming. But `generation_tps` here is not
 purely that: this builder runs it through a helper that falls back to
 tokens-over-elapsed when the engine reported no native rate, so a value on this
 path may be either. The streaming path does not fall back — see below, because
@@ -384,6 +387,27 @@ missing streaming rate is not evidence the non-streaming one would be missing
 too. Both readings of "generation tok/s" are defensible; upstream tracks the
 divergence rather than having picked one. Nothing in `/openapi.json` expresses
 this, which is why it is here.
+
+**`total_duration_ms` measures a different span in each mode, and nothing on
+the wire says which.** Non-streaming starts its clock when the request is
+accepted — before the provider is resolved — so it **includes** FIFO queue wait
+and any model load. Streaming starts its clock when the event translator is
+constructed, which is after the provider is in hand, so it **excludes** both;
+the streaming path is not even passed the earlier timestamp and structurally
+cannot include it. On a warm resident model the two nearly agree. On a cold
+load they do not: the same work reports the whole load in one mode and none of
+it in the other, and both numbers look equally plausible. So it is not a
+duration you may compare across modes, and it is not a denominator — dividing
+tokens by it reproduces exactly the wall-clock error the engine's rates exist
+to avoid, but only in one of the two modes.
+
+**`queue_wait_ms` absent means zero, not unknown.** Both modes spell it
+`or None` and a null is skipped, so a request that waited no time in the
+generation gate — the common case on an idle server — is indistinguishable
+from one where the wait was never measured. This is the mirror of the
+`prompt_tps` trap: that one emits an unmeasured value as a measurement, this
+one hides a measurement as unmeasured. If you net queue wait out of a timing
+of your own, treat absent as `0`.
 
 `thinking_duration_ms` and `content_duration_ms` remain **streaming-only by
 design** — the translator times them as it emits, so there is nothing

@@ -1,5 +1,17 @@
 # changelog
 
+## 1.50.0
+
+### added
+- **heylook-provider 0.11.0: `total_duration_ms` measures a different span in each Messages mode, and nothing on the wire says which.** Non-streaming starts its clock when the request is accepted, before the provider is resolved, so it **includes** FIFO queue wait and model load. Streaming starts its clock when the event translator is constructed, after the provider is in hand, so it **excludes** both -- and the streaming path is not passed the earlier timestamp at all, so it structurally cannot include it. Verified by reading the call graph and the two constructions rather than from the report. On a warm resident model the two nearly agree; on a cold load the same work reports the whole load in one mode and none of it in the other, and both numbers look equally plausible. This is the most dangerous thing found today because nothing marks it: a client comparing modes, or dividing tokens by it to sanity-check the engine's rates, gets a different answer per mode and no signal that the denominators differ. The rates paragraph previously recommended the engine's figures over "dividing tokens by client wall-clock, which folds in queue wait and any model load" without noticing that non-streaming `total_duration_ms` folds in exactly those two spans -- so a reader following that advice with that denominator reproduced the error it warns against. Found by the server session's sweep.
+- **`queue_wait_ms` absent means zero, not unknown**, and it is the exact mirror of the `prompt_tps` trap 0.10.1 carried. Both modes spell it `or None` and the emitter skips nulls, so a request that waited no time in the generation gate -- the common case on an idle server -- is indistinguishable from one where the wait was never measured. `prompt_tps` emits an unmeasured value as a measurement; this hides a measurement as unmeasured. Stated because this skill tells readers the server nets queue wait out of its own timings, which invites them to do the same.
+
+### fixed
+- The sweep confirmed 0.10.1's reading of the other half rather than leaving it inferred: `peak_memory_gb`, `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` are spelled `or None` identically in both modes, and `prompt_tps` is the only raw assignment in either. So the per-field split this skill now documents is complete for the rate and telemetry fields, not merely the two instances that happened to surface.
+
+### not carried
+- MODEL_BUSY reaches six routes that do not answer 503 -- the 1.79.53 defect generalized -- but none is on this skill's documented surface. The nearest is `/v1/chat/completions` in batch processing mode, which answers 500 for backpressure; recorded here rather than in the skill because the skill tells readers to leave `processing_mode` unset. Reported upstream and unfixed; it is a wire change.
+
 ## 1.49.1
 
 ### fixed

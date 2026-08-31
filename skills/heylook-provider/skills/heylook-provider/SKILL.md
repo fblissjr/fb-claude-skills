@@ -289,7 +289,10 @@ diagnostic text, not model output.
   **time to first token is never returned**: the server
   computes it and keeps it. You can time the first delta on a stream, but a
   non-streaming TTFT is not observable from the response — if you need one,
-  do not derive it from `total_duration_ms`. Detail in
+  do not derive it from `total_duration_ms` — which is itself not one
+  quantity: non-streaming it includes queue wait and model load, streaming it
+  excludes both, so the same work reports wildly different totals across modes
+  on a cold load and neither number is labelled. Detail in
   `references/wire_reference.md`.
 - `reasoning_effort` values are **model-specific** and the schema accepts the
   union of every model's set, so a wrong-for-this-model value reaches the
