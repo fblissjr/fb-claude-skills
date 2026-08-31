@@ -195,6 +195,20 @@ Two escapes are worth naming as classes rather than gaps:
   Presence-count greps, schema-versus-prose comparison, and anchor checking all
   ask what is present. None answers "who should have called this and did not".
 
+  *Annotation 2026-08-31, later same day:* refined, not contradicted. Upstream
+  1.79.55 closed the analogous gap on the streaming telemetry payload without
+  answering that question at all — it moved the constraint to where the payload
+  is assembled, so an undeclared key cannot be emitted. The intermediate
+  attempt is the instructive part: 1.79.54 fixed the mismatch by hand and left
+  a **test** as the protection, and that test could not fail, because drift
+  enters through the caller's `timing` dict and any test supplies its own —
+  so it asserted "given declared keys, the output is declared", true by
+  construction. Proved rather than argued: with the filter removed the subset
+  test still passes and only the tests written against bad input go red. So the
+  finding stands for *checks*, and the escape from it is not a better check —
+  it is making the state unrepresentable at the point of construction. Carried
+  into 0.10.0 (`445f233`).
+
 ## 5. Forward items
 
 1. **A route added to this skill gets its status set derived from the route's
