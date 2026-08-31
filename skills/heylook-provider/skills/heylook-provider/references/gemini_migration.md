@@ -71,8 +71,12 @@ defensively, or use `logprobs` if you need confidence signals.
 **Latency has a different first-request shape.** Gemini is a warm hosted
 endpoint. heylook loads nothing at startup and keeps one model resident by
 default, so the first request to a model pays its load, and alternating
-between two models can reload on every call. Pre-warm with `POST
-/v1/admin/models/{id}/load?warm=true`, and batch work by model.
+between two models can reload on every call. Worse than slow: the load runs
+before the response begins, so a cold load puts nothing on the connection and
+a non-streaming client cannot tell it from a hang. Pre-warm with `POST
+/v1/models/{id}/load` (moved off `/v1/admin` in 1.79.48), add `?warm=true`
+only for startup or a model switch — it takes the generation gate — and batch
+work by model.
 
 **Backpressure is real and normal.** Gemini answers 429 under quota.
 heylook answers 503 with `Retry-After` because it serialises generation for

@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.47"
+  verified_against: "heylookitsanllm 1.79.48"
 ---
 
 # heylook as an inference provider
@@ -204,9 +204,26 @@ diagnostic text, not model output.
 
 ## Operational shape
 
-- **Startup loads nothing.** The first request to a model pays its load, so a
-  long first token is expected rather than a hang. `POST
-  /v1/admin/models/{id}/load?warm=true` pays it up front.
+- **Startup loads nothing, and a cold load is invisible on the wire.** The
+  load runs *before* the response begins — the route resolves the provider and
+  only then returns a stream or starts the blocking consume. So while a
+  multi-GB load runs there is nothing on the connection at all: no headers, no
+  `message_start`, no keepalive, on either wire. Streaming does not cover it,
+  because the stream has not started. A non-streaming client sees one long
+  opaque POST and **cannot tell a loading model from a hung server**.
+- **`POST /v1/models/{id}/load` relocates that wait into a request you can
+  label**, and adds no work — without `warm` it is the same `get_provider` the
+  generate call performs on its way in, so a resident model answers in a round
+  trip. Unknown or disabled id is a 400, the same answer generate would give.
+  `?warm=true` additionally runs a 1-token generation to pay the Metal kernel
+  JIT, and that takes the process-global FIFO generation gate, so it can queue
+  behind another request's long run: use it for startup or model-switch
+  readiness, never as a per-request pre-flight. A failed warm is still a 200,
+  with `warmed: false` and `warm_error` — the model is loaded and usable
+  either way. **The path moved in 1.79.48** from `/v1/admin/models/{id}/load`,
+  and came off the admin token: it is gated like inference now, because a
+  generate request already loads and can evict just by naming a model. A move,
+  not an alias — the admin URL answers 405.
 - One model resident by default with LRU eviction, so alternating models
   between requests can evict and reload each time. Batch work by model.
 - Auth is opt-in and off by default, and it gates **inference only** —

@@ -48,6 +48,9 @@ single-user**:
   silently overrides the model's configured floor.
 - A busy server answers **503 with `Retry-After`**, which is a queue rather
   than a quota.
+- A cold model load happens **before the response begins**, putting nothing on
+  the connection — indistinguishable from a hang on a non-streaming call.
+  `POST /v1/models/{id}/load` moves that wait somewhere you can label it.
 - A non-streaming request cannot be abandoned. There is no disconnect
   polling, so hanging up leaves the run holding the GPU; `X-Request-ID` is
   the handle and `DELETE /v1/requests/{id}` is the stop.

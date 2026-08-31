@@ -61,7 +61,7 @@ use the schema when you want to confirm a bound.
 
   "stream":                  true,
   "stream_options":          { "include_usage": true },
-  "include_performance":     false,        // tps + memory on the response
+  "include_performance":     true,         // honoured on /v1/chat/completions; inert here, see below
   "metadata":                {"k": "v"}   // string->string, passed through to the response
 }
 ```
@@ -79,12 +79,20 @@ a hard client-side default silently overrides the model's configured floor
 for every request that did not actually have an opinion.
 
 **`show_special_tokens` and `include_performance` are outside that cascade.**
-They are plain booleans defaulting to `false`, so absent means `false`
-permanently and no server-side config influences them — "omit it and the
-server decides" is the wrong mental model for both. The generated schema is
-the discriminator: a cascade field is nullable (`anyOf` with `null`, no
-default), these two carry `"default": false` and no null member. `stream` has
-the same shape but is not a knob.
+Both are plain booleans defaulting to `false`, so no server-side config
+influences either — "omit it and the server decides" is the wrong mental model
+for both. The generated schema is the discriminator: a cascade field is
+nullable (`anyOf` with `null`, no default), these two carry `"default": false`
+and no null member. `stream` has the same shape but is not a knob.
+
+**`include_performance` controls nothing on this wire.** It is declared on the
+request and never read by the Messages route, which attaches a `performance`
+object to the non-streaming response whenever the run produced tokens —
+whatever you sent. `/v1/chat/completions` does honour it. Upstream has this
+logged as undecided as of 1.79.48 (gate the flag, or drop it and document that
+this wire always carries telemetry), so **send `include_performance: true`
+explicitly**: that is correct on both wires today and survives either
+resolution. `show_special_tokens` is read here normally.
 
 `sampler` names a bundle from the server's `SamplerRegistry`
 (`/v1/capabilities` → `samplers.available`). It is not a `/v1/presets` id —
