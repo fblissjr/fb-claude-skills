@@ -61,7 +61,6 @@ use the schema when you want to confirm a bound.
 
   "stream":                  true,
   "stream_options":          { "include_usage": true },
-  "include_performance":     true,         // honoured on /v1/chat/completions; inert here, see below
   "metadata":                {"k": "v"}   // string->string, passed through to the response
 }
 ```
@@ -78,21 +77,27 @@ sampler bundle, then the model's `default_sampler`, then the server floor.
 a hard client-side default silently overrides the model's configured floor
 for every request that did not actually have an opinion.
 
-**`show_special_tokens` and `include_performance` are outside that cascade.**
-Both are plain booleans defaulting to `false`, so no server-side config
-influences either — "omit it and the server decides" is the wrong mental model
-for both. The generated schema is the discriminator: a cascade field is
-nullable (`anyOf` with `null`, no default), these two carry `"default": false`
-and no null member. `stream` has the same shape but is not a knob.
+**`show_special_tokens` is outside that cascade.** It is a plain boolean
+defaulting to `false`, so absent means `false` permanently and no server-side
+config influences it — "omit it and the server decides" is the wrong mental
+model for it. The generated schema is the discriminator: a cascade field is
+nullable (`anyOf` with `null`, no default), this one carries
+`"default": false` and no null member. `stream` has the same shape but is not
+a knob.
 
-**`include_performance` controls nothing on this wire.** It is declared on the
-request and never read by the Messages route, which attaches a `performance`
-object to the non-streaming response whenever the run produced tokens —
-whatever you sent. `/v1/chat/completions` does honour it. Upstream has this
-logged as undecided as of 1.79.48 (gate the flag, or drop it and document that
-this wire always carries telemetry), so **send `include_performance: true`
-explicitly**: that is correct on both wires today and survives either
-resolution. `show_special_tokens` is read here normally.
+**`include_performance` is not a field on this wire, as of 1.79.49.** It was
+declared through 1.79.48 and never read: the Messages route returns telemetry
+**unconditionally in both modes** — `message_stop.performance` on every stream,
+a `performance` object on every non-streaming run that produced tokens — and
+the bundled frontend's status lines read the streaming half. So gating the
+non-streaming half alone would have split the two modes against each other,
+and gating both would have broken that frontend. Unconditional telemetry is
+the design here; the flag was what did not fit it, and it was removed rather
+than wired up. **Do not send it to `/v1/messages`** — there is nothing to
+ask for. It is not a wire break either way: the request model sets no
+`extra="forbid"`, so an unknown field is ignored rather than rejected, and an
+existing client needs no change. On `/v1/chat/completions` the flag is real
+and absent genuinely means no performance block; keep sending it there.
 
 `sampler` names a bundle from the server's `SamplerRegistry`
 (`/v1/capabilities` → `samplers.available`). It is not a `/v1/presets` id —
@@ -236,6 +241,24 @@ that refusal is deliberate and loud rather than a silent drop.
 Output block union: `text`, `thinking`, `logprobs`, `hidden_states`.
 `thinking_tokens` and `content_tokens` appear only when the model produced a
 thinking block.
+
+`performance` is present on any run that produced tokens (it is `null` only
+when the generation yielded none — test for presence, not for truthiness), and
+on this path it carries exactly three populated fields: `prompt_tps`,
+`generation_tps` and `total_duration_ms`. The rates are the **engine's own**
+measurements, taken tightly around prefill and decode, so they are strictly
+better than dividing tokens by client wall-clock — which folds in queue wait
+and any model load. `peak_memory_gb`, `thinking_duration_ms` and
+`content_duration_ms` are declared on the model and left `null` here; the
+first is populated on the streaming wire's `message_stop.performance`, which
+carries a wider set.
+
+**Time to first token is not returned, on either mode.** The server computes
+it (net of FIFO queue wait) and keeps it for its own collector; no response
+field carries it. On a stream you can time the first `content_block_delta`
+yourself, but non-streaming TTFT is genuinely unobservable to a client —
+anything you compute from a non-streaming response is a different quantity.
+Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 
 Join `text` blocks for the answer. A `thinking` block is the model's
 reasoning, not its response.

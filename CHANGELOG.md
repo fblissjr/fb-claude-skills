@@ -1,5 +1,14 @@
 # changelog
 
+## 1.46.0
+
+### changed
+- **heylook-provider 0.7.0: `include_performance` is gone from the Messages request, and the reason matters more than the removal.** heylook 1.79.49 dropped the field rather than wiring it up, because the Messages wire returns telemetry unconditionally in BOTH modes -- `message_stop.performance` on every stream, a `performance` object on every non-streaming run that produced tokens -- and the server's own frontend reads the streaming half. Gating the non-streaming half alone would have split the two modes against each other; gating both would have broken that frontend. So unconditional telemetry is the design and the flag was what did not fit it. This reverses the advice 0.6.0 shipped one release earlier: "send `include_performance: true` explicitly to survive either resolution" was right while the question was open and is wrong now that it is closed, because on this wire there is nothing to send. Not a wire break in either direction -- the request model sets no `extra="forbid"`, so a client still sending it is ignored rather than rejected -- and the flag is real and still worth sending on `/v1/chat/completions`. Verified against the exported schema at .49: `MessageCreateRequest` went 23 properties to 22, `include_performance` the only one removed, so the extensions enumeration drops to twelve on its own.
+
+### added
+- **What a non-streaming `performance` object actually contains, and the one number that is not in it.** Three fields are populated on that path -- `prompt_tps`, `generation_tps`, `total_duration_ms` -- and the rates are the engine's own, taken around prefill and decode, so they beat dividing tokens by client wall-clock, which folds in queue wait and any model load. `peak_memory_gb`, `thinking_duration_ms` and `content_duration_ms` are declared on `PerformanceInfo` and left null here; only the streaming wire populates the first. That last part corrects the upstream report this came from, which described the field set without splitting the two modes: the non-streaming writer assigns exactly three keys and `from_openai_response_dict` fills the rest from a `.get`, so they arrive null. And **time to first token is never returned on either mode** -- it is computed net of queue wait and kept for the server's own collector. A stream lets a client time its first delta; a non-streaming TTFT is not observable from the response, so anything derived from `total_duration_ms` is a different quantity. Aggregates only, at `GET /v1/performance/profile/{range}`.
+- `verified_against` moves to 1.79.49.
+
 ## 1.45.0
 
 ### added

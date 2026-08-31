@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.48"
+  verified_against: "heylookitsanllm 1.79.49"
 ---
 
 # heylook as an inference provider
@@ -147,7 +147,7 @@ account, and let `/openapi.json` win where they disagree:
 - **Extensions**: sampling knobs Anthropic does not take (`min_p`,
   `repetition_penalty`, `repetition_context_size`, `presence_penalty`,
   `seed`), inspection flags (`logprobs`, `top_logprobs`,
-  `show_special_tokens`, `include_performance`), plus `sampler`,
+  `show_special_tokens`), plus `sampler`,
   `vision_tokens`, `reasoning_effort` and `stream_options`. On the stream: a
   `heylook_logprobs` event and `message_stop.performance`. `/openapi.json`
   enumerates them authoritatively.
@@ -254,6 +254,15 @@ diagnostic text, not model output.
   is no distinct cancellation value, so it is indistinguishable on the wire
   from budget exhaustion. Track your own cancel; never infer it from the
   response. Field detail is in `references/wire_reference.md`.
+- **Telemetry on `/v1/messages` is unconditional**, in both modes — there is
+  no `include_performance` to ask for (the field existed through 1.79.48,
+  controlled nothing, and was removed in .49). Do not send it here; keep
+  sending it on `/v1/chat/completions`, where absent really does mean no
+  performance block. And **time to first token is never returned**: the server
+  computes it and keeps it. You can time the first delta on a stream, but a
+  non-streaming TTFT is not observable from the response — if you need one,
+  do not derive it from `total_duration_ms`. Detail in
+  `references/wire_reference.md`.
 - `reasoning_effort` values are **model-specific** and the schema accepts the
   union of every model's set, so a wrong-for-this-model value reaches the
   chat template and returns a 500. Gate it on the `reasoning_effort`

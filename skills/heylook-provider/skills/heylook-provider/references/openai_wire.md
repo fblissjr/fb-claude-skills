@@ -43,6 +43,7 @@ resp = client.chat.completions.create(
 | Image data | `data:` URI | raw base64, no prefix |
 | Thinking flag | `enable_thinking` | `thinking` |
 | Server-side resize | yes | no |
+| Performance block | opt in with `include_performance` | unconditional; no such field since 1.79.49 |
 | Response | `choices[0].message.content` (string) | `content` (typed block list) |
 | Reasoning | `choices[0].message.thinking` | a `thinking` block |
 | Stop field | `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
