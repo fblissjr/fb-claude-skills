@@ -51,9 +51,9 @@ single-user**:
 - A cold model load happens **before the response begins**, putting nothing on
   the connection — indistinguishable from a hang on a non-streaming call.
   `POST /v1/models/{id}/load` moves that wait somewhere you can label it.
-- A non-streaming request cannot be abandoned. There is no disconnect
-  polling, so hanging up leaves the run holding the GPU; `X-Request-ID` is
-  the handle and `DELETE /v1/requests/{id}` is the stop.
+- Hanging up on a non-streaming request does not stop it. There is no
+  disconnect polling, so an abandoned run keeps the GPU and blocks the queue;
+  `X-Request-ID` is the handle and `DELETE /v1/requests/{id}` is the stop.
 
 Plus the deliberate spec differences (`thinking` is a bool not a config
 object, no tools, no `stop_sequences`, and heylook's request and stream

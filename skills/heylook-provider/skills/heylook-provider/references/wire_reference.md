@@ -77,13 +77,14 @@ sampler bundle, then the model's `default_sampler`, then the server floor.
 a hard client-side default silently overrides the model's configured floor
 for every request that did not actually have an opinion.
 
-**`show_special_tokens` is outside that cascade.** It is a plain boolean
-defaulting to `false`, so absent means `false` permanently and no server-side
-config influences it — "omit it and the server decides" is the wrong mental
-model for it. The generated schema is the discriminator: a cascade field is
-nullable (`anyOf` with `null`, no default), this one carries
-`"default": false` and no null member. `stream` has the same shape but is not
-a knob.
+**That cascade covers the sampling knobs, and the generated schema tells you
+which those are** — no roster to keep here, because a roster is what went
+stale when `include_performance` was removed. A cascade field is **nullable
+with no default** (`anyOf` with `null`); a field carrying `"default": false`
+and no null member is a plain flag whose absence means `false` permanently,
+with no server-side config behind it. Check the field in `/openapi.json` and
+the shape answers it. `show_special_tokens` and `stream` are the flags on this
+request today.
 
 **`include_performance` is not a field on this wire, as of 1.79.49.** It was
 declared through 1.79.48 and never read: the Messages route returns telemetry
@@ -234,7 +235,9 @@ that refusal is deliberate and loud rather than a silent drop.
   "stop_reason": "end_turn" | "max_tokens" | "stop_sequence",
   "usage": { "input_tokens": 0, "output_tokens": 0,
              "thinking_tokens": null, "content_tokens": null },
-  "performance": null
+  "performance": { "prompt_tps": 0.0, "generation_tps": 0.0,
+                   "total_duration_ms": 0, "peak_memory_gb": 0.0,
+                   "thinking_duration_ms": null, "content_duration_ms": null }
 }
 ```
 
@@ -243,9 +246,9 @@ Output block union: `text`, `thinking`, `logprobs`, `hidden_states`.
 thinking block.
 
 `performance` is present on any run that produced tokens (it is `null` only
-when the generation yielded none — test for presence, not for truthiness). Four
-of its six fields are populated on this path: `prompt_tps`, `generation_tps`,
-`total_duration_ms` and `peak_memory_gb`. The rates are the **engine's own**
+when the generation yielded none — test for presence, not for truthiness).
+Populated on this path: `prompt_tps`, `generation_tps`, `total_duration_ms`
+and `peak_memory_gb`. The rates are the **engine's own**
 measurements, taken tightly around prefill and decode, so they are strictly
 better than dividing tokens by client wall-clock — which folds in queue wait
 and any model load. Absent telemetry is omitted rather than sent as a fake
@@ -373,7 +376,7 @@ open.
 
 | Env var | Header | Gates |
 |---|---|---|
-| `HEYLOOK_API_KEY` | `Authorization: Bearer <key>` | inference: chat completions, messages, embeddings, RLM, hidden states |
+| `HEYLOOK_API_KEY` | `Authorization: Bearer <key>` | inference: chat completions, messages, embeddings, RLM, hidden states — plus `POST /v1/models/{id}/load` and `DELETE /v1/requests/{id}`, which are gated like inference rather than as admin |
 | `HEYLOOK_ADMIN_TOKEN` | `X-Heylook-Admin-Token` | admin routes and `/v1/data/clear` |
 
 Loopback traffic is **exempt from the API-key gate by default**, so it
@@ -385,9 +388,12 @@ so **discovery is never gated**: `/v1/models` and `/v1/capabilities` answer
 without a key on a server that has one set. A 401 from either is something
 in front of heylook, not heylook.
 
-Send `X-Request-ID` on every request; it is echoed back — as a response
-header on both the streaming and non-streaming paths — it is how a request is
-correlated in the server's logs, and it is the handle you cancel by.
+Send `X-Request-ID` on every request, and make it **unique per request** —
+not per session or per client. It is how a request is correlated in the
+server's logs, and it is the handle you cancel by, so a reused id is a cancel
+that stops every in-flight request sharing it. It is echoed back as a response
+header: on the streaming path since 1.79.44, on the non-streaming path only
+since 1.79.46 (see below).
 
 ## Cancelling a request
 
@@ -418,8 +424,7 @@ The streaming path carried the header from .44.
 | Response | Meaning |
 |---|---|
 | `200 {"cancelled": N, "request_id": "..."}` | N in-flight generations were signalled. A **count, not a boolean**: ids are client-supplied, so two in-flight requests may share one and cancelling it cancels both |
-| `404` | Nothing is running under that id. Ids are tracked only while in flight, so the usual cause is that it already finished — treat it as "too late", not as an error |
-| `422` | The path parameter failed validation |
+| `404` | Nothing is running under that id. Ids are tracked only while in flight, so the usual cause is that it already finished — but a rejected or never-sent id lands here too, and the `detail` names both causes. Treat it as "too late", not as an error |
 
 **This matters most for non-streaming calls.** A streaming request is already
 cancellable by hanging up: the server is writing chunks, so it notices the

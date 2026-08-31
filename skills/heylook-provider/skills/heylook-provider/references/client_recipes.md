@@ -60,10 +60,13 @@ def stream_message(
 
     headers = {
         "Content-Type": "application/json",
-        # Echoed back, how the server correlates this request in its logs,
-        # and the handle DELETE /v1/requests/{id} cancels by. A UUID string
-        # satisfies the server's [A-Za-z0-9._:-]{1,128}; an id it cannot
-        # accept is replaced with a generated one you never learn.
+        # Correlates the server's logs and is the handle
+        # DELETE /v1/requests/{id} cancels by. Fresh per request, not per
+        # session: cancelling an id cancels every in-flight request sharing
+        # it. A UUID satisfies [A-Za-z0-9._:-]{1,128}; an id the server
+        # rejects is replaced with a generated one, and the response header
+        # X-Request-ID carries whichever was actually tracked -- read it off
+        # `r.headers` if a later cancel 404s unexpectedly.
         "X-Request-ID": str(uuid.uuid4()),
     }
     if api_key:
@@ -215,9 +218,11 @@ export async function streamMessage(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // Echoed back, correlates the server's logs, and is the handle
-      // DELETE /v1/requests/{id} cancels by. randomUUID() satisfies the
-      // server's [A-Za-z0-9._:-]{1,128}.
+      // Correlates the server's logs and is the handle
+      // DELETE /v1/requests/{id} cancels by. Fresh per request, not per
+      // session: cancelling an id cancels every request sharing it.
+      // randomUUID() satisfies [A-Za-z0-9._:-]{1,128}; the response's
+      // X-Request-ID header carries whichever id was actually tracked.
       "X-Request-ID": crypto.randomUUID(),
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },

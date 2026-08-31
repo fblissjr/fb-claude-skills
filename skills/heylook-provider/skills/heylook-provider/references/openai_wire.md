@@ -47,7 +47,6 @@ resp = client.chat.completions.create(
 | Response | `choices[0].message.content` (string) | `content` (typed block list) |
 | Reasoning | `choices[0].message.thinking` | a `thinking` block |
 | Stop field | `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
-| Cancel handle | `X-Request-ID`, read here before 1.79.44 | `X-Request-ID`, read as of 1.79.44 |
 | Stream terminator | `data: [DONE]` | `message_stop`, no sentinel |
 | Usage in stream | final chunk, needs `stream_options.include_usage` | `message_delta` |
 
@@ -107,8 +106,10 @@ predates it here is only the header read, which this route already did for log
 correlation while `/v1/messages` ignored it and generated its own. So an
 existing OpenAI-wire client is likely already sending a usable id, and 1.79.44
 is what made it cancellable. Everything else is the same: non-streaming is
-where it matters, cancellation is cooperative, and a `404` means the run
-already finished. Detail in `wire_reference.md`.
+where it matters, cancellation is cooperative, and a `404` means nothing is
+running under that id — usually because it finished, but a rejected or
+never-sent id lands there too, so it is not proof a cancel arrived late.
+Detail in `wire_reference.md`.
 
 One consequence lands here: **`finish_reason: "length"` is overloaded.** A
 cancelled run reports it, so on this wire it means either the token budget was

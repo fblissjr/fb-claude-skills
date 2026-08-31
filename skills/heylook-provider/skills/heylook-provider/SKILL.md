@@ -253,7 +253,10 @@ diagnostic text, not model output.
   with whatever it produced and reports `stop_reason: "max_tokens"` — there
   is no distinct cancellation value, so it is indistinguishable on the wire
   from budget exhaustion. Track your own cancel; never infer it from the
-  response. Field detail is in `references/wire_reference.md`.
+  response. And the run unwinds normally rather than vanishing — against
+  `/v1/conversations` it persists what it produced, so a cancelled turn leaves
+  a truncated assistant message you did not read. Field detail is in
+  `references/wire_reference.md`.
 - **Telemetry on `/v1/messages` is unconditional**, in both modes — there is
   no `include_performance` to ask for (the field existed through 1.79.48,
   controlled nothing, and was removed in .49). Do not send it here; keep
@@ -289,10 +292,15 @@ in the heylook repo.
 - Every capability-gated feature you expose (vision, audio, thinking,
   reasoning depth) reads the model's `capabilities` before it is offered,
   *and* the client still handles the refusal that gating does not prevent —
-  a 400, or an in-band `invalid_request_error` on a stream.
+  a 400, or an in-band `invalid_request_error` on a stream. On gguf, also the
+  refusal that never comes: a 200 describing an image the model ignored has no
+  status code, so a vision answer that describes nothing gets the block
+  inspected rather than trusted.
 - Images downscaled client-side before the request is built.
 - 503 retried with backoff; in-band `error` events terminate the stream and
   never reach a rendered transcript as model output.
-- Every non-streaming call carries an `X-Request-ID` you chose, and there is
-  a path that DELETEs it — abandoning the request does not stop the run.
+- Every call carries a **fresh** `X-Request-ID` you chose — one per request,
+  since cancelling an id cancels everything sharing it — and non-streaming
+  calls have a path that DELETEs it, because abandoning one does not stop the
+  run.
 - A real request has run against a live server, not just typechecked.
