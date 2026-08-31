@@ -1,6 +1,6 @@
 # heylook-provider
 
-*Last updated: 2026-08-29*
+*Last updated: 2026-08-31*
 
 Integration knowledge for [heylook](https://github.com/fblissjr/heylookitsanllm)
 (`heylookitsanllm`), a local multimodal LLM server on Apple Silicon serving
@@ -17,7 +17,7 @@ not for working inside the server codebase.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `heylook-provider` | "add heylook as a provider", "heylook API", a 422/400/503 from a heylook request, parsing its SSE stream, sending images to a local model | Runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec |
+| `heylook-provider` | "add heylook as a provider", "heylook API", a 422/400/503 from a heylook request, parsing its SSE stream, cancelling an in-flight request, sending images to a local model | Runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec |
 
 ## Invocation
 
@@ -38,14 +38,19 @@ single-user**:
 - Model ids are **install-local** — the registry is override-only, so the
   served roster is whatever the operator downloaded. Discovery is not
   optional, and a literal id in source is a 400 on another machine.
-- **Capabilities are per-model**, and narrower than the declared modalities
-  — and they can still over-report, so the refusal has to be handled too.
+- **Capabilities are per-model**, and narrower than the declared modalities.
+  Gating on them is necessary and not sufficient: gguf carries no capability
+  guard, an operator can override a model's list outright, and the refusal
+  that follows has two shapes — a 400, or an in-band error event on a stream.
 - `/v1/messages` has **no server-side image resize**; the client downscales.
 - `max_tokens` is **optional** — absent means the server's sampler cascade
   decides, so a client-side default carried over from Anthropic code
   silently overrides the model's configured floor.
 - A busy server answers **503 with `Retry-After`**, which is a queue rather
   than a quota.
+- A non-streaming request cannot be abandoned. There is no disconnect
+  polling, so hanging up leaves the run holding the GPU; `X-Request-ID` is
+  the handle and `DELETE /v1/requests/{id}` is the stop.
 
 Plus the deliberate spec differences (`thinking` is a bool not a config
 object, no tools, no `stop_sequences`, and heylook's request and stream

@@ -44,10 +44,11 @@ a static enum needs a discovery seam before heylook fits it.
 **Capabilities are per-model, not per-provider.** With Gemini you can assume
 vision. With heylook, one served model does vision, another is text-only,
 and only gguf models take audio. Read `capabilities` on each `/v1/models`
-row and gate the features you expose — then handle the refusal anyway, because
-`capabilities` can over-report (`references/wire_reference.md`, discovery
-endpoints). Gemini has no equivalent of a model that advertises a modality and
-then declines it.
+row and gate the features you expose — then handle the refusal anyway. Gating
+is not sufficient: gguf models carry no capability guard, and an operator can
+override a model's `capabilities` outright (`references/wire_reference.md`,
+discovery endpoints). Gemini has no equivalent of a model that advertises a
+modality and then declines it.
 
 **Message roles are validated by the model's own chat template, not by the
 server.** Gemini enforces strict `user`/`model` alternation itself. heylook
@@ -89,8 +90,13 @@ need to exist before heylook fits cleanly:
    the answer.
 4. **Retry on backpressure** — a 503-with-`Retry-After` path distinct from a
    hard failure.
+5. **Cancellation** — a client-chosen request id carried on every call and a
+   path that `DELETE`s it. Against a hosted provider an abandoned request is
+   somebody else's capacity problem; against a single-user local server it
+   holds the GPU and blocks the queue, and heylook does not poll for
+   disconnects on the non-streaming path.
 
-All four are things heylook makes visible rather than things it invents;
+All five are things heylook makes visible rather than things it invents;
 they exist against hosted providers too, just less often.
 
 ## Keeping images working across both

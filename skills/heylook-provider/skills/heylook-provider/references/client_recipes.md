@@ -60,7 +60,10 @@ def stream_message(
 
     headers = {
         "Content-Type": "application/json",
-        # Echoed back, and how the server correlates this request in its logs.
+        # Echoed back, how the server correlates this request in its logs,
+        # and the handle DELETE /v1/requests/{id} cancels by. A UUID string
+        # satisfies the server's [A-Za-z0-9._:-]{1,128}; an id it cannot
+        # accept is replaced with a generated one you never learn.
         "X-Request-ID": str(uuid.uuid4()),
     }
     if api_key:
@@ -212,6 +215,9 @@ export async function streamMessage(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      // Echoed back, correlates the server's logs, and is the handle
+      // DELETE /v1/requests/{id} cancels by. randomUUID() satisfies the
+      // server's [A-Za-z0-9._:-]{1,128}.
       "X-Request-ID": crypto.randomUUID(),
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },

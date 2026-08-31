@@ -14,11 +14,13 @@ through 1.79.39** declared an `"error"` stop reason that nothing could emit;
 a branch for it. That scope includes 1.79.39 itself, which is otherwise the
 first conforming release.
 
-In practice only `end_turn` and `max_tokens` occur. `stop_sequence` is
-declared and mapped but unreachable, since both engines report OpenAI's
-`stop`/`length`; it is kept because Anthropic's own spec defines it, so a
-client written against that spec already handles it and declaring it costs
-nothing. That is the distinction `"error"` failed: unreachable-and-standard
+In practice only `end_turn` and `max_tokens` occur, and `max_tokens` carries
+two meanings — a cancelled run reports it too, indistinguishably from budget
+exhaustion (see [Cancelling a request](#cancelling-a-request)).
+`stop_sequence` is declared and mapped but unreachable, since both engines
+report OpenAI's `stop`/`length`; it is kept because Anthropic's own spec
+defines it, so a client written against that spec already handles it and
+declaring it costs nothing. That is the distinction `"error"` failed: unreachable-and-standard
 is harmless, unreachable-and-bespoke makes clients write a branch for you.
 
 The live `/openapi.json` outranks this file — it is generated from the same
@@ -60,7 +62,7 @@ use the schema when you want to confirm a bound.
   "stream":                  true,
   "stream_options":          { "include_usage": true },
   "include_performance":     false,        // tps + memory on the response
-  "metadata":                {}           // passed through to the response
+  "metadata":                {"k": "v"}   // string->string, passed through to the response
 }
 ```
 
@@ -75,6 +77,14 @@ sampler bundle, then the model's `default_sampler`, then the server floor.
 `max_tokens` is deliberately optional here unlike Anthropic's required field:
 a hard client-side default silently overrides the model's configured floor
 for every request that did not actually have an opinion.
+
+**`show_special_tokens` and `include_performance` are outside that cascade.**
+They are plain booleans defaulting to `false`, so absent means `false`
+permanently and no server-side config influences them — "omit it and the
+server decides" is the wrong mental model for both. The generated schema is
+the discriminator: a cascade field is nullable (`anyOf` with `null`, no
+default), these two carry `"default": false` and no null member. `stream` has
+the same shape but is not a knob.
 
 `sampler` names a bundle from the server's `SamplerRegistry`
 (`/v1/capabilities` → `samplers.available`). It is not a `/v1/presets` id —
@@ -335,8 +345,62 @@ so **discovery is never gated**: `/v1/models` and `/v1/capabilities` answer
 without a key on a server that has one set. A 401 from either is something
 in front of heylook, not heylook.
 
-Send `X-Request-ID` on every request; it is echoed back and is how a request
-is correlated in the server's logs.
+Send `X-Request-ID` on every request; it is echoed back — as a response
+header on both the streaming and non-streaming paths — it is how a request is
+correlated in the server's logs, and it is the handle you cancel by.
+
+## Cancelling a request
+
+```http
+DELETE /v1/requests/{request_id}
+```
+
+Stops a generation that is still running. **The route is 1.79.44 on both
+wires** — nothing could be cancelled by id before it. What 1.79.44 also
+changed is that `/v1/messages` began reading a client-supplied
+`X-Request-ID`, having always generated its own and ignored the header;
+`/v1/chat/completions` already read it for log correlation, so a client on
+that wire was probably already sending a usable id.
+
+**The id is the one you sent.** A usable header value is tracked verbatim;
+anything missing or malformed gets a server-generated id, which is still fine
+for logs and correlation but cannot be cancelled by a client that never chose
+it. Usable means `[A-Za-z0-9._:-]`, 1 to 128 characters, matched whole — a
+UUID string qualifies. On the non-streaming path you never learn a generated
+id in time, so **sending the header is the precondition for being able to
+cancel at all**; the response echoes the id actually tracked, so compare it if
+a cancel unexpectedly 404s.
+
+| Response | Meaning |
+|---|---|
+| `200 {"cancelled": N, "request_id": "..."}` | N in-flight generations were signalled. A **count, not a boolean**: ids are client-supplied, so two in-flight requests may share one and cancelling it cancels both |
+| `404` | Nothing is running under that id. Ids are tracked only while in flight, so the usual cause is that it already finished — treat it as "too late", not as an error |
+| `422` | The path parameter failed validation |
+
+**This matters most for non-streaming calls.** A streaming request is already
+cancellable by hanging up: the server is writing chunks, so it notices the
+peer is gone. A non-streaming one writes nothing until the generation
+finishes, so an abandoned client is invisible and the run continues, holding
+the GPU and blocking whatever queued behind it. There is deliberately no
+disconnect polling — hanging up on a non-streaming request does **not** stop
+it. Call DELETE.
+
+**Cancellation is cooperative.** It sets an abort flag the decode loop checks
+between tokens, then the run unwinds normally: the generation gate is
+released, and a partial run against a conversation persists what it produced.
+It is not a kill — a generation blocked inside one long operation, such as
+prefill on a large context, stops at the next token boundary rather than
+instantly.
+
+**There is no distinct cancellation stop value.** A cancelled run returns a
+normal response carrying whatever was generated and reports `stop_reason:
+"max_tokens"` (`finish_reason: "length"` on `/v1/chat/completions`) —
+Anthropic's vocabulary has no cancellation member, since cancellation there is
+a dropped connection rather than an end state. The override applies only when
+the provider itself said nothing; a real `length` or `stop_sequence` from the
+engine keeps priority. So a cancelled run is indistinguishable on the wire
+from budget exhaustion: **track your own cancel, never infer it from the
+response.**
 
 ## Discovery endpoints
 
@@ -353,15 +417,30 @@ is correlated in the server's logs.
 `capabilities` is what the server will serve. `modalities` is the
 checkpoint author's description. Gate on the former.
 
-**`capabilities` can over-report.** It is derived from the model's registry
-entry, while the refusal is decided from the model as loaded, so the two can
-disagree: on the MLX path a variant whose entry still declares vision
-advertises `vision` and is refused at generation time. Audio to any MLX model
-is the same shape — the towers are stripped at load. The refusal reaches you
-as a **400 non-streaming**, or, because the guard fires at the first token
-when streaming, as an in-band `error` event typed `invalid_request_error`
-(both branches live in the Messages route, not only the OpenAI one). Gate to
-decide what to offer; handle the refusal anyway.
+**`capabilities` could over-report, and 1.79.43 closed the arm that did.**
+Until then MLX's `vision` capability was derived from the checkpoint's own
+`config.json` while the refusal was decided by the model as loaded, so the two
+could disagree: a variant whose entry still declared vision advertised
+`vision` and was refused at generation time. Since 1.79.43 the loader router
+answers both (`capabilities.py` → `_mlx_serves_vision`, the same answer the
+provider's image guard reads), so they cannot diverge on MLX.
+
+Two arms are still open, so handle the refusal regardless. An explicit
+`capabilities` list on the model's entry is an **override** that
+short-circuits inference entirely (`effective_capabilities`), on either
+provider — an operator can assert what the server will not deliver. And gguf
+has no guard of its own; see below.
+
+Audio is not one of the open arms. The MLX branch never appends an `audio`
+capability — the towers are stripped at load — so gating alone keeps a client
+off it, and audio sent to an MLX model anyway is a plain 400 rather than a
+broken promise. gguf is where audio is served.
+
+The refusal reaches you as a **400 non-streaming**, or, because the guard
+fires at the first token when streaming, as an in-band `error` event typed
+`invalid_request_error` (both branches live in the Messages route, not only
+the OpenAI one). Gate to decide what to offer; handle both shapes to decide
+what actually happened.
 
 **Only MLX has a capability guard.** A gguf entry gets `vision` from an
 `mmproj_path` or a declared modality, and the gguf provider forwards
