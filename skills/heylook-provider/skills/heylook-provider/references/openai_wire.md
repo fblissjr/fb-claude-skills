@@ -94,9 +94,16 @@ The usage chunk appears only with `stream_options: {"include_usage": true}`.
 Its `timing` object shares most of its vocabulary with the Messages wire's
 `message_stop.performance` — **but not since 1.79.58**, which retired
 `total_duration_ms` on the Messages wire only. This wire's timing model is
-untouched and still sends it, so a client speaking both needs both names:
-`total_duration_ms` here, `request_duration_ms` and `generation_duration_ms`
-there.
+untouched and still sends it.
+
+**Map it to `request_duration_ms`, not to the throughput denominator.** This
+wire's `total_duration_ms` is whole-request elapsed, so it is the same quantity
+as Messages' `request_duration_ms` — it includes queue wait and model load.
+There is no equivalent of `generation_duration_ms` here, so if you divide
+tokens by this field you get the wall-clock error, and a dual-wire client that
+writes one accessor over both names gets a denominator that means different
+things per wire. The asymmetry is deliberate: this wire has one mode, so it had
+no ambiguity to resolve.
 
 `delta.thinking` is a separate field from `delta.content` — an OpenAI client
 that reads only `content` will silently drop reasoning, which is usually what

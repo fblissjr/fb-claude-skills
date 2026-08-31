@@ -1,5 +1,11 @@
 # changelog
 
+## 1.51.1
+
+### fixed
+- **heylook-provider 0.12.1: 0.12.0 told a dual-wire client it needs both timing vocabularies and did not say which maps to which.** `/v1/chat/completions` keeps `total_duration_ms`, and it is **whole-request elapsed** -- the same quantity as Messages' `request_duration_ms`, including queue wait and model load. So it is not the throughput denominator, there is no OpenAI-wire equivalent of `generation_duration_ms`, and a client that writes one accessor across both names gets a field that means a different span per wire. Naming the two vocabularies without the mapping is the half-statement that invites exactly the error the retirement exists to prevent. The asymmetry is deliberate on the server's side: that wire has one mode, so it had no ambiguity to resolve.
+- The 1.51.0 entry's `not verified` section is now `verification standing`, because the situation changed rather than the claim. 1.79.58 is running and the server session verified the performance object against it, so the schema-and-source caveat no longer describes the state of the world -- but this session still cannot confirm it, and now says why: loopback is unreachable from here at all, a closed port returning the same result as the server's, so the failure is blocked egress rather than a down server. The live figures are quoted in the entry so the claim stands without needing the source that produced it, and derived-here is kept distinct from attributed.
+
 ## 1.51.0
 
 ### changed
@@ -10,8 +16,9 @@
 ### fixed
 - Three examples still showed `total_duration_ms` as a current field -- the non-streaming response body, the `message_stop` SSE line, and the streaming telemetry list -- while the prose above them documented its retirement. Found by grepping the retired name rather than by re-reading the sections, which is the only reason all three were caught in one pass. The streaming list also still named `draft_tokens` and `draft_accepted`; the shared builder emits only declared fields, so those two counters are no longer on the wire.
 
-### not verified
-- **All of the above is read from source and the generated schema, not observed on a wire.** 1.79.58 is not running: the server was restarted mid-work to 1.79.57, so .56 and .57 are live and the entire performance change is not. This is the same standing as 0.10.0-0.11.1 and is recorded here rather than discovered later, at the server session's prompting. The live server was also unreachable from this session, so even the .57 claim is taken on report rather than confirmed here.
+### verification standing
+- **Read from source and the generated schema at the time of writing; since confirmed on a live wire by the server session, not by this one.** 1.79.58 was unreleased when 0.12.0 shipped. It is now running, and that session verified the object against it rather than against the export: on a real run, `request_duration_ms: 1427` against `generation_duration_ms: 78` for the same work -- which is the retirement's whole argument, measured. It also confirmed the two-spellings rule holding on the wire, with `total_duration_ms` absent from both modes, both spans present in both, non-streaming rendering absent fields as explicit `null` and streaming omitting the keys.
+- **This session cannot confirm any of that independently**, and the reason is worth stating rather than leaving as silence: loopback is unreachable from here entirely -- a port with nothing listening returns the same result as the server's -- so the failure is blocked egress, not a server that is down. Every live claim in this entry is therefore attributed, with the figures quoted above so the claim stands without the pointer. The distinction that matters for a reader: the schema and source claims were derived here, the wire claims were not.
 
 ## 1.50.1
 
