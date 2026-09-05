@@ -1,166 +1,100 @@
-# `/v1/chat/completions` — the OpenAI wire
+# Porting off `/v1/chat/completions` (removed in heylook 1.79.66)
 
-heylook's OpenAI-compatible endpoint. Kept for external consumers and
-existing SDK clients; heylook's own frontend does not call it. Fully
-supported, not deprecated.
+heylook no longer serves an OpenAI-compatible route. `POST /v1/chat/completions`
+and `POST /v1/batch/chat/completions` were removed in 1.79.66, together with
+their SSE grammar (`choices[].delta` chunks, the `data: [DONE]` sentinel, the
+`: keepalive` comment) and the batch processing modes. Nothing the project
+cares about spoke them (heylook's own frontend had not since 1.74.0), so the
+route was a second wire to keep conformant for nobody. `/v1/messages` is the
+inference API, and `GET /v1/models` keeps its OpenAI-shaped list envelope
+because that is what discovery clients read.
 
-## When this wire is the better choice
+## How you notice
 
-- **You want server-side image downscaling.** `/v1/messages` has no resize
-  params at all, so the client does that work; here it is a request field.
-- **You need `continue_final_message`.** A `ChatRequest` field with no
-  Messages-wire equivalent, so prefill and "keep going" only work here. Read
-  the traps below first — it is narrower than it looks.
-- **You have a working OpenAI SDK client.** Changing `base_url` is cheaper
-  than rewriting a request builder.
-- **You are fronting heylook with something that speaks OpenAI** — a proxy, a
-  gateway, an agent framework with an OpenAI adapter.
+A request to either removed path is a plain **404** (FastAPI's
+`{"detail":"Not Found"}`), which an OpenAI SDK surfaces as a not-found error
+on the very first call. Nothing else about the server changed for that client:
+`/v1/models` still lists what is served, `/v1/capabilities` still names the
+version. Read `server_version` there if you must support servers on both sides
+of 1.79.66.
 
-Otherwise prefer `/v1/messages`; see the parent SKILL.md.
+## The SDK swap
 
-## Using an OpenAI SDK unmodified
+The Anthropic SDKs reach `/v1/messages` with `base_url` set to the server's
+**origin**; the SDK appends `/v1/messages` itself. (The OpenAI SDK wanted
+`.../v1` as its base. Carrying that habit over produces `/v1/v1/messages`,
+another 404.)
 
 ```python
-from openai import OpenAI
+from anthropic import Anthropic
 
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="not-needed")
-resp = client.chat.completions.create(
+client = Anthropic(base_url="http://localhost:8000", api_key="not-needed")
+resp = client.messages.create(
     model=model_id,                     # resolved from /v1/models
+    max_tokens=512,                     # optional here; see SKILL.md
     messages=[{"role": "user", "content": "Hello"}],
-    max_tokens=512,
 )
 ```
 
 `api_key` is required by the SDK and ignored by the server unless
-`HEYLOOK_API_KEY` is set. When it is set, pass the real key there.
+`HEYLOOK_API_KEY` is set; when it is set, pass the real key.
 
-## Differences from `/v1/messages`
+## Field mapping
 
-| | `/v1/chat/completions` | `/v1/messages` |
-|---|---|---|
-| System prompt | `{"role":"system"}` in `messages` | top-level `system` |
-| Image part | `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` | `{"type":"image","source":{"type":"base64",...}}` |
-| Image data | `data:` URI | raw base64, no prefix |
-| Thinking flag | `enable_thinking` | `thinking` |
-| Server-side resize | yes | no |
-| Performance block | opt in with `include_performance` | unconditional; no such field since 1.79.49 |
-| Response | `choices[0].message.content` (string) | `content` (typed block list) |
-| Reasoning | `choices[0].message.thinking` | a `thinking` block |
-| Stop field | `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
-| Stream terminator | `data: [DONE]` | `message_stop`, no sentinel |
-| Usage in stream | final chunk, needs `stream_options.include_usage` | `message_delta` |
-
-Sampler knobs are the same names with the same bounds on both wires, and
-absent still means the server cascade decides.
-
-## Server-side image resize
-
-Only on this wire:
-
-| Param | Effect |
+| You sent (OpenAI route) | Send now (`/v1/messages`) |
 |---|---|
-| `resize_max` | cap the longest edge, in pixels |
-| `resize_width` / `resize_height` | explicit target dimensions |
-| `image_quality` | JPEG quality for the re-encode |
-| `preserve_alpha` | keep transparency rather than flattening |
+| `{"role":"system"}` in `messages` | top-level `system` string |
+| `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` | `{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":"..."}}` |
+| `data:` URI | raw base64, no prefix |
+| `{"type":"input_audio","input_audio":{"data":...,"format":...}}` (gguf only) | `{"type":"audio","source":{"type":"base64","media_type":...,"data":...}}` (still gguf only) |
+| `enable_thinking` | `thinking` (a bool, same meaning) |
+| `stream_options.include_usage` | nothing; `usage` rides `message_delta`, telemetry rides `message_stop.performance` unconditionally |
+| `include_performance` | nothing; telemetry is unconditional (never a field on this wire since 1.79.49) |
+| `X-Request-ID` | unchanged, same cancellation endpoint |
 
-```json
-{
-  "model": "a model whose capabilities include vision",
-  "messages": [{ "role": "user", "content": [
-    { "type": "text", "text": "What is in this image?" },
-    { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,..." } }
-  ]}],
-  "resize_max": 1024,
-  "max_tokens": 512
-}
-```
+Sampler knobs (`temperature`, `top_p`, `top_k`, `min_p`, `repetition_penalty`,
+`repetition_context_size`, `presence_penalty`, `seed`, `sampler`,
+`vision_tokens`, `reasoning_effort`, `logprobs`, `top_logprobs`) keep their
+names and bounds, and absent still means the server cascade decides.
 
-These downscale before the model sees the image, which cuts prefill cost as
-well as upload size. `vision_tokens` works here too and caps the visual token
-budget directly — the two are complementary, not alternatives.
+| You read (OpenAI route) | Read now (`/v1/messages`) |
+|---|---|
+| `choices[0].message.content` (string) | `content`: a typed block list; join the `text` blocks only |
+| `choices[0].message.thinking` | a `thinking` block (text under `thinking`, also `text`) |
+| `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
+| stream `delta.content` / `delta.thinking` | `content_block_delta` with `delta.type` `text_delta` / `thinking_delta` |
+| stream `logprobs.content` entries | `event: heylook_logprobs`, same entry shape |
+| final usage chunk `timing.total_duration_ms` | `performance.request_duration_ms` (whole-request elapsed; the throughput denominator is `generation_duration_ms`) |
+| `data: [DONE]` | `message_stop` ends the stream; there is no sentinel |
+| `data: {"error":{...}}` then `[DONE]` | `event: error` with `error.type` `invalid_request_error` (your 400 path) or `api_error` (your 500 path); it ends the stream |
 
-## Streaming
+`finish_reason: "length"` was overloaded on the old route (budget reached OR
+cancelled), and `stop_reason: "max_tokens"` carries the same two meanings
+here. Track your own cancel; never infer it from the response.
 
-```
-data: {"choices":[{"delta":{"content":"..."}}]}
-data: {"choices":[{"delta":{"thinking":"..."}}]}
-data: {"choices":[{"logprobs":{"content":[...]}}]}
-data: {"usage":{...},"timing":{...},"stop_reason":"stop"}
-data: [DONE]
-```
+## What has no replacement
 
-The usage chunk appears only with `stream_options: {"include_usage": true}`.
-Its `timing` object shares most of its vocabulary with the Messages wire's
-`message_stop.performance` — **but not since 1.79.58**, which retired
-`total_duration_ms` on the Messages wire only. This wire's timing model is
-untouched and still sends it.
-
-**Map it to `request_duration_ms`, not to the throughput denominator.** This
-wire's `total_duration_ms` is whole-request elapsed, so it is the same quantity
-as Messages' `request_duration_ms` — it includes queue wait and model load.
-There is no equivalent of `generation_duration_ms` here, so if you divide
-tokens by this field you get the wall-clock error, and a dual-wire client that
-writes one accessor over both names gets a denominator that means different
-things per wire. The asymmetry is deliberate: this wire has one mode, so it had
-no ambiguity to resolve.
-
-`delta.thinking` is a separate field from `delta.content` — an OpenAI client
-that reads only `content` will silently drop reasoning, which is usually what
-you want.
+- **Server-side image downscaling.** `resize_max`, `resize_width`,
+  `resize_height`, `image_quality` and `preserve_alpha` existed only on the
+  removed route. Resize before sending: longest edge around 2048px, photos as
+  JPEG at about 0.85 quality, PNG kept as PNG, EXIF orientation honoured.
+  Recipes for Node and Python are in `client_recipes.md`. `vision_tokens`
+  still caps the model-side cost directly and is the more direct lever.
+- **The batch endpoint and `processing_mode`.** Loop your requests. The
+  server serialises generation through one FIFO gate, so a batch bought no
+  parallelism; it only saved HTTP round trips on a local socket.
+- **`continue_final_message`.** The explicit flag was a field of the removed
+  route's request. On `/v1/messages` the convention still holds: a trailing
+  assistant message is continued rather than answered, and a trailing
+  assistant message carrying a `thinking` block and no text resumes inside
+  that thought (1.79.63). What is gone is forcing the flag against the
+  convention (user-role continuation, or `false` to open a fresh turn on a
+  trailing assistant message).
 
 ## Cancelling
 
-`DELETE /v1/requests/{request_id}` works identically on this wire — the id is
-the `X-Request-ID` you sent. **The endpoint is 1.79.44 on both wires**; what
-predates it here is only the header read, which this route already did for log
-correlation while `/v1/messages` ignored it and generated its own. So an
-existing OpenAI-wire client is likely already sending a usable id, and 1.79.44
-is what made it cancellable. Everything else is the same: non-streaming is
-where it matters, cancellation is cooperative, and a `404` means nothing is
-running under that id — usually because it finished, but an id that was never
-sent as a header lands there too, so it is not proof a cancel arrived late. A
-**malformed** id is a separate 422 since 1.79.52, meaning it could never have
-been tracked at all. Detail in `wire_reference.md`.
-
-One consequence lands here: **`finish_reason: "length"` is overloaded.** A
-cancelled run reports it, so on this wire it means either the token budget was
-reached or someone cancelled — there is no third value that separates them.
-Track your own cancel rather than reading it off the response. Full account in
+Unchanged. `DELETE /v1/requests/{request_id}` stops a running generation,
+addressed by the `X-Request-ID` you sent; send a fresh one per request. The
+old route read the header for log correlation long before cancellation
+existed, so a ported client is probably already sending a usable id. Detail in
 `wire_reference.md`.
-
-## Errors
-
-Identical taxonomy to `/v1/messages`: 400 for model routing, 500 for a failed
-load, 503 with `Retry-After` for backpressure, and a mid-stream failure
-arriving in-band after the 200 has flushed. On this wire the in-band form is:
-
-```
-data: {"error":{"message":"...","type":"server_error","code":"generation_failed"}}
-data: [DONE]
-```
-
-Never render `error.message` as assistant content.
-
-## Two traps specific to this wire
-
-**`processing_mode` switches the response schema.** Setting it to anything
-other than `"conversation"` returns a `chat.completion.batch` object rather
-than a `chat.completion`. Leave it unset.
-
-**`continue_final_message` continues rather than opens a turn.** Absent means
-auto: a trailing assistant message is continued. `true` continues whatever
-the final message is, and user-role continuation is MLX-only — gguf answers
-400. `false` never continues. Not supported alongside image history. Only
-relevant if you are building a prefill or "keep going" feature.
-
-## Batch
-
-`POST /v1/batch/chat/completions` takes `{"requests": [ChatRequest, ...]}`
-with at least two entries. Every `requests[].model` must be identical and
-none may set `stream`; either violation is a 400. Returns
-`{"data": [ChatCompletionResponse], "batch_stats": {...}}`.
-
-Useful when generating many independent outputs against one model, since it
-avoids per-request queue round-trips against a server that serialises
-generation anyway.

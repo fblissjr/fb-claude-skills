@@ -1,6 +1,6 @@
 # heylook-provider
 
-*Last updated: 2026-08-31*
+*Last updated: 2026-09-04*
 
 Integration knowledge for [heylook](https://github.com/fblissjr/heylookitsanllm)
 (`heylookitsanllm`), a local multimodal LLM server on Apple Silicon serving
@@ -30,10 +30,10 @@ request against it.
 
 ## What it carries
 
-heylook exposes an Anthropic Messages-conformant `/v1/messages` and an
-OpenAI-compatible `/v1/chat/completions`. An SDK habit mostly transfers; what
-does not is everything following from the server being **local and
-single-user**:
+heylook exposes one inference route, the Anthropic Messages-conformant
+`/v1/messages` (the OpenAI-compatible `/v1/chat/completions` was removed in
+heylook 1.79.66). An Anthropic SDK habit mostly transfers; what does not is
+everything following from the server being **local and single-user**:
 
 - Model ids are **install-local** — the registry is override-only, so the
   served roster is whatever the operator downloaded. Discovery is not
@@ -60,8 +60,9 @@ object, no tools, no `stop_sequences`, and heylook's request and stream
 extensions). That list is hand-maintained and has shipped incomplete, so the
 skill says so and defers to the server's `/openapi.json`.
 
-Beyond the skill body: four reference files (full wire reference, the OpenAI
-wire, Gemini migration, working client code in Python and TypeScript) and a
+Beyond the skill body: four reference files (full wire reference, porting off
+the removed OpenAI route, Gemini migration, working client code in Python and
+TypeScript) and a
 stdlib `probe.py` that prints a capability matrix from a live server.
 
 ## Source of truth

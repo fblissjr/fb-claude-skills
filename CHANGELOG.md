@@ -1,5 +1,15 @@
 # changelog
 
+## 1.54.0
+
+### changed
+- **heylook-provider 0.14.0 -> 0.15.0: heylook 1.79.66 removed the OpenAI-compatible route, so this skill describes one wire.** `POST /v1/chat/completions` and `POST /v1/batch/chat/completions` are gone from the server, with their SSE grammar (`choices[].delta`, `data: [DONE]`, the `: keepalive` comment), the `processing_mode` batch modes, the server-side resize params and `include_performance`. `/v1/messages` is the inference API; `GET /v1/models` keeps its OpenAI-shaped list. The skill's "Pick the wire" section became "The wire", every "both wires" / "either wire" clause in SKILL.md and `wire_reference.md` was resolved to the one that remains, and the frontmatter and README no longer name an OpenAI wire.
+- **`references/openai_wire.md` is now a porting guide, same filename.** It carried the old route's own contract; that would have been a page of instructions for a 404. It now says how you notice (a 404 on the first call; the Anthropic SDK takes the server ORIGIN as `base_url`, not `.../v1`, so the carried-over habit is a second 404), gives the request and response field mappings side by side, and names the three things with no replacement: server-side resize (client-side, recipes exist), the batch endpoint (loop; the server serialised anyway), and forcing `continue_final_message` against the convention (the convention itself still holds on `/v1/messages`, including resuming a thought from a trailing `thinking` block since 1.79.63).
+- The `total_duration_ms` cross-wire note (0.12.1) is re-verdicted rather than deleted: the field survived on the OpenAI route until that route went, and a ported client still carrying it maps it to `request_duration_ms`, never to the throughput denominator.
+
+### verification standing
+- Schema and route set verified against heylook 1.79.66 by exporting `app.openapi()` in-process from that tree: no `/v1/chat/completions` or `/v1/batch/chat/completions` path, no `ChatRequest` or `ChatCompletionResponse` component, `/v1/messages` and `/v1/models` present with the shapes this skill describes. The performance figures quoted in 1.53.0 remain the 1.79.59 live run; nothing about the `performance` object changed between .59 and .66, and no new live request was made for this release.
+
 ## 1.53.0
 
 ### changed

@@ -1,8 +1,8 @@
 ---
 name: heylook-provider
-description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over an Anthropic Messages-conformant /v1/messages endpoint and an OpenAI-compatible /v1/chat/completions. Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 422/400/503, when parsing its SSE stream, when cancelling an in-flight request, or when sending images or audio to a local model. Carries what an Anthropic or OpenAI SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
+description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (the OpenAI-compatible /v1/chat/completions was removed in heylook 1.79.66). Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 404/422/400/503, when parsing its SSE stream, when cancelling an in-flight request, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.59"
+  verified_against: "heylookitsanllm 1.79.66"
 ---
 
 # heylook as an inference provider
@@ -10,8 +10,9 @@ metadata:
 Local inference server: FastAPI, Apple Silicon, MLX (text and vision) plus
 gguf through a `llama-server` subprocess. Default base `http://localhost:8000`.
 
-`/v1/messages` conforms to Anthropic's Messages API and
-`/v1/chat/completions` to OpenAI's, so an SDK habit mostly transfers. What
+`/v1/messages` conforms to Anthropic's Messages API, so an Anthropic SDK
+habit mostly transfers. It is the only inference route: the OpenAI-compatible
+`/v1/chat/completions` was removed in heylook 1.79.66 (see *The wire*). What
 does not transfer is everything that follows from the server being **local
 and single-user**: model ids belong to the install, capabilities vary per
 model, images are resized by you, and a busy server queues rather than
@@ -88,16 +89,21 @@ No committed artifact, no sync step, so field names, types, bounds and enums
 in it are current by construction. Use it as the field reference. Its
 hand-written header prose is on a different clock and lags.
 
-## Pick the wire
+## The wire
 
-**`POST /v1/messages`** by default: Anthropic-style, typed content blocks,
-top-level `system`. It is the wire heylook's own frontend speaks and where
-the project is heading.
+**`POST /v1/messages`** is the inference API: Anthropic-style, typed content
+blocks, top-level `system`, the Messages SSE grammar, plus the heylook
+extensions listed below. It is the wire heylook's own frontend speaks.
 
-**`POST /v1/chat/completions`** when you want the server to downscale images
-for you (`resize_max` and friends — Messages has no such param) or you are
-repointing an existing OpenAI SDK client at a new `base_url`. Fully
-supported, not deprecated. Details in `references/openai_wire.md`.
+**`POST /v1/chat/completions` and `POST /v1/batch/chat/completions` are gone
+since heylook 1.79.66.** Nothing the project cares about spoke them, so the
+OpenAI route was a second wire to keep conformant for nobody; one generation
+now has one grammar. A request to either path is a plain 404. An OpenAI-SDK
+client pointed at heylook has to be ported, and the two things that had no
+Messages equivalent went with the route: server-side image downscaling
+(`resize_max` and friends; resize client-side, next section) and the batch
+endpoint (loop requests; the server serialises generation anyway).
+Field-by-field porting notes are in `references/openai_wire.md`.
 
 ## Where it differs from Anthropic's Messages API
 
@@ -173,7 +179,7 @@ honoured. Recipes for Node and Python are in `references/client_recipes.md`.
 
 To cap model cost rather than pixel count, send `vision_tokens` (per-image
 visual token budget, snapped to what the model's processor supports). It is
-the more direct lever, and it is available on both wires.
+the more direct lever.
 
 ## Status codes carry distinct meanings
 
@@ -208,7 +214,7 @@ diagnostic text, not model output.
   load runs *before* the response begins — the route resolves the provider and
   only then returns a stream or starts the blocking consume. So while a
   multi-GB load runs there is nothing on the connection at all: no headers, no
-  `message_start`, no keepalive, on either wire. Streaming does not cover it,
+  `message_start`, no keepalive. Streaming does not cover it,
   because the stream has not started. A non-streaming client sees one long
   opaque POST and **cannot tell a loading model from a hung server**.
 - **`POST /v1/models/{id}/load` relocates that wait into a request you can
@@ -247,7 +253,7 @@ diagnostic text, not model output.
   server maps an id to a **set** of in-flight generations, so a reused id is a
   cancel that stops every request sharing it. This is the one that bites by
   habit: log correlation invites a stable id, and cancellation makes that
-  destructive. It is echoed back on both wires — **except on a busy 503**,
+  destructive. It is echoed back — **except on a busy 503**,
   whose envelope carries `Retry-After` and the rate-limit headers and no echo,
   so a backpressure response is the one you cannot correlate by id. It
   correlates the server's logs, and it is the handle you cancel by:
@@ -255,10 +261,9 @@ diagnostic text, not model output.
   running, addressed by the id *you* chose. A request that arrived without
   the header got a server-generated one, which on the non-streaming path you
   never learn in time — so sending it is the precondition for being able to
-  cancel at all. The endpoint itself is **1.79.44 on both wires**; what
-  changed for `/v1/messages` in that release is that it began reading the
-  header at all, having always generated its own before, where
-  `/v1/chat/completions` already read it for log correlation.
+  cancel at all. The endpoint itself is **1.79.44**; that release is also
+  when `/v1/messages` began reading the header at all, having always
+  generated its own before.
 - **Cancelling matters most for non-streaming calls.** A streaming request is
   already cancellable by hanging up — the server is writing chunks, so it
   notices the peer left. A non-streaming one writes nothing until the
@@ -275,9 +280,9 @@ diagnostic text, not model output.
   `references/wire_reference.md`.
 - **Telemetry on `/v1/messages` is not opt-in**, in either mode — there is
   no `include_performance` to ask for (the field existed through 1.79.48,
-  controlled nothing, and was removed in .49). Do not send it here; keep
-  sending it on `/v1/chat/completions`, where absent really does mean no
-  performance block. It is not guaranteed present either: a run that produced
+  controlled nothing, and was removed in .49; the OpenAI route that did
+  honour it went in 1.79.66). Do not send it. Telemetry is not guaranteed
+  present either: a run that produced
   no tokens returns `performance: null`, and every field inside it is optional
   from 1.79.54 — test for presence. **From 1.79.58 one builder serves both
   modes** and the rule is one line: a field present is a real measurement of
@@ -286,8 +291,7 @@ diagnostic text, not model output.
   `request_duration_ms` (includes queue wait and model load) and
   `generation_duration_ms` (excludes both — the throughput denominator, but
   **only from 1.79.59**: on .58 it still contains the queue wait, so net it out
-  yourself there);
-  `/v1/chat/completions` keeps the old name. **Through 1.79.57 the two modes
+  yourself there). **Through 1.79.57 the two modes
   disagreed per field** — most sharply, non-streaming `prompt_tps` was `0.0`
   when unmeasured, so never read it as a measured zero on those builds.
   `references/wire_reference.md` has the per-field account and the version
@@ -306,7 +310,7 @@ diagnostic text, not model output.
 | File | Holds | Load when |
 |---|---|---|
 | `references/wire_reference.md` | Every `/v1/messages` field, block type, streaming event and error payload | Writing or debugging a request against the Messages wire |
-| `references/openai_wire.md` | `/v1/chat/completions` differences, the resize params, OpenAI SDK usage | You chose that wire, or are porting between the two |
+| `references/openai_wire.md` | Porting a client off the removed `/v1/chat/completions`: field mapping, what has no replacement | An OpenAI-SDK client points at heylook, or that route answers 404 |
 | `references/gemini_migration.md` | Field-by-field Gemini mapping and the structural mismatches | Adding heylook beside an existing Gemini integration |
 | `references/client_recipes.md` | Working streaming clients in Python and TypeScript; image-resize recipes | Writing the client rather than looking a field up |
 | `${CLAUDE_SKILL_DIR}/scripts/probe.py` | Capability matrix from a live server | Discovery, or checking which model serves vision |

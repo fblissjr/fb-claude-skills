@@ -97,8 +97,8 @@ the design here; the flag was what did not fit it, and it was removed rather
 than wired up. **Do not send it to `/v1/messages`** — there is nothing to
 ask for. It is not a wire break either way: the request model sets no
 `extra="forbid"`, so an unknown field is ignored rather than rejected, and an
-existing client needs no change. On `/v1/chat/completions` the flag is real
-and absent genuinely means no performance block; keep sending it there.
+existing client needs no change. (The flag was real on the OpenAI route,
+which was removed in 1.79.66; nothing honours it anywhere now.)
 
 `sampler` names a bundle from the server's `SamplerRegistry`
 (`/v1/capabilities` → `samplers.available`). It is not a `/v1/presets` id —
@@ -286,8 +286,8 @@ that does not report it. **So absent there means "this model runs on the other
 backend", not "this server is old"** — and reading it off a stream instead, the
 obvious workaround, fails for the same reason. Only if you see it absent on an
 *MLX* model is it a version question, and then the answer is 1.79.50: before
-that release the non-streaming builder dropped it while the streaming half and
-both OpenAI-wire halves carried it.
+that release the non-streaming builder dropped it while the streaming half
+carried it (as did the since-removed OpenAI route).
 
 **Time to first token is not returned, on either mode.** The server computes
 it (net of FIFO queue wait) and keeps it for its own collector; no response
@@ -359,8 +359,8 @@ across the whole message, not a stable slot.
                 "top_logprobs": [ { "token": "...", "logprob": -2.3 } ] } ] }
 ```
 
-The entry shape matches the OpenAI wire's `logprobs.content`, so a parser
-ported from `/v1/chat/completions` keeps working.
+The entry shape is OpenAI's `logprobs.content`, which the removed
+`/v1/chat/completions` carried, so a parser ported from it keeps working.
 
 **One builder, one rule, from 1.79.58.** Both modes and both Messages routes
 emit through a single function, so the per-field divergences below are closed
@@ -397,9 +397,10 @@ server-side**, clamped at zero. Against a .58 server, net it out yourself
 using `queue_wait_ms` — with the caveat immediately below about what that field
 means there.
 
-**`/v1/chat/completions` is unchanged and still sends `total_duration_ms`.**
-That wire has its own timing model, untouched by 1.79.58, so the retirement is
-Messages-only — a client speaking both wires needs both names.
+**`total_duration_ms` survived on `/v1/chat/completions` until that route was
+removed in 1.79.66.** It was whole-request elapsed there, so a value a ported
+client still carries maps to `request_duration_ms`, never to the throughput
+denominator. See `openai_wire.md`.
 
 Absent-versus-zero is decided per field, on whether zero is a meaningful
 measurement of that quantity:
@@ -566,12 +567,12 @@ to correlate in the logs is the one you cannot correlate by id.
 DELETE /v1/requests/{request_id}
 ```
 
-Stops a generation that is still running. **The route is 1.79.44 on both
-wires** — nothing could be cancelled by id before it. What 1.79.44 also
-changed is that `/v1/messages` began reading a client-supplied
-`X-Request-ID`, having always generated its own and ignored the header;
-`/v1/chat/completions` already read it for log correlation, so a client on
-that wire was probably already sending a usable id.
+Stops a generation that is still running. **The route is 1.79.44** — nothing
+could be cancelled by id before it. What 1.79.44 also changed is that
+`/v1/messages` began reading a client-supplied `X-Request-ID`, having always
+generated its own and ignored the header (the since-removed OpenAI route
+already read it for log correlation, so a client ported from it is probably
+already sending a usable id).
 
 **The id is the one you sent.** A usable header value is tracked verbatim;
 anything missing or malformed gets a server-generated id, which is still fine
@@ -609,7 +610,7 @@ instantly.
 
 **There is no distinct cancellation stop value.** A cancelled run returns a
 normal response carrying whatever was generated and reports `stop_reason:
-"max_tokens"` (`finish_reason: "length"` on `/v1/chat/completions`) —
+"max_tokens"` —
 Anthropic's vocabulary has no cancellation member, since cancellation there is
 a dropped connection rather than an end state. The override applies only when
 the provider itself said nothing; a real `length` or `stop_sequence` from the
@@ -653,8 +654,8 @@ broken promise. gguf is where audio is served.
 
 The refusal reaches you as a **400 non-streaming**, or, because the guard
 fires at the first token when streaming, as an in-band `error` event typed
-`invalid_request_error` (both branches live in the Messages route, not only
-the OpenAI one). Gate to decide what to offer; handle both shapes to decide
+`invalid_request_error` (both branches live in the Messages route). Gate to
+decide what to offer; handle both shapes to decide
 what actually happened.
 
 **Only MLX has a capability guard.** A gguf entry gets `vision` from an
