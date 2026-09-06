@@ -50,10 +50,6 @@ use the schema when you want to confirm a bound.
   "thinking":                true,          // Messages spelling of enable_thinking
   "reasoning_effort":        "medium",      // MODEL-SPECIFIC vocabulary, see below
 
-  // logprobs
-  "logprobs":                true,
-  "top_logprobs":            5,     // 0 .. 20
-
   // heylook extensions
   "sampler":                 "balanced",    // named bundle from /v1/capabilities
   "vision_tokens":           1024,          // 16 .. 16384, per-image visual budget
@@ -229,8 +225,7 @@ that refusal is deliberate and loud rather than a silent drop.
   "model": "...",
   "content": [
     { "type": "thinking", "thinking": "...", "text": "..." },
-    { "type": "text", "text": "..." },
-    { "type": "logprobs", "tokens": [ ... ] }
+    { "type": "text", "text": "..." }
   ],
   "stop_reason": "end_turn" | "max_tokens" | "stop_sequence",
   "usage": { "input_tokens": 0, "output_tokens": 0,
@@ -242,7 +237,7 @@ that refusal is deliberate and loud rather than a silent drop.
 }
 ```
 
-Output block union: `text`, `thinking`, `logprobs`, `hidden_states`.
+Output block union: `text`, `thinking`, `hidden_states`.
 `thinking_tokens` and `content_tokens` appear only when the model produced a
 thinking block.
 
@@ -351,16 +346,12 @@ across the whole message, not a stable slot.
 
 ### heylook extensions on the same stream
 
-`event: heylook_logprobs`, one per token when `logprobs: true`:
+`event: heylook_progress` during prefill, plus the telemetry merged into
+`message_stop.performance`.
 
-```json
-{ "type": "heylook_logprobs",
-  "tokens": [ { "token": "...", "token_id": 1, "logprob": -0.1,
-                "top_logprobs": [ { "token": "...", "logprob": -2.3 } ] } ] }
-```
-
-The entry shape is OpenAI's `logprobs.content`, which the removed
-`/v1/chat/completions` carried, so a parser ported from it keeps working.
+`heylook_logprobs` was REMOVED in heylook 1.79.74 along with the `logprobs`
+and `top_logprobs` request fields -- the token explorer was their only
+consumer. Sending either field now answers **422**.
 
 **One builder, one rule, from 1.79.58.** Both modes and both Messages routes
 emit through a single function, so the per-field divergences below are closed

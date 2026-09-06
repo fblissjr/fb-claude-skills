@@ -147,16 +147,18 @@ account, and let `/openapi.json` win where they disagree:
 - **`message_start.usage.input_tokens` is 0.** The event is emitted before
   the first chunk is absorbed. Anthropic puts input tokens there; read them
   off `message_delta.usage` instead.
-- **`logprobs` can be a content block**, not only a stream extension: a
-  non-streaming response carries one in `content` when `logprobs: true`.
 - **No server-side image resize** — next section.
 - **Extensions**: sampling knobs Anthropic does not take (`min_p`,
   `repetition_penalty`, `repetition_context_size`, `presence_penalty`,
-  `seed`), inspection flags (`logprobs`, `top_logprobs`,
-  `show_special_tokens`), plus `sampler`,
-  `vision_tokens`, `reasoning_effort` and `stream_options`. On the stream: a
-  `heylook_logprobs` event and `message_stop.performance`. `/openapi.json`
+  `seed`), `show_special_tokens`, plus `sampler`,
+  `vision_tokens`, `reasoning_effort` and `stream_options`. On the stream:
+  `heylook_progress` and `message_stop.performance`. `/openapi.json`
   enumerates them authoritatively.
+- **`logprobs` and `top_logprobs` were REMOVED in heylook 1.79.74**, with the
+  token explorer that was their only consumer, and so was the
+  `heylook_logprobs` SSE event. Sending either is a **422** naming the removal
+  rather than a silent drop -- so an integration written against an older
+  version of this skill fails loudly, which is the intended outcome.
 
 Two heylook facts that are not spec divergences but cost the same time:
 model ids are **install-local** (above), and a thinking model returns a

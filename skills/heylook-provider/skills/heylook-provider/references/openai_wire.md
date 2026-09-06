@@ -54,8 +54,9 @@ resp = client.messages.create(
 
 Sampler knobs (`temperature`, `top_p`, `top_k`, `min_p`, `repetition_penalty`,
 `repetition_context_size`, `presence_penalty`, `seed`, `sampler`,
-`vision_tokens`, `reasoning_effort`, `logprobs`, `top_logprobs`) keep their
-names and bounds, and absent still means the server cascade decides.
+`vision_tokens`, `reasoning_effort`) keep their names and bounds, and absent
+still means the server cascade decides. `logprobs` and `top_logprobs` do NOT
+port: they were removed in heylook 1.79.74 and now answer 422.
 
 | You read (OpenAI route) | Read now (`/v1/messages`) |
 |---|---|
@@ -63,7 +64,7 @@ names and bounds, and absent still means the server cascade decides.
 | `choices[0].message.thinking` | a `thinking` block (text under `thinking`, also `text`) |
 | `finish_reason`: `stop` / `length` | `stop_reason`: `end_turn` / `max_tokens` |
 | stream `delta.content` / `delta.thinking` | `content_block_delta` with `delta.type` `text_delta` / `thinking_delta` |
-| stream `logprobs.content` entries | `event: heylook_logprobs`, same entry shape |
+| stream `logprobs.content` entries | **no equivalent** -- removed in 1.79.74 |
 | final usage chunk `timing.total_duration_ms` | `performance.request_duration_ms` (whole-request elapsed; the throughput denominator is `generation_duration_ms`) |
 | `data: [DONE]` | `message_stop` ends the stream; there is no sentinel |
 | `data: {"error":{...}}` then `[DONE]` | `event: error` with `error.type` `invalid_request_error` (your 400 path) or `api_error` (your 500 path); it ends the stream |

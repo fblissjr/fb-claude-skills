@@ -1,5 +1,14 @@
 # changelog
 
+## 1.55.0
+
+### changed
+- **heylook-provider 0.15.0 -> 0.16.0: heylook 1.79.74 removed `logprobs`, and this skill was still telling clients to send it.** The token explorer was the only surface that read logprobs, so the page, `logprobs.py`, the collector wiring, `GenerationChunk.logprobs`, the `LogprobsBlock`/`LogprobsDelta` schema types and the `heylook_logprobs` SSE extension all went with it. The request fields do not merely stop working -- they answer **422** naming the removal, because the server guards them explicitly rather than dropping unknown keys. Fixed in `SKILL.md` (the extensions bullet and the content-block claim), `references/wire_reference.md` (the request example, the response block example, the output block union, and the SSE extensions section), `references/openai_wire.md` (the ported-knobs list and the stream mapping table row, which now says there is no equivalent), and `references/gemini_migration.md` (which suggested logprobs as a confidence signal in place of `responseSchema`).
+- The wire's remaining stream extension is `heylook_progress` plus the telemetry on `message_stop.performance`; the SSE section says that instead of describing two.
+
+### verification standing
+- Verified against the heylook tree at 1.79.80 rather than from its changelog: `MessageCreateRequest` carries no `logprobs`/`top_logprobs` field, and `POST /v1/messages` with either key returns 422 with a message naming the removal (exercised in-process through the real app, not by reading the model). The 422 is itself new in 1.79.79 -- 1.79.74 put the guard on an internal model no route binds, so between .74 and .79 the field was silently dropped and a client got a normal 200 with no logprobs and no error. An integration built in that window will start failing loudly on upgrade, which is the intended outcome.
+
 ## 1.54.0
 
 ### changed

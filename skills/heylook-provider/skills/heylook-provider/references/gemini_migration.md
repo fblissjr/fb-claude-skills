@@ -66,7 +66,8 @@ reasoning into your product's output.
 
 **There is no `responseSchema`.** Gemini's structured-output constraint has
 no heylook equivalent. Ask for the format in the prompt and parse
-defensively, or use `logprobs` if you need confidence signals.
+defensively. (heylook had `logprobs` for confidence signals until 1.79.74;
+they were removed and now answer 422.)
 
 **Latency has a different first-request shape.** Gemini is a warm hosted
 endpoint. heylook loads nothing at startup and keeps one model resident by
