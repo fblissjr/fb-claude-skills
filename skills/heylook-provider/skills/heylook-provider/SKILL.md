@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (the OpenAI-compatible /v1/chat/completions was removed in heylook 1.79.66). Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 404/422/400/503, when parsing its SSE stream, when cancelling an in-flight request, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 1.79.66"
+  verified_against: "heylookitsanllm 2.0.28"
 ---
 
 # heylook as an inference provider
@@ -64,8 +64,14 @@ refusal came from the model **as loaded**, so a hand-made variant whose
 directory still declared vision advertised `vision` and was then refused.
 Since 1.79.43 one resolver answers both, and on MLX they cannot diverge.
 
-Keep handling the refusal anyway, because two arms stay open. **gguf has no
-capability guard at all** — heylook forwards the block to `llama-server` and
+Keep handling the refusal anyway, because three arms stay open. **A
+vision-capable MLX model still refuses an image on a non-user turn** (2.0.18):
+`capabilities` says `vision` and the request is a 400 all the same. This is
+deliberate, not a bug — mlx-vlm attributes media by counting markers and would
+silently relocate an assistant-turn image to the last user turn, so heylook
+refuses instead of quietly changing your prompt. gguf accepts the shape. If
+you build assistant-prefill or replay multi-turn media, put the image on a
+user turn. **gguf has no capability guard at all** — heylook forwards the block to `llama-server` and
 the outcome splits on what that subprocess does. Its own 400 is normalized
 into the same refusal, so that branch needs no extra handling; accepting the
 block and ignoring it is the silent case, a 200 describing an image the model
@@ -157,8 +163,12 @@ account, and let `/openapi.json` win where they disagree:
 - **`logprobs` and `top_logprobs` were REMOVED in heylook 1.79.74**, with the
   token explorer that was their only consumer, and so was the
   `heylook_logprobs` SSE event. Sending either is a **422** naming the removal
-  rather than a silent drop -- so an integration written against an older
-  version of this skill fails loudly, which is the intended outcome.
+  rather than a silent drop -- but only **from 1.79.79**. Through 1.79.78 the
+  refusal was unreachable: it was declared on an internal model no route
+  binds, and pydantic ignores an undeclared field, so the key was dropped in
+  silence and the request answered **200**. Against 1.79.74-1.79.78 you get
+  exactly the quiet drop this bullet promises you cannot. The `preset`
+  rename guard was dead the same way from 1.79.66.
 
 Two heylook facts that are not spec divergences but cost the same time:
 model ids are **install-local** (above), and a thinking model returns a

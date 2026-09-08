@@ -68,7 +68,15 @@ was meant to stop at, with no error to notice. There is no server-side
 equivalent; stop on the client, or rely on the model's own end-of-turn.
 
 **Absent means the server cascade decides** — per-request, then the named
-sampler bundle, then the model's `default_sampler`, then the server floor.
+sampler bundle, then the model's `default_sampler`, then the model's own
+VENDOR layer, then the server floor. The vendor rung is the publisher's
+recommended decode settings shipped with the weights: on MLX it is the model
+directory's `generation_config.json` and has always been there; on gguf it is
+the header's `general.sampling.*` block and arrived in **2.0.23**. That
+boundary changes output for the same client code: a gguf request omitting
+`top_k` resolved to the floor's value below 2.0.23 and to the model's own
+above it. "Send what you have an opinion about, omit the rest" therefore
+means *use the publisher's value*, not *use a generic default*.
 `max_tokens` is deliberately optional here unlike Anthropic's required field:
 a hard client-side default silently overrides the model's configured floor
 for every request that did not actually have an opinion.
@@ -351,7 +359,18 @@ across the whole message, not a stable slot.
 
 `heylook_logprobs` was REMOVED in heylook 1.79.74 along with the `logprobs`
 and `top_logprobs` request fields -- the token explorer was their only
-consumer. Sending either field now answers **422**.
+consumer. Sending either field answers **422** from **1.79.79**; on
+1.79.74-1.79.78 the guard sat on a model no route binds, so the key was
+dropped silently and the request answered 200.
+
+**A gguf decode failure was an empty SUCCESS below 2.0.13.** llama-server
+answers 200 and then reports the failure as an error frame inside the stream;
+the adapter skipped that frame for carrying no `choices`, so the run ended
+`stop_reason: "end_turn"` with an empty `content` list and no error anywhere.
+From 2.0.13 it raises: 500 non-streaming, an in-band `api_error` when
+streaming. Against an older server, treat a zero-token `end_turn` on gguf as a
+possible failure rather than an empty answer — the same instinct as checking
+the payload when a vision answer describes nothing.
 
 **One builder, one rule, from 1.79.58.** Both modes and both Messages routes
 emit through a single function, so the per-field divergences below are closed
@@ -514,9 +533,10 @@ follows it. The message is diagnostic text and never model output.
 | Code | Condition | Body |
 |---|---|---|
 | 400 | Unknown or disabled `model`; or no `model` given and no server `default_model` | reason plus available ids in `detail` |
-| 400 | The loaded model refuses the input: on the MLX path, images to a text-only model or audio to any MLX model (non-streaming only — see in-band errors) | message in `detail` |
+| 400 | The loaded model refuses the input: on the MLX path, images to a text-only model, audio to any MLX model, or an image on a NON-USER turn even when the model is vision-capable (2.0.18 — gguf accepts that shape) (non-streaming only — see in-band errors) | message in `detail` |
 | 422 | Body failed validation — an out-of-range sampler value, or a media block carrying neither `source` nor `source_type` | FastAPI validation detail |
-| 500 | Model exists but failed to load: corrupt weights, unsupported architecture | message in `detail` |
+| 500 | Model exists but failed to load: corrupt weights, unsupported architecture; or, from **2.0.13**, a gguf decode that failed mid-stream | message in `detail` |
+| 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}` — restore the user's text and retry after the run ends |
 | 503 | Backpressure — the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. **No `X-Request-ID` echo** — this is the one response class you cannot correlate by id. `error.message` names the blocking models and what to do (`"cannot make room -- ['<id>'] is generating"`), so show it rather than a generic retry notice |
 
 400 means pick a different model; 500 means that model is broken. The split
@@ -618,11 +638,31 @@ response.**
   { "id": "...", "object": "model", "owned_by": "user",
     "provider": "mlx" | "mlx_embedding" | "gguf",
     "modalities": ["text", "vision"],
-    "capabilities": ["chat", "vision", "thinking", "reasoning_effort"] } ] }
+    "capabilities": ["chat", "vision", "thinking", "reasoning_effort"],
+    "thinking_default": true,
+    "context_length": 262144,
+    "sampler_defaults": { "off": {"temperature": 1.0, "top_k": 64, "...": 0},
+                          "on":  {"temperature": 1.0, "top_k": 64, "...": 0} } } ] }
 ```
 
 `capabilities` is what the server will serve. `modalities` is the
 checkpoint author's description. Gate on the former.
+
+Three derived fields ride along, answered for unloaded models too:
+
+- `thinking_default` (**1.79.63**) — what thinking resolves to when the
+  request says nothing. Label your "model default" control with it instead of
+  making the user generate to find out.
+- `context_length` (**1.79.65**) — the model's window, or `null` where the
+  files do not say. Size a prompt against it rather than learning the ceiling
+  from a 400.
+- `sampler_defaults` (**2.0.21**; gguf values corrected in 2.0.25) — what
+  EVERY sampler key resolves to for a request that says nothing, straight from
+  the cascade above, vendor rung included. Keyed by the thinking switch,
+  because the anti-loop overlay changes the numbers: read `off` or `on` to
+  match the thinking state you are about to send. Keys the cascade does not
+  set are absent. This is the server answering the question a client would
+  otherwise have to generate to answer.
 
 **`capabilities` could over-report, and 1.79.43 closed the arm that did.**
 Until then MLX's `vision` capability was derived from the checkpoint's own
@@ -632,7 +672,10 @@ could disagree: a variant whose entry still declared vision advertised
 answers both (`capabilities.py` → `_mlx_serves_vision`, the same answer the
 provider's image guard reads), so they cannot diverge on MLX.
 
-Two arms are still open, so handle the refusal regardless. An explicit
+Three arms are still open, so handle the refusal regardless. A vision-capable
+MLX model refuses an image on a non-user turn (2.0.18): upstream would
+relocate it to the last user turn without saying so, so heylook refuses rather
+than silently rewrite the prompt. gguf accepts it. An explicit
 `capabilities` list on the model's entry is an **override** that
 short-circuits inference entirely (`effective_capabilities`), on either
 provider — an operator can assert what the server will not deliver. And gguf
