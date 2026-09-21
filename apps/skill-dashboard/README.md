@@ -1,4 +1,4 @@
-last updated: 2026-03-13
+last updated: 2026-09-21
 
 # skill-dashboard
 
@@ -77,7 +77,7 @@ node apps/skill-dashboard/mcp-app/dist/index.cjs
 
 ### per-skill (4 checks)
 - Spec compliance (name format, required fields, allowed fields, description constraints)
-- Token budget (sum .md chars/4, warn >4000, critical >8000)
+- Token budget (SKILL.md characters against the 5,000-token re-attach cap, the same band as `skill-maintain test`: fails only when certainly over, reports "unverified" when the estimate cannot tell; the bar colours mark the soft 4,000 / 8,000 numbers)
 - Body size (line count, warn >500)
 - Description quality (WHAT verb + WHEN trigger presence)
 

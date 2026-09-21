@@ -30,8 +30,27 @@ const SKIP_DIRS = new Set([
   "dist",
 ]);
 
+// House soft thresholds: drive the budget bar's colours, never pass/fail.
 const TOKEN_BUDGET_WARN = 4000;
 const TOKEN_BUDGET_CRITICAL = 8000;
+
+// The gate, mirrored from skill_maintainer/shared.py. SKILL.md is judged by
+// its character count against the re-attachment cap, and the estimate decides
+// only where it is certain: "over" even at the sparsest ratio, "under" even at
+// the densest, "unverified" between (passes; measure with
+// `claude plugin details`). tools/skill-maintainer/tests/
+// test_dashboard_budget_agreement.py runs this function and the Python one over
+// one corpus and fails if they disagree.
+const TOKEN_BUDGET_REATTACH = 5000;
+const REATTACH_CHARS_PER_TOKEN_DENSE = 2.65;
+const REATTACH_CHARS_PER_TOKEN_SPARSE = 4.5;
+
+export function reattachVerdict(skillChars: number): "over" | "under" | "unverified" {
+  if (skillChars / REATTACH_CHARS_PER_TOKEN_SPARSE > TOKEN_BUDGET_REATTACH) return "over";
+  if (skillChars / REATTACH_CHARS_PER_TOKEN_DENSE < TOKEN_BUDGET_REATTACH) return "under";
+  return "unverified";
+}
+
 // Age at which the cached upstream hash state counts as stale. Sole consumer
 // is the upstream arm; the per-skill review rule that shared it was retired.
 const STALE_DAYS = 30;
@@ -254,10 +273,6 @@ export function measureTokensDetailed(skillDir: string): FileTokenEntry[] {
     .sort((a, b) => b.tokens - a.tokens);
 }
 
-function measureTokens(skillDir: string): number {
-  return measureTokensDetailed(skillDir).reduce((sum, f) => sum + f.tokens, 0);
-}
-
 export function findSkillPath(root: string, skillName: string): string | null {
   const dirs = discoverSkills(root);
   const match = dirs.find((d) => path.basename(d) === skillName);
@@ -382,15 +397,23 @@ export function checkSkills(
       detail: spec.errors.length > 0 ? spec.errors.join("; ") : "",
     };
 
-    // 2. Token budget
-    const tokens = measureTokens(skillDir);
-    const budgetPassed = tokens < TOKEN_BUDGET_WARN;
+    // 2. Token budget -- SKILL.md only (references load on demand), judged by
+    // reattachVerdict. The detail leads with the chars/4 figure because
+    // TokenBudgetBar parses its label from the first word.
+    const skillChars = measureTokensDetailed(skillDir)
+      .filter((f) => path.basename(f.path) === "SKILL.md")
+      .reduce((sum, f) => sum + f.chars, 0);
+    const tokens = Math.floor(skillChars / 4);
+    const verdict = reattachVerdict(skillChars);
+    const budgetPassed = verdict !== "over";
+    const low = Math.floor(skillChars / REATTACH_CHARS_PER_TOKEN_SPARSE).toLocaleString();
+    const high = Math.floor(skillChars / REATTACH_CHARS_PER_TOKEN_DENSE).toLocaleString();
+    const cap = TOKEN_BUDGET_REATTACH.toLocaleString();
     let budgetDetail = tokens.toLocaleString();
-    if (!budgetPassed) {
-      budgetDetail =
-        tokens >= TOKEN_BUDGET_CRITICAL
-          ? `${tokens.toLocaleString()} > ${TOKEN_BUDGET_CRITICAL.toLocaleString()}`
-          : `${tokens.toLocaleString()} > ${TOKEN_BUDGET_WARN.toLocaleString()}`;
+    if (verdict === "over") {
+      budgetDetail = `${tokens.toLocaleString()} (~${low}-${high}) > ${cap}, truncated on re-attach`;
+    } else if (verdict === "unverified") {
+      budgetDetail = `${tokens.toLocaleString()} (~${low}-${high}) straddles ${cap}: unverified; measure with claude plugin details`;
     }
     const budgetCheck: CheckResult = {
       name: "token budget",
