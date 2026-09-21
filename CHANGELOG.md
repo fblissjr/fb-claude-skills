@@ -3,6 +3,30 @@
 ## 1.56.0
 
 ### changed
+- **`skill-maintainer` 0.29.0 -> 0.30.0: `best_practices.md` re-verified against today's upstream, and re-checked for the Fable 5.1 / Opus 5 generation.** Every Claude Code page it cites had moved since 2026-08-07. Every harness section was re-read against the raw page and restamped, and the provenance join binds every harness annotation, none unbound; the Agent Skills spec citations are bound to the clone's commit for the first time. The substance:
+  - **Three rules were wrong on the day they were written, not stale.** `disable-model-invocation` removes a skill from the listing entirely: the page said so in both snapshots, and this session's own listing lacked the two enabled skills that set it. The file said the opposite. `skillOverrides` does not reach plugin skills, which makes it no lever at all for a plugin author. And the `background: false` agent field it recommended appears in neither snapshot of the sub-agents page. The three are kept in `maintaining this file` as a specimen: their sections carried verified hashes throughout, and a hash proves the page did not move, not that the section ever matched it.
+  - **Upstream moved:**
+    - Hook JSON output is read on every exit code, and on `PreModelSwitch` a timeout fails closed.
+    - `PermissionRequest` ignores exit 2, and `Setup` ignores its exit code and stderr.
+    - Subagents run in the background by default when fork mode is on.
+    - The task-tracking tools are absent on Claude 5 models.
+    - Skill-frontmatter hooks outlive the skill.
+    - `AGENTS.md` is read directly (v2.1.277) when no CLAUDE.md exists.
+    - Marketplace-entry display fields override `plugin.json`.
+    - `/skill-doctor` and `claude plugin eval` are now the named built-ins.
+  - **New sections:**
+    - `MCP servers a plugin bundles`, for spec revision 2026-07-28, which removes sessions and the handshake. It covers explicit handles in place of connection state, a stable tool list, what not to build on the deprecated features, channels on the legacy handshake, and the Python SDK 2.x migration.
+    - `unattended and scripted runs`.
+    - `behaviour eval`, the `claude plugin eval` gate.
+    - `MCP in Claude Code` (reference).
+  - **`authoring shape` re-checked against Anthropic's Claude 5 prompting guidance.**
+    - An unexplained override is applied literally, not "reasoned around".
+    - "Never name the banned behaviour" became a reproduction test.
+    - An unsourced claim about the model's knowledge was deleted.
+    - New rules cover emphasis, hedges, literal scope, `effort:` versus prose, asking for evidence rather than reasoning, verification as a mechanism, standing instructions, and third-person descriptions. The coined-word rule stays, labelled craft.
+    - The recheck trigger widens from a model family release to every model release and every default-model change.
+  - **The token-budget gate cites both of its bases:** the Agent Skills spec's own 5,000-token recommendation, and Claude Code's compaction cut.
+- **Upstream tracking follows the citations.** `settings` is no longer fetched: every key the file cites moved to `settings-reference`, so nothing cited the page.
 - **`skill-maintainer` 0.36.0 -> 0.37.0 (the `skill-maintain` CLI): the token-budget gate decides only where its estimate is certain.** 5,000 tokens per SKILL.md stays the one gated number. The estimate was a flat `chars / 4`, and measured against `claude plugin details` on 2026-09-21 it passed a skill the first-party count put over the cut: path-privacy read 4,076 by characters and ~5.7k by the CLI. Characters per token ran from about 2.65 on dense technical text to about 4.3 on prose. `reattach_verdict` in `shared.py` now reads SKILL.md characters three ways: red when over 5,000 even at 4.5 per token, green when under even at 2.65, and unverified in between. An unverified skill passes and its detail names `claude plugin details` as the measurement; `skill-maintain test` prints a scope line counting certainly-under, unverified and over, and naming the unverified. `skill-maintain measure` gains a Gate column with the same verdict. On this repo today: heylook-provider is over, path-privacy is unverified.
 - **The pre-commit template validates each touched plugin directory.** Run from the marketplace root, `claude plugin validate` never opens a plugin's skill, agent, command or hook files, so a broken agent frontmatter passed. Each plugin root touched by a staged file now runs `claude plugin validate <root> --strict`; names in `STRICT_EXEMPT` run without `--strict`, and the template ships it empty with a note that every entry states its reason and retirement condition.
 
