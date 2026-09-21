@@ -1,4 +1,4 @@
-last updated: 2026-08-17
+last updated: 2026-09-21
 
 # fb-claude-skills
 
@@ -38,7 +38,7 @@ documents cite these by number, so entries are removed rather than renumbered.
 - Cost is *emission*, not invocation. A hook firing on every edit and staying silent is nearly free; `SessionStart` emits unconditionally and re-fires on resume, fork, clear, and compact.
 - Tier order: mechanically detectable violation → a `PreToolUse` block; detectable condition → a `PostToolUse` notice; neither → one ambient line pointing at a skill.
 - When touching a rule, ask whether it is still compensating for a model limitation that no longer exists. Most of this repo predates the Claude 5 generation.
-- **Do not rebuild the built-in introspection.** `/doctor` reports skill-listing cost and proposes CLAUDE.md trims; `claude plugin details <name>` reports per-plugin always-on versus on-invoke; `/context` shows what occupies the window. A hand-rolled substitute lost to the built-in on 2026-08-13 and produced a wrong number.
+- **Do not rebuild the built-in introspection.** `/doctor` reports skill-listing cost and proposes CLAUDE.md trims; `/skill-doctor` reports each skill's cost and how often it is used; `claude plugin details <name>` reports per-plugin always-on versus on-invoke; `/context` shows what occupies the window. A hand-rolled substitute lost to the built-in on 2026-08-13 and produced a wrong number.
 - Detail: [docs/internals/context-cost.md](docs/internals/context-cost.md).
 
 **2. Path privacy is enforced by git hooks.**

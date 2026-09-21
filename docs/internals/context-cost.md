@@ -1,6 +1,6 @@
 # Context cost: where it actually goes, and how to decide a rule's tier
 
-last updated: 2026-07-26
+last updated: 2026-09-21
 
 Written after measuring this repo's own plugins across four projects. The
 headline is counter-intuitive enough to be worth stating first:
@@ -83,17 +83,24 @@ would compute. Check these before building anything:
 |---|---|
 | Per-plugin token cost, always-on vs on-invoke | `claude plugin details <name>` |
 | What is occupying the context window, by category | `/context` |
-| Config problems, skill-listing cost, CLAUDE.md trim proposal | `/doctor` |
+| Config problems, skill-listing cost estimate, CLAUDE.md trim proposal | `/doctor` |
+| Per-skill context cost and how often each skill is used; never-invoked skills flagged | `/skill-doctor` (v2.1.252+; not bundled or enterprise skills) |
+| Every skill invocation and what triggered it (a command, Claude, a nested skill) | OpenTelemetry `skill_activated` event; set `OTEL_LOG_TOOL_DETAILS=1` or skill names are redacted |
 | Which hooks are registered | `/hooks` |
 | Which hooks actually fired, with exit codes and output | `claude --debug hooks` |
 | Isolate whether a plugin/hook/skill causes a problem | `claude --safe-mode` |
 | Verify which instruction files loaded and why | `InstructionsLoaded` hook |
-| Does a skill trigger when it should | `skill-creator` plugin's eval harness |
+| Does a plugin's skill trigger, and what does the plugin contribute | `claude plugin eval` (v2.1.269+), with and without the plugin |
+| Iterating on one skill's trigger accuracy inside a conversation | `skill-creator` plugin's eval loop |
 
-What is genuinely *not* covered, and is the only thing worth building: observed
-behaviour over time — emission rates per plugin, per-project variance, and skill
-invocation counts. That data lives in the session transcripts under
-`<HOME>/.claude/projects/*/*.jsonl`.
+What is *not* covered, and is what `skill-maintain tune` exists for: observed
+behaviour over time and across projects — hook emission rates per plugin,
+per-project variance, and drift in files plugins wrote into repos. That data
+lives in the session transcripts under `<HOME>/.claude/projects/*/*.jsonl`.
+Skill invocation counts used to sit on this list; `/skill-doctor` now reports
+usage for the skills in a session. `tune` still counts invocations per project
+over a window, and whether that adds anything over `/skill-doctor` is unmeasured,
+so the arm stays until the two are run over the same skills and compared.
 
 ## Mining transcripts: four traps
 
