@@ -10,127 +10,106 @@
     {
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
-      "description": "Tools for analyzing, polishing, and managing Claude Code plugins",
       "version": "0.2.2"
     },
     {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
-      "description": "Dimensional modeling for analytical schemas: grain-first design, append-only facts, SCD Type 2 dimensions, conformed dimensions instead of fact-to-fact joins. A skill you invoke when designing a schema -- it ships no SessionStart hook, because the principles are needed at a decision point the model can recognise, not before the first action of every session.",
       "version": "0.5.1"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
-      "description": "MECE decomposition for breaking work into mutually exclusive, collectively exhaustive parts. A skill you invoke when decomposing something -- it ships no SessionStart hook, because the method is needed at a decision point the model can recognise, not before the first action of every session.",
       "version": "0.6.2"
     },
     {
       "name": "skill-dashboard",
       "source": "./apps/skill-dashboard",
-      "description": "Interactive MCP App dashboard: quality checks, token budgets, and repo hygiene",
       "version": "1.4.0"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
-      "description": "On-demand references carrying only what a repo cannot state by being read: the house Python pinning policy plus the two mechanical mistakes behind most Pydantic/Pyright diagnostic walls; documentation conventions (last-updated dates, where unshared notes and session logs live, how dependency changes are recorded, and the rule against decorative counts in prose); and a dependency CVE audit across uv and bun including transitives. No hooks and no ambient injection -- conventions belong in each repo's own always-loaded files, where they reach collaborators who never installed a plugin.",
       "version": "0.18.0"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
-      "description": "Search, save, and surface your Readwise Reader library via MCP server with OAuth, DuckDB storage, and full-text search",
       "version": "1.1.4"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "description": "Maintenance tools for skills repos: validation, quality, upstream detection, best practices review, wiki-sanity lint",
       "version": "0.30.0"
     },
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "description": "JSON query tool selection and syntax \u2014 jg (jsongrep) for fast extraction, jq for transformations",
       "version": "0.1.2"
     },
     {
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
-      "description": "Pre-share scanner: wraps simonw/scan-for-secrets for literal matches (with escape variants) and composes a ripgrep regex pass for privacy-sensitive paths, emails, API key shapes, and SSH fingerprints.",
       "version": "0.1.4"
     },
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
-      "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
       "version": "0.17.0"
     },
     {
       "name": "writing",
       "source": "./skills/writing",
-      "description": "Skills for how the agent writes and explains: an American plain-language house style (active voice, front-loaded, sentence case, no bold for emphasis), voice matching that learns the user's own style, replacing walls of prose with compact visuals, and re-pitching a message that did not land.",
       "version": "0.6.1"
     },
     {
       "name": "grilling",
       "source": "./skills/grilling",
-      "description": "A relentless design interview: work the problem as a tree, ask every question whose prerequisites are settled in one round with a recommended answer attached, and look facts up rather than asking the user for them.",
       "version": "0.1.1"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
-      "description": "Per-project down-tier model delegation: installs a standalone .claude/rules/ file telling Claude to route well-specified data and coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop, with optional fast-executor / task-coder agent definitions. Installation is paused pending measurement and the skill is user-invoked only; removal is unaffected.",
       "version": "0.5.2"
     },
     {
       "name": "advisor",
       "source": "./skills/advisor",
-      "description": "Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger-model subagent can read what the executor has actually done, then returns strategic guidance. Strictly user-invoked: the spend authorization is minted only by a UserPromptExpansion hook on a user-typed /advisor, the skill is disable-model-invocation, and a PreToolUse hook denies any spawn lacking that provenance or naming a different model. A frontier-tier call is never a surprise.",
       "version": "0.3.0"
     },
     {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
-      "description": "SessionStart hook that drops a personal, locally-git-ignored pyrightconfig.json into any Python project lacking a Pyright config -- points Pyright at the uv .venv so imports resolve and silences the reportMissingImports flood. Retracts that file if the project later declares its own [tool.pyright], since Pyright ranks pyrightconfig.json above pyproject.toml and ours would otherwise outrank it forever. Never touches a config it did not write byte-for-byte; no-op outside Python projects.",
       "version": "0.3.2"
     },
     {
       "name": "claim-audit",
       "source": "./skills/claim-audit",
-      "description": "Audit the added prose of a diff as untrusted claims -- every count, status, and attribution re-derived by executing commands, never by reading. Reports claims beside their deriving commands and states its own scope.",
       "version": "0.3.0"
     },
     {
       "name": "postmortem",
       "source": "./skills/postmortem",
-      "description": "The audit family: evidence-grounded session and span postmortems of finished work (grounding rule, deviations table, escape analysis, annotate-don't-rewrite, filed as standalone dated files, optionally rendered to self-contained HTML), a generated browsable index over them, a test-suite audit checking each test's claim, oracle, and reachability envelope with keep/rewrite/delete verdicts, a controls audit (census of everything check-shaped outside the test suite \u2014 hooks, validators, reminders \u2014 with live-fire violation of unwatched controls), and the adversarial-verify primitive (construct the refutation, then separately verify it reached the subject) with the control-builder agent the audits dispatch to",
       "version": "0.9.0"
     },
     {
       "name": "ruff-diagnostics",
       "source": "./skills/ruff-diagnostics",
-      "description": "PostToolUse hook that runs Ruff on each edited .py/.pyi file and reports findings to Claude. Claude Code starts only one language server per file extension, so `ruff server` can never run alongside pyright-lsp; this reconstructs the standard Pyright-plus-Ruff split from outside the LSP layer. Read-only -- never writes ruff config, never syncs the environment, silent on clean files. Flags projects whose `select` list silently opts them out of Ruff 0.16's 413 default rules.",
       "version": "0.1.4"
     },
     {
       "name": "dangling-refs",
       "source": "./skills/dangling-refs",
-      "description": "Remove a unit from a repo without leaving references behind. Sweeps tracked content before you delete, sorts every hit into what must change, what must stay as history, and what reaches users, and names the cascade a removal actually triggers.",
       "version": "0.1.1"
     },
     {
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
-      "description": "Hand a task to Gemini and get a structured answer back -- video and audio analysis, perceptual image comparison, or any ad-hoc question with model, thinking level, and schema set per call. Explicit, auditable, one run directory per call.",
       "version": "0.15.1"
     },
     {
       "name": "heylook-provider",
       "source": "./skills/heylook-provider",
-      "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider: the Anthropic Messages-conformant /v1/messages wire, runtime capability discovery, porting off the removed OpenAI route, and the deliberate differences from Anthropic's spec",
       "version": "0.17.0"
     }
   ],
