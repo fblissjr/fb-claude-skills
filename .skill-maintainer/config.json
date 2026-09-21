@@ -10,7 +10,15 @@
     "https://code.claude.com/docs/en/memory",
     "https://code.claude.com/docs/en/settings",
     "https://code.claude.com/docs/en/permissions",
-    "https://code.claude.com/docs/en/mcp"
+    "https://code.claude.com/docs/en/mcp",
+    "https://code.claude.com/docs/en/settings-reference",
+    "https://code.claude.com/docs/en/plugin-evals",
+    "https://code.claude.com/docs/en/prompt-caching",
+    "https://code.claude.com/docs/en/headless",
+    "https://code.claude.com/docs/en/goal",
+    "https://code.claude.com/docs/en/worktrees",
+    "https://code.claude.com/docs/en/tools-reference",
+    "https://code.claude.com/docs/en/context-window"
   ],
   "llms_full_url": "https://code.claude.com/docs/llms-full.txt",
   "tracked_repos": [
