@@ -1,5 +1,18 @@
 # changelog
 
+## 1.56.0
+
+### changed
+- **`skill-maintainer` 0.36.0 -> 0.37.0 (the `skill-maintain` CLI): the token-budget gate decides only where its estimate is certain.** 5,000 tokens per SKILL.md stays the one gated number. The estimate was a flat `chars / 4`, and measured against `claude plugin details` on 2026-09-21 it passed a skill the first-party count put over the cut: path-privacy read 4,076 by characters and ~5.7k by the CLI. Characters per token ran from about 2.65 on dense technical text to about 4.3 on prose. `reattach_verdict` in `shared.py` now reads SKILL.md characters three ways: red when over 5,000 even at 4.5 per token, green when under even at 2.65, and unverified in between. An unverified skill passes and its detail names `claude plugin details` as the measurement; `skill-maintain test` prints a scope line counting certainly-under, unverified and over, and naming the unverified. `skill-maintain measure` gains a Gate column with the same verdict. On this repo today: heylook-provider is over, path-privacy is unverified.
+- **The pre-commit template validates each touched plugin directory.** Run from the marketplace root, `claude plugin validate` never opens a plugin's skill, agent, command or hook files, so a broken agent frontmatter passed. Each plugin root touched by a staged file now runs `claude plugin validate <root> --strict`; names in `STRICT_EXEMPT` run without `--strict`, and the template ships it empty with a note that every entry states its reason and retirement condition.
+
+### removed
+- **The 5,000-*word* SKILL.md warning in `validate.py`.** No source mentions words; it read like the spec's 5,000 tokens with the unit changed. At typical density 5,000 words is past the token cut, so it could not fire before the token gate did.
+
+### verification standing
+- `test_token_budget_gate.py` rewritten around a character-count fixture, with exact-edge arms at 22,500/22,501 and 13,249/13,250. Four arms failed against the flat estimate before the change. All eight were then mutation-proved: each pinned behaviour was broken in turn (`>` to `>=`, `<` to `<=`, gate never failing, measurement dropped from the detail, and four more), each arm went red, and both files were restored byte-identical. `uv run pytest tools/skill-maintainer/tests`: 184 passed.
+- The two ratios come from one day's `claude plugin details` figures, which the CLI itself labels estimates; no exact tokenizer count was available. They carry that date in `shared.py` and are re-derived if the tokenizer changes.
+
 ## 1.55.0
 
 ### changed

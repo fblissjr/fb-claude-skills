@@ -47,6 +47,31 @@ TOKEN_BUDGET_CRITICAL = 8000
 # a behaviour change rather than a style preference.
 TOKEN_BUDGET_REATTACH = 5000
 
+# Characters per token, bracketing the ratios measured on 2026-09-21 against
+# `claude plugin details` (first-party on-invoke counts) across this repo's
+# skills: dense technical text ran near 2.65 (scan-for-secrets, heylook-provider,
+# path-privacy), plain prose near 4.3 (plain-language-us), rounded out to 4.5.
+# A flat chars/4 passed path-privacy at 4,076 while the CLI put it at ~5.7k, so
+# the estimate now decides only where it is certain -- see `reattach_verdict`.
+# Re-derive both if the tokenizer changes.
+REATTACH_CHARS_PER_TOKEN_DENSE = 2.65
+REATTACH_CHARS_PER_TOKEN_SPARSE = 4.5
+
+
+def reattach_verdict(skill_chars: int) -> str:
+    """Judge a SKILL.md's length against TOKEN_BUDGET_REATTACH.
+
+    Returns "over" when it exceeds the cap even at the sparsest ratio, "under"
+    when it stays below even at the densest, and "unverified" otherwise. The
+    middle verdict is not a warning: the estimate has no authority there, so the
+    caller hands it to a real count (`claude plugin details`).
+    """
+    if skill_chars / REATTACH_CHARS_PER_TOKEN_SPARSE > TOKEN_BUDGET_REATTACH:
+        return "over"
+    if skill_chars / REATTACH_CHARS_PER_TOKEN_DENSE < TOKEN_BUDGET_REATTACH:
+        return "under"
+    return "unverified"
+
 
 
 # Age at which the cached upstream page snapshots count as stale. Consumed by
@@ -110,6 +135,8 @@ def measure_tokens(skill_dir: Path) -> dict[str, int]:
       - skill_tokens: tokens from SKILL.md (always-loaded when skill triggers)
       - ref_tokens: tokens from references/ and other .md files (on-demand)
       - total: sum of both (for backward compat / informational)
+      - skill_chars: SKILL.md length in characters, which `reattach_verdict`
+        judges directly rather than through the flat chars/4 estimate
 
     Only counts .md files since those are loaded into context via progressive
     disclosure. Scripts (.py, .sh) are executed, not loaded. Config files
@@ -136,6 +163,7 @@ def measure_tokens(skill_dir: Path) -> dict[str, int]:
         "skill_tokens": skill_chars // 4,
         "ref_tokens": ref_chars // 4,
         "total": (skill_chars + ref_chars) // 4,
+        "skill_chars": skill_chars,
     }
 
 

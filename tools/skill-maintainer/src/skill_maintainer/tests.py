@@ -25,14 +25,16 @@ from skill_maintainer.config import (
 )
 from skill_maintainer.provenance import join_provenance, parse_annotations
 from skill_maintainer.shared import (
+    REATTACH_CHARS_PER_TOKEN_DENSE,
+    REATTACH_CHARS_PER_TOKEN_SPARSE,
     STALE_DAYS,
     TOKEN_BUDGET_REATTACH,
-    TOKEN_BUDGET_WARN,
     _skipped,
     check_description_quality,
     discover_plugins,
     discover_skills,
     measure_tokens,
+    reattach_verdict,
 )
 
 PLUGIN_REQUIRED_FIELDS = ("name", "version", "description", "author", "repository")
@@ -53,6 +55,27 @@ class Result:
 # ---------------------------------------------------------------------------
 # Skill tests
 # ---------------------------------------------------------------------------
+
+
+def budget_scope_line(results: list[Result]) -> str | None:
+    """Summarise the token-budget verdicts: a green that states its scope.
+
+    Unverified skills pass, so default output would hide them. This line is
+    printed once per run and names them, so they stay visible without a
+    per-skill warning. None when no budget result exists, rather than a line
+    claiming "0 certainly under" for a run that scanned nothing.
+    """
+    budget = [r for r in results if r.check == "token budget"]
+    if not budget:
+        return None
+    over = [r for r in budget if not r.passed]
+    unverified = [r for r in budget if r.passed and "unverified" in r.detail]
+    under = len(budget) - len(over) - len(unverified)
+    line = f"token budget: {under} certainly under, {len(unverified)} unverified, {len(over)} over"
+    if unverified:
+        names = ", ".join(r.name for r in unverified)
+        line += f" -- unverified ({names}): measure with `claude plugin details <plugin>`"
+    return line
 
 
 def test_skills(root: Path) -> list[Result]:
@@ -84,14 +107,27 @@ def test_skills(root: Path) -> list[Result]:
         # gating on them meant two skills sat ~1% over and red indefinitely
         # while nothing measured the listing, which is the cost that is always
         # paid. 5,000 is where behaviour actually changes -- above it a skill is
-        # silently truncated on re-attach after a compaction. The soft number is
-        # still reported so growth stays visible without failing the board.
-        budget_pass = skill_tokens < TOKEN_BUDGET_REATTACH
+        # silently truncated on re-attach after a compaction.
+        # Banded 2026-09-21: the verdict comes from `reattach_verdict`, which
+        # decides only where the character count is certain. Between its edges
+        # the skill passes as "unverified" and the detail names the real count;
+        # the scope line in `main` makes those visible without a warning band.
+        skill_chars = token_info["skill_chars"]
+        verdict = reattach_verdict(skill_chars)
+        budget_pass = verdict != "over"
         refs = f"(refs: {token_info['ref_tokens']:,})"
-        if not budget_pass:
-            detail = f"{skill_tokens:,} > {TOKEN_BUDGET_REATTACH:,}, truncated on re-attach {refs}"
-        elif skill_tokens > TOKEN_BUDGET_WARN:
-            detail = f"{skill_tokens:,} over house soft {TOKEN_BUDGET_WARN:,}, not gated {refs}"
+        low = int(skill_chars / REATTACH_CHARS_PER_TOKEN_SPARSE)
+        high = int(skill_chars / REATTACH_CHARS_PER_TOKEN_DENSE)
+        if verdict == "over":
+            detail = (
+                f"~{low:,}-{high:,} > {TOKEN_BUDGET_REATTACH:,} even at the sparsest ratio, "
+                f"truncated on re-attach {refs}"
+            )
+        elif verdict == "unverified":
+            detail = (
+                f"~{low:,}-{high:,} straddles {TOKEN_BUDGET_REATTACH:,}: unverified, not gated; "
+                f"measure with `claude plugin details <plugin>` {refs}"
+            )
         else:
             detail = f"{skill_tokens:,} {refs}"
         results.append(Result("skill", name, "token budget", budget_pass, detail))
@@ -1267,6 +1303,9 @@ def main(args=None):
         print(format_result(r))
 
     print()
+    scope = budget_scope_line(all_results)
+    if scope:
+        print(scope)
     print(f"{len(passed)} passed, {len(failed)} failed")
 
     sys.exit(0 if len(failed) == 0 else 1)

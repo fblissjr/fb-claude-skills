@@ -28,6 +28,11 @@ claude_md_size_check() {
 
 failed=0
 
+# Plugins validated per directory without --strict, space-separated names.
+# Each entry needs a reason and the condition that retires it, stated here:
+# an exemption nobody can explain outlives the reason it was added for.
+STRICT_EXEMPT=""
+
 # --- 1. Validate staged SKILL.md files against the Claude Code skill schema ---
 staged_skills=$(echo "$staged" | grep 'SKILL\.md$' || true)
 
@@ -135,6 +140,21 @@ while IFS= read -r root; do
             fi
             if is_staged "$skill_md"; then version_file_staged=1; fi
         done
+    fi
+
+    # Validate the plugin itself. Run from the marketplace root (1b), `claude
+    # plugin validate` never opens a plugin's skill, agent, command or hook
+    # files, so a broken agent frontmatter or hooks.json passes there. --strict
+    # promotes warnings the runtime tolerates to errors; plugins in
+    # STRICT_EXEMPT run without it. Skipped when the CLI isn't present.
+    if command -v claude >/dev/null 2>&1; then
+        strict_flag="--strict"
+        case " $STRICT_EXEMPT " in *" $name "*) strict_flag="" ;; esac
+        if ! claude plugin validate "$root" $strict_flag >/dev/null 2>&1; then
+            echo "PLUGIN VALIDATION FAILED: $name (claude plugin validate $root $strict_flag):"
+            claude plugin validate "$root" $strict_flag 2>&1 | sed 's/^/  /'
+            failed=1
+        fi
     fi
 
     # Warn if content changed but no version file staged

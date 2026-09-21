@@ -9,6 +9,7 @@ from skill_maintainer.shared import (
     TOKEN_BUDGET_REATTACH,
     TOKEN_BUDGET_WARN,
     discover_skills,
+    reattach_verdict,
 )
 
 FILE_TYPE_MAP = {
@@ -104,6 +105,7 @@ def measure_skill(skill_name: str, skill_path: Path) -> dict:
         })
 
     skill_md_tokens = sum(f["tokens"] for f in file_measurements if f["type"] == "skill_md")
+    skill_md_chars = sum(f["chars"] for f in file_measurements if f["type"] == "skill_md")
     ref_tokens = sum(f["tokens"] for f in file_measurements if f["type"] == "reference")
 
     return {
@@ -115,6 +117,7 @@ def measure_skill(skill_name: str, skill_path: Path) -> dict:
         "ref_tokens": ref_tokens,
         "over_budget": skill_md_tokens > TOKEN_BUDGET_WARN,
         "critical": skill_md_tokens > TOKEN_BUDGET_CRITICAL,
+        "gate": reattach_verdict(skill_md_chars),
         "files": file_measurements,
     }
 
@@ -126,10 +129,12 @@ def generate_report(results: list[dict]) -> str:
         f"Gate: {TOKEN_BUDGET_REATTACH} tokens -- above this a skill is truncated on re-attach after a compaction.",
         f"House soft thresholds, reported but not gated: {TOKEN_BUDGET_WARN} (warn), {TOKEN_BUDGET_CRITICAL} (critical)",
         "Budget applies to SKILL.md only; reference tokens are informational.",
-        "Estimate: 1 token ~ 4 characters",
+        "Token columns estimate 1 token ~ 4 characters. The Gate column reads SKILL.md characters",
+        "against the band in `reattach_verdict`: over / under where certain, unverified between --",
+        "measure those with `claude plugin details <plugin>`.",
         "",
-        "| Skill | Files | Skill | Refs | Total | Status |",
-        "|-------|-------|-------|------|-------|--------|",
+        "| Skill | Files | Skill | Refs | Total | Status | Gate |",
+        "|-------|-------|-------|------|-------|--------|------|",
     ]
 
     for r in results:
@@ -141,7 +146,7 @@ def generate_report(results: list[dict]) -> str:
             status = "OK"
         skill_t = r.get("skill_md_tokens", 0)
         ref_t = r.get("ref_tokens", 0)
-        lines.append(f"| {r['skill_name']} | {r['file_count']} | {skill_t:,} | {ref_t:,} | {r['total_tokens']:,} | {status} |")
+        lines.append(f"| {r['skill_name']} | {r['file_count']} | {skill_t:,} | {ref_t:,} | {r['total_tokens']:,} | {status} | {r['gate']} |")
 
     lines.append("")
 

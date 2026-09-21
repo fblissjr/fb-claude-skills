@@ -14,7 +14,6 @@ from skill_maintainer.cc_schema import portability_warnings, validate_cc
 from skill_maintainer.shared import check_description_quality
 
 SKILL_MD_MAX_LINES = 500
-SKILL_MD_MAX_WORDS = 5000
 
 
 def check_best_practices(skill_path: Path) -> list[str]:
@@ -27,18 +26,11 @@ def check_best_practices(skill_path: Path) -> list[str]:
 
     content = skill_md.read_text(encoding="utf-8")
     lines = content.splitlines()
-    words = content.split()
 
     if len(lines) > SKILL_MD_MAX_LINES:
         warnings.append(
             f"SKILL.md has {len(lines)} lines (recommended max: {SKILL_MD_MAX_LINES}). "
             "Consider moving detailed docs to references/."
-        )
-
-    if len(words) > SKILL_MD_MAX_WORDS:
-        warnings.append(
-            f"SKILL.md has {len(words)} words (recommended max: {SKILL_MD_MAX_WORDS}). "
-            "Consider using progressive disclosure."
         )
 
     try:
