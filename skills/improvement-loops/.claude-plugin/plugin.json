@@ -1,6 +1,6 @@
 {
   "name": "improvement-loops",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Structured, user-invoked standing prompts for long runs on any project: /design-scoreboard chooses what to climb and what must not get worse, /improve and /optimize climb it against the repo's AGENTS.md sections, and /trim-agents-md keeps that hub short. Each keeps state in files and reports what needs the owner first",
   "author": {
     "name": "fblissjr"

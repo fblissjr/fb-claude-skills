@@ -499,6 +499,72 @@ def test_stop_guard_fails_open_on_corrupt_record(tmp_path):
     assert r.stderr
 
 
+# --- refused writes ------------------------------------------------------------------
+#
+# The state lands in the main checkout from inside a worktree-isolated session
+# only because isolation does not cover a script's file writes today. If that
+# changes, the refusal must be loud and name the escape, not a traceback.
+
+needs_non_root = pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores directory permissions"
+)
+
+
+class read_only_tree:
+    """Make every directory under root read-only; restore on exit so tmp cleanup works."""
+
+    def __init__(self, root):
+        self.dirs = [Path(root), *(p for p in Path(root).rglob("*") if p.is_dir())]
+
+    def __enter__(self):
+        for d in self.dirs:
+            d.chmod(0o555)
+        return self
+
+    def __exit__(self, *exc):
+        for d in self.dirs:
+            d.chmod(0o755)
+        return False
+
+
+def _names_escape(stderr, path):
+    return str(path) in stderr and "--state" in stderr and "LOOP_STATE_DIR" in stderr
+
+
+@needs_non_root
+def test_start_into_read_only_state_exits_3_naming_path_and_escape(tmp_path):
+    # Deleting this lets a refused state write surface as a traceback (exit 1) with no way out named.
+    state = tmp_path / "state"
+    state.mkdir()
+    with read_only_tree(state):
+        r = run(["start", "--loop", "improve", "--base", "a", "--session", "s", "--budget-minutes", "5",
+                 "--done", "x"], state=state)
+    assert r.returncode == 3, r.stderr
+    assert _names_escape(r.stderr, state), r.stderr
+    assert "Traceback" not in r.stderr
+
+
+@needs_non_root
+def test_score_into_read_only_state_exits_3_naming_path_and_escape(tmp_path):
+    # Deleting this lets a write refused mid-run (after the lock is taken) escape the exit-3 path.
+    run_id = start(tmp_path)
+    with read_only_tree(tmp_path):
+        r = run(["score", "--run", run_id, "--row", json.dumps(FULL_ROW)], state=tmp_path)
+    assert r.returncode == 3, r.stderr
+    assert _names_escape(r.stderr, tmp_path / "scoreboard.jsonl"), r.stderr
+    assert not (tmp_path / "scoreboard.jsonl").exists()
+
+
+@needs_non_root
+def test_stop_guard_on_read_only_state_exits_0_silently_but_names_escape(tmp_path):
+    # Deleting this lets a refused write in the Stop hook trap the session, or fail with no hint why.
+    run_id = start(tmp_path)
+    with read_only_tree(tmp_path):
+        r = guard(tmp_path)
+    assert r.returncode == 0 and r.stdout == ""
+    assert _names_escape(r.stderr, record_path(tmp_path, run_id)), r.stderr
+
+
 # --- interpreter floor ---------------------------------------------------------------
 
 

@@ -279,6 +279,24 @@ def test_gh_title_with_the_full_name_is_still_blocked(tmp_path):
     assert "Jane" not in r.stderr
 
 
+@pytest.mark.parametrize("command", [
+    f'gh pr create -t "Fix from {FULL_NAME}" -b "x"',
+    f'gh issue comment 5 -b "thanks {FULL_NAME}"',
+    'gh api repos/o/r/issues/1/comments -f body="thanks Jane Example"',
+    "git tag janeexample-release",
+    "git push origin HEAD:refs/heads/jane-example",
+])
+def test_name_in_text_that_reaches_github_without_a_git_hook_is_blocked(tmp_path, command):
+    # Claim: gh bodies, short -t/-b flags, tag names and pushed ref names go
+    # public with no git hook behind them, so the name guard reads the whole
+    # command, not only the extracted message text. Breaks if the guard is
+    # narrowed to message text again.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": command})
+    assert r.returncode == 2, command
+    assert "Jane" not in r.stderr
+
+
 def test_heredoc_in_a_command_that_does_not_commit_is_not_a_message(tmp_path):
     # Claim: heredoc bodies are scanned as message text only when the command
     # commits, tags, or opens/edits a PR or issue. A script fed to python or cat

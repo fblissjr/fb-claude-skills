@@ -9,10 +9,17 @@ hook, pushing a run back to work while its definition of done is unmet.
 Usage:
     python3 loop_state.py [--state DIR] <command> ...
 
-Exit codes: 0 success, 1 a valid request that was refused, 2 bad input.
+Exit codes: 0 success, 1 a valid request that was refused, 2 bad input,
+3 a state write the OS or sandbox refused (EPERM, EACCES, EROFS); its message
+names the path and the escape, `--state DIR` or `LOOP_STATE_DIR`.
 Human-readable messages go to stderr, machine output to stdout. `stop-guard`
 always exits 0: a Stop hook must never trap a session, so every failure in it
-fails open.
+fails open, a refused write included (its message still goes to stderr).
+
+Writing into the main checkout from a worktree-isolated session works only
+because Claude Code's worktree isolation does not cover a script's file
+writes. That is observed, not documented (docs/internals/gotchas.md), so a
+refusal is expected one day and must be loud: exit 3, never a traceback.
 
 Standard library only, run with bare `python3` (3.9 or newer). This is a
 deliberate exception to the repo's orjson-and-uv rule. The script runs from
@@ -42,6 +49,7 @@ Layout of the state dir:
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import math
 import os
@@ -95,6 +103,34 @@ class BadInput(Exception):
     """A malformed request (exit 2)."""
 
 
+REFUSED_ERRNOS = (errno.EPERM, errno.EACCES, errno.EROFS)
+
+
+class Unwritable(Exception):
+    """A state write the OS or a sandbox refused (exit 3)."""
+
+    def __init__(self, path, exc: OSError):
+        super().__init__(
+            "loop_state: cannot write %s (%s). The session may not write there; pass "
+            "--state <dir the session can write> or set LOOP_STATE_DIR." % (path, exc.strerror or exc)
+        )
+
+
+class writing:
+    """Turn a refused write under this block into Unwritable naming `path`."""
+
+    def __init__(self, path):
+        self.path = path
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, kind, exc, tb):
+        if isinstance(exc, OSError) and exc.errno in REFUSED_ERRNOS:
+            raise Unwritable(self.path, exc) from exc
+        return False
+
+
 # --- time -------------------------------------------------------------------
 
 
@@ -125,22 +161,23 @@ def _default_mode() -> int:
 
 def write_atomic(path: Path, text: str) -> None:
     """Write via a temp file in the same dir, then os.replace."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    mode = path.stat().st_mode & 0o777 if path.exists() else _default_mode()
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
-            fh.write(text)
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.chmod(tmp, mode)
-        os.replace(tmp, path)
-    except BaseException:
+    with writing(path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        mode = path.stat().st_mode & 0o777 if path.exists() else _default_mode()
+        fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix="." + path.name + ".", suffix=".tmp")
         try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.chmod(tmp, mode)
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
 
 
 def append_atomic(path: Path, text: str) -> None:
@@ -162,8 +199,9 @@ class StateLock:
     def __enter__(self):
         if fcntl is None:
             return self
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.fh = open(self.path, "a")
+        with writing(self.path):
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.fh = open(self.path, "a")
         deadline = time.monotonic() + LOCK_WAIT_SECONDS
         while True:
             try:
@@ -324,12 +362,14 @@ def cmd_start(args, where: Where) -> int:
     started = now()
     with StateLock(state):
         runs = state / "runs"
-        runs.mkdir(parents=True, exist_ok=True)
+        with writing(runs):
+            runs.mkdir(parents=True, exist_ok=True)
         base_id = "%s-%s" % (started.strftime("%Y%m%d-%H%M%S"), args.loop)
         run_id, n = base_id, 1
         while True:
             try:
-                (runs / run_id).mkdir()
+                with writing(runs / run_id):
+                    (runs / run_id).mkdir()
                 break
             except FileExistsError:
                 n += 1
@@ -643,6 +683,9 @@ def stop_guard(flag: str | None) -> int:
         if reasons:
             sys.stdout.write(json.dumps({"decision": "block", "reason": "\n\n".join(reasons)}, ensure_ascii=False) + "\n")
         return 0
+    except Unwritable as exc:  # fail open, but say why and how out
+        print("loop_state stop-guard: standing aside. %s" % exc, file=sys.stderr)
+        return 0
     except Exception as exc:  # a Stop hook must never trap a session
         print("loop_state stop-guard: internal error, standing aside: %r" % (exc,), file=sys.stderr)
         return 0
@@ -737,6 +780,9 @@ def main(argv=None) -> int:
     except BadInput as exc:
         print("error: %s" % exc, file=sys.stderr)
         return 2
+    except Unwritable as exc:
+        print(str(exc), file=sys.stderr)
+        return 3
 
 
 if __name__ == "__main__":

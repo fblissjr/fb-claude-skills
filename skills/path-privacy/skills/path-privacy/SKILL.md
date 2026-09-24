@@ -59,7 +59,7 @@ guards nothing.
 | Where | What happens |
 |---|---|
 | PreToolUse, Write/Edit | An absolute or `~`/`$HOME` spelling of a path INSIDE the repo is rewritten to repo-relative in place (`updatedInput`), with one line of context saying so. An external path or the full name blocks the call |
-| PreToolUse, Bash | A `git`/`gh` command carrying the full name is blocked. Commit, tag and PR message text (including heredoc bodies) and new branch names are scanned for external paths |
+| PreToolUse, Bash | A `git`/`gh` command carrying the full name is blocked; home-directory prefixes are masked first, so a home path that spells the name does not count. Commit, tag and PR message text (including heredoc bodies) and new branch names are scanned for external paths |
 | git pre-commit | Staged files are scanned whole for external paths; ADDED lines are scanned for the full name |
 | git commit-msg | The message and current branch name, for both |
 | SessionStart (startup) | Refreshes stale hook wrappers. Silent unless the gate is missing (said once per repo), stale or ahead |

@@ -86,6 +86,12 @@ An ignored root file in `internal/` has no history anywhere, so a proposal or re
 
 `git add -A` sweeps the other session's uncommitted work into your commit. This happened three times on 2026-07-21 and permanently detached two CHANGELOG entries from the commits that describe them — unfixable without a history rewrite. Stage explicit paths and check `git status --short` before committing whenever another session is active.
 
+## improvement-loops writes loop state through a gap in worktree isolation
+
+`skills/improvement-loops/scripts/loop_state.py` runs inside a worktree-isolated session but writes its state to the main checkout (`<main>/.loops`, the pointer file and `info/exclude` under the git common dir), so the state outlives the worktree. A probe on 2026-09-24 showed why that works: Write and Edit into the main checkout were blocked, a plain `python3` script writing there passed, and `uv run` with `$TMPDIR` in the command was refused as an unverifiable runtime value. Claude Code does not document that isolation leaves a script's file writes alone, so treat it as behaviour that can change.
+
+If it changes, or a sandbox refuses the write, `loop_state.py` exits 3 and names the path it could not write (the `stop-guard` Stop hook still exits 0 and prints the same message to stderr). The escape is to point the state at a directory the session can write: `--state DIR` or `LOOP_STATE_DIR`. A relative value resolves against the main checkout, so use an absolute one if the main checkout is the thing refused.
+
 ## CLAUDE.md size creep
 
 The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~270 lines to ~70. Since 2026-09-24 the hub is `AGENTS.md` and `CLAUDE.md` is its one-line import, so the pre-commit hook checks whichever of the two is staged; it warns when either exceeds 150 lines or ~4000 tokens. The warning catches the slow drift back into single-file-everything; treat it as a prompt to move content into a spoke (`docs/internals/`) or remove duplication with SessionStart-injected directives. The warning does not block — discretion stays with the author.

@@ -1,5 +1,5 @@
 {
-  "description": "path-privacy hooks: SessionStart (startup only) refreshes stale git hook wrappers and is silent otherwise; PreToolUse rewrites in-repo absolute paths to repo-relative and blocks external paths and the git user.name full name in Write/Edit content and in git/gh message and branch text (the git hooks remain the authoritative gate).",
+  "description": "path-privacy hooks: SessionStart (startup only) refreshes stale git hook wrappers and is silent otherwise; PreToolUse rewrites in-repo absolute paths to repo-relative and blocks external paths and the git user.name full name in Write/Edit content and in git/gh commands, home-directory prefixes masked (the git hooks remain the authoritative gate).",
   "hooks": {
     "SessionStart": [
       {

@@ -50,7 +50,7 @@
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
-      "version": "0.18.2"
+      "version": "0.18.3"
     },
     {
       "name": "writing",
@@ -65,7 +65,7 @@
     {
       "name": "improvement-loops",
       "source": "./skills/improvement-loops",
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     {
       "name": "model-routing",

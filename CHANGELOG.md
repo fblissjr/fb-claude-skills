@@ -1,5 +1,13 @@
 # changelog
 
+## 1.67.0
+
+### fixed
+- **`path-privacy` 0.18.2 -> 0.18.3: the name guard reads the whole git/gh command again, with home-directory prefixes masked.** 0.18.2 narrowed the guard to message and branch text, and a live-fire review from a peer session showed what that dropped. The full name could reach GitHub, which no git hook sees, through gh short flags (`-t`/`-b`), `gh issue comment -b`, `gh api -f body=`, a lightweight tag name, or a pushed ref name. The guard now scans the whole command after masking the username segment of `/Users/<x>` and `/home/<x>`, plus `~/` and `$HOME`. A home directory that spells the name joined no longer blocks a read-only command; paths stay the path check's job.
+  - **Tests.** A parametrized test covers the five routes, red before the fix. Removing the masking turns two existing tests red, including the joined-name home-path test.
+- **`improvement-loops` 0.4.0 -> 0.4.1: a refused loop-state write fails loudly.** `loop_state.py` exits 3, naming the path and the `--state` / `LOOP_STATE_DIR` override, when the write is refused (EPERM, EACCES, EROFS). It used to raise a traceback. The stop guard still exits 0 and reports on stderr. `docs/internals/gotchas.md` records that the default state location under the main checkout is reachable from a worktree only through a gap in isolation (a plain `python3` write), which is undocumented and may close.
+  - **Tests.** Three new ones in `test_loop_state.py`.
+
 ## 1.66.0
 
 ### removed

@@ -16,7 +16,7 @@ anything into context unless it has something to tell you.
 | Where | Behaviour |
 |---|---|
 | PreToolUse, Write/Edit | An absolute or `~`/`$HOME` spelling of a path **inside** the repo is rewritten to repo-relative before the write lands (`updatedInput`, no permission change), with one line of context saying so. A path **outside** the repo, or the full name, blocks the call |
-| PreToolUse, Bash | A `git`/`gh` command containing the full name is blocked. Commit, tag and PR message text (heredoc bodies included) and new branch names are scanned for external paths |
+| PreToolUse, Bash | A `git`/`gh` command containing the full name is blocked; home-directory prefixes are masked first, so a home path that spells the name does not count. Commit, tag and PR message text (heredoc bodies included) and new branch names are scanned for external paths |
 | git pre-commit | Staged files are scanned whole for external paths. **Added** lines are scanned for the full name, so a name already in history does not block unrelated commits |
 | git commit-msg | Message and current branch name, for both. A `Signed-off-by:` trailer from `git commit -s` is allowed |
 | SessionStart (startup only) | Refreshes this repo's frozen hook wrappers when the template changes. Emits nothing in a repo whose gate is installed and current; says once per repo when the gate is missing |
