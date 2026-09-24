@@ -94,7 +94,7 @@ Knowledge graphs are seductive but brittle. Updates are impossible without break
 
 The second case is not a grudging exception to the first. It is the more common one, and this repo already lives by it. `postmortem-index` rebuilds its index from the directory every time it is asked and refuses to commit a listing, because "a listing that gets committed and trusted becomes a copy that drifts out of agreement with the directory." `gemini-bridge` writes run directories that are the handoff contract between models, plus an append-only `ledger.jsonl` queried in place.
 
-The failure this rule prevents is a copy with no reader. A copy earns its place only if it has a consumer other than the check that confirms it is a copy -- the same test CLAUDE.md invariant 1b applies to versions and changelogs.
+The failure this rule prevents is a copy with no reader. A copy earns its place only if it has a consumer other than the check that confirms it is a copy -- the same test AGENTS.md invariant 1b applies to versions and changelogs.
 
 ## verify by construction
 

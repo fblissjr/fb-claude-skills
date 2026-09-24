@@ -36,7 +36,7 @@ If `skill-maintain` CLI is available:
 skill-maintain upstream
 ```
 
-If CLI is not available, check `.skill-maintainer/config.json` for `llms_full_url` and `upstream_urls`. Fetch the llms-full.txt URL using WebFetch, split by `Source: <url>` delimiters, and compare each watched page's content against stored hashes in `.skill-maintainer/state/upstream_hashes.json`.
+If CLI is not available, check `.skill-maintainer/config.json` for `llms_full_url`, `upstream_urls` and `watch_only_urls` (pages followed for change but cited by no section). Fetch the llms-full.txt URL using WebFetch, split by `Source: <url>` delimiters, and compare each watched page's content against stored hashes in `.skill-maintainer/state/upstream_hashes.json`.
 
 If no config file exists, skip and note "no config -- skip upstream check".
 

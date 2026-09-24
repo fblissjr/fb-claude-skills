@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-09-24
 
 # Maintenance
 
@@ -13,7 +13,7 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | Plugin↔marketplace listing alignment (`check_version_alignment`: marketplace entries with no plugin on disk, plugins on disk missing from marketplace) | `skill-maintain quality` / repo-hygiene suite | On demand |
 | Every other copy of a version that can drift — `pyproject.toml`, and any authored `package.json` (`node_modules`, `dist`, `build` excluded) — compared against its `plugin.json` | `check_version_alignment`, same suite | On demand |
 | Unbumped content changes | Pre-commit git hook | On commit (warning only) |
-| CLAUDE.md size creep | Pre-commit git hook | On commit (warning only) |
+| CLAUDE.md / AGENTS.md size creep | Pre-commit git hook | On commit (warning only) |
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |
 | Plugin behaviour drift across repos (emission rates, unattributable hooks, artifact staleness) | `skill-maintain tune` | Phase 4 of `/skill-maintainer:maintain` |
 | best_practices.md section provenance — a cited upstream page moving past the hash its section was verified against (`best_practices provenance`) | `skill-maintain test`, and printed by `skill-maintain upstream` after every fetch | On demand |
@@ -30,12 +30,12 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Red/green test suite | `skill-maintain test` |
 | Full maintenance pass (pulls sources, checks upstream, runs quality, proposes best-practices updates) | `/skill-maintainer:maintain` |
 | Quick quality / budget | `/skill-maintainer:quality` or `skill-maintain quality` |
-| Upstream Claude Code doc change detection (per-page snapshots, line/char deltas) | `skill-maintain upstream` |
+| Upstream Claude Code doc change detection (per-page snapshots, line/char deltas). Pages come from `upstream_urls` in `.skill-maintainer/config.json`, plus `watch_only_urls`: pages followed on every refresh that `best_practices.md` need not cite, so an uncited one is not reported unattributed. A URL in both lists is a named config error | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
 | Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `a direct copy (the PostToolUse hook normally handles it)` |
 | Append-only audit log query | `skill-maintain log` |
-| Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / CLAUDE.md) | `skill-maintain lint` |
+| Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / AGENTS.md / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
 | Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`; listed as Phase 5 of `/skill-maintainer:maintain` so the cadence has an owner |
 

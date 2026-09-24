@@ -1,4 +1,4 @@
-last updated: 2026-08-01
+last updated: 2026-09-24
 
 # model-routing
 
@@ -63,8 +63,4 @@ The **agent-state feedback layer was removed in 0.5.0.** It appended an outcome-
 
 ## Related
 
-[`advisor`](../advisor/README.md) is this plugin's mirror image. This one routes *down* — well-specified mechanical work to a cheaper model in a subagent. `advisor` routes *up*, consulting a higher-tier model about the current session at the moments where judgment, not execution, is the expensive part.
-
-They compose but stay separate on purpose — though not for the reason first written here. The original argument was that this plugin must stay discoverable while `advisor` must not, so one plugin could not hold both settings. That stopped being true on 2026-08-01, when pausing installation made this skill `disable-model-invocation: true` as well. Both are now user-invoked only.
-
-What still separates them is shape and lifecycle. This plugin is an installer: it writes a file and gets out of the way, with no runtime footprint. `advisor` is all runtime — hooks on three events, a spend gate, per-session state. This one is paused pending measurement; that one tracks a beta upstream feature and will keep moving. Merging them would couple a settled thing to a churning one and put two opposite policies — delegate downward on your own judgment, never spend upward without a keystroke — behind one description.
+This plugin routes *down*: well-specified mechanical work goes to a cheaper model in a subagent. Routing *up*, a higher-tier model advising on the current session, is Claude Code's built-in [`/advisor`](https://code.claude.com/docs/en/advisor). This repo's own `advisor` plugin was retired on 2026-09-24 in its favour.

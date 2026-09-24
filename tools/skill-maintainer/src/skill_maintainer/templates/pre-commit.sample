@@ -13,17 +13,21 @@ is_staged() { echo "$staged" | grep -qxF "$1"; }
 claude_md_size_check() {
     # Soft thresholds duplicated from skill_maintainer/shared.py (TOKEN_BUDGET_WARN=4000).
     # Shell can't import Python; if you change the canonical value there, change here too.
-    if is_staged "CLAUDE.md" && [ -f "CLAUDE.md" ]; then
-        lines=$(wc -l < CLAUDE.md | tr -d ' ')
-        chars=$(wc -c < CLAUDE.md | tr -d ' ')
-        approx_tokens=$((chars / 4))
-        if [ "$lines" -gt 150 ] || [ "$approx_tokens" -gt 4000 ]; then
-            echo ""
-            echo "WARNING: CLAUDE.md size creep ($lines lines, ~$approx_tokens tokens)."
-            echo "  Soft limits: 150 lines / 4000 tokens. Move detail into docs/internals/<topic>.md spokes."
-            echo ""
+    # AGENTS.md too: a repo may keep its instructions there and reduce
+    # CLAUDE.md to an `@AGENTS.md` import, which would pass this check forever.
+    for hub in CLAUDE.md AGENTS.md; do
+        if is_staged "$hub" && [ -f "$hub" ]; then
+            lines=$(wc -l < "$hub" | tr -d ' ')
+            chars=$(wc -c < "$hub" | tr -d ' ')
+            approx_tokens=$((chars / 4))
+            if [ "$lines" -gt 150 ] || [ "$approx_tokens" -gt 4000 ]; then
+                echo ""
+                echo "WARNING: $hub size creep ($lines lines, ~$approx_tokens tokens)."
+                echo "  Soft limits: 150 lines / 4000 tokens. Move detail into docs/internals/<topic>.md spokes."
+                echo ""
+            fi
         fi
-    fi
+    done
 }
 
 failed=0
@@ -129,7 +133,7 @@ while IFS= read -r root; do
             [ -f "$skill_md" ] || continue
             case "$skill_md" in *.backup/*) continue ;; esac
             # `|| true` is required, not defensive: SKILL.md no longer carries
-            # metadata.version (see CLAUDE.md invariant 1), so grep matches
+            # metadata.version (see AGENTS.md invariant 1), so grep matches
             # nothing, and under `set -euo pipefail` a non-matching grep in a
             # pipeline aborts the whole hook silently with exit 1.
             sk_ver=$(sed -n '/^---$/,/^---$/p' "$skill_md" | grep '^ *version:' | head -1 | sed 's/.*version: *//; s/[" ]//g' || true)

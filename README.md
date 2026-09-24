@@ -1,4 +1,4 @@
-last updated: 2026-08-17
+last updated: 2026-09-24
 
 # fb-claude-skills
 
@@ -49,7 +49,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped `fast-executor` / `task-coder` agents. **Installation is paused (2026-08-01)** — the rule asserts a cost/quality tradeoff nothing has measured, so it was removed everywhere and the skill is now user-invoked only. Removal still works. See [model_routing_flywheel.md](docs/internals/model_routing_flywheel.md). |
-| [advisor](skills/advisor/) | Skill + hooks | Consult a higher-tier advisor model about the current session, emulating the Claude API's advisor tool inside Claude Code. Reconstructs the session transcript into a bounded digest so a stronger model can see what was actually done. Strictly user-invoked: only a typed `/advisor` mints the spend authorization, and hooks deny any spawn without it. Mirror image of `model-routing`. |
 | [grilling](skills/grilling/) | Skill | A design interview that works the problem as a tree instead of asking questions in the order they occur. Each round asks every question whose prerequisites are already settled, with a recommended answer attached; facts the codebase can settle are looked up, never asked; the session ends when nothing is left unasked. |
 
 ### plugin & skill maintenance
@@ -120,7 +119,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install path-privacy@fb-claude-skills
 /plugin install writing@fb-claude-skills
 /plugin install model-routing@fb-claude-skills
-/plugin install advisor@fb-claude-skills
 /plugin install claim-audit@fb-claude-skills
 /plugin install postmortem@fb-claude-skills
 /plugin install gemini-bridge@fb-claude-skills
@@ -216,7 +214,6 @@ Once installed, invoke as namespaced slash commands:
 /writing:wait-what               # Rewrite the last message when it did not land (user-invoked only)
 /grilling:grilling               # Design interview in rounds over a tree; facts looked up, not asked
 /model-routing:model-routing     # Per-project down-tier delegation rule (install paused; removal works)
-/advisor                         # Consult a higher-tier model about this session (user-invoked only)
 /claim-audit:claim-audit         # Audit added prose as claims, each re-derived by execution
 
 /postmortem:postmortem           # Evidence-grounded retrospective of a session, feature, or span
@@ -241,7 +238,7 @@ Once installed, invoke as namespaced slash commands:
 
 Skills also trigger automatically on relevant keywords. Say "decompose this process" or "interview me about this workflow" and the mece-decomposer skill loads.
 
-Two exceptions: `advisor` and `model-routing` set `disable-model-invocation: true`, so their descriptions never enter Claude's context and only an explicit slash command reaches them. For `advisor` that is the point — a typed `/advisor` is what authorizes the spend.
+One exception: `model-routing` sets `disable-model-invocation: true`, so its description never enters Claude's context and only an explicit slash command reaches it.
 
 ### MCP App tools
 

@@ -14,7 +14,8 @@ about which paths fire that event -- exactly the shape of the 0.11.0 no-op,
 where a single unexamined assumption about the environment turned the gate off
 silently.
 
-Precedent: `skills/advisor` guards the same threat with three layers --
+Precedent: this repo's `advisor` plugin (retired 2026-09-24 for Claude Code's
+built-in `/advisor`) guarded the same threat with three layers --
 `disable-model-invocation`, its mint hook, and a `PreToolUse` matcher refusing
 model-initiated loads. This ships the first two. The third is not added because
 it would guard a path this flag already closes, and `doctor` cannot detect a

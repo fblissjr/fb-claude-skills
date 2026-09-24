@@ -40,7 +40,7 @@
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "version": "0.31.0"
+      "version": "0.32.0"
     },
     {
       "name": "json-query",
@@ -73,11 +73,6 @@
       "version": "0.5.2"
     },
     {
-      "name": "advisor",
-      "source": "./skills/advisor",
-      "version": "0.3.0"
-    },
-    {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
       "version": "0.3.2"
@@ -105,7 +100,7 @@
     {
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
-      "version": "0.15.1"
+      "version": "0.15.2"
     },
     {
       "name": "heylook-provider",
@@ -120,6 +115,7 @@
     "mcp-apps": null,
     "explainer-video": null,
     "screenwright": null,
-    "cogapp-markdown": null
+    "cogapp-markdown": null,
+    "advisor": null
   }
 }

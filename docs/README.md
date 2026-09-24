@@ -62,7 +62,9 @@ skill-maintain upstream
 That writes `.skill-maintainer/state/pages/*.md` (gitignored), reports a
 per-page line and character delta against the previous snapshot, and then runs
 the provenance join described in [maintenance.md](internals/maintenance.md).
-The tracked pages are the `upstream_urls` in `.skill-maintainer/config.json`.
+The tracked pages are the `upstream_urls` in `.skill-maintainer/config.json`;
+`watch_only_urls` are fetched and reported the same way but kept out of the
+provenance join unless a section cites one.
 
 Anything not tracked there is a link away at
 [code.claude.com/docs](https://code.claude.com/docs/en/overview) — read it live

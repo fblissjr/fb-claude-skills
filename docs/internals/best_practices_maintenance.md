@@ -260,7 +260,7 @@ being filled ad hoc without being recorded as a source.
   `init_config()` (`config.py:109`) writes `config.json` and the state
   directory. It does not write the checklist.
 
-That second one also means CLAUDE.md invariant 3's stated justification for the
+That second one also means AGENTS.md invariant 3's stated justification for the
 bundled copy — "fresh `skill-maintain init` runs in other repos pull stale
 rules" — is wrong. The pair is still legitimate: the real consumer is Phase 7
 reading `references/best_practices.md` in an installed repo that has no local

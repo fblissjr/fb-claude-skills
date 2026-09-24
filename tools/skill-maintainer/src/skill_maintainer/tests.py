@@ -18,8 +18,9 @@ from skills_ref.parser import find_skill_md, parse_frontmatter
 from skill_maintainer.cc_schema import validate_cc as validate
 
 from skill_maintainer.config import (
+    ConfigError,
     best_practices_file,
-    get_upstream_urls,
+    get_watch_pages,
     load_fetch_date,
     load_hashes,
 )
@@ -1189,26 +1190,36 @@ def test_repo_hygiene(root: Path) -> list[Result]:
         # nothing prunes it -- so passing raw state lets a dropped page's
         # sections report `current` against something no run will ever fetch
         # again. `upstream.py` scopes to `watch_pages`; this must agree with it.
-        watched = {u: h for u in get_upstream_urls(root) if (h := state.get(u))}
-        join = join_provenance(
-            parse_annotations(bp_path.read_text(encoding="utf-8")),
-            watched,
-            repos=state.get("local_repos") or {},
-        )
-        # All five buckets, per JoinResult's contract. `unattributed` was
-        # omitted here at first, which hid the bucket with the highest measured
-        # real-defect rate (5 of 6) from the routine board.
-        scope = (
-            f"{join.harness_sections} harness annotations: "
-            f"{len(join.current)} current, {len(join.unbound)} unbound, "
-            f"{len(join.untracked)} untracked source, "
-            f"{len(join.unattributed)} unattributed"
-        )
+        # Both read `get_watch_pages`, so the page set is `upstream_urls` plus
+        # `watch_only_urls` in both places, and an overlap fails both.
+        try:
+            tracked_urls, watch_only_urls = get_watch_pages(root)
+        except ConfigError as e:
+            # No exception boundary around this function: a raise here would
+            # take out every other repo arm. A failing row names the URL.
+            join, config_error = None, str(e)
+        else:
+            config_error = None
+            watched = {
+                u: h for u in tracked_urls + watch_only_urls if (h := state.get(u))
+            }
+            join = join_provenance(
+                parse_annotations(bp_path.read_text(encoding="utf-8")),
+                watched,
+                repos=state.get("local_repos") or {},
+                watch_only=watch_only_urls,
+            )
+        if join is None:
+            results.append(Result(
+                "repo", "", "best_practices provenance",
+                False,
+                f"config error -- {config_error}",
+            ))
         # A floor, because `not join.moved` alone is green when NOTHING parsed.
         # Reformat the annotation comments, or break the regex, and the arm
         # reports PASS with `0 harness annotations` -- exactly the failure
         # JoinResult's own docstring names, in the arm that consumes it.
-        if not join.harness_sections:
+        elif not join.harness_sections:
             results.append(Result(
                 "repo", "", "best_practices provenance",
                 False,
@@ -1216,6 +1227,17 @@ def test_repo_hygiene(root: Path) -> list[Result]:
                 "or the annotation format broke",
             ))
         else:
+            # All five buckets, per JoinResult's contract. `unattributed` was
+            # omitted here at first, which hid the bucket with the highest
+            # measured real-defect rate (5 of 6) from the routine board.
+            # `watch-only` is scope, not a finding: it says what was excluded.
+            scope = (
+                f"{join.harness_sections} harness annotations: "
+                f"{len(join.current)} current, {len(join.unbound)} unbound, "
+                f"{len(join.untracked)} untracked source, "
+                f"{len(join.unattributed)} unattributed, "
+                f"{len(join.watch_only)} watch-only"
+            )
             results.append(Result(
                 "repo", "", "best_practices provenance",
                 not join.moved,

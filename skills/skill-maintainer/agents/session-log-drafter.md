@@ -17,7 +17,7 @@ Forked subagent that reads the active conversation context and drafts an entry f
 
 ## Why this exists
 
-This repo's conventions (CLAUDE.md + `.claude/rules/general.md`) require updating `internal/log/` at the end of every working session. Writing the log manually at the end is tedious and often skipped; the author just did the work and is fatigued. Delegating to a forked subagent keeps the main conversation focused on the task while the log gets drafted in parallel.
+This repo's conventions (its CLAUDE.md or AGENTS.md, plus `.claude/rules/general.md`) require updating `internal/log/` at the end of every working session. Writing the log manually at the end is tedious and often skipped; the author just did the work and is fatigued. Delegating to a forked subagent keeps the main conversation focused on the task while the log gets drafted in parallel.
 
 ## House style
 

@@ -1383,8 +1383,8 @@ maintaining a prose copy that can disagree with it.
       by `skillOverrides`". It also named a `background: false` agent field that
       neither snapshot of the page carries. The sections carried verified hashes
       throughout: a hash says the page did not move, not that the section ever
-      matched it. The repo's own `advisor` skill stated the correct behaviour
-      the whole time
+      matched it. The repo's own `advisor` skill (since retired) stated the
+      correct behaviour the whole time
 - [ ] **A summarising fetch can never source a claim that the docs do NOT say
       something.** Absence is exactly what summarisation discards, so its silence
       is not evidence. Grep the raw page. And quote sentences rather than line

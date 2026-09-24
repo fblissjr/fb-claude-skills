@@ -40,7 +40,7 @@ database since v3 shipped.
 defined once and read nowhere — `grep -rn SCHEMA_VERSION src tests` returns
 exactly one line, its own definition. Meanwhile the SQL inserts 3 and the README
 documents 3. Three sources of truth for one number, two values, and the one in
-Python has no consumer. This is precisely the pattern CLAUDE.md invariant 1b
+Python has no consumer. This is precisely the pattern AGENTS.md invariant 1b
 names: *a copy earns its place only if it has a consumer other than the check
 that confirms it is a copy.* It should be deleted, not corrected.
 

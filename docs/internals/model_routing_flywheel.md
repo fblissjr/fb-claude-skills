@@ -223,7 +223,7 @@ table serves all three routing decisions in this repo:
 | Plugin | Direction | Binding constraint |
 |---|---|---|
 | `model-routing` | down-tier, within Claude | cost |
-| `advisor` | up-tier, within Claude | capability, bounded by spend |
+| `advisor` (retired 2026-09-24 for the built-in `/advisor`) | up-tier, within Claude | capability, bounded by spend |
 | `gemini-bridge` (designed, not started) | cross-vendor | capability the default lacks |
 
 All three are "should this work happen somewhere other than here," and all three

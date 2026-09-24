@@ -122,6 +122,25 @@ def find_count_drift(root: Path, scan_files: list[Path]) -> list[tuple[Path, int
     return findings
 
 
+def lint_scan_files(root: Path) -> list[Path]:
+    """The hub and spoke docs the count-drift check reads.
+
+    AGENTS.md is listed beside CLAUDE.md because a repo may keep its prose in
+    AGENTS.md and reduce CLAUDE.md to an `@AGENTS.md` import; scanning only the
+    import would check one line and report clean.
+    """
+    scan_files = [
+        root / "README.md",
+        root / "AGENTS.md",
+        root / "CLAUDE.md",
+        root / "docs/README.md",
+    ]
+    internals = root / "docs/internals"
+    if internals.exists():
+        scan_files += sorted(internals.glob("*.md"))
+    return scan_files
+
+
 def main(args=None):
     import argparse
 
@@ -144,14 +163,7 @@ def main(args=None):
         print("  (none)")
     print()
 
-    scan_files = [
-        root / "README.md",
-        root / "CLAUDE.md",
-        root / "docs/README.md",
-    ]
-    internals = root / "docs/internals"
-    if internals.exists():
-        scan_files += sorted(internals.glob("*.md"))
+    scan_files = lint_scan_files(root)
 
     findings = find_count_drift(root, scan_files)
     print("## Count drift\n")

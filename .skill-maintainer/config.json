@@ -21,6 +21,20 @@
     "https://code.claude.com/docs/en/model-config",
     "https://code.claude.com/docs/en/output-styles"
   ],
+  "watch_only_urls": [
+    "https://code.claude.com/docs/en/artifacts",
+    "https://code.claude.com/docs/en/channels",
+    "https://code.claude.com/docs/en/channels-reference",
+    "https://code.claude.com/docs/en/scheduled-tasks",
+    "https://code.claude.com/docs/en/deep-links",
+    "https://code.claude.com/docs/en/large-codebases",
+    "https://code.claude.com/docs/en/env-vars",
+    "https://code.claude.com/docs/en/interactive-mode",
+    "https://code.claude.com/docs/en/advisor",
+    "https://code.claude.com/docs/en/commands",
+    "https://code.claude.com/docs/en/cloud-environments",
+    "https://code.claude.com/docs/en/workflows"
+  ],
   "llms_full_url": "https://code.claude.com/docs/llms-full.txt",
   "tracked_repos": [
     "coderef/agentskills",

@@ -1,4 +1,4 @@
-last updated: 2026-08-03
+last updated: 2026-09-24
 
 # skill-maintainer (CLI package)
 
@@ -280,7 +280,7 @@ Read that count. A green that resolved 0 of 4 claims checked nothing, and looks 
 
 Fetches `https://code.claude.com/docs/llms-full.txt`, splits by `Source: <url>` delimiters into per-page sections, hashes each watched page, and reports changes.
 
-Watched pages are configured in `.skill-maintainer/config.json` under `upstream_urls`. Defaults cover: skills, plugins, plugins-reference, discover-plugins, plugin-marketplaces, hooks-guide, hooks, sub-agents, memory.
+Watched pages are configured in `.skill-maintainer/config.json` under `upstream_urls`, plus any `watch_only_urls` (see [configuration](#configuration)). Defaults cover: skills, plugins, plugins-reference, discover-plugins, plugin-marketplaces, hooks-guide, hooks, sub-agents, memory. Watch-only pages are labelled `(watch-only)` in the report.
 
 ```bash
 skill-maintain upstream
@@ -343,6 +343,9 @@ Per-repo config lives at `.skill-maintainer/config.json`. Created by `skill-main
     "https://code.claude.com/docs/en/skills",
     "https://code.claude.com/docs/en/plugins"
   ],
+  "watch_only_urls": [
+    "https://code.claude.com/docs/en/workflows"
+  ],
   "tracked_repos": [
     "coderef/agentskills",
     "coderef/mcp/modelcontextprotocol"
@@ -354,6 +357,8 @@ Per-repo config lives at `.skill-maintainer/config.json`. Created by `skill-main
 To add a tracked source, add an entry to `tracked_repos` and clone or symlink the repo at the specified path.
 
 To add a watched upstream page, add its URL to `upstream_urls`. The page must appear in `llms-full.txt`.
+
+`upstream_urls` also claims that `best_practices.md` relies on the page: a fetched page no section cites is reported as fetched-but-unattributed, which is treated as a finding (usually a wrong citation). For a page you want to follow but the file doesn't cite, use `watch_only_urls` instead. Those pages are fetched, hashed, snapshotted and reported exactly like `upstream_urls`, but an uncited one is counted as `watch-only` rather than unattributed. If a section does cite one, it joins as an ordinary tracked page. A URL in both lists is a config error: `upstream` exits non-zero and the `best_practices provenance` arm fails, both naming the URL. The key is optional; absent means empty, and `init` doesn't write it.
 
 Best practices doc: `.skill-maintainer/best_practices.md` (proposed edits from `/maintain`, reviewed manually before applying).
 

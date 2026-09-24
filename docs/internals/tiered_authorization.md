@@ -137,9 +137,14 @@ That makes `PermissionRequest` the correct place to express "subagents may make
 cheap Gemini calls, and only cheap ones," rather than trying to encode it in
 skill frontmatter.
 
-## What advisor does today
+## What advisor did
 
-`skills/advisor` is this repo's existing implementation of the pattern, and it
+> **Status, 2026-09-24:** the `advisor` plugin is retired in favour of Claude
+> Code's built-in `/advisor` command and advisor tool. The section below is the
+> record of how its spend gate worked; the pattern still stands, and
+> `gemini-bridge`'s authorization is now its live implementation here.
+
+`skills/advisor` was this repo's implementation of the pattern, and it
 chose maximum strictness:
 
 1. `disable-model-invocation: true` — the skill never enters context on Claude's
@@ -289,7 +294,9 @@ fact that most changes the picture.
 
 - [Hooks reference](https://code.claude.com/docs/en/hooks) — fetch
   `https://code.claude.com/docs/en/hooks.md` for the untruncated version
-- `skills/advisor/hooks/` — this repo's working implementation
+- `skills/advisor/hooks/` — the retired implementation, recoverable from git
+  history (removed in the release that added `advisor` to the marketplace
+  `renames` map)
 - `coderef/claude-plugins-official/plugins/claude-security/hooks/hooks.json` —
   first-party `UserPromptExpansion` use (display-only)
 - [Introducing Claude Opus 5](https://www.anthropic.com/news/claude-opus-5)

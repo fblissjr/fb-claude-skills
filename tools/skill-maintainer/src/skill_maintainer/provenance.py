@@ -28,6 +28,7 @@ this module exists to remove.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 # `## x` or `### x`, capturing the title.
@@ -91,6 +92,16 @@ class JoinResult:
 
     Triage rule: for each page here, grep it for the terms the file asserts
     before dropping anything.
+
+    Pages in `watch_only_urls` never land here: they are fetched because the
+    owner reads them, not because the file relies on them.
+    """
+    watch_only: list[str] = field(default_factory=list)
+    """Fetched `watch_only_urls` pages no section cites -- scope, not a finding.
+
+    Counted so a run that excluded pages from `unattributed` says it did. A
+    watch-only page a section DOES cite is joined like any tracked page and is
+    not listed here.
     """
 
     @property
@@ -151,6 +162,7 @@ def join_provenance(
     annotations: list[Annotation],
     tracked: dict[str, str],
     repos: dict[str, str] | None = None,
+    watch_only: Iterable[str] = (),
 ) -> JoinResult:
     """Compare each harness annotation's source against observed state.
 
@@ -169,6 +181,12 @@ def join_provenance(
 
     Repo hashes compare by PREFIX: state holds the full 40-character SHA and
     the annotation holds a readable short form.
+
+    `watch_only` names pages in `tracked` that the rules file is not expected
+    to cite. They bind exactly like any tracked page when a section cites
+    them, and are otherwise kept out of `unattributed`. So `tracked` must
+    carry their hashes too: dropping them would turn a cited watch-only page
+    into an untracked source.
     """
     # `upstream_hashes.json` is shared state: `sources.py` writes tracked-repo
     # HEAD SHAs into the same file under non-URL keys such as `local_repos`.
@@ -208,7 +226,10 @@ def join_provenance(
     # Only pages are reported as unattributed. A tracked repo serves the whole
     # project, not just this file, so "no section cites it" is not a finding
     # about the repo.
-    result.unattributed = sorted(set(tracked) - cited)
+    uncited = set(tracked) - cited
+    watch_only_set = set(watch_only)
+    result.unattributed = sorted(uncited - watch_only_set)
+    result.watch_only = sorted(uncited & watch_only_set)
     return result
 
 
@@ -218,7 +239,8 @@ def format_report(result: JoinResult) -> str:
         f"Provenance join: {result.harness_sections} harness annotations, "
         f"{len(result.moved)} moved, {len(result.current)} current, "
         f"{len(result.unbound)} unbound, {len(result.untracked)} untracked source, "
-        f"{len(result.unattributed)} fetched-but-unattributed",
+        f"{len(result.unattributed)} fetched-but-unattributed, "
+        f"{len(result.watch_only)} watch-only",
     ]
     if result.moved:
         lines.append("\n  MOVED -- source changed since the section was verified:")

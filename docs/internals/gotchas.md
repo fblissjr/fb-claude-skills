@@ -27,7 +27,7 @@ If you reset settings or clone fresh, re-disable. Trade-off: this repo gives up 
 
 ## Pre-commit hook is not tracked by git
 
-`.git/hooks/pre-commit` validates staged SKILL.md files (via `skill-maintain validate`, the Claude Code schema gate), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** (git refuses to track `.git/`) — must be re-applied on fresh clones.
+`.git/hooks/pre-commit` validates staged SKILL.md files (via `skill-maintain validate`, the Claude Code schema gate), checks plugin version alignment across all sources, warns when plugin content changes are staged without a version bump, and warns on CLAUDE.md or AGENTS.md size creep (>150 lines or ~4000 tokens). **It's not tracked by git** (git refuses to track `.git/`) — must be re-applied on fresh clones.
 
 To install on a fresh clone:
 
@@ -75,7 +75,7 @@ Splitting a diff across branches to fit that cap manufactures false positives: r
 
 ## CLAUDE.md size creep
 
-The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~270 lines to ~70. The pre-commit hook now warns when CLAUDE.md exceeds 150 lines or ~4000 tokens. The warning catches the slow drift back into single-file-everything; treat it as a prompt to move content into a spoke (`docs/internals/`) or remove duplication with SessionStart-injected directives. The warning does not block — discretion stays with the author.
+The hub-and-spoke restructure (skill-maintainer 0.6.5) trimmed CLAUDE.md from ~270 lines to ~70. Since 2026-09-24 the hub is `AGENTS.md` and `CLAUDE.md` is its one-line import, so the pre-commit hook checks whichever of the two is staged; it warns when either exceeds 150 lines or ~4000 tokens. The warning catches the slow drift back into single-file-everything; treat it as a prompt to move content into a spoke (`docs/internals/`) or remove duplication with SessionStart-injected directives. The warning does not block — discretion stays with the author.
 
 ## Shell snippets in shipped docs inherit the reader's working directory
 
@@ -117,7 +117,7 @@ Multiple places in the repo (root `README.md`, `docs/README.md`, historically `C
 
 The fix: don't include numbers in prose. Say "domain reports" rather than a hardcoded count. The filesystem is the source of truth; descriptions that don't claim a count never go stale.
 
-`skill-maintain lint` enforces this. It scans `README.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for count assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem reality. Soft finding (exit 0); not a CI block.
+`skill-maintain lint` enforces this. It scans `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/README.md`, and `docs/internals/*.md` for count assertions matching `\b\d+\s+(domain reports|reports covering|captured docs)\b` and compares each claim to the filesystem reality. Soft finding (exit 0); not a CI block.
 
 ## SessionStart hooks from our own plugins were disabled here (fully retired 2026-08-04)
 

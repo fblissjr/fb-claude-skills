@@ -222,7 +222,7 @@ the directory every time and refuses to commit a listing, because "a listing tha
 gets committed and trusted becomes a copy that drifts out of agreement with the
 directory" (`skills/postmortem/skills/postmortem-index/SKILL.md`). The same
 plugin refuses to store a supersedes chain for the same reason
-(`skills/postmortem/skills/postmortem/references/filing.md`). That is CLAUDE.md
+(`skills/postmortem/skills/postmortem/references/filing.md`). That is AGENTS.md
 invariant 1b derived independently, for a unit with no connection to this one.
 
 ### 6. Facts at call time, outcomes as a later keyed append
@@ -252,7 +252,7 @@ Refusals, budget limits, and content checks live in the tool, not in a hook.
 
 Rationale: the tool is the one place that covers interactive use, scripted use,
 subagent use, and a human at a shell identically. A hook covers one harness and
-fails the tier test in CLAUDE.md invariant 1c. Guards must also refuse rather than
+fails the tier test in AGENTS.md invariant 1c. Guards must also refuse rather than
 warn when the action is irreversible — for `gemini-bridge`, `interactions.delete`
 returns HTTP 501, so anything sent is permanent for the retention window and a
 warning the caller can ignore is not a control.
@@ -268,7 +268,7 @@ Three routing decisions exist in this repo and they are not the same question:
 | Plugin | Direction | Binding constraint |
 |---|---|---|
 | `model-routing` | down-tier, within Claude | **cost** — several options work, pick the cheapest |
-| `advisor` | up-tier, within Claude | **capability**, bounded by spend |
+| `advisor` (retired 2026-09-24; Claude Code's built-in `/advisor` fills this row) | up-tier, within Claude | **capability**, bounded by spend |
 | `gemini-bridge` | cross-vendor | **capability** — the default option does not work at all |
 
 Do not merge them. "Is this mechanical enough for a cheaper model" and "can the

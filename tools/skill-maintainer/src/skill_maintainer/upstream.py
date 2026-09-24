@@ -16,10 +16,11 @@ from pathlib import Path
 import httpx
 
 from skill_maintainer.config import (
+    ConfigError,
     append_event,
     best_practices_file,
     get_llms_full_url,
-    get_upstream_urls,
+    get_watch_pages,
     hashes_file,
     load_hashes,
     record_fetch,
@@ -97,7 +98,7 @@ def compute_delta(old: str | None, new: str) -> dict:
     }
 
 
-def _log_event(root: Path, changed: list[dict]) -> None:
+def _log_event(root: Path, changed: list[dict], watch_only: set[str]) -> None:
     append_event(root, {
         "type": "upstream_check",
         "date": date.today().isoformat(),
@@ -108,6 +109,7 @@ def _log_event(root: Path, changed: list[dict]) -> None:
                 "lines_added": c["delta"]["lines_added"],
                 "lines_removed": c["delta"]["lines_removed"],
                 "chars_delta": c["delta"]["chars_delta"],
+                **({"watch_only": True} if c["url"] in watch_only else {}),
             }
             for c in changed
         ],
@@ -140,14 +142,28 @@ def main(args=None):
 
     root = parsed.dir
 
-    # Determine which pages to watch
+    # Determine which pages to watch. `watch_only_urls` are fetched, hashed,
+    # snapshotted and reported exactly like `upstream_urls`; the only
+    # difference is downstream, in the provenance join, where an uncited one is
+    # not a finding. A --url-file replaces both lists.
+    watch_only: list[str] = []
     if parsed.url_file and parsed.url_file.exists():
         watch_pages = [
             line.strip() for line in parsed.url_file.read_text().splitlines()
             if line.strip() and not line.startswith("#")
         ]
     else:
-        watch_pages = get_upstream_urls(root)
+        try:
+            tracked_urls, watch_only = get_watch_pages(root)
+        except ConfigError as e:
+            print(f"Config error: {e}", file=sys.stderr)
+            sys.exit(2)
+        watch_pages = tracked_urls + watch_only
+    watch_only_set = set(watch_only)
+
+    def label(url: str) -> str:
+        short = url.replace("https://code.claude.com/docs/en/", "")
+        return f"{short} (watch-only)" if url in watch_only_set else short
 
     llms_url = get_llms_full_url(root)
 
@@ -171,7 +187,7 @@ def main(args=None):
     for url in watch_pages:
         content = sections.get(url)
         if content is None:
-            print(f"  NOT FOUND in llms-full.txt: {url}", file=sys.stderr)
+            print(f"  NOT FOUND in llms-full.txt: {label(url)}", file=sys.stderr)
             # Drop any stale hash rather than carry it forward: a page that
             # can no longer be fetched must stop being reported "current" by
             # the provenance join below, and removing it here is what makes
@@ -199,13 +215,13 @@ def main(args=None):
     # Report
     watched = len(watch_pages)
     found = sum(1 for u in watch_pages if u in sections)
-    print(f"\nWatched: {watched} pages, Found: {found}, Changed: {len(changed)}")
+    watch_note = f" ({len(watch_only)} watch-only)" if watch_only else ""
+    print(f"\nWatched: {watched} pages{watch_note}, Found: {found}, Changed: {len(changed)}")
     print()
 
     if changed:
         for c in changed:
-            short_url = c["url"].replace("https://code.claude.com/docs/en/", "")
-            print(f"  [{c['status']}] {short_url}  ({format_delta(c['delta'])})")
+            print(f"  [{c['status']}] {label(c['url'])}  ({format_delta(c['delta'])})")
     else:
         print("  No changes detected.")
 
@@ -229,7 +245,7 @@ def main(args=None):
         record_fetch(root)
 
     if changed and not parsed.no_log:
-        _log_event(root, changed)
+        _log_event(root, changed, watch_only_set)
 
     # Provenance join. Runs against `new_hashes` (post-fetch), so it answers
     # "has the page this section came from moved since the section was checked
@@ -243,6 +259,7 @@ def main(args=None):
             parse_annotations(bp.read_text(encoding="utf-8")),
             watched_hashes,
             repos=new_hashes.get("local_repos") or {},
+            watch_only=watch_only,
         )
         print()
         print(format_report(result))
