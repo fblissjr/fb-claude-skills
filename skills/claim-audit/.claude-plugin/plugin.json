@@ -1,7 +1,7 @@
 {
   "name": "claim-audit",
-  "version": "0.5.0",
-  "description": "Audit the added prose of a diff as untrusted claims -- every count, status, and attribution re-derived by executing commands, never by reading. Reports claims beside their deriving commands and states its own scope.",
+  "version": "0.5.1",
+  "description": "Audit prose as untrusted claims -- a diff's added lines, a standing doc such as a README or AGENTS.md checked against today's code, or a summary about to be sent. Every count, status, capability, pointer and number is re-derived by running a command, never by reading; --fix applies only the corrections the evidence settles. Reports claims beside their deriving commands and states its own scope.",
   "author": {
     "name": "fblissjr"
   },

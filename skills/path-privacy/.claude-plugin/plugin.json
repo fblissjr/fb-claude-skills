@@ -1,7 +1,7 @@
 {
   "name": "path-privacy",
-  "version": "0.18.0",
-  "description": "Enforces one rule: every path written into a repo must be relative to the repo root. A PreToolUse hook blocks leaks in file edits, commit messages and branch names before they land; pre-commit and commit-msg hooks hard-block at commit time; the SessionStart hook refreshes those frozen wrappers in place when the template changes, so there is no script to re-run.",
+  "version": "0.18.1",
+  "description": "Keeps personal identifiers out of repo content: every path stays relative to the repo root, and the git user.name full name never appears. A PreToolUse hook rewrites in-repo absolute paths to relative and blocks the rest in edits, commit messages and branch names; pre-commit and commit-msg hooks hard-block at commit time. Silent at session start in a repo whose gate is installed.",
   "author": {
     "name": "fblissjr"
   },

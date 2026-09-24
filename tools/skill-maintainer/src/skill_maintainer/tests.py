@@ -15,6 +15,7 @@ from pathlib import Path
 import orjson
 
 from skills_ref.parser import find_skill_md, parse_frontmatter
+from skill_maintainer import always_on
 from skill_maintainer.cc_schema import validate_cc as validate
 
 from skill_maintainer.config import (
@@ -1070,6 +1071,35 @@ def check_changelog_claims(root: Path) -> list[Result]:
     return results
 
 
+def check_always_on_ratchet(root: Path) -> list[Result]:
+    """Every plugin's always-on proxy must stay at or under its tracked ceiling.
+
+    The metrics and why they are a proxy rather than a cost report live in
+    `always_on`. This arm only compares. A missing or unreadable baseline, a
+    plugin the proxy cannot read, a plugin with no ceiling, and a ceiling for a
+    plugin that is gone all FAIL: each is a state where the ratchet would
+    otherwise be switched off without anyone deciding to switch it off.
+
+    One PASS row, carrying its scope, only when nothing failed -- a failing run
+    that also printed a PASS under the same check name would read green to
+    anyone filtering for it.
+    """
+    check = "always-on ratchet"
+    if not (root / ".claude-plugin" / "marketplace.json").exists():
+        # Same stance as check_version_alignment: a repo with no marketplace
+        # has no plugins to ratchet, and a permanent red row there is noise.
+        return []
+    try:
+        current = always_on.measure(root)
+        baseline = always_on.load_baseline(root)
+    except always_on.MeasureError as e:
+        return [Result("repo", "", check, False, str(e))]
+    problems = always_on.findings(current, baseline)
+    if problems:
+        return [Result("repo", plugin, check, False, msg) for plugin, msg in problems]
+    return [Result("repo", "", check, True, always_on.scope_line(current, baseline))]
+
+
 def test_repo_hygiene(root: Path) -> list[Result]:
     """Run repo-level checks."""
     results = []
@@ -1100,6 +1130,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
 
     # ...and the changelog's per-unit bump claims vs the manifests.
     results.extend(check_changelog_claims(root))
+
+    # Always-on surface per plugin may only shrink unless a commit raises it.
+    results.extend(check_always_on_ratchet(root))
 
     results.append(Result(
         "repo", "", "no blanket .claude/ gitignore",

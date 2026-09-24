@@ -82,6 +82,7 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
 | `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
 | `sources` | Pull tracked git repos, detect changes since last run |
+| `ratchet` | Per-plugin always-on proxy against the tracked baseline; `--write` resets the ceilings |
 
 ### examples
 
@@ -259,6 +260,23 @@ PASS  repo   changelog claims (3/4 top-section claims resolved to a versioned un
 ```
 
 Read that count. A green that resolved 0 of 4 claims checked nothing, and looks identical to one that checked everything.
+
+### ratchet
+
+Holds each plugin's always-on surface to a ceiling in `.skill-maintainer/always_on_baseline.json` (tracked; only `state/` is gitignored). Three metrics per plugin in `marketplace.json`, read from the working tree:
+
+- `listing_chars`: `description` + `when_to_use` of every model-invocable skill and command, plus every agent's `description`
+- `emitting_hooks`: handlers on `SessionStart`, `UserPromptSubmit`, `UserPromptExpansion` and `PostModelSwitch`, the events whose stdout enters context. A handler that is silent in practice still counts: the ratchet guards the capability
+- `always_monitors`: monitors whose `when` is absent or `"always"`
+
+This is a proxy, not a cost report. `claude plugin details <name>` is the real count; it reads the installed copy, so it can't gate a commit. The `always-on ratchet` arm of `test` fails when a metric exceeds its ceiling, when a marketplace plugin has no ceiling, when the baseline names a plugin that's gone, and when the baseline is missing or unreadable.
+
+```bash
+skill-maintain ratchet           # table: each metric, its ceiling, headroom; exits 1 if the arm would fail
+skill-maintain ratchet --write   # set every ceiling to the current value and print what moved
+```
+
+Run `--write` after a trim to lock the saving in, or to raise a ceiling on purpose. Either way, the baseline diff is part of the commit, so a raise is visible in review.
 
 ### upstream
 

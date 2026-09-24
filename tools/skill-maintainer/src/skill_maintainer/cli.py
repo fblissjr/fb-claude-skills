@@ -12,6 +12,7 @@ COMMANDS = {
     "sources": "skill_maintainer.sources",
     "test": "skill_maintainer.tests",
     "lint": "skill_maintainer.lint",
+    "ratchet": "skill_maintainer.always_on",
     "init": None,  # handled inline
 }
 
@@ -28,6 +29,7 @@ Commands:
   upstream    Check for upstream doc changes (llms-full.txt)
   sources     Pull tracked git repos and detect changes
   lint        Wiki sanity: orphan detection in docs/analysis/, count drift across READMEs
+  ratchet     Per-plugin always-on proxy vs the tracked baseline (not a cost report)
 
 All commands accept --dir <path> to target a different directory (default: .)
 
@@ -40,6 +42,8 @@ Examples:
   skill-maintain upstream
   skill-maintain sources --no-pull
   skill-maintain lint
+  skill-maintain ratchet                 # table: each plugin's metrics, ceiling, headroom
+  skill-maintain ratchet --write         # reset ceilings to current (tighten after a trim, or raise on purpose)
 """
 
 

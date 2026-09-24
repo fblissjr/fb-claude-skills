@@ -1,5 +1,26 @@
 # changelog
 
+## 1.64.0
+
+### added
+- **The always-on ratchet (`skill-maintain` CLI 0.41.0 -> 0.42.0).** Today's trims had nothing stopping them growing back. `skill-maintain test` now fails when any plugin's always-on footprint exceeds its committed ceiling in `.skill-maintainer/always_on_baseline.json`. The same happens when a marketplace plugin has no ceiling (a new plugin's always-on cost is a decision), when the baseline names a plugin that no longer exists, or when the baseline is missing or unreadable. Three things are measured per plugin, from the working tree:
+  - listing characters: the description plus `when_to_use` of each model-invocable skill and command, and the description of each agent;
+  - handlers on events whose output enters context (SessionStart, UserPromptSubmit, UserPromptExpansion, PostModelSwitch);
+  - always-on monitors.
+
+  `skill-maintain ratchet` prints the table, and `--write` tightens after a trim or raises on purpose.
+  - **Why not `claude plugin details`.** That is the authoritative cost report, but it can't gate a commit: it reads the installed copy, can't see an uninstalled plugin, has no JSON output, counts hooks as free, and falls back to lower estimates without network access.
+  - **Calibration.** Run once on 2026-09-24 against `claude plugin details`, with network, on like-for-like copies. Characters per token held between 2.37 and 3.14, so the proxy tracks the real number.
+  - **A discrepancy the calibration surfaced.** `claude plugin details` counts `disable-model-invocation` skills as always-on (model-routing ~110 tokens, each improvement-loops skill ~190), while upstream `skills.md` says their descriptions never enter context. The proxy follows upstream.
+  - **Tests.** 21 tests, red first; five mutations. One (a missing baseline read as empty) survived the first draft, which led to a tighter test.
+  - **Documentation.** `docs/internals/context-cost.md` says what the proxy is and is not.
+
+### changed
+- **`plugin.json` descriptions caught up with today's changes:**
+  - `claim-audit` 0.5.0 -> 0.5.1: it audits standing docs and quoted text, not only a diff, and has `--fix`.
+  - `path-privacy` 0.18.0 -> 0.18.1: the full-name guard, rewrite-instead-of-block, and a silent session start.
+  - `skill-maintainer` 0.36.0 -> 0.36.1: the plugin is `/maintain`, `/sync-versions` and `best_practices.md`; the checks are the separate CLI.
+
 ## 1.63.0
 
 ### added

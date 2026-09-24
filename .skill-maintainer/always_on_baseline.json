@@ -1,0 +1,107 @@
+{
+  "claim-audit": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 797
+  },
+  "dangling-refs": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 703
+  },
+  "dev-conventions": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 1704
+  },
+  "dimensional-modeling": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 570
+  },
+  "gemini-bridge": {
+    "always_monitors": 0,
+    "emitting_hooks": 1,
+    "listing_chars": 1091
+  },
+  "grilling": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 712
+  },
+  "heylook-provider": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 897
+  },
+  "improvement-loops": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 588
+  },
+  "json-query": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 418
+  },
+  "mece-decomposer": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 1477
+  },
+  "model-routing": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 0
+  },
+  "path-privacy": {
+    "always_monitors": 0,
+    "emitting_hooks": 1,
+    "listing_chars": 742
+  },
+  "plugin-toolkit": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 946
+  },
+  "postmortem": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 3630
+  },
+  "pyright-autoconfig": {
+    "always_monitors": 0,
+    "emitting_hooks": 1,
+    "listing_chars": 0
+  },
+  "readwise-reader": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 885
+  },
+  "ruff-diagnostics": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 0
+  },
+  "scan-for-secrets": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 575
+  },
+  "skill-dashboard": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 398
+  },
+  "skill-maintainer": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 637
+  },
+  "writing": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 2112
+  }
+}
