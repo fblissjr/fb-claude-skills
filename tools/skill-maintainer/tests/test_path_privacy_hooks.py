@@ -309,6 +309,52 @@ def test_heredoc_in_a_command_that_does_not_commit_is_not_a_message(tmp_path):
     assert r.returncode == 0, r.stderr
 
 
+def test_claude_project_dir_encoding_of_the_home_path_is_not_the_name(tmp_path):
+    # Claim: Claude Code names project folders by the path with dashes for
+    # slashes (-Users-<user>-work-repo), so an owner whose username is the
+    # name joined spells it there too; that encoding is masked like
+    # /Users/<user>. Breaks if only the slash form of a home path is masked.
+    repo = _repo(tmp_path)
+    cmd = "git -C ~/.claude/projects/-Users-janeexample-work-repo/memory status"
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 0, r.stderr
+
+
+def test_script_heredoc_that_mentions_git_commit_is_not_command_text(tmp_path):
+    # Claim: a heredoc body is a script unless the command outside it writes a
+    # message, so text inside it -- "git commit", the name, a path -- neither
+    # opts the command into scanning nor matches. Specimen from 2026-09-24: a
+    # python heredoc editing a memory file that mentioned `git commit`.
+    # Breaks if the git/gh gate or the name scan reads script bodies.
+    repo = _repo(tmp_path)
+    cmd = ("cd /tmp && python3 - <<'EOF'\n"
+           "note = 'a pin commit is ALLOW=1 git commit, per Jane Example'\n"
+           "print('/Users/janeexample/elsewhere/notes.md')\nEOF")
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 0, r.stderr
+
+
+def test_heredoc_fed_to_a_shell_is_still_command_text(tmp_path):
+    # Claim: a heredoc fed to bash/sh/zsh is commands, not a script body, so a
+    # gh call inside it is still scanned. Breaks if every heredoc is dropped.
+    repo = _repo(tmp_path)
+    cmd = ("bash <<'EOF'\n"
+           f'gh issue comment 5 -b "thanks {FULL_NAME}"\nEOF')
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 2, r.stderr
+
+
+def test_heredoc_commit_message_with_the_name_is_blocked(tmp_path):
+    # Claim: a command that commits keeps its heredoc body as message text for
+    # the name scan too. Breaks if heredoc bodies are dropped unconditionally.
+    repo = _repo(tmp_path)
+    cmd = ("git commit -F - <<'EOF'\n"
+           f"fix, reported by {FULL_NAME}\nEOF")
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 2, r.stderr
+    assert "Jane" not in r.stderr
+
+
 def test_heredoc_commit_message_is_still_scanned(tmp_path):
     # Claim: the heredoc form Claude Code uses for commit messages stays covered.
     # Breaks if narrowing heredoc scanning drops real commit messages.

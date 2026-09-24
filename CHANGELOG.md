@@ -1,5 +1,13 @@
 # changelog
 
+## 1.68.1
+
+### fixed
+- **`path-privacy` 0.18.3 -> 0.18.4: a script heredoc is not a git command, and Claude Code's project folder names are home paths.** In use in another repo on 2026-09-24, the hook blocked `cd` into a memory folder followed by a Python heredoc. The heredoc text mentioned `git commit`, which put the command through the git/gh name scan. The folder's dash-encoded name (`-Users-<x>-...`) spelled the joined name, and 0.18.3 masked only the slash form.
+  - Heredoc bodies are removed before the git/gh gate, the "does this command write a message" check and the name scan. They are kept when the command outside them commits, tags or writes a gh pr/issue/release, and when the heredoc feeds `bash`, `sh` or `zsh`.
+  - The dash-encoded form is masked like `/Users/<x>`.
+  - **Tests.** Two new ones reproduce the specimen, and both were red before the fix. Two pins cover a shell-fed heredoc and a commit heredoc carrying the name; removing each exception turns its pin red.
+
 ## 1.68.0
 
 ### added

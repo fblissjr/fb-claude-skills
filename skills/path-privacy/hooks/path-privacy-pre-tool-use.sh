@@ -26,8 +26,12 @@
 #        full of legitimate absolute paths.
 #     5. BLOCKS the full name anywhere in the command -- gh bodies, tag and
 #        pushed ref names reach GitHub with no git hook behind them -- after
-#        masking home-directory prefixes, so a home directory named after the
+#        masking home-directory prefixes (slash form and Claude Code's
+#        dash-encoded project folders), so a home directory named after the
 #        owner (first and last name joined) never blocks a read-only command.
+#     Both read the command with heredoc bodies removed unless it writes a
+#     message or feeds the heredoc to a shell: a script body that mentions
+#     `git commit` is neither a git command nor a message.
 #
 # Every block message carries the one rule no hook can enforce: the correction
 # is routine and stays out of commit messages, branch names and the changelog.
@@ -76,18 +80,48 @@ fi
 if [ "$TOOL" = "Bash" ]; then
   CMD=$(jq -r '.tool_input.command // ""' <<<"$PAYLOAD" 2>/dev/null)
   [ -z "$CMD" ] && exit 0
-  case "$CMD" in *git*|*gh\ *) ;; *) exit 0 ;; esac
+
+  # The command with heredoc bodies removed. A body is a script (python, cat,
+  # a file being written) unless its opening line runs a shell, so text inside
+  # it -- a mention of `git commit`, a path, a name -- is not the command.
+  OUTER=$(printf '%s' "$CMD" | LC_ALL=C awk '
+    BEGIN { RS = "\001" }
+    {
+      n = split($0, L, "\n"); d = ""
+      for (i = 1; i <= n; i++) {
+        if (d != "") {
+          t = L[i]; gsub(/^[ \t]+|[ \t]+$/, "", t)
+          if (t == d) { d = ""; print L[i] }
+          continue
+        }
+        print L[i]
+        if (L[i] ~ /(^|[;&|( \t])(ba|z)?sh([ \t;&|)]|$)/) continue
+        if (match(L[i], /<<-?[ \t]*[\047"]?[A-Za-z_][A-Za-z0-9_]*[\047"]?/)) {
+          d = substr(L[i], RSTART, RLENGTH); gsub(/^<<-?[ \t]*[\047"]?|[\047"]$/, "", d)
+        }
+      }
+    }')
+  case "$OUTER" in *git*|*gh\ *) ;; *) exit 0 ;; esac
   ROOT_B="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
   [ -z "$ROOT_B" ] && exit 0
+
+  # Heredoc bodies count as message text only when the command writes one: a
+  # commit, a tag, or a gh pr/issue/release -- decided on the command outside
+  # the bodies, so a script that merely mentions `git commit` is not one.
+  SCAN_HEREDOC=0
+  printf '%s' "$OUTER" | grep -Eq '(git([[:space:]][^;&|]*)?[[:space:]](commit|tag)([[:space:]]|$)|gh[[:space:]]+(pr|issue|release)[[:space:]])' && SCAN_HEREDOC=1
+  NAME_SRC=$OUTER; [ "$SCAN_HEREDOC" = 1 ] && NAME_SRC=$CMD
 
   # The name guard reads the whole command: gh bodies (-b/--body, comments,
   # `gh api -f body=`), tag names and pushed ref names go public with no git
   # hook behind them. Home-directory prefixes are masked first -- the
-  # username segment of /Users/<x> and /home/<x>, ~/ and $HOME -- because an
+  # username segment of /Users/<x> and /home/<x>, of Claude Code's
+  # dash-encoded project folders (-Users-<x>-...), ~/ and $HOME -- because an
   # owner whose username is first and last name joined would otherwise
   # match in every absolute path. Paths themselves are the path check's job.
-  NAME_CMD=$(printf '%s' "$CMD" | sed -E \
+  NAME_CMD=$(printf '%s' "$NAME_SRC" | sed -E \
     -e 's#(/Users|/home)/[^/[:space:]"'"'"']+#\1/HOME#g' \
+    -e 's#-(Users|home)-[^-/[:space:]"'"'"']+#-\1-HOME#g' \
     -e 's#~/#HOME/#g' -e 's#\$\{?HOME\}?#HOME#g')
   if NAME_RE=$(pp_name_regex "$ROOT_B") \
      && printf '%s\n' "$NAME_CMD" | pp_name_lines "$NAME_RE" >/dev/null; then
@@ -99,12 +133,6 @@ if [ "$TOOL" = "Bash" ]; then
     } >&2
     exit 2
   fi
-
-  # Heredoc bodies count as message text only when the command writes one: a
-  # commit, a tag, or a gh pr/issue/release. A heredoc feeding python or cat
-  # in a command that merely mentions git is a script, not a message.
-  SCAN_HEREDOC=0
-  printf '%s' "$CMD" | grep -Eq '(git([[:space:]][^;&|]*)?[[:space:]](commit|tag)([[:space:]]|$)|gh[[:space:]]+(pr|issue|release)[[:space:]])' && SCAN_HEREDOC=1
 
   # Message text and branch names only. One awk pass over the whole command:
   #   - quoted values of -m / --message / --title / --body, across newlines
