@@ -35,6 +35,16 @@ else
   pp_template_is_newer() { return 1; }
 fi
 
+# Where the gate lives, shared with the installer. Absent copy: the old plain
+# `--git-path hooks`, which misses a gate behind a chaining dispatcher.
+HOOKS_DIR_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_hooks_dir.sh"
+if [ -r "$HOOKS_DIR_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$HOOKS_DIR_LIB"
+else
+  pp_hooks_dir() { git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null; }
+fi
+
 # --- outdated-wrapper notice -------------------------------------------------
 # A plugin update refreshes the scanner the wrapper CALLS, but not the wrapper
 # itself -- its logic is baked in at install time. So a repo can quietly carry a
@@ -55,7 +65,7 @@ fi
 # stamp is ever touched, a wrapper AHEAD of the plugin is left alone, and the
 # refresh is verified by re-reading the stamp before it is reported as done.
 # A foreign or hand-edited hook is still never rewritten.
-HOOKS_DIR=$(git -C "$CWD" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+HOOKS_DIR=$(pp_hooks_dir "$CWD" || echo "")
 # Compare against the WRAPPER TEMPLATE version the installer stamps ("t1"), not
 # the plugin version. They were the same value until unrelated plugin bumps
 # started marking every installed wrapper stale; see install-git-hooks.sh.

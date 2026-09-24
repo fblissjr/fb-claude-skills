@@ -591,3 +591,87 @@ def test_missing_gate_notice_is_shown_once_per_repo(tmp_path):
     assert "no commit gate" in ctx
     second = _session_start(tmp_path, repo)
     assert second.stdout == ""
+
+
+# --- 6. a global hooks dispatcher that chains to each repo's own hooks -------
+#
+# A global core.hooksPath replaces .git/hooks for every repo on the machine. A
+# dispatcher there that runs each repo's own <git-common-dir>/hooks/<name>
+# declares it with a `.chains-to-repo-hooks` file. Under such a dispatcher
+# `--git-path hooks` names the dispatcher, not the directory the gate lives in.
+
+
+def _dispatcher(tmp_path, marker=True, hooks=("pre-commit", "commit-msg")) -> Path:
+    d = tmp_path / "global-hooks"
+    d.mkdir()
+    if marker:
+        (d / ".chains-to-repo-hooks").write_text("")
+    for name in hooks:
+        f = d / name
+        f.write_text('#!/usr/bin/env bash\n'
+                     'h="$(git rev-parse --path-format=absolute --git-common-dir)/hooks/${0##*/}"\n'
+                     '[ -x "$h" ] && exec "$h" "$@"\n'
+                     'exit 0\n')
+        f.chmod(0o755)
+    return d
+
+
+def _global_env(tmp_path, hooks_dir: Path) -> dict:
+    cfg = tmp_path / "global-gitconfig"
+    cfg.write_text(f"[core]\n\thooksPath = {hooks_dir}\n")
+    return _env(tmp_path, GIT_CONFIG_GLOBAL=str(cfg))
+
+
+def test_install_under_a_chaining_dispatcher_gates_real_commits(tmp_path):
+    # Claim: under a chaining global dispatcher the installer writes into the
+    # repo's own hooks dir, leaves the dispatcher alone, and a real `git
+    # commit` carrying the name is blocked through it. Before, the installer
+    # refused ("would gate EVERY repo"), so no repo on the machine could have
+    # the gate at all.
+    repo = _repo(tmp_path)
+    disp = _dispatcher(tmp_path)
+    env = _global_env(tmp_path, disp)
+    r = subprocess.run([str(INSTALLER), "-C", str(repo)], capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stderr
+    for h in ("pre-commit", "commit-msg"):
+        assert "path-privacy:wrapper" in (repo / ".git/hooks" / h).read_text()
+        assert "path-privacy:wrapper" not in (disp / h).read_text()
+    doctor = subprocess.run([str(INSTALLER), "-C", str(repo), "--doctor"],
+                            capture_output=True, text=True, env=env)
+    assert doctor.returncode == 0, doctor.stdout
+
+    (repo / "NOTES.md").write_text(f"ask {FULL_NAME}\n")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True, env=env)
+    c = subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "notes"],
+                       capture_output=True, text=True, env=env)
+    assert c.returncode != 0
+    assert "Jane" not in c.stderr + c.stdout
+
+
+def test_session_start_sees_the_gate_behind_a_chaining_dispatcher(tmp_path):
+    # Claim: SessionStart looks for the gate where the dispatcher runs it. It
+    # used to look in the dispatcher's own directory and report "no commit
+    # gate" in a gated repo.
+    repo = _repo(tmp_path)
+    env = _global_env(tmp_path, _dispatcher(tmp_path))
+    subprocess.run([str(INSTALLER), "-C", str(repo)], capture_output=True, check=True, env=env)
+    payload = {"cwd": str(repo), "source": "startup", "hook_event_name": "SessionStart"}
+    r = subprocess.run(["bash", str(SESSION_START)], input=json.dumps(payload),
+                       capture_output=True, text=True, env=env)
+    assert r.returncode == 0 and r.stdout == ""
+
+
+@pytest.mark.parametrize("marker,hooks", [
+    (False, ("pre-commit", "commit-msg")),   # no declaration: not a chaining dispatcher
+    (True, ("pre-commit",)),                 # declared, but git would never run a repo commit-msg
+])
+def test_global_hooks_path_that_does_not_chain_still_refuses(tmp_path, marker, hooks):
+    # Claim: only a declared dispatcher that has both hooks redirects the
+    # install. Any other global hooksPath is still refused, because writing
+    # into it gates every repo and a repo-dir install would never run.
+    repo = _repo(tmp_path)
+    env = _global_env(tmp_path, _dispatcher(tmp_path, marker=marker, hooks=hooks))
+    r = subprocess.run([str(INSTALLER), "-C", str(repo)], capture_output=True, text=True, env=env)
+    assert r.returncode == 2
+    assert "Refusing" in r.stderr
+    assert not (repo / ".git/hooks/commit-msg").exists()

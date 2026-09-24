@@ -102,6 +102,18 @@ read-only and needs an explicit root to sweep more than the current repo.
 `FAILS OPEN` means a pre-0.6.0 wrapper, which exits 0 when the scanner is
 missing. Re-run the installer in that repo.
 
+## A global `core.hooksPath`
+
+A global `core.hooksPath` replaces `.git/hooks` in every repo. The installer
+refuses to write into it, since that would gate every repo on the machine. One
+kind of global hooks directory is the exception: a dispatcher whose hooks each
+run the repo's own `<git-common-dir>/hooks/<name>`. Such a dispatcher declares
+itself with a file named `.chains-to-repo-hooks`, and needs executable
+`pre-commit` and `commit-msg` hooks. When both are present, the installer,
+`--doctor` and the SessionStart check use the repo's own hooks directory.
+Whether the dispatcher really chains is its author's promise; path-privacy
+checks only the declaration and that the two hooks exist.
+
 ## Keeping installed hooks current
 
 The wrapper in `.git/hooks` locates the plugin, so a plugin update cannot

@@ -1,5 +1,11 @@
 # changelog
 
+## 1.69.0
+
+### added
+- **`path-privacy` 0.18.5 -> 0.19.0: the gate works behind a global hooks dispatcher that chains to each repo's own hooks.** A global `core.hooksPath` replaces `.git/hooks` everywhere, and `--git-path hooks` then names the shared directory. So under the owner's planned personal-data dispatcher, the installer refused in every repo ("would gate EVERY repo"), and SessionStart looked in the dispatcher and reported a gated repo as having "no commit gate". The dispatcher now declares itself with a `.chains-to-repo-hooks` file. When that file is present and the dispatcher has executable `pre-commit` and `commit-msg` hooks, the installer, `--doctor` and SessionStart use `<git-common-dir>/hooks`. Any other global hooks path is still refused. The shared lookup is new in `scripts/_hooks_dir.sh`. The plan came from a handoff by another session. That plan also checked the dispatcher's `pre-commit` for its chain call, which is dropped: it would tie a published plugin to one private script's function name. Whether a declared dispatcher really chains is its author's promise, and the README says so.
+  - **Tests.** Two red first, against a fake chaining dispatcher under an isolated global config: a real `git commit` carrying the name is blocked through it, and SessionStart stays silent after install. Two pins cover a global hooks path with no marker, and a marker without `commit-msg`: both still refuse. Removing either check turns its pin red.
+
 ## 1.68.4
 
 ### fixed

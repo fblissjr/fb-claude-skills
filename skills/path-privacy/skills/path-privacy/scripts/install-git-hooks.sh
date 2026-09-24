@@ -85,6 +85,17 @@ else
   eval "$VERSION_COMPARE_SRC"
 fi
 
+# Where the gate lives, shared with the SessionStart hook. Missing copy: plain
+# `--git-path hooks` and no dispatcher recognised, which is the old behaviour.
+HOOKS_DIR_LIB="$SELF_DIR/_hooks_dir.sh"
+if [ -r "$HOOKS_DIR_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$HOOKS_DIR_LIB"
+else
+  pp_chains_to_repo_hooks() { return 1; }
+  pp_hooks_dir() { git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null; }
+fi
+
 # --- doctor ------------------------------------------------------------------
 # Read-only. Reports one line per wrapper found, and says so plainly when a repo
 # has no gate at all -- "no gate" is the finding that matters most, because the
@@ -96,7 +107,7 @@ doctor_repo() {
   local repo="$1"
   local hooks h f ver scanner frozen openness
 
-  hooks=$(git -C "$repo" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+  hooks=$(pp_hooks_dir "$repo" || echo "")
   if [ -z "$hooks" ]; then
     printf '%s\n  could not determine hooks directory\n' "$repo"
     DOCTOR_RC=1
@@ -216,8 +227,10 @@ fi
 # of a repo (we used to fabricate a dead .git/hooks under it and report success),
 # a worktree or submodule (.git is a FILE there, so mkdir -p died), and any
 # core.hooksPath including the tilde form git expands and we did not (we created
-# a directory literally named "~" inside the work tree).
-HOOKS_DIR=$(git -C "$TARGET_REPO" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+# a directory literally named "~" inside the work tree). pp_hooks_dir adds one
+# case: behind a dispatcher that chains to each repo's own hooks, the repo's
+# <git-common-dir>/hooks (see _hooks_dir.sh).
+HOOKS_DIR=$(pp_hooks_dir "$TARGET_REPO" || echo "")
 if [ -z "$HOOKS_DIR" ]; then
   echo "install-git-hooks: could not determine the hooks directory for $TARGET_REPO" >&2
   exit 2
@@ -225,9 +238,13 @@ fi
 
 # A core.hooksPath from GLOBAL config makes a per-repo install machine-wide:
 # every repo you own starts running this gate, and --uninstall from any one of
-# them mutates that shared state. Refuse rather than surprise.
+# them mutates that shared state. Refuse rather than surprise. A chaining
+# dispatcher is the exception: the install above already went to this repo's
+# own hooks dir, which the dispatcher runs.
 HOOKS_SCOPE=$(git -C "$TARGET_REPO" config --show-scope --get core.hooksPath 2>/dev/null | awk '{print $1}' || echo "")
-if [ -n "$HOOKS_SCOPE" ] && [ "$HOOKS_SCOPE" != "local" ] && [ "$HOOKS_SCOPE" != "worktree" ]; then
+RAW_HOOKS_DIR=$(git -C "$TARGET_REPO" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+if [ -n "$HOOKS_SCOPE" ] && [ "$HOOKS_SCOPE" != "local" ] && [ "$HOOKS_SCOPE" != "worktree" ] \
+   && ! pp_chains_to_repo_hooks "$RAW_HOOKS_DIR"; then
   echo "install-git-hooks: core.hooksPath is set in $HOOKS_SCOPE config -> $HOOKS_DIR" >&2
   echo "  Installing there would gate EVERY repo on this machine, and --uninstall" >&2
   echo "  from any repo would remove it for all of them. Refusing." >&2
