@@ -1,11 +1,25 @@
 last updated: 2026-09-24
 
-# Path-privacy consolidation: a deferred design
+# Path-privacy consolidation: a shelved design
 
-**Status: deferred, not started.** The owner agreed on 2026-09-24 to build the
-narrower external-push gate first, live with it, and only then consider this.
-**Trigger to reopen:** that gate has run in enforcing mode without friction
-for about a week, meaning no false blocks that needed `--no-verify`.
+**Status: shelved, 2026-09-24. Not built, not installed.** The external-push
+gate this design depends on was built and tested in temporary space: 80 tests
+passing, and 37 of 38 deliberate code mutations caught by the tests. The owner
+then declined to maintain a machine-wide system, and the code was deleted.
+
+**What protects instead**, all settings with no upkeep:
+- git uses the GitHub noreply address everywhere;
+- GitHub keeps email private and blocks pushes that expose it;
+- Claude Code attribution is off in user settings;
+- the path-privacy plugin guards home paths and the full name;
+- the user-level personal-data hook stays as last patched, frozen.
+
+**Known gap:** GitHub checks only the newest commit in a push, so older
+unpushed commits authored with a private address are fixed per repo, by hand,
+when that repo is next pushed.
+
+**Trigger to reopen:** a real leak those settings didn't stop. The design and
+its measurements below stay as the starting point.
 
 ## How this came up
 
