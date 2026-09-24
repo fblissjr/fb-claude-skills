@@ -1,382 +1,138 @@
-# Agent SDK Mapping
+# Agent SDK mapping
 
 last updated: 2026-09-24
 
-Rules and patterns for mapping a validated MECE decomposition tree to Claude Agent SDK primitives. The output of this mapping is code-ready -- each pattern includes a template that can be directly adapted.
+How a validated MECE tree maps onto the Claude Agent SDK (`claude-agent-sdk`, imported as `claude_agent_sdk`). The SDK packages the Claude Code harness: each `query()` call runs one agent loop with Claude Code's built-in tools, and returns a stream of messages that ends in a `ResultMessage`. The MCP app's `mece-export-sdk` tool generates this mapping (`mcp-app/sdk-codegen.ts`); keep the two in step.
 
-## Mapping Overview
+The tree's shape is known in advance, so the default is code-driven orchestration: plain `asyncio` walks the tree, and each agent atom is one `query()` call. Use model-driven orchestration (subagents, below) only for a branch whose order is itself a judgment call.
 
-| Tree Element | SDK Primitive | Notes |
-|-------------|---------------|-------|
-| Atom (`agent`) | `Agent` class | One agent per atom |
-| Atom (`human`) | `AskUserQuestion` tool or webhook | Pauses execution for human input |
-| Atom (`tool`) | Direct tool invocation | No agent wrapper needed |
-| Atom (`external`) | External API call | Via MCP server or custom tool |
-| Branch (`sequential`) | Chained `Runner.run()` | Output of step N feeds step N+1 |
-| Branch (`parallel`) | `asyncio.gather()` | Max 7 concurrent branches |
-| Branch (`conditional`) | Hook-based routing | `PreToolUse` or custom routing agent |
-| Branch (`loop`) | While-loop with termination | Check condition after each iteration |
-| Cross-branch dependency (data) | Context/session passing | Output artifact passed as input |
-| Cross-branch dependency (sequencing) | Explicit await | `asyncio.Event` or similar |
-| Cross-branch dependency (approval) | Human-in-the-loop gate | `AskUserQuestion` between branches |
+## Overview
 
-## Atom Mapping
+| Tree element | SDK mapping |
+|---|---|
+| Atom `agent` | One `ClaudeAgentOptions` plus one `query()` call |
+| Atom `human` | A gate in the orchestrator's own code |
+| Atom `tool` | A direct call in the orchestrator, or an SDK MCP tool if an agent must call it |
+| Atom `external` | Orchestrator code, or an MCP server in `mcp_servers` |
+| Branch `sequential` | `await` each child in order, output feeding the next |
+| Branch `parallel` | `asyncio.gather()`, at most 7 children |
+| Branch `conditional` | A route function: code, or a routing agent with `output_format` |
+| Branch `loop` | A bounded `for` loop with a termination check |
+| Dependency `data` / `sequencing` / `approval` | Pass the artifact / `asyncio.Event` / a human gate |
 
-### execution_type: "agent" -> Agent Class
-
-Each agent atom maps to one `Agent` instance.
+## Agent atoms
 
 ```python
-from agents import Agent, Runner
+from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
-# From atom_spec.agent_definition
-agent = Agent(
-    name="validate_shipping_address",
-    model="claude-sonnet-5",                      # from model tier
-    instructions="""                               # from prompt
-    Given a shipping address, verify:
-    1. All required fields are present
-    2. ZIP code matches city/state
-    3. Address is deliverable via USPS API
+async def run_agent(prompt: str, options: ClaudeAgentOptions) -> str:
+    async for message in query(prompt=prompt, options=options):
+        if isinstance(message, ResultMessage):
+            if message.is_error:
+                raise RuntimeError(f"agent run failed: {message.subtype}")
+            return message.result or ""
+    raise RuntimeError("query() ended without a ResultMessage")
 
-    Return validation result with any corrections.
-    """,
-    tools=[usps_validate, geocode_lookup],         # from tools list
+validate_address_options = ClaudeAgentOptions(
+    model="claude-sonnet-5",
+    system_prompt="Given a shipping address, verify required fields and ZIP/city agreement. Return corrections.",
+    tools=["WebFetch"],
+    allowed_tools=["WebFetch"],
+    max_turns=5,
 )
 
-result = await Runner.run(agent, input=address_data)
+result = await run_agent(address_text, validate_address_options)
 ```
 
-**Field Mapping:**
+| `agent_definition` field | `ClaudeAgentOptions` | Notes |
+|---|---|---|
+| `name`, `description` | none | Kept as the variable name and a comment |
+| `prompt` | `system_prompt` | The atom's input is the `query()` prompt |
+| `tools` | `tools` and `allowed_tools` | `tools` limits which built-ins exist (`[]` means none); `allowed_tools` pre-approves them so a headless run does not stop at a permission prompt |
+| `model` | `model` | Tier to ID, below |
+| `max_turns` | `max_turns` | Omit when unset |
 
-| AtomSpec Field | Agent SDK Field | Transform |
-|---------------|----------------|-----------|
-| `agent_definition.name` | `Agent.name` | Direct (snake_case) |
-| `agent_definition.description` | Used in orchestrator context | Not a direct Agent field |
-| `agent_definition.prompt` | `Agent.instructions` | Direct |
-| `agent_definition.tools` | `Agent.tools` | Resolve tool references to tool objects |
-| `agent_definition.model` | `Agent.model` | Map tier to model ID (see Model Tier table) |
-| `agent_definition.max_turns` | `Runner.run(max_turns=N)` | Passed at run time |
+Tool names are Claude Code tool names (`Read`, `Write`, `Bash`, `WebFetch`) or MCP tools as `mcp__<server>__<tool>`. `max_budget_usd` caps spend per atom when the error modes include runaway cost.
 
-### execution_type: "human" -> AskUserQuestion
+## Other atoms
+
+**`human`**: a step the process defines, such as an approval or a physical action, so it lives in the orchestrator: prompt at the terminal, post to a webhook and wait, or read a queue. Do not map it to `AskUserQuestion`. That tool carries questions Claude writes during an agent run; they reach the `can_use_tool` callback, and the SDK gives no way to inject your own. `integration_method: "ask_user_question"` fits only when the adjacent agent atom should be free to ask for clarification: add `AskUserQuestion` to its `tools`, pass a `can_use_tool` callback, and answer with `PermissionResultAllow(updated_input={"questions": ..., "answers": {...}})`.
+
+**`tool`**: a deterministic operation, so call it directly in the orchestrator with no agent. If an agent atom must call it mid-run, expose it in-process:
 
 ```python
-# integration_method: "ask_user_question"
-# The orchestrating agent uses AskUserQuestion tool to pause for human input
+from claude_agent_sdk import create_sdk_mcp_server, tool
 
-orchestrator = Agent(
-    name="approval_orchestrator",
-    instructions="""
-    Present the draft document to the user for approval.
-    Include the decision criteria: {decision_criteria}
-    Wait for their response before proceeding.
-    """,
-    tools=[AskUserQuestion],
+@tool("write_row", "Append one row to the ledger", {"row": dict})
+async def write_row(args):
+    ledger.append(args["row"])
+    return {"content": [{"type": "text", "text": "ok"}]}
+
+ledger_server = create_sdk_mcp_server("ledger", tools=[write_row])
+# ClaudeAgentOptions(mcp_servers={"ledger": ledger_server}, allowed_tools=["mcp__ledger__write_row"])
+```
+
+**`external`**: a system outside the runtime. Call it from the orchestrator, applying `timeout` and `fallback` from the spec, or give the agent an existing MCP server for it in `mcp_servers`.
+
+## Branches
+
+**Sequential**: `result = await child(result)` for each child in order.
+
+**Parallel**: `await asyncio.gather(*(child(input) for child in children))`. There is a maximum of 7 children, so group extras into sub-branches. Each `query()` starts its own Claude Code process, so wide fan-out costs processes as well as tokens.
+
+**Conditional**: a route function returns the child to run. Make it code when the condition is mechanical. When it needs judgment, use a cheap routing agent with structured output:
+
+```python
+router_options = ClaudeAgentOptions(
+    model="claude-haiku-4-5",
+    system_prompt="Pick the handler for this request.",
+    tools=[],
+    output_format={"type": "json_schema", "schema": {
+        "type": "object",
+        "properties": {"child": {"enum": ["1.3.1", "1.3.2"]}},
+        "required": ["child"],
+    }},
 )
+# The ResultMessage from query() carries .structured_output == {"child": "1.3.1"}
 ```
 
-For `integration_method: "webhook"`, the agent calls an external webhook and polls or waits for callback.
+**Loop**: `for _ in range(loop_spec.max_iterations)`, with the children run in order each iteration, then a termination check from `loop_spec.termination`. Never leave a loop unbounded; the generator defaults `max_iterations` to 100.
 
-### execution_type: "tool" -> Direct Tool Call
+**Model-driven alternative**: for a branch whose children are specialists that the model should sequence, give one orchestrating `query()` the children as subagents: `agents={"lint": AgentDefinition(description=..., prompt=..., tools=[...], model="haiku")}`. This trades the tree's deterministic order for flexibility. Use it only when the SME said the order depends on the case.
 
-```python
-# No agent needed -- call the tool directly in the orchestrator
-from agents import function_tool
+## Cross-branch dependencies
 
-@function_tool
-def read_file(path: str) -> str:
-    """Read file contents."""
-    with open(path) as f:
-        return f.read()
+- **Data**: pass the producer's result as the consumer's input. If they sit in different parallel branches, run the producer first, then the rest of the parallel group.
+- **Sequencing**: the producer sets an `asyncio.Event` and the consumer awaits it, both inside one `gather`.
+- **Approval**: a human gate between the branches; continue only on approval.
 
-# In the orchestrator's flow:
-result = read_file(path=file_path)
-```
+## Model tiers
 
-### execution_type: "external" -> External Integration
+The model ID column must match `MODEL_MAP` in `mcp-app/sdk-codegen.ts`; update both together when a tier moves to a new model.
 
-```python
-# Via MCP server or custom tool
-from agents import function_tool
-import httpx
+| Tier | Model ID | Use for |
+|---|---|---|
+| `haiku` | `claude-haiku-4-5` | Extraction, formatting, classification, routing |
+| `sonnet` | `claude-sonnet-5` | Analysis, summarisation, multi-step work: the default |
+| `opus` | `claude-opus-5-5` | Judgment under ambiguity, high-stakes outputs that are hard to verify |
 
-@function_tool
-async def call_external_api(endpoint: str, payload: dict) -> dict:
-    """Call external system API."""
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
-```
+Never use `opus` for high-volume repetitive atoms, lookups or formatting.
 
-## Branch Mapping
+## Error modes
 
-### Sequential Orchestration
+Map each `error_modes` entry to where it surfaces:
 
-Children execute in order. Each child's output feeds the next child's input.
+- **Tool failures inside an agent run**: a `PostToolUseFailure` hook sees `tool_name` and `error`.
 
-```python
-from agents import Agent, Runner
+  ```python
+  from claude_agent_sdk import HookMatcher
 
-# Define child agents
-step_1 = Agent(name="extract_data", ...)
-step_2 = Agent(name="validate_data", ...)
-step_3 = Agent(name="transform_data", ...)
+  async def on_tool_failure(input_data, tool_use_id, context):
+      log_failure(input_data["tool_name"], input_data["error"])
+      return {}
 
-async def run_sequential(initial_input: str) -> str:
-    """Sequential branch: children run in order."""
-    result_1 = await Runner.run(step_1, input=initial_input)
-    result_2 = await Runner.run(step_2, input=result_1.final_output)
-    result_3 = await Runner.run(step_3, input=result_2.final_output)
-    return result_3.final_output
-```
+  ClaudeAgentOptions(hooks={"PostToolUseFailure": [HookMatcher(matcher=None, hooks=[on_tool_failure])]})
+  ```
 
-### Parallel Orchestration
-
-Children execute concurrently. All must complete before the branch is done.
-
-```python
-import asyncio
-from agents import Agent, Runner
-
-# Define child agents
-branch_a = Agent(name="check_inventory", ...)
-branch_b = Agent(name="validate_payment", ...)
-branch_c = Agent(name="verify_address", ...)
-
-async def run_parallel(shared_input: str) -> list:
-    """Parallel branch: children run concurrently (max 7)."""
-    results = await asyncio.gather(
-        Runner.run(branch_a, input=shared_input),
-        Runner.run(branch_b, input=shared_input),
-        Runner.run(branch_c, input=shared_input),
-    )
-    return [r.final_output for r in results]
-```
-
-**Constraint**: Maximum 7 parallel branches. If the tree has more, group them into sub-branches.
-
-### Conditional Orchestration
-
-One child executes based on a routing condition.
-
-```python
-from agents import Agent, Runner
-
-# Routing agent decides which child to invoke
-router = Agent(
-    name="route_request",
-    instructions="""
-    Evaluate the input and determine which handler to invoke:
-    - If {condition_a}: respond with "ROUTE:handler_a"
-    - If {condition_b}: respond with "ROUTE:handler_b"
-    - If {condition_c}: respond with "ROUTE:handler_c"
-    """,
-)
-
-handler_a = Agent(name="handler_a", ...)
-handler_b = Agent(name="handler_b", ...)
-handler_c = Agent(name="handler_c", ...)
-
-HANDLERS = {
-    "handler_a": handler_a,
-    "handler_b": handler_b,
-    "handler_c": handler_c,
-}
-
-async def run_conditional(input_data: str) -> str:
-    """Conditional branch: route to one child based on condition."""
-    route_result = await Runner.run(router, input=input_data)
-    route_key = route_result.final_output.split("ROUTE:")[1].strip()
-    handler = HANDLERS[route_key]
-    result = await Runner.run(handler, input=input_data)
-    return result.final_output
-```
-
-Alternative: Use `handoffs` for agent-to-agent routing:
-
-```python
-from agents import Agent
-
-handler_a = Agent(name="handler_a", ...)
-handler_b = Agent(name="handler_b", ...)
-
-router = Agent(
-    name="router",
-    instructions="Route to the appropriate handler based on input type.",
-    handoffs=[handler_a, handler_b],
-)
-```
-
-### Loop Orchestration
-
-A child executes repeatedly until a termination condition is met.
-
-```python
-from agents import Agent, Runner
-
-processor = Agent(name="process_item", ...)
-evaluator = Agent(name="check_termination", ...)
-
-async def run_loop(items: list, max_iterations: int = 100) -> list:
-    """Loop branch: repeat until termination condition met."""
-    results = []
-    for i, item in enumerate(items):
-        if i >= max_iterations:
-            break
-        result = await Runner.run(processor, input=item)
-        results.append(result.final_output)
-
-        # Check termination
-        eval_result = await Runner.run(
-            evaluator,
-            input=f"Processed {i+1} items. Latest: {result.final_output}"
-        )
-        if "TERMINATE" in eval_result.final_output:
-            break
-    return results
-```
-
-## Cross-Branch Dependency Patterns
-
-### Data Dependency
-
-The producing atom's output is passed as input to the consuming atom.
-
-```python
-# Producer in Branch A
-producer_result = await Runner.run(producer_agent, input=input_data)
-artifact = producer_result.final_output
-
-# Consumer in Branch B (may be in a different parallel group)
-consumer_result = await Runner.run(consumer_agent, input=artifact)
-```
-
-When the producer and consumer are in different parallel branches, the parallel orchestration must be restructured: run the producer first, then run the consumer's branch in parallel with remaining branches.
-
-### Sequencing Dependency
-
-Use `asyncio.Event` to signal completion:
-
-```python
-import asyncio
-
-completion_signal = asyncio.Event()
-
-async def branch_a():
-    result = await Runner.run(agent_a, input=data)
-    completion_signal.set()  # Signal that A is done
-    return result
-
-async def branch_b():
-    await completion_signal.wait()  # Wait for A to finish
-    result = await Runner.run(agent_b, input=data)
-    return result
-
-# Both branches start concurrently, but B waits for A's signal
-await asyncio.gather(branch_a(), branch_b())
-```
-
-### Approval Dependency
-
-Insert a human gate between branches:
-
-```python
-# After branch A completes
-result_a = await Runner.run(branch_a_agent, input=data)
-
-# Human approval gate
-approval_agent = Agent(
-    name="approval_gate",
-    instructions=f"Present this result to the user for approval: {result_a.final_output}",
-    tools=[AskUserQuestion],
-)
-approval = await Runner.run(approval_agent, input=result_a.final_output)
-
-# Continue to branch B only if approved
-if "approved" in approval.final_output.lower():
-    result_b = await Runner.run(branch_b_agent, input=result_a.final_output)
-```
-
-## Model Tier Heuristics
-
-The model ID column must match the generator's table in `mcp-app/server.ts` (`MODEL_MAP`); update both together when a tier moves to a new model.
-
-| Tier | Model ID | When to Use | Cost |
-|------|----------|-------------|------|
-| `haiku` | `claude-haiku-4-5` | Simple extraction, formatting, classification, routing | Low |
-| `sonnet` | `claude-sonnet-5` | Analysis, summarization, multi-step reasoning, most tasks | Medium |
-| `opus` | `claude-opus-5-5` | Complex judgment, ambiguous inputs, novel situations, critical decisions | High |
-
-### Selection Rules
-
-1. **Default to sonnet** unless there's a clear reason otherwise
-2. **Use haiku when**: the atom does one simple thing (classify, extract, format, route) with clear rules and low ambiguity
-3. **Use opus when**: the atom requires judgment under uncertainty, handles novel/ambiguous inputs, or produces outputs that are hard to verify and high-stakes
-4. **Never use opus for**: high-volume repetitive tasks, simple lookups, or formatting
-
-## Exception Handling via Hooks
-
-Map error modes from atom specs to SDK hooks:
-
-```python
-from agents import Agent, RunHooks, RunContextWrapper, ToolCallEvent
-
-class ErrorHandler(RunHooks):
-    async def on_tool_error(
-        self, context: RunContextWrapper, error: Exception
-    ) -> None:
-        # Map to error_modes from atom_spec
-        if isinstance(error, TimeoutError):
-            # Handle timeout error mode
-            pass
-        elif isinstance(error, ValidationError):
-            # Handle validation error mode
-            pass
-
-agent = Agent(name="my_agent", ...)
-result = await Runner.run(agent, input=data, hooks=ErrorHandler())
-```
-
-## Orchestrator Assembly
-
-The top-level orchestrator composes all patterns:
-
-```python
-import asyncio
-from agents import Agent, Runner
-
-async def execute_tree(tree: dict, input_data: str) -> str:
-    """Execute a MECE decomposition tree."""
-    node = tree
-
-    if node["node_type"] == "atom":
-        return await execute_atom(node, input_data)
-
-    # Branch node -- orchestrate children
-    orchestration = node["orchestration"]
-    children = node["children"]
-
-    if orchestration == "sequential":
-        result = input_data
-        for child in children:
-            result = await execute_tree(child, result)
-        return result
-
-    elif orchestration == "parallel":
-        results = await asyncio.gather(
-            *[execute_tree(child, input_data) for child in children]
-        )
-        return combine_results(results)
-
-    elif orchestration == "conditional":
-        selected = await route(node["condition"], children, input_data)
-        return await execute_tree(selected, input_data)
-
-    elif orchestration == "loop":
-        return await loop_execute(
-            children[0], node["loop_spec"], input_data
-        )
-```
-
-This recursive executor mirrors the tree structure directly. Each branch type maps to one orchestration pattern.
+- **The run itself failing** (turn limit, budget, API error): `ResultMessage.is_error` and `subtype`, which `run_agent` raises on. Retry or fall back in the orchestrator.
+- **Bad output**: validate the returned text, or use `output_format` so the result arrives as `structured_output` that matches a schema.

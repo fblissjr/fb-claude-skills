@@ -1,3 +1,9 @@
 node_modules/
-dist/
 *.tsbuildinfo
+# dist/ holds build output, but the two files a marketplace install runs are
+# committed (.mcp.json starts dist/index.cjs; the server serves mcp-app.html).
+# The root .gitignore ignores every dist/, so re-include the directory first.
+!dist/
+dist/*
+!dist/index.cjs
+!dist/mcp-app.html

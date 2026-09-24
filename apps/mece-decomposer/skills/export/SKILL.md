@@ -27,45 +27,47 @@ The decomposition must pass validation first (overall score >= 0.70), because co
 ### 2. Generate Code
 
 Using the mapping rules from `references/agent_sdk_mapping.md`:
-- One `Agent` definition per agent atom
+- One `ClaudeAgentOptions` per agent atom (model tier, system prompt, tools), run through `query()`
 - Orchestration functions per branch type (sequential, parallel, conditional, loop)
 - Cross-branch dependency wiring
-- Hook-based error handling from atom error modes
-- Model tier assignments
+- Error handling from atom error modes
+- Stubs that raise `NotImplementedError` for human, tool and external atoms, routing conditions and loop termination
 
 ### 3. Output
 
 ```python
-"""
-Agent SDK scaffolding for: [Decomposition Scope]
-Dimension: [temporal/functional/etc.]
-"""
+# Claude Agent SDK scaffolding for: [Decomposition Scope]
+# Dimension: [temporal/functional/etc.]
 
 import asyncio
-from agents import Agent, Runner, function_tool
 
-# Node 1.1.1: Step Name
-step_name_agent = Agent(
-    name="step-name",
+from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+
+
+async def run_agent(prompt: str, options: ClaudeAgentOptions) -> str:
+    ...  # runs query() and returns the ResultMessage text
+
+
+# Node 1.1.1: Step Name (step_name)
+n1_1_1_step_name_options = ClaudeAgentOptions(
     model="claude-sonnet-5",
-    instructions="""...""",
-    tools=[...],
+    system_prompt="...",
+    tools=["Read", "Write"],
+    allowed_tools=["Read", "Write"],
+    max_turns=5,
 )
 
-# Orchestration
-async def execute_phase_1(input_data: str) -> str:
-    """Phase 1 (sequential orchestration)"""
+
+async def execute_n1_1_phase_1(input_data: str) -> str:
+    "Phase 1 (sequential)"
     result = input_data
-    result = await execute_step_1(result)
-    result = await execute_step_2(result)
+    result = await execute_n1_1_1_step_name(result)
+    result = await execute_n1_1_2_next_step(result)
     return result
 
-async def main(input_data: str) -> str:
-    return await execute_root(input_data)
 
-if __name__ == "__main__":
-    result = asyncio.run(main("initial input"))
-    print(result)
+async def main(input_data: str) -> str:
+    return await execute_n1_root(input_data)
 ```
 
 ### Export Preview (when MCP server connected)
@@ -74,11 +76,11 @@ The `mece-export-sdk` MCP tool renders a preview panel with the generated code a
 
 ## What You Get
 
-- Agent definitions for every agent atom in the tree
+- Options for every agent atom in the tree
 - Orchestration functions matching the tree structure
 - Comments linking each section to its tree node ID
 - A `main()` entry point that executes the full tree
-- TODO markers for human, tool, and external atoms that need implementation
+- `NotImplementedError` stubs, named by node ID, for each step left to write, so an unfinished step fails loudly instead of passing its input through
 
 ## Next Steps
 

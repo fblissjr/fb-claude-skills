@@ -14,15 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
-import type {
-  Decomposition,
-  Node,
-  BranchNode,
-  AgentAtomSpec,
-  HumanAtomSpec,
-  ToolAtomSpec,
-  ExternalAtomSpec,
-} from "./src/types.js";
+import type { Decomposition, Node } from "./src/types.js";
+import { generateSdkCode } from "./sdk-codegen.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -42,13 +35,44 @@ const PLUGIN_ROOT = IS_SOURCE
   : path.resolve(import.meta.dirname, "..", "..");
 
 // Path to the validate_mece.py script
-const VALIDATE_SCRIPT = path.join(
+export const VALIDATE_SCRIPT = path.join(
   PLUGIN_ROOT,
   "skills",
   "mece-decomposer",
   "scripts",
   "validate_mece.py",
 );
+
+/**
+ * The command that validates one decomposition file. `uv run --script` reads the
+ * script's inline dependency block, so it runs in any working directory;
+ * `uv run python <script>` ignores that block and needs orjson in the project.
+ */
+export function validatorCommand(inputPath: string): [string, string[]] {
+  return ["uv", ["run", "--script", VALIDATE_SCRIPT, inputPath]];
+}
+
+/**
+ * Run the validator on one decomposition file and return its JSON report.
+ * The script exits 1 for an invalid tree; that is a report, not a failure, so
+ * only a run with no parseable report on stdout rejects.
+ */
+export async function runValidator(inputPath: string): Promise<any> {
+  try {
+    const { stdout } = await execFileAsync(...validatorCommand(inputPath));
+    return JSON.parse(stdout);
+  } catch (e) {
+    const stdout = (e as { stdout?: string }).stdout;
+    if (stdout) {
+      try {
+        return JSON.parse(stdout);
+      } catch {
+        // Not a report: fall through to the original error.
+      }
+    }
+    throw e;
+  }
+}
 
 /**
  * Creates a new MCP server instance with all MECE tools and resources.
@@ -129,14 +153,7 @@ export function createServer(): McpServer {
         await fs.writeFile(tmpFile, params.decomposition, "utf-8");
 
         try {
-          const { stdout } = await execFileAsync("uv", [
-            "run",
-            "python",
-            VALIDATE_SCRIPT,
-            tmpFile,
-          ]);
-
-          const report = JSON.parse(stdout);
+          const report = await runValidator(tmpFile);
           const status = report.valid ? "PASS" : "FAIL";
 
           return {
@@ -186,7 +203,7 @@ export function createServer(): McpServer {
             content: [
               {
                 type: "text",
-                text: `Validation (fallback, uv unavailable: ${msg}): using embedded validation_summary. Score: ${summary.overall_score}`,
+                text: `Validation (fallback, validator could not run: ${msg}): using embedded validation_summary. Score: ${summary.overall_score}`,
               },
             ],
           };
@@ -252,13 +269,7 @@ export function createServer(): McpServer {
           const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mece-"));
           const tmpFile = path.join(tmpDir, "input.json");
           await fs.writeFile(tmpFile, JSON.stringify(parsed), "utf-8");
-          const { stdout } = await execFileAsync("uv", [
-            "run",
-            "python",
-            VALIDATE_SCRIPT,
-            tmpFile,
-          ]);
-          report = JSON.parse(stdout);
+          report = await runValidator(tmpFile);
           await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
         } catch {
           // Validation unavailable, continue without
@@ -381,223 +392,4 @@ function sanitizeFilename(s: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, 50);
-}
-
-// ===========================================================================
-// SDK Code Generation
-// ===========================================================================
-
-const MODEL_MAP: Record<string, string> = {
-  haiku: "claude-haiku-4-5",
-  sonnet: "claude-sonnet-5",
-  opus: "claude-opus-5-5",
-};
-
-function generateSdkCode(decomposition: Decomposition): string {
-  const lines: string[] = [];
-  const agents: string[] = [];
-
-  lines.push('"""');
-  lines.push(`Agent SDK scaffolding for: ${decomposition.metadata.scope}`);
-  lines.push("");
-  lines.push(`Dimension: ${decomposition.metadata.decomposition_dimension}`);
-  lines.push(`Source: ${decomposition.metadata.source_type}`);
-  lines.push(`Generated from MECE decomposition v${decomposition.metadata.version}`);
-  lines.push('"""');
-  lines.push("");
-  lines.push("import asyncio");
-  lines.push("from agents import Agent, Runner, function_tool");
-  lines.push("");
-  lines.push("");
-
-  // Generate agents for all atom nodes
-  collectAgents(decomposition.tree, agents, lines);
-
-  lines.push("");
-  lines.push("# " + "=".repeat(70));
-  lines.push("# Orchestration");
-  lines.push("# " + "=".repeat(70));
-  lines.push("");
-
-  // Generate orchestration functions
-  generateOrchestration(decomposition.tree, lines, 0);
-
-  // Main entry point
-  lines.push("");
-  lines.push("");
-  lines.push("async def main(input_data: str) -> str:");
-  lines.push(`    """Execute: ${decomposition.metadata.scope}"""`);
-  lines.push(
-    `    return await execute_${varName(decomposition.tree.id, decomposition.tree.label)}(input_data)`,
-  );
-  lines.push("");
-  lines.push("");
-  lines.push('if __name__ == "__main__":');
-  lines.push('    result = asyncio.run(main("initial input"))');
-  lines.push("    print(result)");
-  lines.push("");
-
-  return lines.join("\n");
-}
-
-function collectAgents(node: Node, agents: string[], lines: string[]): void {
-  if (node.node_type === "atom") {
-    const spec = node.atom_spec;
-    const name = varName(node.id, node.label);
-
-    if (spec.execution_type === "agent") {
-      const agentSpec = spec as AgentAtomSpec;
-      const def = agentSpec.agent_definition;
-      lines.push(`# Node ${node.id}: ${node.label}`);
-      lines.push(`${name}_agent = Agent(`);
-      lines.push(`    name="${def.name}",`);
-      lines.push(`    model="${MODEL_MAP[def.model] || def.model}",`);
-      lines.push(`    instructions="""`);
-      lines.push(`    ${def.prompt}`);
-      lines.push(`    """,`);
-      if (def.tools.length > 0) {
-        lines.push(`    tools=[${def.tools.join(", ")}],`);
-      }
-      lines.push(")");
-      lines.push("");
-      agents.push(name);
-    } else if (spec.execution_type === "human") {
-      const humanSpec = spec as HumanAtomSpec;
-      lines.push(`# Node ${node.id}: ${node.label} (human-in-the-loop)`);
-      lines.push(`# Action: ${humanSpec.human_instruction.action}`);
-      lines.push(
-        `# Method: ${humanSpec.human_instruction.integration_method}`,
-      );
-      lines.push("");
-    } else if (spec.execution_type === "tool") {
-      const toolSpec = spec as ToolAtomSpec;
-      lines.push(`# Node ${node.id}: ${node.label} (direct tool call)`);
-      lines.push(`# Tool: ${toolSpec.tool_invocation.tool_name}`);
-      lines.push("");
-    } else if (spec.execution_type === "external") {
-      const extSpec = spec as ExternalAtomSpec;
-      lines.push(`# Node ${node.id}: ${node.label} (external integration)`);
-      lines.push(`# System: ${extSpec.external_integration.system}`);
-      lines.push(
-        `# Protocol: ${extSpec.external_integration.protocol}`,
-      );
-      lines.push("");
-    }
-    return;
-  }
-
-  for (const child of (node as BranchNode).children) {
-    collectAgents(child, agents, lines);
-  }
-}
-
-function generateOrchestration(
-  node: Node,
-  lines: string[],
-  indent: number,
-): void {
-  const name = varName(node.id, node.label);
-  const pad = " ".repeat(indent);
-
-  if (node.node_type === "atom") {
-    // Atom execution
-    const spec = node.atom_spec;
-    if (spec.execution_type === "agent") {
-      lines.push(
-        `${pad}async def execute_${name}(input_data: str) -> str:`,
-      );
-      lines.push(`${pad}    """${node.label}"""`);
-      lines.push(
-        `${pad}    result = await Runner.run(${name}_agent, input=input_data)`,
-      );
-      lines.push(`${pad}    return result.final_output`);
-    } else {
-      lines.push(
-        `${pad}async def execute_${name}(input_data: str) -> str:`,
-      );
-      lines.push(`${pad}    """${node.label} (${spec.execution_type})"""`);
-      lines.push(
-        `${pad}    # TODO: implement ${spec.execution_type} execution`,
-      );
-      lines.push(`${pad}    return input_data`);
-    }
-    lines.push("");
-    return;
-  }
-
-  const branch = node as BranchNode;
-  lines.push(`${pad}async def execute_${name}(input_data: str) -> str:`);
-  lines.push(
-    `${pad}    """${node.label} (${branch.orchestration} orchestration)"""`,
-  );
-
-  if (branch.orchestration === "sequential") {
-    lines.push(`${pad}    result = input_data`);
-    for (const child of branch.children) {
-      const childName = varName(child.id, child.label);
-      lines.push(
-        `${pad}    result = await execute_${childName}(result)`,
-      );
-    }
-    lines.push(`${pad}    return result`);
-  } else if (branch.orchestration === "parallel") {
-    lines.push(`${pad}    results = await asyncio.gather(`);
-    for (const child of branch.children) {
-      const childName = varName(child.id, child.label);
-      lines.push(`${pad}        execute_${childName}(input_data),`);
-    }
-    lines.push(`${pad}    )`);
-    lines.push(`${pad}    return "\\n".join(str(r) for r in results)`);
-  } else if (branch.orchestration === "conditional") {
-    lines.push(`${pad}    # Route based on: ${branch.condition || "condition"}`);
-    for (let i = 0; i < branch.children.length; i++) {
-      const child = branch.children[i];
-      const childName = varName(child.id, child.label);
-      const keyword = i === 0 ? "if" : "elif";
-      lines.push(
-        `${pad}    ${keyword} should_route_to_${childName}(input_data):`,
-      );
-      lines.push(
-        `${pad}        return await execute_${childName}(input_data)`,
-      );
-    }
-    lines.push(`${pad}    return input_data`);
-  } else if (branch.orchestration === "loop") {
-    const loopSpec = branch.loop_spec;
-    const maxIter = loopSpec?.max_iterations || 100;
-    lines.push(`${pad}    results = []`);
-    lines.push(`${pad}    for i in range(${maxIter}):`);
-    if (branch.children.length > 0) {
-      const childName = varName(
-        branch.children[0].id,
-        branch.children[0].label,
-      );
-      lines.push(
-        `${pad}        result = await execute_${childName}(input_data)`,
-      );
-      lines.push(`${pad}        results.append(result)`);
-    }
-    lines.push(
-      `${pad}        # Check: ${loopSpec?.termination || "termination condition"}`,
-    );
-    lines.push(`${pad}        if should_terminate(results):`);
-    lines.push(`${pad}            break`);
-    lines.push(`${pad}    return "\\n".join(str(r) for r in results)`);
-  }
-
-  lines.push("");
-  lines.push("");
-
-  // Recurse into children
-  for (const child of branch.children) {
-    generateOrchestration(child, lines, indent);
-  }
-}
-
-function varName(id: string, label: string): string {
-  const fromLabel = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "");
-  return `n${id.replace(/\./g, "_")}_${fromLabel}`;
 }

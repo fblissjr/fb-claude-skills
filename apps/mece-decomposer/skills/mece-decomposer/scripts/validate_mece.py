@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["orjson>=3.10"]
+# ///
 """
 Structural validation of MECE decomposition JSON output.
 
@@ -6,9 +10,9 @@ Validates schema compliance, hierarchical ID consistency,
 cross-branch dependency references, fan-out limits, and computes
 aggregate ME/CE scores.
 
-Usage:
-    uv run scripts/validate_mece.py <path_to_json>
-    uv run scripts/validate_mece.py <path_to_json> --output report.json
+Usage (uv reads the dependency block above, so any working directory works):
+    uv run --script scripts/validate_mece.py <path_to_json>
+    uv run --script scripts/validate_mece.py <path_to_json> --output report.json
 """
 
 import sys

@@ -13,7 +13,7 @@ Business SMEs have tacit knowledge about processes that is stuck in their heads 
 Takes any input -- a goal, a process description, an SOP, a live conversation with an SME -- and produces:
 
 1. **Human-readable tree** for validation and communication
-2. **Structured JSON** that maps directly to Agent SDK primitives (`Agent`, `Runner`, hooks, handoffs)
+2. **Structured JSON** that maps directly to Claude Agent SDK primitives (`ClaudeAgentOptions` and `query()` per agent atom, asyncio orchestration per branch)
 3. **Interactive visualization** (MCP App) for exploring, validating, and refining the tree
 
 The decomposition itself becomes the shared contract between humans and agents.
@@ -33,7 +33,7 @@ claude plugin marketplace add fblissjr/fb-claude-skills
 claude plugin install mece-decomposer@fb-claude-skills
 ```
 
-The MCP server starts automatically -- no build step needed. The bundled server is self-contained.
+The MCP server starts automatically, with no build step: the bundled server is self-contained. It needs `node` on PATH, and the validate tool also needs `uv`, which installs the validator's one dependency on first use.
 
 ### Development Setup
 
@@ -49,23 +49,10 @@ To rebuild the production bundle:
 
 ```bash
 bun run build   # outputs dist/index.cjs (self-contained) + dist/mcp-app.html
+bun test        # codegen, validator, and bundle-freshness tests
 ```
 
-## Hooks
-
-| Hook | Event | What it does |
-|------|-------|--------------|
-| `session-start.sh` | SessionStart | Detects Agent SDK or decomposition usage in cwd, injects MECE principles as additionalContext. |
-
-### Detection markers
-
-The hook looks for: `claude_agent_sdk` or `agents` imports in `.py` files, a `decomposition.json` file, or a `.mece` directory. If any match, it injects `hooks/directives/mece-principles.md` -- core MECE decomposition and Agent SDK mapping principles.
-
-### Composable directives
-
-All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
-
-To add a new directive: drop a `.md` file in `hooks/directives/` and add a detection condition to `hooks/session-start.sh`.
+`dist/index.cjs` and `dist/mcp-app.html` are committed, because they are what a marketplace install runs. After any change under `mcp-app/` or to `.claude-plugin/plugin.json` (the UI embeds its version), run `bun run build` and commit both files. `bundle.test.ts` fails while the bundle is stale.
 
 ## Skills
 
@@ -76,7 +63,7 @@ Invoke these directly as slash commands:
 | `/decompose` | Break down a goal, process, or workflow into MECE components with SDK mapping |
 | `/interview` | Extract process knowledge from an SME through structured conversation |
 | `/validate` | Check a decomposition for MECE compliance and structural integrity |
-| `/export` | Generate Agent SDK Python code scaffolding from a validated decomposition |
+| `/export` | Generate Claude Agent SDK Python scaffolding from a validated decomposition |
 
 In Claude Code, these are namespaced: `/mece-decomposer:decompose`, etc.
 
@@ -141,7 +128,10 @@ mece-decomposer/
     |   +-- index.cjs                                  # Bundled server (committed)
     |   +-- mcp-app.html                               # Bundled React UI (committed)
     +-- server.ts                                      # Source: MCP tools + resources
+    +-- sdk-codegen.ts                                 # Source: Claude Agent SDK code generator
     +-- main.ts                                        # Source: HTTP/stdio entry point
+    +-- build-stamp.mjs                                # Source hash stamped into the bundle
+    +-- *.test.ts                                      # bun test
     +-- src/                                           # Source: React components
     +-- package.json
 ```

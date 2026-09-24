@@ -13,5 +13,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["server.ts"]
+  "include": ["server.ts", "sdk-codegen.ts"]
 }

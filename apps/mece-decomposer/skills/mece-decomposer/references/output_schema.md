@@ -1,6 +1,6 @@
 # Output Schema
 
-last updated: 2026-02-17
+last updated: 2026-09-24
 
 The canonical JSON schema for MECE decomposition output. Every decomposition produced by this skill conforms to this schema. The structure serves two audiences: humans read the tree visually, agents consume the JSON programmatically.
 
@@ -167,7 +167,7 @@ An atom is a leaf node -- the smallest unit that cannot be decomposed further wi
 
 ### execution_type: "agent"
 
-Maps to Claude Agent SDK's `Agent` class.
+Maps to one Claude Agent SDK `query()` call with its own `ClaudeAgentOptions`; see `agent_sdk_mapping.md`.
 
 ```json
 {

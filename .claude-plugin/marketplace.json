@@ -20,7 +20,7 @@
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
-      "version": "0.7.0"
+      "version": "0.8.0"
     },
     {
       "name": "skill-dashboard",

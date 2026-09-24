@@ -406,7 +406,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.7.0"
+version = "0.8.0"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
