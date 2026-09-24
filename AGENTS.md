@@ -47,7 +47,8 @@ for limits the model no longer has. Measure with `/doctor`, `/skill-doctor`,
 Detail: [context-cost.md](docs/internals/context-cost.md).
 
 **2. Every path in repo content is repo-relative, and the git `user.name` full
-name never appears** (the GitHub handle and email are fine), including commit
+name never appears** (the GitHub handle and the GitHub noreply address are
+fine; the owner's personal email addresses never appear anywhere), including commit
 messages and branch names. The path-privacy PreToolUse hook rewrites in-repo
 absolute paths to repo-relative on Edit/Write and blocks external paths and the
 name; the git hooks hard-block both at commit. Never `--no-verify`. Generic tool
