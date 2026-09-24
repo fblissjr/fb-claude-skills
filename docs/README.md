@@ -31,6 +31,7 @@ Repo-specific operating reference. Spokes for the root [AGENTS.md](../AGENTS.md)
 | [control_audit_design.md](internals/control_audit_design.md) | Design record for control-audit: census plus live-fire over hooks, validators, reminders; why the adversarial primitive shipped first |
 | [agent_state_population.md](internals/agent_state_population.md) | Why `agent-state` was retired rather than populated: every candidate duplicated a file, and effectiveness needs a controlled A/B |
 | [postmortem_output_formats.md](internals/postmortem_output_formats.md) | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started |
+| [path_privacy_consolidation.md](internals/path_privacy_consolidation.md) | Merging path-privacy and the owner's personal-data hook into one git-level gate (global dispatcher, external-push enforcement) — deferred 2026-09-24 until the narrower push gate has run a week, NOT started |
 
 ## postmortems (`postmortems/`)
 
