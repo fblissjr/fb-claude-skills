@@ -1,0 +1,451 @@
+"""path-privacy's hooks, exercised end to end as shell.
+
+path-privacy: skip-file -- fixtures for the leak check itself, so this file is
+full of deliberately leak-shaped paths and a fake full name.
+
+CLAIM OF THIS FILE. The PreToolUse hook, the git entry scripts and the
+SessionStart hook each make a promise about friction or coverage. Each test
+below pins one promise, and its comment says what breaks if it is deleted.
+
+Fixtures never touch the machine's real identity. Every subprocess runs with
+an isolated git config (no global, no system file) and, where tilde forms
+matter, a fake HOME. The full name under test is "Jane Q. Example"; nothing
+here reads or prints the running user's own `user.name`.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[3]
+PLUGIN = REPO / "skills/path-privacy"
+HOOKS = PLUGIN / "hooks"
+SCRIPTS = PLUGIN / "skills/path-privacy/scripts"
+PRE_TOOL_USE = HOOKS / "path-privacy-pre-tool-use.sh"
+SESSION_START = HOOKS / "path-privacy-session-start.sh"
+SCANNER = SCRIPTS / "find-external-paths.sh"
+PRE_COMMIT = SCRIPTS / "git-pre-commit"
+COMMIT_MSG = SCRIPTS / "git-commit-msg"
+INSTALLER = SCRIPTS / "install-git-hooks.sh"
+
+FULL_NAME = "Jane Q. Example"
+HANDLE = "jqexample"
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("rg") is None or shutil.which("jq") is None,
+    reason="path-privacy needs ripgrep and jq",
+)
+
+
+# --- harness -----------------------------------------------------------------
+
+
+def _env(tmp_path: Path, home: Path | None = None, **extra: str) -> dict:
+    """An environment that cannot see the real git identity."""
+    empty = tmp_path / "empty-gitconfig"
+    empty.touch()
+    env = dict(os.environ)
+    env.update(GIT_CONFIG_GLOBAL=str(empty), GIT_CONFIG_NOSYSTEM="1")
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    if home is not None:
+        env["HOME"] = str(home)
+    env.update(extra)
+    return env
+
+
+def _repo(tmp_path: Path, where: Path | None = None, name: str | None = FULL_NAME) -> Path:
+    repo = where or (tmp_path / "repo")
+    repo.mkdir(parents=True, exist_ok=True)
+    env = _env(tmp_path)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True, env=env)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "jane@example.com"],
+                   check=True, env=env)
+    if name is not None:
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", name],
+                       check=True, env=env)
+    return repo
+
+
+def _pre_tool_use(tmp_path: Path, repo: Path, tool: str, tool_input: dict,
+                  home: Path | None = None) -> subprocess.CompletedProcess:
+    payload = {"tool_name": tool, "tool_input": tool_input, "hook_event_name": "PreToolUse"}
+    return subprocess.run(
+        ["bash", str(PRE_TOOL_USE)], input=json.dumps(payload),
+        capture_output=True, text=True,
+        env=_env(tmp_path, home=home, CLAUDE_PROJECT_DIR=str(repo)),
+    )
+
+
+def _write(tmp_path, repo, rel, content, home=None):
+    return _pre_tool_use(tmp_path, repo, "Write",
+                         {"file_path": str(repo / rel), "content": content}, home=home)
+
+
+def _output(r: subprocess.CompletedProcess) -> dict:
+    return json.loads(r.stdout)["hookSpecificOutput"] if r.stdout.strip() else {}
+
+
+def _scan(tmp_path: Path, text: str, home: Path | None = None) -> int:
+    root = tmp_path / "scanroot"
+    root.mkdir(exist_ok=True)
+    r = subprocess.run([str(SCANNER), "--against-root", str(root), "--text", text],
+                       capture_output=True, text=True, env=_env(tmp_path, home=home))
+    return r.returncode
+
+
+# --- 1. fix instead of block: in-repo absolute paths are rewritten ------------
+
+
+def test_write_rewrites_absolute_in_repo_path_to_relative(tmp_path):
+    # Claim: an absolute path INSIDE the repo is fixed in place via updatedInput,
+    # not blocked and not waved through. Delete this and the hook can regress to
+    # letting the username-bearing form land (what the whole-tree audit flags).
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "docs/a.md", f"see {repo}/docs/b.md for more\n")
+    assert r.returncode == 0, r.stderr
+    out = _output(r)
+    assert out["updatedInput"]["content"] == "see docs/b.md for more\n"
+    assert out["updatedInput"]["file_path"] == str(repo / "docs/a.md")
+    # Rewriting must not loosen permissions: no decision means the normal flow.
+    assert "permissionDecision" not in out
+    assert "rewrote" in out["additionalContext"]
+
+
+def test_edit_rewrites_new_string_and_keeps_every_other_field(tmp_path):
+    # Claim: updatedInput REPLACES the whole input, so old_string and
+    # replace_all must survive untouched. Dropping them fails schema validation
+    # upstream, which turns a fix into a deny.
+    repo = _repo(tmp_path)
+    (repo / "a.md").write_text("old line\n")
+    r = _pre_tool_use(tmp_path, repo, "Edit", {
+        "file_path": str(repo / "a.md"), "old_string": "old line",
+        "new_string": f"cd {repo}/scripts && ./run.sh", "replace_all": True})
+    out = _output(r)
+    assert out["updatedInput"] == {
+        "file_path": str(repo / "a.md"), "old_string": "old line",
+        "new_string": "cd scripts && ./run.sh", "replace_all": True}
+
+
+def test_home_relative_forms_of_the_repo_root_are_rewritten(tmp_path):
+    # Claim: `~/...` and `$HOME/...` spellings of the repo are the same leak of
+    # layout and get the same fix. Without it only the absolute spelling is fixed.
+    home = tmp_path / "Users" / "janeexample"
+    repo = _repo(tmp_path, where=home / "code" / "proj")
+    r = _write(tmp_path, repo, "n.md", "~/code/proj/src/a.py and $HOME/code/proj/b.py\n",
+               home=home)
+    assert _output(r)["updatedInput"]["content"] == "src/a.py and b.py\n"
+
+
+def test_bare_repo_root_becomes_dot(tmp_path):
+    # Claim: the root itself, not followed by a path, becomes `.`, so a
+    # `cd <root> && ...` stays a working command.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "run.sh", f'cd "{repo}" && make\n')
+    assert _output(r)["updatedInput"]["content"] == 'cd "." && make\n'
+
+
+def test_sibling_directory_sharing_the_root_prefix_is_not_rewritten(tmp_path):
+    # Claim: the match is anchored on a path boundary. `<root>-old/x` is a
+    # different directory; rewriting it would corrupt the text.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "n.md", f"backup at {repo}-old/x\n")
+    assert r.returncode == 0
+    assert r.stdout.strip() == ""
+
+
+def test_clean_write_emits_nothing(tmp_path):
+    # Claim (pin of kept behaviour): a write with nothing to fix produces no
+    # output at all. Any stdout here is context spent on every clean edit.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "n.md", "plain text, relative/path.md\n")
+    assert r.returncode == 0 and r.stdout == "" and r.stderr == ""
+
+
+def test_leak_still_blocks_and_carries_the_quiet_fix_rule(tmp_path):
+    # Claim: a real leak still hard-blocks (kept behaviour), and the block
+    # message now carries the one rule the retired SessionStart directive
+    # existed for: the fix stays out of commit messages and the changelog.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "n.md", "see /Users/realpersonname/secret/x\n")
+    assert r.returncode == 2
+    assert "n.md:1: /Users/realpersonname/secret/x" in r.stderr
+    assert "changelog" in r.stderr
+
+
+# --- 2. full-name guard -------------------------------------------------------
+
+
+def test_write_containing_the_full_name_is_blocked_without_echoing_it(tmp_path):
+    # Claim: the git user.name full name cannot be written into a tracked file,
+    # and the block message never repeats the name it is protecting.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "AUTHORS.md", f"Maintained by {FULL_NAME}.\n")
+    assert r.returncode == 2
+    assert "AUTHORS.md:1" in r.stderr
+    assert "Jane" not in r.stderr and "Example" not in r.stderr
+
+
+@pytest.mark.parametrize("spelling", [
+    "jane q. example", "JANE EXAMPLE", "Jane Q Example", "jane.example",
+    "jane-example", "jane_example", "janeexample",
+])
+def test_full_name_match_is_case_insensitive_and_separator_flexible(tmp_path, spelling):
+    # Claim: the guard catches the spellings a name actually takes -- any case,
+    # middle initial optional, joined by space, dot, dash, underscore or
+    # nothing (the home-directory form).
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "n.md", f"x {spelling} y\n")
+    assert r.returncode == 2, f"missed spelling: {spelling}"
+
+
+@pytest.mark.parametrize("text", [
+    f"by {HANDLE} (jane@example.com)",   # handle and email are allowed
+    "Jane Examples is a different word",  # right boundary
+    "Janet Example",                      # left token boundary
+])
+def test_handle_email_and_near_misses_are_allowed(tmp_path, text):
+    # Claim: the guard is the full name only. The handle and email are
+    # explicitly allowed, and a longer word containing the name is not it.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "n.md", text + "\n")
+    assert r.returncode == 0, r.stderr
+
+
+@pytest.mark.parametrize("text", ["Joann Lee signed off", "Ann Leeds signed off"])
+def test_a_different_name_containing_the_guarded_one_is_allowed(tmp_path, text):
+    # Claim: both ends of the match are word-bounded. "Joann Lee" and "Ann
+    # Leeds" are other people; without the bounds a short name blocks theirs.
+    repo = _repo(tmp_path, name="Ann Lee")
+    r = _write(tmp_path, repo, "n.md", text + "\n")
+    assert r.returncode == 0, r.stderr
+
+
+def test_single_token_user_name_is_treated_as_a_handle(tmp_path):
+    # Claim: a user.name with one word is a handle, not a full name, so there
+    # is nothing to guard. Without this every mention of a handle blocks.
+    repo = _repo(tmp_path, name=HANDLE)
+    r = _write(tmp_path, repo, "n.md", f"{HANDLE} wrote this\n")
+    assert r.returncode == 0
+
+
+def test_license_file_may_carry_the_name(tmp_path):
+    # Claim: LICENSE copyright lines are the owner's own exception.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "LICENSE", f"Copyright (c) 2026 {FULL_NAME}\n")
+    assert r.returncode == 0
+
+
+def test_skip_file_marker_does_not_exempt_the_name(tmp_path):
+    # Claim: the marker exists for path-shaped fixtures. It is not an opt-out
+    # from the name guard, or every marked file becomes a hiding place.
+    repo = _repo(tmp_path)
+    r = _write(tmp_path, repo, "t.py", f"# path-privacy: skip-file\nNAME = '{FULL_NAME}'\n")
+    assert r.returncode == 2
+
+
+def test_bash_git_command_with_the_full_name_is_blocked(tmp_path):
+    # Claim: commit messages reach the repo without Write/Edit; the name guard
+    # covers the git and gh commands that carry them.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": f'git commit -m "thanks to {FULL_NAME}"'})
+    assert r.returncode == 2
+    assert "Jane" not in r.stderr
+
+
+def _commit_msg(tmp_path, repo, message) -> subprocess.CompletedProcess:
+    msg = tmp_path / "MSG"
+    msg.write_text(message)
+    return subprocess.run([str(COMMIT_MSG), str(msg)], cwd=repo, capture_output=True,
+                          text=True, env=_env(tmp_path))
+
+
+def test_commit_msg_hook_blocks_the_full_name(tmp_path):
+    # Claim: the authoritative gate enforces the name too, for commits made
+    # outside Claude, and does not echo it.
+    repo = _repo(tmp_path)
+    r = _commit_msg(tmp_path, repo, f"docs: credit {FULL_NAME}\n")
+    assert r.returncode == 1
+    assert "Jane" not in r.stderr
+
+
+def test_commit_msg_hook_allows_a_signed_off_by_trailer(tmp_path):
+    # Claim: `git commit -s` writes the name from git config -- automatic
+    # author metadata, the owner's stated exception.
+    repo = _repo(tmp_path)
+    r = _commit_msg(tmp_path, repo, f"docs: edit\n\nSigned-off-by: {FULL_NAME} <jane@example.com>\n")
+    assert r.returncode == 0, r.stderr
+
+
+def _git(tmp_path, repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                          env=_env(tmp_path), check=True)
+
+
+def _pre_commit(tmp_path, repo):
+    return subprocess.run([str(PRE_COMMIT)], cwd=repo, capture_output=True, text=True,
+                          env=_env(tmp_path))
+
+
+def test_pre_commit_blocks_the_name_on_added_lines_only(tmp_path):
+    # Claim: the commit gate blocks a newly added line with the name, but a
+    # line already in history does not block an unrelated change to the same
+    # file. Whole-file matching would ambush every commit touching that file.
+    repo = _repo(tmp_path)
+    (repo / "pyproject.toml").write_text(f'authors = ["{FULL_NAME}"]\n')
+    _git(tmp_path, repo, "add", "-A")
+    _git(tmp_path, repo, "commit", "-q", "--no-verify", "-m", "seed")
+
+    (repo / "pyproject.toml").write_text(f'authors = ["{FULL_NAME}"]\nversion = "1"\n')
+    _git(tmp_path, repo, "add", "-A")
+    assert _pre_commit(tmp_path, repo).returncode == 0
+
+    (repo / "NOTES.md").write_text(f"ask {FULL_NAME}\n")
+    _git(tmp_path, repo, "add", "-A")
+    r = _pre_commit(tmp_path, repo)
+    assert r.returncode == 1
+    assert "NOTES.md:1" in r.stderr + r.stdout
+    assert "Jane" not in r.stderr + r.stdout
+
+
+# --- 3. fewer false positives in the path scanner ----------------------------
+
+
+@pytest.mark.parametrize("text", [
+    "~/.claude/plans/x.md",
+    "$HOME/.config/tool/settings",
+    "${HOME}/.cache/x",
+    "~/Library/Caches/huggingface/hub",
+    "~/AppData/Local/huggingface/hub",
+])
+def test_generic_home_locations_are_not_leaks(tmp_path, text):
+    # Claim: a dot-directory or OS-standard directory under home names no user
+    # and no project. These were the largest class of blocks measured.
+    home = tmp_path / "Users" / "janeexample"
+    assert _scan(tmp_path, f"see {text}", home=home) == 0
+
+
+@pytest.mark.parametrize("text", ['cd "$HOME"', "$HOME/$sub/x", "~/$1", "HOME is $HOME, then"])
+def test_bare_home_and_variable_segments_are_not_leaks(tmp_path, text):
+    # Claim: shell code that uses $HOME, or appends a runtime variable, names
+    # nothing. Blocking it blocked ordinary scripts.
+    home = tmp_path / "Users" / "janeexample"
+    assert _scan(tmp_path, text, home=home) == 0
+
+
+@pytest.mark.parametrize("text", ["~/code/secret-project/x", "$HOME/development/OtherRepo"])
+def test_named_directory_under_home_still_leaks(tmp_path, text):
+    # Claim (pin of kept behaviour): a named, non-dot directory under home
+    # reveals layout and project names. The relaxation above must not reach it.
+    home = tmp_path / "Users" / "janeexample"
+    assert _scan(tmp_path, text, home=home) == 1
+
+
+def test_generic_location_embedding_the_username_still_leaks(tmp_path):
+    # Claim: the dot-directory allowance ends where the path spells the
+    # username, as Claude's own project directories do.
+    home = tmp_path / "Users" / "janeexample"
+    assert _scan(tmp_path, "~/.claude/projects/-Users-janeexample-code-proj/x", home=home) == 1
+
+
+def test_mangled_home_path_is_a_leak(tmp_path):
+    # Claim: the dash-joined home form (`-Users-<user>-...`, as in session
+    # scratch directories) carries the username with no /Users/ to match.
+    home = tmp_path / "Users" / "janeexample"
+    assert _scan(tmp_path, "scratch: /private/tmp/claude-501/-Users-janeexample-code-proj/s",
+                 home=home) == 1
+
+
+@pytest.mark.parametrize("text", ["/Users/dev/x", "/Users/alice/proj", "/home/runner/work/x",
+                                  "/Users/Shared/data"])
+def test_documentation_and_system_accounts_are_placeholders(tmp_path, text):
+    # Claim: the scanner accepts the same stand-in and system account names
+    # the whole-tree audit does, so docs and fixtures stop tripping the gate.
+    assert _scan(tmp_path, text) == 0
+
+
+@pytest.mark.parametrize("mode", ["text", "file"])
+def test_a_failing_ripgrep_is_never_a_clean_result(tmp_path, mode):
+    # Claim: when ripgrep itself fails (exit 2, or killed), the scanner does
+    # not report "clean". Each call used to end `|| true`, so a failed rg read
+    # as "no candidates"; observed on 2026-09-24 as rg killed (137) partway
+    # through a long Write, the lines after it silently unscanned.
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    fake = shim / "rg"
+    fake.write_text("#!/bin/sh\nexit 2\n")
+    fake.chmod(0o755)
+    root = tmp_path / "scanroot"
+    root.mkdir()
+    target = root / "doc.md"
+    target.write_text("see /Users/realpersonname/x\n")
+    args = ["--text", target.read_text()] if mode == "text" else ["-f", str(target)]
+    env = _env(tmp_path, PATH=f"{shim}:{os.environ['PATH']}")
+    r = subprocess.run([str(SCANNER), "--against-root", str(root), *args],
+                       capture_output=True, text=True, env=env)
+    assert r.returncode != 0, "a failed ripgrep was reported as a clean scan"
+
+
+# --- 4. commit messages the Bash check used to miss --------------------------
+
+
+def test_heredoc_commit_message_is_scanned(tmp_path):
+    # Claim: the default Claude Code commit shape, -m "$(cat <<'EOF' ... EOF)",
+    # is scanned. Before, the line-by-line extraction never saw its body, so
+    # every such commit fell through to the commit-msg hook.
+    repo = _repo(tmp_path)
+    cmd = "git commit -m \"$(cat <<'EOF'\nfix\n\nsee ~/code/secret-project/x\nEOF\n)\""
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 2, r.stderr
+
+
+def test_paths_outside_the_message_are_not_scanned(tmp_path):
+    # Claim (pin of kept behaviour): only message and branch text is scanned,
+    # never the whole command, which is full of legitimate absolute paths.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": 'git -C /Users/realpersonname/repo commit -m "docs: edit"'})
+    assert r.returncode == 0
+
+
+def test_single_quoted_message_still_blocks(tmp_path):
+    # Claim (pin of kept behaviour): the plain -m '...' form is still caught.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": "git commit -m 'see /Users/realpersonname/x'"})
+    assert r.returncode == 2
+
+
+# --- 5. SessionStart emits nothing in the steady state -----------------------
+
+
+def _session_start(tmp_path, repo):
+    payload = {"cwd": str(repo), "source": "startup", "hook_event_name": "SessionStart"}
+    return subprocess.run(["bash", str(SESSION_START)], input=json.dumps(payload),
+                          capture_output=True, text=True, env=_env(tmp_path))
+
+
+def test_session_start_is_silent_in_a_gated_current_repo(tmp_path):
+    # Claim: with the gate installed and current, SessionStart adds zero bytes
+    # of context. The rule it used to state is enforced by the hooks, and the
+    # one unenforceable part rides on the block messages instead.
+    repo = _repo(tmp_path)
+    subprocess.run([str(INSTALLER), "-C", str(repo)], capture_output=True, check=True,
+                   env=_env(tmp_path))
+    r = _session_start(tmp_path, repo)
+    assert r.returncode == 0 and r.stdout == ""
+
+
+def test_missing_gate_notice_is_shown_once_per_repo(tmp_path):
+    # Claim: an ungated repo is reported once, not on every startup. The
+    # notice fired on every session start in every such repo before.
+    repo = _repo(tmp_path)
+    first = _session_start(tmp_path, repo)
+    ctx = json.loads(first.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "no commit gate" in ctx
+    second = _session_start(tmp_path, repo)
+    assert second.stdout == ""

@@ -23,14 +23,15 @@ Call these tools in parallel:
 
 ### 3. Present the Digest
 
+`reading_digest` counts documents *updated* in the range, grouped by current
+location and category; it does not count highlights or distinguish a new save
+from a move. Report what it returns under those names:
+
 ```
 Reading Digest ([time range])
 
-Activity:
-- [N] new items saved
-- [N] moved to Later
-- [N] archived (completed)
-- [N] highlights created
+Activity ([N] documents updated):
+- Inbox: [N] | Later: [N] | Archive: [N]
 
 By Category:
 - Articles: [N] | PDFs: [N] | Tweets: [N] | ...
@@ -49,12 +50,10 @@ Recent Saves:
 Last synced: [date]
 ```
 
-### 4. Offer Insights
+### 4. Notable patterns
 
-If notable patterns emerge:
-- Large inbox: "Your inbox has [N] items -- consider running /triage"
-- Reading velocity: "You've been saving [N] items/week but archiving [M]"
-- Category skew: "Most of your recent saves are [category]"
+Add a line only for a pattern the data shows, such as a large inbox (suggest
+`/triage`) or recent activity skewed to one category.
 
 ## Examples
 

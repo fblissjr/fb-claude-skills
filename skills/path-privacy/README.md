@@ -2,86 +2,49 @@
 
 <!-- path-privacy: skip-file -->
 
-last updated: 2026-08-03
+last updated: 2026-09-24
 
-Stops absolute and home-relative filesystem paths from leaking into committed artifacts. One rule: every path written into the repo must be relative to the repo root.
+Keeps personal identifiers out of committed artifacts. Two rules: every path
+written into the repo is relative to the repo root, and the git `user.name`
+full name is never written at all. The GitHub handle and git email are fine.
 
-
-## Which repos are actually protected?
-
-Hooks live in `.git/`, so they are per-repo, uncommittable, and installed by
-hand. Nothing tracks where they are. `--doctor` is that inventory:
-
-```bash
-# this repo
-bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/install-git-hooks.sh" --doctor
-
-# every git repo under a root you name
-bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/install-git-hooks.sh" --doctor <root>
-```
-
-Per repo and per hook it reports the version stamp, `fail-closed` vs
-`FAILS OPEN`, whether the frozen scanner path still resolves, and `not
-installed` when a hook is missing. Exit 1 if anything needs attention. It is
-read-only and requires an explicit root — it will not sweep your home
-directory on its own.
-
-`FAILS OPEN` means a pre-0.6.0 wrapper: those exit 0 when the scanner is
-missing, so the gate reports success on every commit while doing nothing.
-Re-run the installer in those repos.
-
-## Keeping installed hooks current
-
-A plugin update refreshes the **scanner** your hooks call, but never the
-**wrapper** itself. That is structural, not an oversight: the wrapper is the
-thing that *locates* the plugin, so the plugin cannot rewrite it. Its logic is
-baked in when you run `install-git-hooks.sh` and stays frozen until you run it
-again, which means a repo can carry a wrapper whose bugs were fixed several
-releases ago.
-
-Three things narrow that window:
-
-- Since 0.6.0 the generated wrapper carries a `# path-privacy:wrapper-version`
-  stamp, and the SessionStart hook compares it against the installed plugin —
-  one notice, in the repo where it matters. Pre-0.6.0 wrappers have no stamp
-  and are reported as `pre-0.6.0`.
-- Since 0.7.0 the wrapper also says so itself, on stderr at commit time. That
-  reaches you when you commit from a plain terminal with no session open.
-- Since 0.7.3 all three staleness checks — the SessionStart notice, the
-  wrapper's own self-report, and `--doctor` — establish which side is behind
-  before advising anything, from one shared comparison in
-  `scripts/_version_compare.sh`. A wrapper can be *newer* than the plugin
-  (install the hooks from a source checkout, then run against a lagging
-  installed copy), and in that state re-running the installer regenerates the
-  wrapper from the older plugin and downgrades a working gate. The ahead case
-  gets its own message saying the gate is fine and not to reinstall, and
-  `--doctor` annotates it rather than exiting non-zero. "Newer" has to be
-  positively verified: a stamp that is not plainly numeric — including the
-  `unknown` written when `plugin.json` was unreadable at install time — is
-  never treated as newer, so it gets the refresh advice, which is idempotent.
-- Since 0.7.0 a marketplace-installed wrapper re-resolves to the **newest**
-  cached version of the plugin on every run, rather than only when its frozen
-  path has been deleted. Before that it kept running the superseded scanner
-  for the whole ~14-day cache-retention window after an update.
-
-```bash
-# in any repo the notice fires for
-<plugin-dir>/skills/path-privacy/scripts/install-git-hooks.sh
-```
-
-It deliberately does **not** rewrite the hook for you. Silently editing a file
-in someone's `.git/hooks` is the kind of surprise a privacy gate should never
-spring — and the 0.6.0 release fixed four ways that installer could damage a
-repo. Detection is safe; an unattended rewrite of a security gate is not.
+The plugin fixes what it safely can and blocks the rest. It does not load
+anything into context unless it has something to tell you.
 
 ## What it does
 
-- **SessionStart directive**: when a session opens in a git repo, the rule is injected into Claude's context so paths outside the repo are never written in the first place.
-- **Pre-commit hook**: hard-blocks any commit whose staged file content references a path resolving outside the repo root.
-- **Commit-msg hook**: hard-blocks any commit whose message body or current branch name references such a path.
-- **On-demand skill**: scan a working tree, a single file, or an arbitrary string for leaks.
+| Where | Behaviour |
+|---|---|
+| PreToolUse, Write/Edit | An absolute or `~`/`$HOME` spelling of a path **inside** the repo is rewritten to repo-relative before the write lands (`updatedInput`, no permission change), with one line of context saying so. A path **outside** the repo, or the full name, blocks the call |
+| PreToolUse, Bash | A `git`/`gh` command containing the full name is blocked. Commit, tag and PR message text (heredoc bodies included) and new branch names are scanned for external paths |
+| git pre-commit | Staged files are scanned whole for external paths. **Added** lines are scanned for the full name, so a name already in history does not block unrelated commits |
+| git commit-msg | Message and current branch name, for both. A `Signed-off-by:` trailer from `git commit -s` is allowed |
+| SessionStart (startup only) | Refreshes this repo's frozen hook wrappers when the template changes. Emits nothing in a repo whose gate is installed and current; says once per repo when the gate is missing |
 
-The plugin treats "fixing leaks" as a sensitive activity. The directive instructs Claude to keep branch names, commit titles, commit messages, and changelog entries vague when removing leaks — never advertise the cleanup.
+Every block message ends with the one rule no hook can enforce: the correction
+is routine, and commit messages, branch names and changelog entries do not
+mention it. That used to be a SessionStart directive injected on every start,
+resume, clear and compact. It now appears only when a correction is under way.
+
+### What counts as a leak
+
+A path leaks when it resolves outside the repo root and says something about
+this machine: `~/code/secret-project`, `$HOME/development/OtherRepo`,
+`/Users/<your-name>/...`, or the dash-joined `-Users-<your-name>-...` form in
+Claude Code's scratch and project directories.
+
+These name nothing and pass: `~/.claude/...`, `$HOME/.config/...`,
+`~/Library/...`, `~/AppData/...`, bare `$HOME` and `$HOME/$variable` in shell
+code, placeholder users (`/Users/USERNAME`, `/Users/dev`, `/home/runner`), and
+`<HOME>/...`. A generic location that spells the username still leaks.
+
+The full name is read from `git config user.name` at run time; nothing in the
+plugin stores it, and no message prints it. It is matched in any case, middle
+names optional, joined by spaces, dots, dashes, underscores or nothing (the
+home-directory form). A one-word `user.name` is a handle and guards nothing.
+`LICENSE` files are exempt.
+
+Full rules: `skills/path-privacy/references/patterns.md`.
 
 ## Install
 
@@ -90,43 +53,81 @@ The plugin treats "fixing leaks" as a sensitive activity. The directive instruct
 /plugin install path-privacy@fb-claude-skills
 ```
 
-After install, the SessionStart directive is active in any git repo you open a session in. The git hooks are opt-in per repo:
+The PreToolUse and SessionStart hooks are active in every repo once the plugin
+is installed. The git hooks are per repo:
 
 ```
 # from inside the repo you want to protect:
 bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/install-git-hooks.sh"
-```
 
-This writes `.git/hooks/pre-commit` and `.git/hooks/commit-msg` wrappers that delegate to the plugin's scanner. If hooks already exist, they are preserved as `.local` and the wrapper invokes them first.
-
-To uninstall in a repo:
-
-```
+# to remove them again:
 bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/install-git-hooks.sh" --uninstall
 ```
+
+The installer writes `.git/hooks/pre-commit` and `.git/hooks/commit-msg`
+wrappers. An existing hook is kept as `<hook>.local` and runs first.
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| `path-privacy` | Scan files, directories, staged changes, or strings for paths that resolve outside the repo root. Hard-block at commit time via git hooks. |
+| `path-privacy` | Scan files, directories, staged changes or strings for external paths; find the full name; scrub with a suggestion config; install, remove and inspect the git hooks |
 
-Trigger phrases: "scan for path leaks", "check for leaked paths", "are we leaking my home path", "scrub external paths", "install path-privacy hooks", "find absolute paths in this repo", "remove $HOME references", "block path leaks".
+Trigger phrases: "scan for path leaks", "check for leaked paths", "are we
+leaking my home path", "is my name in this repo", "scrub external paths",
+"install path-privacy hooks", "find absolute paths in this repo", "remove $HOME
+references", "block path leaks".
 
-## How "leak" is defined
+Invocation examples:
 
-After expanding `~`, `$HOME`, and `${HOME}`, if the absolute path does NOT live under the current repo root, it is a leak. Repo-relative paths and generic placeholders (`/Users/USERNAME/foo`, `<HOME>/.claude/...`) are not flagged. Per-line `path-privacy: ignore` opts a specific line out. The file-level form, `path-privacy: skip-file`, opts a whole file out when it is the **leading content** of one of the first 30 lines — up to three spaces of indent and a comment introducer (`#`, `//`, `--`, `;`, `<!--`) are allowed before it, and a rationale after it. A mention buried in a sentence, a markdown heading or bullet, an indented example, or anything inside a fenced code block is not an opt-out; that is what stops a file from exempting itself just by documenting the escape hatch. A separate check asserts that changelogs, skill docs, and plugin READMEs are never exempt by any route at all. Formats without comment syntax (JSON, CSV) have no file-level form — use the per-line marker or gitignore the file. Commit messages and branch names honour only the per-line form — a message cannot exempt itself by quoting one token.
+```bash
+# sweep the working tree for external paths
+bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/find-external-paths.sh" -d .
 
-Full pattern reference: `skills/path-privacy/references/patterns.md`.
+# list tracked lines carrying the full name, as file:line (never the name itself)
+git grep -n -i -E "$(bash -c '. "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/_name_guard.sh"; pp_name_regex .')" | cut -d: -f1,2
+
+# which repos under a root have the gate, at what version
+bash "${CLAUDE_PLUGIN_ROOT}/skills/path-privacy/scripts/install-git-hooks.sh" --doctor <root>
+```
+
+## Which repos are actually protected?
+
+Hooks live in `.git/`, so they are per repo, uncommittable and installed by
+hand. `--doctor` is the inventory: per repo and per hook it reports the version
+stamp, `fail-closed` vs `FAILS OPEN`, whether the frozen scanner path still
+resolves, and `not installed`. Exit 1 if anything needs attention. It is
+read-only and needs an explicit root to sweep more than the current repo.
+
+`FAILS OPEN` means a pre-0.6.0 wrapper, which exits 0 when the scanner is
+missing. Re-run the installer in that repo.
+
+## Keeping installed hooks current
+
+The wrapper in `.git/hooks` locates the plugin, so a plugin update cannot
+rewrite it; its logic is frozen at install. The scripts it calls
+(`git-pre-commit`, `git-commit-msg`, the scanner, the name guard) are resolved
+from the newest installed plugin version on every commit, so most changes,
+including the name guard, need no reinstall.
+
+When the wrapper template itself changes, the SessionStart hook regenerates the
+wrapper in place, touching only files that carry the plugin's own stamp. A
+wrapper newer than the running plugin is left alone and reported. If the
+refresh fails (read-only `.git`, `core.hooksPath` elsewhere), the hook says so.
 
 ## How to remove a leak
 
-Pre-commit hook fires, prints `<file>:<lineno>: <match>`, exits 1. Open the file, replace the absolute portion with a repo-relative reference or a generic name. Re-stage, re-commit with a vague message ("docs: minor edits"). Do not announce that a leak was fixed.
+A block prints `<file>:<lineno>: <match>` (or `<file>:<lineno>` for the name).
+Replace the path with a repo-relative reference or a generic name, and the name
+with the GitHub handle or `<author>`. Re-stage and re-commit with a vague
+message ("docs: minor edits"). Never `--no-verify`.
 
-For paths already in git history, see `skills/path-privacy/references/scrub_workflow.md`.
+For leaks already in history, see
+`skills/path-privacy/references/scrub_workflow.md`.
 
 ## Dependencies
 
 - `ripgrep` (`brew install ripgrep`)
-- `jq` (for the SessionStart hook)
+- `jq`
 - `git`
+- `bash` (3.2 or later)

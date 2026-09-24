@@ -86,7 +86,7 @@ if [ -f pyproject.toml ] && grep -qE '^[[:space:]]*\[tool\.pyright(\]|\.)' pypro
             fi
           fi
         fi
-        printf '%s' 'pyright-autoconfig: this project now declares [tool.pyright] in pyproject.toml, so the personal pyrightconfig.json this plugin had written was removed. It had to go rather than simply be left alone: Pyright treats pyrightconfig.json as outranking pyproject.toml whenever both exist, so keeping it would have silently overridden the config the project just declared. Pyright now reads pyproject.toml. If that block does not carry venvPath/venv, add them so imports still resolve.' \
+        printf '%s' 'pyright-autoconfig: this project now declares [tool.pyright] in pyproject.toml, so the personal pyrightconfig.json this plugin had written was removed; Pyright ranks pyrightconfig.json above pyproject.toml, so keeping it would have silently overridden the declared config. Pyright now reads pyproject.toml, and imports resolve only if that block carries venvPath/venv.' \
           | jq -Rs '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: .}}' 2>/dev/null
       fi
     fi

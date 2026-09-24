@@ -17,7 +17,6 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |
 | best_practices.md section provenance — a cited upstream page moving past the hash its section was verified against (`best_practices provenance`) | `skill-maintain test`, and printed by `skill-maintain upstream` after every fetch | On demand |
 | Staleness of the hash state the join trusts (`upstream hash state fresh`) | `skill-maintain test` | On demand |
-| Forgotten session log | skill-maintainer Stop hook (`maybe-draft-session-log.sh`) | On session stop, when ≥3 substantive files touched and today's log not updated |
 
 The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git** — must be re-applied on fresh clones. See [gotchas.md](gotchas.md) for setup.
 
@@ -25,15 +24,13 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 
 | What | Command |
 |------|---------|
-| End-of-session wrap-up (orchestrates drafter → sync → bumps → quality) | `/skill-maintainer:finish-session` |
 | Red/green test suite | `skill-maintain test` |
 | Full maintenance pass (pulls sources, checks upstream, runs quality, proposes best-practices updates) | `/skill-maintainer:maintain` |
-| Quick quality / budget | `/skill-maintainer:quality` or `skill-maintain quality` |
+| Quick quality / budget | `skill-maintain quality` |
 | Upstream Claude Code doc change detection (per-page snapshots, line/char deltas). Pages come from `upstream_urls` in `.skill-maintainer/config.json`, plus `watch_only_urls`: pages followed on every refresh that `best_practices.md` need not cite, so an uncited one is not reported unattributed. A URL in both lists is a named config error | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
 | Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `a direct copy (the PostToolUse hook normally handles it)` |
-| Append-only audit log query | `skill-maintain log` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / AGENTS.md / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
 | Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`; listed as Phase 4 of `/skill-maintainer:maintain` so the cadence has an owner |
@@ -42,7 +39,6 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 
 ```bash
 skill-maintain validate --all                    # validate all skills
-skill-maintain measure                           # token budget report
 skill-maintain init                              # initialize .skill-maintainer/ in a new repo
 uv run skill-maintain validate path/to/SKILL.md  # validate a single skill against the Claude Code schema (called by pre-commit; add --strict for portability)
 ```
@@ -53,7 +49,7 @@ All commands accept `--dir <path>` to target a different repo.
 
 - `.skill-maintainer/state/upstream_hashes.json` — page content hashes for upstream change detection (auto-generated, gitignored)
 - `.skill-maintainer/state/pages/<slug>.md` — per-page content snapshots for line/char delta computation (v0.4.0+, auto-generated)
-- `.skill-maintainer/state/changes.jsonl` — append-only audit log of quality reports, upstream checks, source pulls (consumed by `skill-maintain log`)
+- `.skill-maintainer/state/changes.jsonl` — append-only audit log of quality reports, upstream checks, source pulls (read by `tools/skill-maintainer/queries/upstream_churn.sql`; no subcommand reads it)
 - **Retired 2026-08-29.** `metadata.last_verified`, `metadata.review_interval_days` and `metadata.freshness` are gone from every SKILL.md, together with the `skill-maintain freshness` subcommand, the staleness arm of `skill-maintain test`, and the dashboard's freshness column and skill-verify tool. What survives is the version cascade and upstream hash tracking, both change-triggered. The sections below are kept as the record of how the calendar mechanism was reasoned about and why it went; they describe a system that no longer exists.
 
 ### The tiers are now measurable, and the 30-day one checks out

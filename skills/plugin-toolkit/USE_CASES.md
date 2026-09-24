@@ -22,7 +22,7 @@ uv run /path/to/codebase-analyzer/scripts/trace.py hooks/inject.py
 uv run /path/to/codebase-analyzer/scripts/analyze.py . --structure
 
 # 4. Now run plugin-toolkit analysis with this context
-/plugin-toolkit:analyze .
+/plugin-toolkit:plugin-toolkit analyze .
 ```
 
 ### What This Gives You
@@ -48,7 +48,7 @@ uv run /path/to/codebase-analyzer/scripts/analyze.py . --structure
 
 ```bash
 # 1. Run plugin-toolkit analysis to check quality
-/plugin-toolkit:analyze /path/to/my-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/my-plugin
 
 # 2. Review the recommendations
 cat /path/to/my-plugin/analysis/RECOMMENDATIONS.md
@@ -78,12 +78,12 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 
 ```bash
 # 1. Analyze current state
-/plugin-toolkit:analyze /path/to/downloaded-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/downloaded-plugin
 
 # Review what's missing in analysis/RECOMMENDATIONS.md
 
 # 2. Apply standard polish
-/plugin-toolkit:polish /path/to/downloaded-plugin
+/plugin-toolkit:plugin-toolkit polish /path/to/downloaded-plugin
 
 # This adds:
 # - /help command (auto-generated from existing commands)
@@ -93,7 +93,7 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 # - Error handling to hook scripts
 
 # 3. Add custom features if needed
-/plugin-toolkit:feature add /path/to/downloaded-plugin command "debug" "Show debug info"
+/plugin-toolkit:plugin-toolkit feature add /path/to/downloaded-plugin command "debug" "Show debug info"
 ```
 
 ---
@@ -128,7 +128,7 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 "Review this plugin implementation"
 
 # 4. Run plugin-toolkit analysis for external validation
-/plugin-toolkit:analyze .
+/plugin-toolkit:plugin-toolkit analyze .
 ```
 
 ---
@@ -141,14 +141,14 @@ pr-review-toolkit:silent-failure-hunter → Error handling gaps
 
 ```bash
 # 1. Analyze the reference plugin
-/plugin-toolkit:analyze /path/to/reference-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/reference-plugin
 
 # Save the structure for comparison
 cat /path/to/reference-plugin/analysis/ANALYSIS.md > reference-structure.md
 
 # 2. Start your implementation
-/plugin-toolkit:feature add /path/to/my-plugin command "feature1" "First feature"
-/plugin-toolkit:feature add /path/to/my-plugin command "feature2" "Second feature"
+/plugin-toolkit:plugin-toolkit feature add /path/to/my-plugin command "feature1" "First feature"
+/plugin-toolkit:plugin-toolkit feature add /path/to/my-plugin command "feature2" "Second feature"
 
 # 3. Use codebase-analyzer to compare (if Python)
 uv run /path/to/codebase-analyzer/scripts/compare.py \
@@ -156,7 +156,7 @@ uv run /path/to/codebase-analyzer/scripts/compare.py \
   --entry /path/to/my-plugin/hooks/main.py
 
 # 4. Re-analyze to verify parity
-/plugin-toolkit:analyze /path/to/my-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/my-plugin
 ```
 
 ---
@@ -173,14 +173,14 @@ ls ~/.claude/plugins/  # path-privacy: ignore
 
 # 2. Analyze each (run in parallel if many)
 for plugin in ~/.claude/plugins/*/; do  # path-privacy: ignore
-  /plugin-toolkit:analyze "$plugin"
+  /plugin-toolkit:plugin-toolkit analyze "$plugin"
 done
 
 # 3. Review all recommendations
 cat ~/.claude/plugins/*/analysis/RECOMMENDATIONS.md  # path-privacy: ignore
 
 # 4. Polish plugins that need it
-/plugin-toolkit:polish ~/.claude/plugins/plugin-needing-work  # path-privacy: ignore
+/plugin-toolkit:plugin-toolkit polish ~/.claude/plugins/plugin-needing-work  # path-privacy: ignore
 ```
 
 ### Automation Pattern
@@ -212,7 +212,7 @@ done
 "Design a caching layer for the hook output"
 
 # 3. Implement with plugin-toolkit
-/plugin-toolkit:feature add . hook "PreToolUse" "cache-check.sh"
+/plugin-toolkit:plugin-toolkit feature add . hook "PreToolUse" "cache-check.sh"
 
 # 4. Review with code-reviewer
 /feature-dev:code-reviewer
@@ -228,7 +228,7 @@ done
 
 ```bash
 # 1. Get high-level structure
-/plugin-toolkit:analyze /path/to/complex-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/complex-plugin
 
 # 2. Deep dive into Python components
 cd /path/to/complex-plugin
@@ -256,20 +256,20 @@ uv run /path/to/codebase-analyzer/scripts/trace.py hooks/main-hook.py
 
 ```bash
 # 1. Analyze current state
-/plugin-toolkit:analyze /path/to/old-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/old-plugin
 
 # 2. Create new plugin structure
 mkdir /path/to/new-plugin
 cp /path/to/old-plugin/plugin.json /path/to/new-plugin/
 
 # 3. Migrate features one by one
-/plugin-toolkit:feature add /path/to/new-plugin command "feature1" "Migrated feature"
+/plugin-toolkit:plugin-toolkit feature add /path/to/new-plugin command "feature1" "Migrated feature"
 
 # 4. Compare structures
 diff -r /path/to/old-plugin/commands /path/to/new-plugin/commands
 
 # 5. Validate new plugin
-/plugin-toolkit:analyze /path/to/new-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/new-plugin
 ```
 
 ---
@@ -286,7 +286,7 @@ diff -r /path/to/old-plugin/commands /path/to/new-plugin/commands
 "When I'm working on plugin development, auto-activate /code + /critic"
 
 # 2. Now plugin-toolkit commands trigger context fields
-/plugin-toolkit:analyze /path/to/my-plugin
+/plugin-toolkit:plugin-toolkit analyze /path/to/my-plugin
 # → Automatically has /code + /critic constraints active
 
 # 3. Create more specific rules
@@ -315,22 +315,22 @@ diff -r /path/to/old-plugin/commands /path/to/new-plugin/commands
 
 ```bash
 # Analysis
-/plugin-toolkit:analyze <path>
+/plugin-toolkit:plugin-toolkit analyze <path>
 
 # Polish (add help, status, on/off, changelog)
-/plugin-toolkit:polish <path>
+/plugin-toolkit:plugin-toolkit polish <path>
 
 # Add features
-/plugin-toolkit:feature add <path> command <name> "<desc>"
-/plugin-toolkit:feature add <path> hook <event> <script>
-/plugin-toolkit:feature add <path> trait <name> "<desc>"
-/plugin-toolkit:feature add <path> agent <name> "<desc>"
+/plugin-toolkit:plugin-toolkit feature add <path> command <name> "<desc>"
+/plugin-toolkit:plugin-toolkit feature add <path> hook <event> <script>
+/plugin-toolkit:plugin-toolkit feature add <path> trait <name> "<desc>"
+/plugin-toolkit:plugin-toolkit feature add <path> agent <name> "<desc>"
 
 # Remove features
-/plugin-toolkit:feature remove <path> command <name>
+/plugin-toolkit:plugin-toolkit feature remove <path> command <name>
 
 # Modify features
-/plugin-toolkit:feature change <path> command <name> --description "<new>"
+/plugin-toolkit:plugin-toolkit feature change <path> command <name> --description "<new>"
 
 # Codebase analyzer (for Python plugins)
 uv run /path/to/codebase-analyzer/scripts/find_entries.py <path>

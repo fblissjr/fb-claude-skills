@@ -1,6 +1,6 @@
 {
   "name": "heylook-provider",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Wire an application to heylook (heylookitsanllm) as a local inference provider: the Anthropic Messages-conformant /v1/messages wire, runtime capability discovery, porting off the removed OpenAI route, and the deliberate differences from Anthropic's spec",
   "author": {
     "name": "fblissjr"

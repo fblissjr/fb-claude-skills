@@ -46,10 +46,14 @@ for limits the model no longer has. Measure with `/doctor`, `/skill-doctor`,
 `claude plugin details` and `/context`; do not build counters that duplicate them.
 Detail: [context-cost.md](docs/internals/context-cost.md).
 
-**2. Every path in repo content is repo-relative,** including commit messages,
-branch names, and absolute paths that happen to resolve inside the repo (they
-still leak a username). Git hooks hard-block the outside-repo class; never
-`--no-verify`. `skill-maintain test` catches the inside-repo class.
+**2. Every path in repo content is repo-relative, and the git `user.name` full
+name never appears** (the GitHub handle and email are fine), including commit
+messages and branch names. The path-privacy PreToolUse hook rewrites in-repo
+absolute paths to repo-relative on Edit/Write and blocks external paths and the
+name; the git hooks hard-block both at commit. Never `--no-verify`. Generic tool
+locations (`~/.claude/...`, `$HOME/.config/...`) are not leaks; a named
+directory under home is. `skill-maintain test` catches in-repo absolute paths
+written any other way.
 
 **3. `best_practices.md` has one copy:**
 `skills/skill-maintainer/references/best_practices.md`, which `/maintain` reads

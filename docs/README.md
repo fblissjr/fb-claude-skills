@@ -44,10 +44,10 @@ and `/postmortem:postmortem-index` builds the browsable listing.
 
 ## standing prompts
 
-The improvement and optimizer loops live in the
-[improvement-loops](../skills/improvement-loops/README.md) plugin as `/improve`
-and `/optimize`. Their full text is in each skill's `references/`, where it can
-also be copied into a session without installing.
+The improvement and optimizer loops, the scoreboard designer and the AGENTS.md
+trimmer live in the [improvement-loops](../skills/improvement-loops/README.md)
+plugin. Each prompt's full text is in its skill's `references/`, and the
+AGENTS.md template the loops cite is `skills/improvement-loops/templates/AGENTS.md`.
 
 ## package documentation
 

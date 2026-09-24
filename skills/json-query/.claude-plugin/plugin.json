@@ -1,6 +1,6 @@
 {
   "name": "json-query",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "JSON query tool selection and syntax guidance — jg (jsongrep) for fast extraction, jq for transformations",
   "author": {
     "name": "fblissjr"

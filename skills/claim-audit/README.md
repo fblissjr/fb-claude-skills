@@ -1,20 +1,23 @@
-last updated: 2026-08-04
+last updated: 2026-09-24
 
 # claim-audit
 
-Audit the added prose of a diff as untrusted claims. Every count, status, and
-attribution is re-derived by executing a command whose output is that claim —
-never by reading the code and nodding. What cannot be derived gets labeled
-(`(memory)`, `(local)`, `(reported)`) or recommended for deletion, and the
-report states its own scope so a green result is distinguishable from a run
-that read nothing.
+Audit prose as untrusted claims, and re-derive each one by running a command
+whose output is that claim, never by reading the code and nodding. It works on
+three kinds of prose:
+- the added lines of a diff;
+- a standing doc (README, AGENTS.md, SKILL.md) checked against today's code;
+- a summary, changelog entry or PR text about to be sent.
 
-Motivated by two measured samples in a sibling repo: reading a diff yielded
-approximately zero findings; executing quoted claims against their code found
-real disagreements — including ten claims wrong in a single day's carefully
-written output, nine authored that day. The failure concentrates in summary
-prose, and the newest prose is most likely to be wrong about a change because
-it was written closest to it.
+It checks counts, statuses, capabilities, pointers, attributions and numbers in
+prose. What cannot be derived is labelled or recommended for deletion. With
+`--fix`, it applies the corrections the evidence settles and leaves the rest as
+findings. Every report ends with its own scope line, so a clean result can be
+told apart from a run that read nothing.
+
+Motivated by two measured samples in a sibling repo. Reading a diff yielded
+almost no findings. Executing quoted claims against their code found real
+disagreements, concentrated in the newest summary prose.
 
 ## Installation
 
@@ -27,12 +30,15 @@ it was written closest to it.
 
 | Skill | Description |
 |-------|-------------|
-| [claim-audit](skills/claim-audit/SKILL.md) | Extract counts, statuses, and attributions from added prose; name a deriving command per claim before running anything; run, record both sides, label the unsourceable, and report without rewriting. |
+| [claim-audit](skills/claim-audit/SKILL.md) | Extract claims from a diff, a standing doc or a summary; name a deriving command per claim before running anything; run, record both sides, label the unsourceable, check numbers against the three kinds, and optionally apply the settled fixes. |
 
 ## Invocation
 
 ```
 /claim-audit:claim-audit                          # audit the pending diff's prose
+/claim-audit:claim-audit README.md AGENTS.md      # audit standing docs against today's code
+/claim-audit:claim-audit docs/ --fix              # apply the corrections the evidence settles
+"is this README still true"                       # natural language
 "audit the claims in this changelog entry"        # natural language
 "verify this summary against the code"
 "is what the session log says actually true"
@@ -40,8 +46,10 @@ it was written closest to it.
 
 ## What it deliberately does not do
 
-- **Rewrite.** The caller fixes; auditor findings shrink on caller
-  verification often enough that the weigh-it-yourself step is load-bearing.
+- **Rewrite judgment.** Even with `--fix` it changes only what a command's
+  output settles: a wrong value, a dead pointer, a number with no home.
+  Anything partly right, a rationale, or an ambiguous result stays a finding for
+  the caller.
 - **Scan by regex.** Claim extraction is done by reading; a pattern scanner
   measured above 85% false positives on this task.
 - **Audit test suites.** That is `postmortem:test-audit` — a different subject

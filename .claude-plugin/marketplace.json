@@ -10,82 +10,82 @@
     {
       "name": "plugin-toolkit",
       "source": "./skills/plugin-toolkit",
-      "version": "0.2.2"
+      "version": "0.3.0"
     },
     {
       "name": "dimensional-modeling",
       "source": "./skills/dimensional-modeling",
-      "version": "0.5.1"
+      "version": "0.6.0"
     },
     {
       "name": "mece-decomposer",
       "source": "./apps/mece-decomposer",
-      "version": "0.6.2"
+      "version": "0.7.0"
     },
     {
       "name": "skill-dashboard",
       "source": "./apps/skill-dashboard",
-      "version": "1.4.0"
+      "version": "1.5.0"
     },
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
-      "version": "0.19.0"
+      "version": "0.20.0"
     },
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
-      "version": "1.1.4"
+      "version": "1.2.0"
     },
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "version": "0.34.0"
+      "version": "0.35.0"
     },
     {
       "name": "json-query",
       "source": "./skills/json-query",
-      "version": "0.1.2"
+      "version": "0.2.0"
     },
     {
       "name": "scan-for-secrets",
       "source": "./skills/scan-for-secrets",
-      "version": "0.1.4"
+      "version": "0.2.0"
     },
     {
       "name": "path-privacy",
       "source": "./skills/path-privacy",
-      "version": "0.17.0"
+      "version": "0.18.0"
     },
     {
       "name": "writing",
       "source": "./skills/writing",
-      "version": "0.6.1"
+      "version": "0.7.0"
     },
     {
       "name": "grilling",
       "source": "./skills/grilling",
-      "version": "0.1.1"
+      "version": "0.2.0"
     },
     {
       "name": "improvement-loops",
       "source": "./skills/improvement-loops",
-      "version": "0.2.0"
+      "version": "0.3.0"
     },
     {
       "name": "model-routing",
       "source": "./skills/model-routing",
-      "version": "0.5.2"
+      "version": "0.6.0"
     },
     {
       "name": "pyright-autoconfig",
       "source": "./skills/pyright-autoconfig",
-      "version": "0.3.2"
+      "version": "0.3.3"
     },
     {
       "name": "claim-audit",
       "source": "./skills/claim-audit",
-      "version": "0.4.0"
+      "version": "0.5.0"
     },
     {
       "name": "postmortem",
@@ -95,22 +95,22 @@
     {
       "name": "ruff-diagnostics",
       "source": "./skills/ruff-diagnostics",
-      "version": "0.1.4"
+      "version": "0.1.5"
     },
     {
       "name": "dangling-refs",
       "source": "./skills/dangling-refs",
-      "version": "0.1.1"
+      "version": "0.2.0"
     },
     {
       "name": "gemini-bridge",
       "source": "./apps/gemini-bridge",
-      "version": "0.15.2"
+      "version": "0.16.0"
     },
     {
       "name": "heylook-provider",
       "source": "./skills/heylook-provider",
-      "version": "0.17.0"
+      "version": "0.18.0"
     }
   ],
   "renames": {

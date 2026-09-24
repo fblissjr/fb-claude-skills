@@ -23,8 +23,9 @@ messages in this session are the freshest sample there is. Look for sentence
 length and variance, how much hedging they use, whether they front-load or build
 up, their punctuation habits, and the words they reach for repeatedly.
 
-A saved profile at `<HOME>/.claude/writing-voice.md` supplements this. Live
-evidence wins where the two disagree — voice drifts, and the profile may be old.
+A saved profile supplements this: the global `<HOME>/.claude/voice-profile.md`,
+then the repo's `.claude/voice-profile.local.md`, whose traits win on conflict.
+Live evidence wins over both — voice drifts, and a profile may be old.
 
 ## Apply it
 

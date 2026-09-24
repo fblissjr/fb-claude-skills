@@ -1,6 +1,6 @@
 # heylook-provider
 
-*Last updated: 2026-09-06*
+*Last updated: 2026-09-24*
 
 Integration knowledge for [heylook](https://github.com/fblissjr/heylookitsanllm)
 (`heylookitsanllm`), a local multimodal LLM server on Apple Silicon serving
@@ -60,10 +60,12 @@ object, no tools, no `stop_sequences`, and heylook's request and stream
 extensions). That list is hand-maintained and has shipped incomplete, so the
 skill says so and defers to the server's `/openapi.json`.
 
-Beyond the skill body: four reference files (full wire reference, porting off
-the removed OpenAI route, Gemini migration, working client code in Python and
-TypeScript) and a
-stdlib `probe.py` that prints a capability matrix from a live server.
+Beyond the skill body: reference files (full wire reference, every version
+boundary for servers older than the verified one, porting off the removed
+OpenAI route, Gemini migration, working client code in Python and TypeScript)
+and a stdlib `probe.py` that prints a capability matrix from a live server.
+The body states current behaviour only, so it stays under the size at which
+it would be truncated when re-attached after compaction.
 
 ## Source of truth
 

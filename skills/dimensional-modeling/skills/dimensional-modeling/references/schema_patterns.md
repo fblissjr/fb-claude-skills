@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-09-24
 
 # schema patterns
 
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS dim_<name> (
 );
 ```
 
-### example: dim_source (from store.py)
+### example: dim_source
 
 ```sql
 CREATE TABLE IF NOT EXISTS dim_source (
@@ -97,8 +97,7 @@ CREATE TABLE IF NOT EXISTS fact_<name> (
 
     -- metadata
     inserted_at      TIMESTAMP NOT NULL DEFAULT current_timestamp,
-    record_source    TEXT NOT NULL,
-    session_id       TEXT              -- capturing session (if different from measured session)
+    record_source    TEXT NOT NULL
 );
 ```
 
@@ -188,8 +187,7 @@ CREATE TABLE IF NOT EXISTS fact_session_event (
     event_at     TIMESTAMP NOT NULL DEFAULT current_timestamp,
     event_data   TEXT,                -- JSON blob for event-specific data
     inserted_at  TIMESTAMP NOT NULL DEFAULT current_timestamp,
-    record_source TEXT NOT NULL,
-    session_id_  TEXT                 -- if capturing session differs from measured session
+    record_source TEXT NOT NULL
 );
 ```
 
@@ -201,7 +199,7 @@ When the natural key IS the only interesting attribute (session_id, transaction_
 
 - Carry directly in fact rows as a TEXT column
 - No separate dimension table
-- Join across fact tables via the degenerate dimension column
+- Relate fact tables through it by drill-across: aggregate each fact to `session_id`, then join the aggregates (a row-level fact-to-fact join fans out)
 
 Example: `session_id` appears in every fact table but has no separate `dim_session` table. The session UUID is the only attribute that matters.
 

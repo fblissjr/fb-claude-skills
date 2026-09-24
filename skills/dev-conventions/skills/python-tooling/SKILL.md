@@ -25,17 +25,16 @@ use floors (`uv add 'httpx>=0.27'`). Unsure → exact. `uv lock --check` after.
 ## Before suppressing a wall of type errors
 
 Two mechanical mistakes produce hundreds of diagnostics that read as unfixable
-Pydantic/Pyright noise. Measured on one real project: 698 errors → 264, from a
-keyword argument and a single annotation. Check both before writing a
-suppression: `references/type-checking.md`.
+Pydantic/Pyright noise: a positional `Field()` default and an unannotated
+splatted dict. Check both before writing a suppression: `references/type-checking.md`.
 
 The same file covers Pyright config precedence — `pyrightconfig.json` always
 outranks `[tool.pyright]`, which is why a config block can appear to do nothing.
 
-## After an edit, stop
+## After an edit, don't run linters or tests unasked
 
-Do not auto-run linters, formatters, or tests after an edit unless asked. This
-is the one behavioural default worth overriding here: the reflex is strong, the
+Leave linters, formatters, and tests alone after an edit unless asked. This is
+the one behavioural default worth overriding here: the reflex is strong, the
 output is long, and it buries the change the user actually wants to look at.
 
 ## Adjacent, owned elsewhere

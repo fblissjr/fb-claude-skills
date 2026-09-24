@@ -46,6 +46,11 @@ Accept decisions in these formats:
 - `keep 1,2,4 -- archive 3,5`
 - Natural language: "Archive items 1 and 3, save 2 for later, delete the rest"
 
+Delete removes the document from Reader itself: delete only items the user
+named for deletion. After `batch_triage`, run `sync_library` before fetching
+the next batch, because the batch does not refresh the local copy and moved
+items would reappear as inbox items.
+
 ### 4. Confirm Actions
 
 After processing:

@@ -22,7 +22,7 @@ Examples:
 
 ### 1. Verify Validation
 
-The decomposition must pass validation first (overall score >= 0.70). If not validated, I'll run `/validate` first and show any issues.
+The decomposition must pass validation first (overall score >= 0.70), because code generated from an overlapping or gapped tree duplicates or drops work. If it has not been validated, run `/validate` first and show its issues.
 
 ### 2. Generate Code
 
@@ -47,7 +47,7 @@ from agents import Agent, Runner, function_tool
 # Node 1.1.1: Step Name
 step_name_agent = Agent(
     name="step-name",
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     instructions="""...""",
     tools=[...],
 )

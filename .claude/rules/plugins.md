@@ -6,32 +6,19 @@ paths:
 
 # Plugin authoring rules
 
-These rules load when working with plugin manifests and .claude-plugin/ directories.
-
-## After creating a new plugin -- required checklist
+## After creating a new plugin
 
 1. `uv run skill-maintain validate <plugin>/skills/<skill>` (the skill directory)
-2. Add plugin entry to root `.claude-plugin/marketplace.json`
-3. Add repo to `tracked_repos` in `.skill-maintainer/config.json` if watching upstream
-4. Add a `CHANGELOG.md` entry (the root `pyproject.toml` is a virtual workspace with no version; never bump it)
+2. Add the plugin entry to root `.claude-plugin/marketplace.json`
+3. Add the repo to `tracked_repos` in `.skill-maintainer/config.json` if watching upstream
+4. Complete the rest of AGENTS.md invariant 1's cascade (`CHANGELOG.md` entry)
 5. Update root `README.md`: plugins table, install list, invocation list
-6. Append session entry to `internal/log/log_YYYY-MM-DD.md`
-
-## Version cascade -- three files, plus the lockfiles where they exist
-
-A plugin content change bumps `<plugin>/.claude-plugin/plugin.json`, the root
-`marketplace.json` entry, and `CHANGELOG.md`. Plus `tools/<plugin>/pyproject.toml`
-and `uv lock` only where the plugin's marketplace `source` ships them.
-
-**Do NOT put a version in SKILL.md.** `metadata.version` was removed from every
-SKILL.md on 2026-07-21: it duplicated `plugin.json`, and its only reader was the
-check confirming the duplicate matched. The pre-commit still validates the field
-*if present*, so a re-addition is caught rather than drifting.
+6. Append a session entry to `internal/log/log_YYYY-MM-DD.md`
 
 ## Removing a plugin
 
 Delete the directory. Git history is the archive; a parallel `_deprecated/` tree
-was just a second place to maintain, and its contents never got read.
+is a second place to maintain that nobody reads.
 
 Then: drop it from `marketplace.json` `plugins[]` and the uv workspace, add
 `"renames": {"<plugin>": null}` so existing installs get a removal notice instead
@@ -42,12 +29,13 @@ Claude Code follows rename chains.
 
 ## Auto-discovery
 
-Components in default directories (`skills/`, `agents/`) are auto-discovered. Do not list them in `plugin.json`.
+Leave components in default directories (`skills/`, `agents/`) out of
+`plugin.json`; they are auto-discovered.
 
 ## plugin.json fields
 
-Upstream requires only `name`, and the manifest itself is optional. This repo
-additionally requires the following, enforced by our own test suite:
+Upstream requires only `name`, and the manifest itself is optional. This repo's
+test suite additionally requires:
 
 - `name`: plugin name (matches directory name)
 - `version`: semver (e.g., "0.1.0")

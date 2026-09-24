@@ -2,7 +2,12 @@ last updated: 2026-09-24
 
 # skill-maintainer
 
-Maintenance tools for any Claude Code skills repo. Validates skills against the Claude Code skill schema (a superset of the Agent Skills spec, so Claude Code frontmatter fields are accepted), checks token budgets, detects upstream doc changes (with per-page content snapshots and line/char deltas), checks version alignment repo-wide across every copy that can drift (plugin.json, marketplace.json, pyproject.toml, and any authored package.json), reviews best practices, and orchestrates end-of-session workflow (log drafting, bundled-reference sync, version-bump detection).
+Keeps a skills repo's rules current. `/maintain` runs the maintenance pass:
+- pull tracked sources and upstream docs;
+- check quality;
+- review `references/best_practices.md` against what moved, proposing changes for your approval.
+
+`/sync-versions` bumps a plugin's version everywhere it lives. The checks themselves are the `skill-maintain` CLI in this repo's `tools/skill-maintainer/`, which the plugin does not ship.
 
 ## installation
 
@@ -24,47 +29,22 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 
 | Skill | Invocation | What it does |
 |-------|------------|--------------|
-| `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: upstream checks, source pulls, quality report, best practices review |
-| `quality` | `/skill-maintainer:quality` | Quick quality check: spec compliance, token budget, description quality |
-| `init-maintenance` | `/skill-maintainer:init-maintenance` | Set up persistent maintenance config and state in a repo |
-| `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` atomically. No longer touches SKILL.md -- `metadata.version` was removed from skill frontmatter, and `plugin.json` is the sole version source |
-| `finish-session` | `/skill-maintainer:finish-session` | Orchestrate end-of-session cleanup: draft log, sync refs, flag version bumps, quality scan |
-
-## agents
-
-| Agent | Where | What it does |
-|-------|-------|--------------|
-| `session-log-drafter` | forked subagent | Reads conversation + `git diff` and drafts a house-style entry for `internal/log/log_YYYY-MM-DD.md`. Invoked by `finish-session`. |
-
-## hooks
-
-| Event | What | When |
-|-------|------|------|
-| `Stop` | `maybe-draft-session-log.sh` | When the session touched >= 3 substantive files (excluding logs, lock files, `.skill-maintainer/state/`) AND today's `internal/log/log_YYYY-MM-DD.md` doesn't exist or wasn't modified today, prints a one-line stderr nudge pointing at `/skill-maintainer:finish-session`. Honors `stop_hook_active=true`; never blocks; exit 0 always. |
+| `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: source pulls, upstream checks, quality report, controls audit, mutation sample, best practices review. The one stop is your approval before `best_practices.md` changes |
+| `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` where one ships. A major bump waits for your confirmation |
 
 ## usage examples
 
 ```
-# quick health check on all skills in the repo
-/skill-maintainer:quality
-
-# full maintenance pass (upstream + sources + quality + best practices review)
+# full maintenance pass (sources + upstream + quality + best practices review)
 /skill-maintainer:maintain
 
-# set up maintenance config in a new skills repo
-/skill-maintainer:init-maintenance
-
-# bump path-privacy's version across plugin.json, marketplace.json, pyproject.toml
-# (SKILL.md no longer carries a version field -- plugin.json is the sole source)
+# bump path-privacy's version everywhere it lives
 /skill-maintainer:sync-versions path-privacy 0.7.4
-
-# end-of-session cleanup before committing a substantive working session
-/skill-maintainer:finish-session
 ```
 
 ## relationship to the CLI package
 
-The `skill-maintainer` Python package at `tools/skill-maintainer/` provides the `skill-maintain` CLI for CI/headless use. This plugin is the primary interface for interactive use within Claude Code -- it embeds the same knowledge (thresholds, rules, checks) directly in the skills so no Python package installation is required. If the CLI is available, the `/maintain` skill will use it for upstream and source checks; otherwise it performs equivalent checks using WebFetch and Bash.
+The `skill-maintain` CLI (`tools/skill-maintainer/`) holds the checks: `validate`, `test`, `quality`, `upstream`, `sources`, `lint` and `init`. Install it with `uv tool install ./tools/skill-maintainer` from a clone of this repo. `/maintain` uses it when it is on the PATH and falls back to equivalent manual checks when it is not.
 
 ## references
 

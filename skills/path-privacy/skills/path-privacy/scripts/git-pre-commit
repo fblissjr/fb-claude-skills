@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # path-privacy: skip-file
 # git-pre-commit (path-privacy)
-# Hard-blocks commits whose staged files contain paths resolving outside the repo root.
+# Hard-blocks commits whose staged files contain paths resolving outside the
+# repo root, or whose ADDED lines contain the git user.name full name.
 # Designed to be invoked from a repo's .git/hooks/pre-commit (chained or standalone).
+# Resolved from the plugin on every run, so changes here need no reinstall.
 set -u
 
 # Resolve plugin scripts dir from this file's location.
@@ -26,10 +28,59 @@ if [ ! -x "$SCANNER" ]; then
   exit 1
 fi
 
+# shellcheck source=/dev/null
+. "$(dirname "$SCANNER")/_name_guard.sh" 2>/dev/null
+if ! command -v pp_name_regex >/dev/null 2>&1 || ! command -v pp_is_license_file >/dev/null 2>&1; then
+  echo "path-privacy: _name_guard.sh missing or unusable beside the scanner." >&2
+  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with /path-privacy:path-privacy." >&2
+  exit 1
+fi
+
+FAILED=0
+
 if ! "$SCANNER" --staged; then
+  FAILED=1
+fi
+
+# Full name, on ADDED lines only. Paths are checked over whole staged files, so
+# an old leak in a file you touch still surfaces; the name is not, because a
+# name already in history (a package manifest's authors field, say) would then
+# block every unrelated commit to that file. New writes are what this gate is
+# for; the whole-tree sweep is `find-external-paths.sh -d .`'s job.
+# LICENSE files are skipped: copyright lines are managed by hand.
+if NAME_RE=$(pp_name_regex .); then
+  NAME_HITS=$(
+    git diff --cached -U0 --no-color --no-ext-diff --diff-filter=ACMR 2>/dev/null \
+      | PP_NAME_RE="$NAME_RE" LC_ALL=C awk '
+          BEGIN { re = ENVIRON["PP_NAME_RE"] }
+          /^\+\+\+ / { f = substr($0, 7); if (f ~ /^b\//) f = substr(f, 3); next }
+          /^@@ / {
+            h = $0; sub(/^@@ -[0-9,]+ \+/, "", h); sub(/[, ].*$/, "", h); ln = h + 0; next
+          }
+          /^\+/ {
+            b = f; sub(/.*\//, "", b); b = tolower(b)
+            if (b !~ /^(license|licence|copying)(\..*)?$/) {
+              l = tolower(substr($0, 2))
+              if (l !~ /^[[:space:]]*signed-off-by:/ && l ~ re) print f ":" ln
+            }
+            ln++
+          }
+        '
+  )
+  if [ -n "$NAME_HITS" ]; then
+    echo "" >&2
+    echo "path-privacy: added lines contain the git user.name full name:" >&2
+    printf '%s\n' "$NAME_HITS" | sed 's/^/  /' >&2
+    echo "Use the GitHub handle or a placeholder such as <author> instead." >&2
+    FAILED=1
+  fi
+fi
+
+if [ $FAILED -eq 1 ]; then
   echo ""
   echo "path-privacy: commit blocked by pre-commit hook." >&2
-  echo "Remove the path or replace it with a repo-relative or generic reference, then re-stage." >&2
+  echo "Replace the path with a repo-relative or generic reference, then re-stage." >&2
+  echo "The correction is routine: commit messages, branch names and changelog entries do not mention it." >&2
   exit 1
 fi
 

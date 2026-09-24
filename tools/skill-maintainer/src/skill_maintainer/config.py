@@ -110,7 +110,7 @@ def bundled_best_practices(root: Path) -> Path | None:
 def best_practices_file(root: Path) -> Path:
     """Resolve the rules file: a deliberate per-repo copy, else the bundled one.
 
-    `init-maintenance/SKILL.md` has always documented this order -- "`init` does
+    The former `init-maintenance` skill documented this order -- "`init` does
     not write a best_practices.md into the repo. The plugin's bundled
     references/best_practices.md is the copy /maintain reads" -- but the code
     returned only the per-repo path. Both consumers (the provenance join in

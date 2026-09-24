@@ -1,6 +1,6 @@
 # Agent SDK Mapping
 
-last updated: 2026-02-17
+last updated: 2026-09-24
 
 Rules and patterns for mapping a validated MECE decomposition tree to Claude Agent SDK primitives. The output of this mapping is code-ready -- each pattern includes a template that can be directly adapted.
 
@@ -32,7 +32,7 @@ from agents import Agent, Runner
 # From atom_spec.agent_definition
 agent = Agent(
     name="validate_shipping_address",
-    model="claude-sonnet-4-6",                    # from model tier
+    model="claude-sonnet-5",                      # from model tier
     instructions="""                               # from prompt
     Given a shipping address, verify:
     1. All required fields are present
@@ -300,11 +300,13 @@ if "approved" in approval.final_output.lower():
 
 ## Model Tier Heuristics
 
+The model ID column must match the generator's table in `mcp-app/server.ts` (`MODEL_MAP`); update both together when a tier moves to a new model.
+
 | Tier | Model ID | When to Use | Cost |
 |------|----------|-------------|------|
-| `haiku` | `claude-haiku-4-5-20251001` | Simple extraction, formatting, classification, routing | Low |
-| `sonnet` | `claude-sonnet-4-6` | Analysis, summarization, multi-step reasoning, most tasks | Medium |
-| `opus` | `claude-opus-4-6` | Complex judgment, ambiguous inputs, novel situations, critical decisions | High |
+| `haiku` | `claude-haiku-4-5` | Simple extraction, formatting, classification, routing | Low |
+| `sonnet` | `claude-sonnet-5` | Analysis, summarization, multi-step reasoning, most tasks | Medium |
+| `opus` | `claude-opus-5-5` | Complex judgment, ambiguous inputs, novel situations, critical decisions | High |
 
 ### Selection Rules
 
@@ -312,12 +314,6 @@ if "approved" in approval.final_output.lower():
 2. **Use haiku when**: the atom does one simple thing (classify, extract, format, route) with clear rules and low ambiguity
 3. **Use opus when**: the atom requires judgment under uncertainty, handles novel/ambiguous inputs, or produces outputs that are hard to verify and high-stakes
 4. **Never use opus for**: high-volume repetitive tasks, simple lookups, or formatting
-
-### Cost Estimation
-
-For a tree with `h` haiku atoms, `s` sonnet atoms, and `o` opus atoms:
-- Relative cost ratio is approximately h:3s:15o per invocation
-- Optimize by converting sonnet atoms to haiku where the simplicity criteria are met
 
 ## Exception Handling via Hooks
 

@@ -1,19 +1,18 @@
 # Usage examples
 
-*Last updated: 2026-04-21*
+*Last updated: 2026-09-24*
 
-Concrete invocations for common situations.
+Concrete invocations for common situations. `<skill-dir>` is this skill's directory, the one SKILL.md's commands name as `${CLAUDE_SKILL_DIR}`.
 
 ## Pre-share an agent transcript
 
 You just finished a long Claude Code session and want to share the transcript. The transcript contains your full home paths, environment variable dumps, and possibly an API key you echoed to stderr.
 
 ```bash
-# From the repo root of wherever the transcript lives
 uvx scan-for-secrets -d ./session-logs \
-  -c skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh
+  -c <skill-dir>/scripts/privacy-tokens.sh
 
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh \
+bash <skill-dir>/scripts/regex-scan.sh \
   -d ./session-logs --api-keys
 ```
 
@@ -22,7 +21,7 @@ Review both outputs. If clean, share. If not:
 ```bash
 # Add -r to the literal pass for interactive redaction
 uvx scan-for-secrets -d ./session-logs \
-  -c skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh -r
+  -c <skill-dir>/scripts/privacy-tokens.sh -r
 ```
 
 Accepting the prompt writes `REDACTED` in place of every matched literal (and every escape variant). The regex pass is read-only — for regex matches, use your editor.
@@ -32,14 +31,13 @@ Accepting the prompt writes `REDACTED` in place of every matched literal (and ev
 Before `git push` to a public repo for the first time:
 
 ```bash
-# From the repo root
 uvx scan-for-secrets \
   "$(llm keys get openai)" \
   "$(llm keys get anthropic)" \
-  -c skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh \
+  -c <skill-dir>/scripts/privacy-tokens.sh \
   -d .
 
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh -d . --api-keys
+bash <skill-dir>/scripts/regex-scan.sh -d . --api-keys
 ```
 
 If the literal pass finds anything in committed files, **do not redact and push** — those secrets are already in your local git history. Rotate them, purge history (`git filter-repo` or BFG), then scan again.
@@ -50,7 +48,7 @@ Quickest possible invocation:
 
 ```bash
 uvx scan-for-secrets -c ~/.scan-for-secrets.conf.sh -f ./output.log  # path-privacy: ignore
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh -f ./output.log --api-keys
+bash <skill-dir>/scripts/regex-scan.sh -f ./output.log --api-keys
 ```
 
 (Assumes you've copied `privacy-tokens.sh` to `~/.scan-for-secrets.conf.sh` as a one-time setup.)  <!-- path-privacy: ignore -->
@@ -72,7 +70,7 @@ For CI use, ship a `ci-privacy-tokens.sh` that emits only CI-appropriate literal
 ## First-time setup (machine default)
 
 ```bash
-cp skills/scan-for-secrets/skills/scan-for-secrets/scripts/privacy-tokens.sh \
+cp <skill-dir>/scripts/privacy-tokens.sh \
    ~/.scan-for-secrets.conf.sh  # path-privacy: ignore
 chmod +x ~/.scan-for-secrets.conf.sh  # path-privacy: ignore
 ```
@@ -84,14 +82,14 @@ Now bare `scan-for-secrets` (with no args, no pipes) reads that config by defaul
 The regex pass can be noisy. A common pattern is to pipe its output through `less` for scroll-review:
 
 ```bash
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh \
+bash <skill-dir>/scripts/regex-scan.sh \
   -d . --api-keys 2>&1 | less -R
 ```
 
 Or filter to a single pattern category:
 
 ```bash
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh -d . \
+bash <skill-dir>/scripts/regex-scan.sh -d . \
   | awk '/^== /{section=$2} section=="email"{print}'
 ```
 
@@ -108,6 +106,6 @@ internal-host|.*\.corp\.internal
 Run with:
 
 ```bash
-bash skills/scan-for-secrets/skills/scan-for-secrets/scripts/regex-scan.sh \
+bash <skill-dir>/scripts/regex-scan.sh \
   -d . --extra ./extra.patterns
 ```

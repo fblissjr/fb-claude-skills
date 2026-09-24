@@ -8,11 +8,9 @@ from pathlib import Path
 COMMANDS = {
     "validate": "skill_maintainer.validate",
     "quality": "skill_maintainer.quality",
-    "measure": "skill_maintainer.measure",
     "upstream": "skill_maintainer.upstream",
     "sources": "skill_maintainer.sources",
     "test": "skill_maintainer.tests",
-    "log": "skill_maintainer.log",
     "lint": "skill_maintainer.lint",
     "init": None,  # handled inline
 }
@@ -26,11 +24,9 @@ Commands:
   init        Initialize .skill-maintainer/ config in the current directory
   validate    Validate skills against Agent Skills spec + best practices
   quality     Unified quality report (validation, budget, description)
-  measure     Token budget measurement
   test        Red/green test suite (skills, plugins, repo hygiene)
   upstream    Check for upstream doc changes (llms-full.txt)
   sources     Pull tracked git repos and detect changes
-  log         Query the append-only changes log
   lint        Wiki sanity: orphan detection in docs/analysis/, count drift across READMEs
 
 All commands accept --dir <path> to target a different directory (default: .)
@@ -43,7 +39,6 @@ Examples:
   skill-maintain validate --all
   skill-maintain upstream
   skill-maintain sources --no-pull
-  skill-maintain log --days 7
   skill-maintain lint
 """
 

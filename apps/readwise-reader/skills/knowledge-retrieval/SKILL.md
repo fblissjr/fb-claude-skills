@@ -3,115 +3,28 @@ name: knowledge-retrieval
 description: Synthesizes knowledge from your Readwise Reader library by prioritizing highlights and annotations across documents. Use when the user asks for references from their reading, wants to surface saved knowledge, or needs cross-document synthesis.
 ---
 
-# Knowledge Retrieval
+# Knowledge retrieval
 
-The intelligence for surfacing useful knowledge from your Readwise Reader library. Goes beyond simple search to synthesize information across multiple saved documents, prioritize your own highlights and annotations, and connect saved knowledge to your current work.
+Answer from what the user has read, not from what they saved: their highlights and notes are the highest-signal content in the library, because they record what the user judged important. Finding the material is the library-search skill's job; this skill decides what to surface and how to combine it.
 
-## Highlight Priority Hierarchy
+<priority>
+Surface material in this order, and say which tier each item comes from:
 
-Your own highlights and notes are the highest-signal content in your library. They represent what you found important enough to mark. Retrieval should always prioritize them.
+1. Highlighted and annotated (the user marked it and wrote a note)
+2. Highlighted
+3. Document-level notes
+4. Partly read
+5. Saved but unread: the topic mattered enough to save, but nothing in it has been confirmed useful
 
-```
-1. Highlighted + annotated (you marked it AND wrote a note)
-2. Highlighted (you marked it as important)
-3. Annotated/noted at document level (you wrote about the document)
-4. Partially read (you engaged with it)
-5. Saved but unread (you saved it, so the topic mattered)
-```
+Use `search_highlights` for tiers 1-2 across the library, and `get_highlights(doc_id)` to pull every highlight from a document that matched.
+</priority>
 
-## Cross-Document Synthesis
+<synthesis>
+- **Synthesize by point, not by document.** When several documents touch a topic, state each point once and cite every highlight that supports it, quoted, with its document title. A list of five articles is not an answer.
+- **Where documents disagree, lay the positions side by side**, each with its supporting highlight, and add where the user stands only when their own notes say so.
+- **Tie it to the work in front of the user.** When they ask for references while building or writing something, say for each highlight whether it supports, challenges, or gives background to that specific work.
+- **Name the gaps**: subtopics with saved documents but no highlights, and adjacent subtopics with nothing saved.
+- **Keep the user's words distinct from yours.** Highlights and notes are quoted verbatim and attributed; your synthesis is marked as yours, so the user can tell what they wrote from what was inferred.
+</synthesis>
 
-When multiple documents touch the same topic, synthesize rather than list:
-
-### Pattern: Topic Synthesis
-
-Given a topic query, collect highlights from multiple documents and present a unified brief:
-
-```
-From your reading on "[topic]":
-
-Key insights (from [N] documents):
-1. [Synthesized point from multiple highlights]
-   - "[highlight]" (from [doc1])
-   - "[highlight]" (from [doc2])
-
-2. [Another synthesized point]
-   - "[highlight]" (from [doc3])
-
-Your notes:
-- [Your annotation from doc1]
-- [Your annotation from doc2]
-```
-
-### Pattern: Perspective Mapping
-
-When documents present different viewpoints on a topic:
-
-```
-Perspectives on "[topic]" from your library:
-
-View 1: [Summary]
-- From: [document title]
-- Key point: "[highlight]"
-
-View 2: [Summary]
-- From: [document title]
-- Key point: "[highlight]"
-
-Your position (based on your notes):
-- [Synthesized from your annotations]
-```
-
-## Integration with Current Work
-
-When the user is working on something and asks for references:
-
-### 1. Understand the Work Context
-- What is the user currently building/writing/researching?
-- What specific aspect needs supporting evidence?
-- What format would be most useful? (quotes, summaries, links)
-
-### 2. Match Library Content
-- Search for topic keywords from the current work
-- Look for highlights that directly support or challenge the work
-- Find documents that provide background or context
-
-### 3. Present as Actionable Knowledge
-Instead of:
-```
-Here are 5 articles about X.
-```
-
-Present as:
-```
-From your reading on [topic]:
-
-For your [current task], these highlights are most relevant:
-1. "[highlight]" -- supports [aspect of their work]
-   Source: [title] by [author]
-
-2. "[highlight]" -- provides context on [related aspect]
-   Source: [title]
-
-Background reading (saved but not yet highlighted):
-- [Title] -- likely relevant based on summary
-```
-
-## Retrieval Strategies
-
-### Deep Retrieval (for focused research)
-1. Search documents by topic
-2. For each matching document, fetch highlights
-3. Cross-reference highlights across documents
-4. Synthesize into a knowledge brief
-
-### Quick Retrieval (for casual reference)
-1. Search highlights directly (fastest path to your marked content)
-2. Include document context for each highlight
-3. Present top 5-10 most relevant
-
-### Exhaustive Retrieval (for comprehensive review)
-1. Search all documents and highlights
-2. Include tag-based discovery
-3. Present organized by subtopic or chronology
-4. Note gaps: "You have X articles on [subtopic] but none on [related subtopic]"
+Depth follows the ask: a quick reference wants the few most relevant highlights with their sources; a research brief searches documents, pulls their highlights, and cross-references them; a comprehensive review adds tag-based discovery and organizes by subtopic or chronology.

@@ -56,14 +56,7 @@ Order results by:
 3. Documents matching the topic in title/summary
 4. Documents matching in tags only
 
-### 5. Suggest Actions
-
-```
-Want to:
-- See full highlights from a specific document? (provide ID)
-- Save something new on this topic?
-- Search with different terms?
-```
+Follow the knowledge-retrieval skill for how to prioritize and synthesize.
 
 ## Examples
 

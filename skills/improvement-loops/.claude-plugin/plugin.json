@@ -1,7 +1,7 @@
 {
   "name": "improvement-loops",
-  "version": "0.2.0",
-  "description": "Structured, user-invoked standing prompts for long runs: /improve works toward a project's north star across repeated runs, /optimize runs a one-session speed campaign against a hard target, and /trim-agents-md trims always-loaded agent instructions without losing a rule. Each keeps state in files and reports what needs the owner first",
+  "version": "0.3.0",
+  "description": "Structured, user-invoked standing prompts for long runs on any project: /design-scoreboard chooses what to climb and what must not get worse, /improve and /optimize climb it against the repo's AGENTS.md sections, and /trim-agents-md keeps that hub short. Each keeps state in files and reports what needs the owner first",
   "author": {
     "name": "fblissjr"
   },

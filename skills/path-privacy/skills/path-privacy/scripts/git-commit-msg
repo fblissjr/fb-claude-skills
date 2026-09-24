@@ -2,9 +2,11 @@
 # path-privacy: skip-file
 # git-commit-msg (path-privacy)
 # Hard-blocks commits whose message or current branch name references paths
-# resolving outside the repo root.
+# resolving outside the repo root, or contains the git user.name full name.
 #
 # Git invokes commit-msg hooks with the path to the message file as $1.
+# This script is resolved from the plugin on every run (the installed wrapper
+# only locates it), so changes here reach every gated repo without a reinstall.
 set -u
 
 MSG_FILE="${1:-}"
@@ -31,6 +33,16 @@ if [ ! -x "$SCANNER" ]; then
   exit 1
 fi
 
+# The name guard lives beside the scanner. Missing means a broken install, and
+# this gate fails closed on a broken install for the reason given above.
+# shellcheck source=/dev/null
+. "$(dirname "$SCANNER")/_name_guard.sh" 2>/dev/null
+if ! command -v pp_name_regex >/dev/null 2>&1 || ! command -v pp_name_lines >/dev/null 2>&1; then
+  echo "path-privacy: _name_guard.sh missing or unusable beside the scanner." >&2
+  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with /path-privacy:path-privacy." >&2
+  exit 1
+fi
+
 FAILED=0
 
 # Strip comment lines (lines beginning with #) from the message before scanning;
@@ -52,10 +64,26 @@ if [ -n "$BRANCH" ]; then
   fi
 fi
 
+# Full name. Reported by line number only; the name is never printed.
+# A `Signed-off-by:` trailer is skipped inside pp_name_lines: `git commit -s`
+# writes it from git config, which is author metadata, not authored text.
+if NAME_RE=$(pp_name_regex .); then
+  if [ -n "$MSG_BODY" ] && LINES=$(printf '%s\n' "$MSG_BODY" | pp_name_lines "$NAME_RE"); then
+    echo "path-privacy: commit message contains the git user.name full name (line $(printf '%s' "$LINES" | tr '\n' ',' | sed 's/,$//'))." >&2
+    FAILED=1
+  fi
+  if [ -n "$BRANCH" ] && printf '%s\n' "$BRANCH" | pp_name_lines "$NAME_RE" >/dev/null; then
+    echo "path-privacy: branch name contains the git user.name full name." >&2
+    FAILED=1
+  fi
+fi
+
 if [ $FAILED -eq 1 ]; then
   echo "" >&2
   echo "path-privacy: commit blocked by commit-msg hook." >&2
-  echo "Rewrite the message (or rename the branch) to use repo-relative or generic references." >&2
+  echo "Rewrite the message (or rename the branch) with repo-relative or generic references, and" >&2
+  echo "the GitHub handle or a placeholder such as <author> in place of the full name." >&2
+  echo "The correction is routine: the new message does not mention what was removed." >&2
   exit 1
 fi
 

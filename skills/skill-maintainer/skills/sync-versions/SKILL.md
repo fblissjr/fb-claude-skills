@@ -12,110 +12,49 @@ description: >-
   Pass plugin name and target version as arguments.
 ---
 
-# Sync Versions
+# Sync versions
 
-Bump a plugin's version atomically across all locations where version is tracked.
+Bump a plugin's version in every file that tracks it, all or none.
 
-## Usage
+<parameters>
+`<plugin-name> <version>`, e.g. `/skill-maintainer:sync-versions path-privacy 0.7.4`.
+With no arguments, list each plugin's current version from its
+`.claude-plugin/plugin.json` and ask which plugin and which version.
+</parameters>
 
-```
-/skill-maintainer:sync-versions <plugin-name> <version>
-```
+<scope>
+The target version is valid semver, and higher than the current one in the
+plugin's `plugin.json`, or equal to it: an equal version re-syncs every source
+without bumping, which is how drift gets fixed.
 
-Examples:
-```
-/skill-maintainer:sync-versions path-privacy 0.7.4
-/skill-maintainer:sync-versions skill-dashboard 1.1.0
-/skill-maintainer:sync-versions          # interactive: pick plugin + version
-```
+A major bump is the one stop: confirm it with the user before editing, because
+it is a compatibility claim the user makes, not one the diff can settle.
 
-## Step 1 -- Determine target plugin and version
+Commits are the user's; this skill ends with the edits in the working tree.
+</scope>
 
-If arguments were passed, parse `<plugin-name> <version>` from them.
+<procedure>
+Update every source below, or none: if any edit fails, stop and report which
+ones landed.
 
-Otherwise, run the skill-dashboard version alignment check or list all plugins with their current versions, then ask:
-1. Which plugin to bump
-2. What version to bump to
+1. `<plugin>/.claude-plugin/plugin.json` — `"version"`.
+2. Root `.claude-plugin/marketplace.json` — the `"version"` of the entry with
+   this plugin's name.
+3. `CHANGELOG.md` — an entry saying what changed and why. Semver only, no dates.
+4. `tools/<plugin>/pyproject.toml`, only when the CLI ships with the plugin.
+   Read the plugin's marketplace `source` first: if it does not include
+   `tools/`, the CLI is a separate artifact on its own version line, and
+   setting it to the plugin's number is often a downgrade. Bump the two
+   independently in that case and say so in the changelog entry. A root
+   `pyproject.toml` that is a virtual workspace root carries no version and is
+   never bumped; if a real repo-level version moves, run `uv lock` after.
 
-Read the current version from the plugin's `.claude-plugin/plugin.json` to confirm the starting point.
+SKILL.md is not a version source. Leave it alone: a `metadata.version` there
+only duplicates `plugin.json`, and its only reader would be the check
+confirming the duplicate matched.
+</procedure>
 
-## Step 2 -- Validate
-
-- Version must be valid semver (X.Y.Z)
-- Version must be higher than current (or equal, to force re-sync without bump)
-- Do NOT bump major version without explicit user confirmation
-- Confirm the plugin directory exists
-
-## Step 3 -- Find and update all version sources
-
-The cascade is three files. It does **not** scale with how many skills a plugin
-ships, because SKILL.md no longer carries a version.
-
-### 3a. plugin.json
-
-`<plugin>/.claude-plugin/plugin.json`:
-```json
-"version": "X.Y.Z"
-```
-
-### 3b. marketplace.json
-
-Root `.claude-plugin/marketplace.json` -- find the entry by plugin name:
-```json
-"version": "X.Y.Z"
-```
-
-### 3c. CHANGELOG.md
-
-Add an entry describing what changed and why. Semver only, no dates.
-
-### 3d. pyproject.toml (only if present, and only if it shares the version)
-
-`tools/<plugin>/pyproject.toml` for plugins with a CLI counterpart:
-```toml
-version = "X.Y.Z"
-```
-
-**Check first whether the CLI ships with the plugin or separately.** Read the
-plugin's marketplace `source`. If it does not include `tools/`, the CLI is a
-separate artifact on its own version line, and setting it to the plugin's number
-is wrong — often a downgrade. Observed 2026-08-13: `skill-maintainer` the plugin
-was at 0.23.3 while its CLI was at 0.32.0, so following this step literally
-would have moved the CLI backwards by eight minor versions. Bump the two
-independently in that case, and say so in the changelog entry.
-
-The root `pyproject.toml` is never bumped: it is a virtual workspace root and
-carries no version. If a real repo-level version ever moves, run `uv lock`
-after.
-
-## Step 4 -- Do NOT touch SKILL.md
-
-`metadata.version` was removed from every SKILL.md on 2026-07-21. It duplicated
-`plugin.json`, and the only thing that read it was the check confirming the
-duplicate still matched -- work that produced no information and forced up to
-six file edits per bump. Do not re-add it. The pre-commit hook still validates
-the field *if present*, so a stray re-addition is caught rather than drifting.
-
-## Step 5 -- Report
-
-List exactly what was changed:
-
-```
-Version bumped: mece-decomposer 0.3.0 -> 0.4.0
-
-Updated files:
-  - apps/mece-decomposer/.claude-plugin/plugin.json
-  - .claude-plugin/marketplace.json (mece-decomposer entry)
-  - apps/mece-decomposer/pyproject.toml
-  - CHANGELOG.md
-
-Skipped (not found):
-  - (none)
-```
-
-## Guardrails
-
-- **Atomic** -- update all sources or none (if any edit fails, stop and report)
-- **No major bumps** without explicit user confirmation
-- **Do not commit** -- the user decides when to commit
-- **Equal version allowed** -- passing the current version re-syncs all sources without bumping (fixes drift)
+<report>
+The bump (`<plugin> <old> -> <new>`), each file updated, and each source
+skipped with the reason (absent, or the CLI versions independently).
+</report>

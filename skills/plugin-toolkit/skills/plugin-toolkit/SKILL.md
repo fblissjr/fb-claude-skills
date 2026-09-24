@@ -4,211 +4,81 @@ description: Analyze, polish, and manage Claude Code plugins. Use when user want
 allowed-tools: "Read, Glob, Grep"
 ---
 
-# Plugin Toolkit
+# Plugin toolkit
 
-Tools for working with Claude Code plugins: analyze their structure, add standard polish, and manage features.
+Three modes over a Claude Code plugin directory: analyze it, polish it, or
+change one of its features.
 
-## Commands
-
-| Command | Purpose |
-|---------|---------|
-| `/plugin-toolkit:analyze <path>` | Produce structured analysis documentation |
-| `/plugin-toolkit:polish <path>` | Add standard utility commands (help, status, on/off) |
-| `/plugin-toolkit:feature <action> <path>` | Add, remove, or modify plugin features |
-
----
-
-## /plugin-toolkit:analyze
-
-Produce comprehensive analysis of any Claude Code plugin.
-
-### Usage
+<how_to_run>
+The modes are arguments to this skill, not separate commands:
 
 ```
-/plugin-toolkit:analyze /path/to/plugin
-/plugin-toolkit:analyze .  # Current directory
+/plugin-toolkit:plugin-toolkit analyze <path>
+/plugin-toolkit:plugin-toolkit polish <path> [--skip-changelog]
+/plugin-toolkit:plugin-toolkit feature add|remove|change <path> <component> <name> [...]
 ```
 
-### Output
+When the skill loads from phrasing instead ("review my plugin"), take the mode
+and path from the request. Both agents below start with a fresh context, so
+pass each one the plugin path and whatever it needs from earlier steps.
+</how_to_run>
 
-Creates `analysis/` directory with:
+<analyze>
+1. Run `claude plugin validate <path> --strict`. Its output settles schema and
+   manifest questions; the review cites it rather than re-deriving them.
+2. Dispatch `plugin-scanner` for the inventory, then `quality-checker` with
+   that inventory and the validate output.
+3. Write `analysis/` in the plugin:
+   - `ANALYSIS.md`: what the plugin does, its component inventory, how data
+     flows between components, strengths and weaknesses.
+   - `RECOMMENDATIONS.md`: improvements in priority order, each with the
+     problem, its impact, and the fix.
+   - `INTEGRATION_WORKFLOWS.md`: how it composes with other plugins, where
+     there is anything to say.
+   - `SKILL_REVIEW.md`: quality-checker's ratings and the evidence behind each.
+</analyze>
 
-```
-analysis/
-├── ANALYSIS.md           # Architecture, data flow, components
-├── RECOMMENDATIONS.md    # Prioritized improvements
-├── INTEGRATION_WORKFLOWS.md  # Cross-plugin patterns
-└── SKILL_REVIEW.md       # Quality ratings
-```
+<polish>
+Add the utilities the plugin lacks, and skip each one already present:
 
-### Process
+- A help command listing the plugin's skills and commands, only when the
+  built-in `/help` listing would not already say enough.
+- A status command, when the plugin keeps state.
+- Off/on commands, when a hook injects context on every prompt and the user
+  may want it quiet without disabling the whole plugin (`/plugin disable`
+  already does that).
+- `CHANGELOG.md` when missing, unless `--skip-changelog` or the marketplace
+  keeps one changelog at its root.
+</polish>
 
-1. **Scan plugin structure** using plugin-scanner agent
-2. **Evaluate quality** using quality-checker agent
-3. **Generate documentation** using analysis-template reference
+<feature>
+`add` creates the component (a skill, a flat command, an agent, or a hook
+entry plus its script), `remove` deletes it and every reference to it,
+`change` edits it in place and updates what refers to it. Before removing,
+grep the plugin and its marketplace for references and name what would break.
+</feature>
 
-### Analysis Criteria
+<gotchas>
+Harness behaviour a generated plugin gets wrong silently:
 
-From [references/quality-checklist.md](references/quality-checklist.md):
+- `skills/`, `commands/`, `agents/`, `hooks/hooks.json` and `.mcp.json` are
+  auto-discovered. Leave them out of `plugin.json`: a `commands` or `agents`
+  path listed there replaces the default directory rather than adding to it
+  (`skills` adds).
+- `UserPromptSubmit`, `Stop` and several other events have no matcher
+  support; a `matcher` on them is silently ignored and the hook fires on every
+  prompt. An off/on toggle therefore lives in the injecting script, which reads
+  a state file and exits early, with the off/on commands writing that file.
+- A hook running a bundled script uses exec form with the interpreter named:
+  `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]`. The
+  script path as `command` breaks on a plugin root containing a space and on
+  Windows.
+- Hook `timeout` is in seconds, and a timed-out hook renders no decision.
+- A read-only agent sets `tools` explicitly; omitting it inherits Write and
+  Edit. Plugin agents ignore `hooks`, `mcpServers` and `permissionMode`.
+</gotchas>
 
-- Plugin metadata completeness
-- Command consistency and coverage
-- Hook implementation (opt-out exists?)
-- Documentation quality
-- Error handling
-- Maintenance burden (duplication?)
-- Integration potential
-
----
-
-## /plugin-toolkit:polish
-
-Add standard utility infrastructure to any plugin.
-
-### Usage
-
-```
-/plugin-toolkit:polish /path/to/plugin
-/plugin-toolkit:polish . --skip-changelog  # Skip CHANGELOG creation
-```
-
-### What It Adds
-
-| Component | Description |
-|-----------|-------------|
-| `/help` command | Lists all commands with descriptions |
-| `/status` command | Shows current plugin state |
-| `/off` command | Disables auto-activation (if hooks exist) |
-| `/on` command | Enables auto-activation |
-| `CHANGELOG.md` | Version history (if missing) |
-| Error handling | Adds to hook scripts |
-
-### Smart Behavior
-
-- Detects existing hooks and only adds on/off if relevant
-- Scans existing commands to generate help content
-- Idempotent - won't duplicate if already present
-- Preserves existing file formatting
-
-### Process
-
-1. **Scan plugin** using plugin-scanner agent
-2. **Check existing utilities** - skip what's already present
-3. **Generate commands** using command-template reference
-4. **Add hooks** if plugin uses auto-activation
-5. **Create CHANGELOG** if missing
-
----
-
-## /plugin-toolkit:feature
-
-Add, remove, or modify plugin features.
-
-### Usage
-
-```
-/plugin-toolkit:feature add <path> command <name> "<description>"
-/plugin-toolkit:feature add <path> hook <event> <script>
-/plugin-toolkit:feature add <path> trait <name> "<description>"
-/plugin-toolkit:feature add <path> agent <name> "<description>"
-
-/plugin-toolkit:feature remove <path> command <name>
-/plugin-toolkit:feature remove <path> hook <event>
-
-/plugin-toolkit:feature change <path> command <name> --description "<new>"
-```
-
-### Examples
-
-**Add a new command:**
-```
-/plugin-toolkit:feature add /path/to/my-plugin command "review" "Review code for issues"
-```
-
-**Add a hook:**
-```
-/plugin-toolkit:feature add /path/to/my-plugin hook "UserPromptSubmit" "inject-context.sh"
-```
-
-**Remove a command:**
-```
-/plugin-toolkit:feature remove /path/to/my-plugin command "deprecated-cmd"
-```
-
-**Modify a command:**
-```
-/plugin-toolkit:feature change /path/to/my-plugin command "help" --description "Updated help text"
-```
-
-### What It Handles
-
-**Add:**
-- Creates command/trait/agent markdown file
-- Updates plugin.json if needed
-- Creates hook script with boilerplate
-- Updates SKILL.md references
-
-**Remove:**
-- Removes the file
-- Cleans up plugin.json references
-- Removes hook entries
-- Warns about potential breakage
-
-**Change:**
-- Modifies existing files in place
-- Updates related references
-
----
-
-## Composability
-
-This skill uses shared components:
-
-### Agents
-
-- **plugin-scanner** - Explores plugin structure, returns inventory
-- **quality-checker** - Evaluates against checklist, returns ratings
-
-### References
-
-- **[analysis-template.md](references/analysis-template.md)** - Structure for analysis docs
-- **[command-template.md](references/command-template.md)** - Boilerplate for new commands
-- **[quality-checklist.md](references/quality-checklist.md)** - Evaluation criteria
-- **[hook-patterns.md](references/hook-patterns.md)** - Common hook implementations
-
----
-
-## Examples
-
-### Full Plugin Review Workflow
-
-```
-# 1. Analyze the plugin
-/plugin-toolkit:analyze /path/to/my-plugin
-
-# 2. Review the analysis
-cat /path/to/my-plugin/analysis/RECOMMENDATIONS.md
-
-# 3. Apply standard polish
-/plugin-toolkit:polish /path/to/my-plugin
-
-# 4. Add any custom features
-/plugin-toolkit:feature add /path/to/my-plugin command "custom" "My custom command"
-```
-
-### Quick Polish for New Plugin
-
-```
-# Just add utilities, skip analysis
-/plugin-toolkit:polish /path/to/my-plugin
-```
-
-### Feature Management
-
-```
-# Add a debugging command
-/plugin-toolkit:feature add . command "debug" "Show debugging information"
-
-# Later, remove it
-/plugin-toolkit:feature remove . command "debug"
-```
+<report>
+The files written or changed, with one line each on what changed; for
+analyze, the overall rating and the top recommendation.
+</report>

@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-09-24
 
 # agent execution as data pipeline DAG
 
@@ -16,9 +16,9 @@ Goal / Objective     (why -- spans days, sessions)
             Tool call(atomic -- read/write/search/execute)
 ```
 
-## mapping to the five invariant operations
+## mapping phases to fact tables
 
-Every agent execution follows the same five phases that appear in database query planning, sparse MoE transformers, and CDC pipelines:
+Each phase of agent execution is one fact table at its own grain:
 
 | Phase | Agent Execution | Fact Table |
 |-------|----------------|-----------|
@@ -204,7 +204,8 @@ Use Claude Code hooks to capture events as they happen:
 
 | Hook | Events Captured |
 |------|----------------|
-| PostToolUse | fact_execution_step (every tool call) |
+| PostToolUse | fact_execution_step, `status = 'success'` |
+| PostToolUseFailure | fact_execution_step, `status = 'error'` |
 | SubagentStart | fact_routing_decision (subagent spawned) |
 | SubagentStop | fact_synthesis_result (subagent returned) |
 | Stop | fact_session_event (session end) |
@@ -222,14 +223,18 @@ Two-phase capture for performance:
 import orjson
 from pathlib import Path
 
-def on_post_tool_use(event):
+# The hook input carries no status or timestamp field: status comes from which
+# event fired, the timestamp from the hook's own clock, and duration_ms is optional.
+from datetime import datetime, timezone
+
+def on_tool_event(event):
     entry = {
         "type": "execution_step",
         "session_id": event["session_id"],
         "tool_name": event["tool_name"],
-        "duration_ms": event["duration_ms"],
-        "status": event["status"],
-        "called_at": event["timestamp"],
+        "duration_ms": event.get("duration_ms"),
+        "status": "error" if event["hook_event_name"] == "PostToolUseFailure" else "success",
+        "called_at": datetime.now(timezone.utc).isoformat(),
     }
     Path("state/journal.jsonl").open("a").write(
         orjson.dumps(entry).decode() + "\n"
@@ -266,12 +271,20 @@ SELECT
     r.agent_name,
     r.tool_name,
     COUNT(*) AS total_routings,
-    COUNT(*) FILTER (WHERE e.status = 'success') AS successes,
-    ROUND(COUNT(*) FILTER (WHERE e.status = 'success') * 100.0 / COUNT(*), 1) AS success_rate,
+    COUNT(*) FILTER (WHERE e.all_succeeded) AS successes,
+    ROUND(COUNT(*) FILTER (WHERE e.all_succeeded) * 100.0 / COUNT(*), 1) AS success_rate,
     AVG(e.duration_ms) AS avg_duration_ms,
-    AVG(e.input_tokens + e.output_tokens) AS avg_total_tokens
+    AVG(e.total_tokens) AS avg_total_tokens
 FROM fact_routing_decision r
-LEFT JOIN fact_execution_step e
+LEFT JOIN (
+    -- drill-across: aggregate execution steps to the routing grain first
+    SELECT session_id, task_id, agent_name,
+           BOOL_AND(status = 'success') AS all_succeeded,
+           SUM(duration_ms) AS duration_ms,
+           SUM(input_tokens + output_tokens) AS total_tokens
+    FROM fact_execution_step
+    GROUP BY session_id, task_id, agent_name
+) e
     ON e.session_id = r.session_id
     AND e.task_id = r.task_id
     AND e.agent_name = r.agent_name
@@ -288,11 +301,17 @@ CREATE VIEW v_decomposition_quality AS
 SELECT
     td.decomposition_depth,
     COUNT(DISTINCT td.goal_id) AS goal_count,
-    AVG(CASE WHEN v.passed THEN 1.0 ELSE 0.0 END) AS verification_pass_rate,
+    AVG(v.pass_rate) AS verification_pass_rate,
     AVG(sr.output_tokens) AS avg_synthesis_tokens
-FROM fact_task_decomposition td
-LEFT JOIN fact_verification v ON v.goal_id = td.goal_id
-LEFT JOIN fact_synthesis_result sr ON sr.goal_id = td.goal_id
+FROM (SELECT DISTINCT goal_id, decomposition_depth FROM fact_task_decomposition) td
+LEFT JOIN (
+    SELECT goal_id, AVG(CASE WHEN passed THEN 1.0 ELSE 0.0 END) AS pass_rate
+    FROM fact_verification GROUP BY goal_id
+) v ON v.goal_id = td.goal_id
+LEFT JOIN (
+    SELECT goal_id, SUM(output_tokens) AS output_tokens
+    FROM fact_synthesis_result GROUP BY goal_id
+) sr ON sr.goal_id = td.goal_id
 GROUP BY td.decomposition_depth
 ORDER BY td.decomposition_depth;
 ```
@@ -305,25 +324,22 @@ Which patterns are most expensive?
 SELECT
     r.agent_name,
     r.tool_name,
-    SUM(e.input_tokens + e.output_tokens) AS total_tokens,
+    SUM(e.total_tokens) AS total_tokens,
     SUM(e.duration_ms) AS total_duration_ms,
-    COUNT(*) AS call_count
+    SUM(e.call_count) AS call_count
 FROM fact_routing_decision r
-JOIN fact_execution_step e
+JOIN (
+    SELECT session_id, task_id, agent_name,
+           SUM(input_tokens + output_tokens) AS total_tokens,
+           SUM(duration_ms) AS duration_ms,
+           COUNT(*) AS call_count
+    FROM fact_execution_step
+    GROUP BY session_id, task_id, agent_name
+) e
     ON e.session_id = r.session_id
     AND e.task_id = r.task_id
+    AND e.agent_name = r.agent_name
 GROUP BY r.agent_name, r.tool_name
 ORDER BY total_tokens DESC
 LIMIT 20;
 ```
-
-## what this enables
-
-Not just "how much did it cost" but "what routing decisions did the agent make, and which patterns succeed?"
-
-- "This decomposition pattern succeeds 80% of the time; that one fails 60%"
-- "When the agent spawns >3 subagents, synthesis quality drops -- prune earlier"
-- "Read-first-then-write routing outperforms write-then-fix by 2x in tool calls"
-- "This 5-step sequence appears in every code review -- make it a skill"
-
-The data engineering parallel: the same patterns that govern Airflow DAGs (decompose, route, prune, synthesize, verify) govern agent execution.

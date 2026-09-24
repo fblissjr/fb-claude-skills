@@ -11,7 +11,8 @@
 #                          [--lax-boundary] [--against-root <path>] [--config <path>]
 #                          [--allow-skip-file] [--quiet]
 #
-# Exit 0 = clean, 1 = at least one leak, 2 = bad usage.
+# Exit 0 = clean, 1 = at least one leak, 2 = bad usage or an input ripgrep
+# could not scan.
 #
 # Optional config (--config or auto-loaded from <ROOT>/.path-privacy.local.json):
 #   {
@@ -142,14 +143,6 @@ SKIPS=(
   --glob '!.pytest_cache/**'
 )
 
-# Strict pattern: requires non-word-non-slash on the left so identifiers like
-# `myUsers/...` don't match. Used for file content.
-PATTERN_STRICT='(?:^|[^A-Za-z0-9_/])(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
-# Lax pattern: no left boundary. Used for commit messages and branch names where
-# the embedding context (e.g., `fix/Users/jamie`) puts a word char immediately
-# before the path segment.
-PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b))(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
-
 IGNORE_MARKER='path-privacy: ignore'
 
 # The file-level opt-out is defined once, in _skip_marker.sh, and shared with the
@@ -178,18 +171,64 @@ if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
   pp_text_has_skip_marker() { cat >/dev/null 2>&1; return 1; }
 fi
 
-# Generic placeholder usernames -- skipping these prevents documentation false positives.
+# Placeholder usernames: documentation and fixture stand-ins, plus system and
+# CI accounts that are never a person's home. Compared case-insensitively.
+#
+# Kept in step with `_PLACEHOLDER` in skill-maintainer's whole-tree audit
+# (tools/skill-maintainer/src/skill_maintainer/tests.py). The scanner used to
+# accept a much shorter list, so `/Users/dev/...` in a test fixture blocked a
+# write that the audit had no quarrel with; that was the largest false-positive
+# class among literal-user blocks measured on 2026-09-24.
 PLACEHOLDER_USERS=(
-  USERNAME username USER user '<USERNAME>' '<USER>' '<user>' '<username>'
-  me you name NAME '<name>' somebody '$USER' '${USER}' '$$USER'
+  username user '<username>' '<user>' me you name '<name>' somebody '$user'
+  '${user}' '$$user' someone someuser foo bar baz test tester example alice
+  bob carol jane john jamie dev developer youruser yourname
+  shared linuxbrew travis runner vagrant ubuntu ec2-user
 )
 
 is_placeholder_user() {
-  local u="$1" p
+  local u p
+  u=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
   for p in "${PLACEHOLDER_USERS[@]}"; do
     [ "$u" = "$p" ] && return 0
   done
   return 1
+}
+
+# The running user's home-directory name, used for two checks a pattern over
+# /Users/ and ~/ cannot make on its own: the dash-joined form Claude Code uses
+# for per-project directories (`-Users-<user>-code-proj`, found in session
+# scratch paths and under the config dir), and a generic home location whose
+# path still spells the username. Off when the name is a placeholder or too
+# short to match safely.
+HOME_USER="${HOME%/}"; HOME_USER="${HOME_USER##*/}"
+HOME_USER_ON=0
+if [ ${#HOME_USER} -ge 2 ] && ! is_placeholder_user "$HOME_USER"; then
+  HOME_USER_ON=1
+fi
+# The dash-joined form replaces every non-alphanumeric with a dash, so the
+# username is mangled the same way. Only [A-Za-z0-9-] survives, which also means
+# it needs no regex escaping below.
+MANGLED_USER=$(printf '%s' "$HOME_USER" | tr -c 'A-Za-z0-9' '-')
+MANGLED_ALT=""
+[ $HOME_USER_ON -eq 1 ] && MANGLED_ALT="|-(?:Users|home)-${MANGLED_USER}(?=-|\b)"
+
+# Strict pattern: requires non-word-non-slash on the left so identifiers like
+# `myUsers/...` don't match. Used for file content. The one exception is a `/`
+# directly before the dash-joined home form, which is how it appears inside a
+# longer path (`/tmp/claude-501/-Users-<user>-...`).
+PATTERN_STRICT='(?:^|[^A-Za-z0-9_/]|/(?=-(?:Users|home)-))(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b)'"$MANGLED_ALT"')(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
+# Lax pattern: no left boundary. Used for commit messages and branch names where
+# the embedding context (e.g., `fix/Users/jamie`) puts a word char immediately
+# before the path segment.
+PATTERN_LAX='(?<path>(?:/Users/|/home/|~/|\$HOME(?:/|\b)|\$\{HOME\}(?:/|\b)'"$MANGLED_ALT"')(?:[^[:space:]"'"'"'`<>()\[\]\\]|<[A-Za-z0-9._-]+>)*)'
+
+# names_home_user <candidate> -- does the text spell this machine's username,
+# as a whole token (bounded by non-alphanumerics)?
+names_home_user() {
+  [ $HOME_USER_ON -eq 1 ] || return 1
+  printf '%s' "$1" | LC_ALL=C grep -qiE \
+    "(^|[^A-Za-z0-9])($(printf '%s' "$HOME_USER" | sed 's/[][\.*^$+?(){}|/]/\\&/g')|${MANGLED_USER})([^A-Za-z0-9]|$)"
 }
 
 # --- Suggestion config: parallel arrays of (match-substring, suggested-replacement).
@@ -322,6 +361,9 @@ emit_finding() {
 }
 
 FOUND=0
+# Inputs ripgrep failed on (exit above 1, or killed). Reported, and they turn a
+# clean run into exit 2: an input nobody could read is not an input with no leaks.
+SCAN_ERRORS=''
 # Files rg reported as binary-and-matching. They cannot be line-scanned, and
 # silently dropping them is what let a poisoned scan look like a clean one.
 BINARY_UNSCANNED=''
@@ -355,6 +397,51 @@ check_candidate() {
     return 0
   fi
 
+  # The dash-joined home form only matches with this machine's username in it
+  # (see MANGLED_ALT), so reaching here is a leak by construction.
+  case "$cand" in
+    -Users-*|-home-*) emit_finding "$label" "$lineno" "$cand"; FOUND=1; return 0 ;;
+  esac
+
+  # Home-relative forms that name nothing. The rule exists to keep a username,
+  # a machine's layout and private project names out of the repo; these carry
+  # none of the three:
+  #   - bare home (`$HOME`, `"$HOME"`, `$HOME,`), which is shell code, not a path
+  #   - home plus a runtime variable (`$HOME/$sub`, `~/$1`), computed at run time
+  #   - a dot-directory or OS-standard directory under home (`~/.claude/...`,
+  #     `$HOME/.config/...`, `~/Library/...`, `~/AppData/...`): a tool's config
+  #     location, identical on every machine that has the tool
+  # That last group was the largest block class measured on 2026-09-24, and
+  # every instance was a generic tool path. It stays a leak when the path
+  # spells the username anyway, as Claude Code's per-project directories do.
+  # A NAMED directory under home (`~/code/secret-project`) is still a leak:
+  # that is the project-name exposure the rule is for.
+  local home_rest="" is_home=0
+  case "$cand" in
+    '~/'*)       is_home=1; home_rest="/${cand#??}" ;;
+    '${HOME}'*)  is_home=1; home_rest="${cand#???????}" ;;
+    '$HOME'*)    is_home=1; home_rest="${cand#?????}" ;;
+  esac
+  if [ $is_home -eq 1 ]; then
+    case "$home_rest" in
+      /*) ;;
+      *)  return 0 ;;
+    esac
+    home_rest="${home_rest#/}"
+    case "$home_rest" in
+      ''|'$'*) return 0 ;;
+    esac
+    case "${home_rest%%/*}" in
+      .?*|Library|AppData)
+        if names_home_user "$cand"; then
+          emit_finding "$label" "$lineno" "$cand"
+          FOUND=1
+        fi
+        return 0
+        ;;
+    esac
+  fi
+
   local user_seg=""
   case "$cand" in
     /Users/*) user_seg="${cand#/Users/}"; user_seg="${user_seg%%/*}" ;;
@@ -386,6 +473,16 @@ scan_file() {
     lines[$idx]="$line"
     idx=$((idx + 1))
   done < "$f"
+
+  # rg's exit status is checked, not swallowed: 1 is "no match", anything
+  # above it is a failure, and a failure must never read as a clean file.
+  local rg_out rg_rc
+  rg_out=$(rg -PHn --no-heading --color=never -or '$path' "$PATTERN_STRICT" "$f" 2>/dev/null)
+  rg_rc=$?
+  if [ $rg_rc -gt 1 ]; then
+    SCAN_ERRORS="${SCAN_ERRORS}${f}"$'\n'
+    return 0
+  fi
 
   local rg_line lln cand src
   while IFS= read -r rg_line; do
@@ -422,7 +519,7 @@ scan_file() {
       *"$IGNORE_MARKER"*) continue ;;
     esac
     check_candidate "$f" "$lln" "$cand"
-  done < <(rg -PHn --no-heading --color=never -or '$path' "$PATTERN_STRICT" "$f" 2>/dev/null || true)
+  done <<< "$rg_out"
 }
 
 # Walk a directory by listing files-with-matches and dispatching each to scan_file.
@@ -450,16 +547,39 @@ scan_text() {
   fi
   local pat="$PATTERN_STRICT"
   [ $LAX -eq 1 ] && pat="$PATTERN_LAX"
-  local lineno=0 line cand
-  while IFS= read -r line; do
-    lineno=$((lineno + 1))
-    case "$line" in
+  # ONE ripgrep call over the whole text, not one per line. The per-line form
+  # spawned a process for every line of every Write, and each ended in
+  # `|| true`: on 2026-09-24 a sandboxed session had rg killed (137) partway
+  # through a long file, and every line after that point read as clean.
+  local rg_out rg_rc
+  rg_out=$(rg -n -oP --replace '$path' "$pat" <<<"$content" 2>/dev/null)
+  rg_rc=$?
+  if [ $rg_rc -gt 1 ]; then
+    SCAN_ERRORS="${SCAN_ERRORS}${label}"$'\n'
+    return 0
+  fi
+  [ -n "$rg_out" ] || return 0
+
+  # Source lines, for the per-line ignore marker. Read without forking.
+  local -a lines
+  local idx=0 line
+  while IFS= read -r line || [ -n "$line" ]; do
+    lines[$idx]="$line"
+    idx=$((idx + 1))
+  done <<< "$content"
+
+  local rg_line lln cand src
+  while IFS= read -r rg_line; do
+    [ -z "$rg_line" ] && continue
+    lln="${rg_line%%:*}"
+    cand="${rg_line#*:}"
+    case "$lln" in ''|*[!0-9]*) continue ;; esac
+    src="${lines[$((lln - 1))]:-}"
+    case "$src" in
       *"$IGNORE_MARKER"*) continue ;;
     esac
-    while IFS= read -r cand; do
-      [ -n "$cand" ] && check_candidate "$label" "$lineno" "$cand"
-    done < <(rg -oP --replace '$path' --no-line-number "$pat" <<<"$line" 2>/dev/null || true)
-  done <<< "$content"
+    [ -n "$cand" ] && check_candidate "$label" "$lln" "$cand"
+  done <<< "$rg_out"
 }
 
 [ -n "$TEXT" ] && scan_text "<text>" "$TEXT"
@@ -478,5 +598,11 @@ if [ $FOUND -eq 1 ]; then
     printf 'Use a path relative to the repo root, or refer to it generically (e.g. "another project").\n'
   fi
   exit 1
+fi
+if [ -n "$SCAN_ERRORS" ]; then
+  printf 'find-external-paths: ripgrep failed on these inputs, so they were not scanned:\n' >&2
+  printf '%s' "$SCAN_ERRORS" | sort -u | sed 's/^/  /' >&2
+  printf 'This is not a clean result.\n' >&2
+  exit 2
 fi
 exit 0

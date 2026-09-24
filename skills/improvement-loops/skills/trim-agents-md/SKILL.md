@@ -1,6 +1,6 @@
 ---
 name: trim-agents-md
-description: "Trims a repository's always-loaded agent instructions (AGENTS.md, CLAUDE.md, unconditional rules) to what an agent needs on its first edit, without losing a rule. Finds everything that cites or reads the file before cutting, judges each line by whether the model could learn it from the repo, moves what is still true to the narrowest home that loads when it matters, re-points the checks and citations that pointed at the old text, and has a fresh-context reviewer confirm no rule was lost. User-invoked only."
+description: "Tightens a repository's always-loaded agent instructions (AGENTS.md, CLAUDE.md, unconditional rules): every line must prevent a mistake, and each one that doesn't is moved to the narrowest home that loads when it matters (a path-scoped rule, a skill, a hook or test, the status doc, the user-level file) or cut. Fills the gaps a newcomer falls into: commands, done criteria, the stops wanted, hazards, settled decisions. Re-points everything that cited the old text, and verifies with a fresh-context diff review and spot-tested tasks. User-invoked only."
 disable-model-invocation: true
 argument-hint: "[overrides, e.g. 'Depth: rebuild; Hub: agents-md; Targets: CLAUDE.md, .claude/rules/general.md']"
 ---

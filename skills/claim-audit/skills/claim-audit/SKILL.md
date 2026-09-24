@@ -1,165 +1,136 @@
 ---
 name: claim-audit
-argument-hint: "[diff ref, files, or quoted claims to audit]"
-description: "Audit the added prose of a diff as untrusted claims: every count, status, and attribution re-derived by executing commands, never by reading. Reports each claim beside the command whose output is that claim, labels what cannot be derived, and states its own scope so a green report is distinguishable from a run that read nothing. Use when the user says 'audit the claims', 'claim audit', 'verify this summary against the code', 'check what the changelog says actually happened', 'is this doc telling the truth', or before committing prose that describes work — session logs, changelogs, READMEs, postmortem summaries. Do NOT use for auditing a test suite (use test-audit) or for reviewing code changes themselves (use a code review)."
+argument-hint: "[what to audit: a diff ref, doc paths, or quoted text] [--fix]"
+description: "Audits prose as untrusted claims and re-derives each one by running a command, never by reading and nodding: the added lines of a diff, a standing doc such as a README, AGENTS.md or SKILL.md checked against today's code, or a summary, changelog entry or PR text about to be sent. Checks counts, statuses, capabilities, pointers, attributions and numbers in prose; labels what cannot be derived; with --fix, applies the corrections the evidence settles. Use when the user says 'audit the claims', 'is this README still true', 'check the docs against the code', 'verify this summary', 'check what the changelog says actually happened', or before committing prose that describes work. Do NOT use for auditing a test suite (use test-audit) or for reviewing code changes themselves (use a code review)."
 ---
 
 # Claim audit
 
-Prose written about work disagrees with the work at a measured, repeatable
-rate — and the disagreement concentrates in the newest writing. A day's output
-written under unusual care still contained ten claims that disagreed with the
-code, nine of them authored that day. Freshness is the signal to check, not
-the excuse to skip checking.
+Prose about work drifts from the work, and the drift concentrates in the newest
+writing and in docs nobody re-read after the code moved. This skill treats every
+claim in the audited prose as untrusted and re-derives it by running a command
+whose output is the claim.
 
-The instrument: treat every claim in the *added lines* of a diff as untrusted,
-and re-derive it by running a command whose output IS the claim. Reading the
-code and nodding is not derivation — reading a diff was the lowest-yield
-review instrument in both samples that motivated this skill.
+<scope>
+Audit exactly one of these, chosen from the argument:
+- **A diff** (the default, or a ref): the added lines of prose in the pending
+  change, plus the commit message or changelog entry being written for it.
+- **Standing docs** (paths): a README, AGENTS.md, a SKILL.md, a docs folder,
+  checked against the code as it is today. The claims are every sentence that
+  says what the project does, contains, or requires.
+- **Quoted text**: a summary, PR description or report the user pastes or is
+  about to send.
 
-**Scope caveat, carried on purpose:** the yield ordering behind this skill was
-measured where defects are silent by construction (a green-by-default corpus).
-A codebase whose failures show up loudly in diffs weighs plain review more
-highly. Apply the procedure; do not universalize the ordering.
+A directory or "the docs" is too vague to audit well. Narrow it to files and
+sections first, and say which you chose.
+</scope>
 
-## What counts as a claim
+<where_it_runs>
+Decided by who wrote the prose:
+- **This session wrote it**: dispatch the extraction and derivation to one
+  fresh-context subagent for the whole set. Brief it with the scoped prose and
+  the repo, never with why the prose says what it says. The context that wrote
+  a claim reads its evidence generously.
+- **Someone else wrote it** (another session, another author, a commit under
+  review): run it here.
+- **Claims spanning several independent units** (plugins, packages, doc trees)
+  and too many for one context: one subagent per unit, in parallel.
 
-| Class | Shape | Example |
-|---|---|---|
-| Count | a number bound to a noun | "18 new test arms", "suite at 225" |
-| Status | a state assertion about repo, phase, file, or branch | "all green", "not started", "committed", "the flag defaults to false" |
-| Attribution | who or what found, caused, or fixed a thing | "caught by the hook", "pinned by a test", "the reviewer's finding" |
+Whoever runs it, open two or three returned rows and confirm the pasted output
+is what the command prints before accepting the rest.
+</where_it_runs>
 
-Extract by reading, not by regex — a scanner cannot recognize a count in
-arbitrary prose (measured above 85% false positives when tried). You are the
-generator; there is no scannable pattern.
+<claims>
+| Class | Shape | Example | Derived by |
+|---|---|---|---|
+| Count | a number bound to a noun | "18 test arms", "suite at 225" | the command that counts them |
+| Status | a state of the repo, a file, a phase | "all green", "not started", "defaults to false" | running it, or reading the value where it is set |
+| Capability | what the code does or accepts | "every subcommand takes --json" | invoking it |
+| Pointer | a path, command, link or section that must resolve | "see `docs/x.md`", "run `make lint`" | opening or running it |
+| Attribution | who or what caused, found or fixed something | "caught by the hook" | the log, commit or record that shows it |
+| Measurement | a speed, size, time or rate in prose | "3x faster", "~2,300 tokens" | see `<numbers>` |
 
-## Where the audit runs
+Extract by reading, not by regex: a scanner cannot recognise a claim in
+arbitrary prose.
+</claims>
 
-Decided by who wrote the prose, before anything else:
+<procedure>
+1. **Extract.** List every claim in scope, one line each, verbatim or nearly.
+2. **Name the deriving command before running anything.** A command chosen
+   after seeing output drifts toward confirming. If no command can be named,
+   that is the finding (step 4).
+3. **Run and record both sides.** One row per claim: the sentence, the
+   command, its actual output pasted rather than paraphrased, and the verdict
+   (holds, wrong, or partly wrong, with what is true instead). Capture exit
+   status before filtering output for display: piping a validator through
+   `tail` or `grep` masks its verdict.
+4. **Label what cannot be derived.** A judgment or design rationale ("we chose
+   X because Y") is out of scope by construction; count it and leave it. For
+   anything else with no deriving command, recommend one of:
+   - past tense with an observation time ("as of the 10:30 run, ...");
+   - a source tag: `(memory)`, `(local)`, `(reported)`;
+   - deletion.
+5. **Run the extra arms when the prose qualifies** (`<arms>`).
+</procedure>
 
-- **Written earlier in this session** (by this context): dispatch steps 2 to 5
-  to one fresh-context subagent for the whole set. Brief it with the scoped
-  prose and the repo, never with why the prose says what it says. The
-  context that wrote a claim is biased toward confirming it; one extra
-  startup buys independence.
-- **Written elsewhere** (another session, another author, a commit you are
-  reviewing): run it here, in one context.
-- **Claims spanning several independent units** (more than one plugin,
-  package or doc tree, and enough claims to fill a context): one subagent
-  per unit, in parallel.
+<numbers>
+Every number in the prose is checked against the three kinds, even when its
+value derives correctly:
+- **Derivable now** (a file size, a count, a current default): replace the
+  value with the command or constant that produces it.
+- **Measured once** (a speedup, a wall time): point it at the dated record
+  that carries its conditions. A number with no findable origin is deleted if
+  the reader's next action doesn't depend on it; otherwise it is marked
+  unsupported with the date.
+- **Normative** (a limit being set): allowed, cited by the one constant that
+  holds it.
 
-Whichever runs it, check the returned rows before accepting them: open two
-or three rows' commands and confirm the pasted output is what the command
-prints. A subagent's report is a claim like any other.
+First test whether the number is decorative: substitute a plausible different
+value. If the reader would act the same, recommend deletion, not a corrected
+figure. Order: delete, then point, then derive.
+</numbers>
 
-## Procedure
+<arms>
+- **Adversarial input**, when the prose describes executable behaviour: build
+  and run the input that would prove the claim false, instead of reading. Where
+  the `postmortem` plugin is installed, `/postmortem:adversarial-verify` is
+  this move with a separate check that the input actually reached the code.
+- **Control against reimplementation**, when the prose describes something
+  that mirrors logic living elsewhere (a validator restating its subject, a
+  doc restating a schema): read the two side by side for divergence.
+- **Invalidation sweep**, when a decision, merge or version just landed: grep
+  the same day's prose for distinctive phrases of the old state, ignoring case
+  and with word stems (`delet` finds `Deleting`).
 
-### 1. Scope to added lines
+A single-line `grep` over hard-wrapped prose misses phrases that span a line
+break. Join lines first (`tr '\n' ' '`) before concluding that something is
+stated nowhere, because that verdict is the one this failure silently inverts.
+</arms>
 
-The subject is the *new* prose: `git diff` added lines, the file about to be
-committed, or the claims the user quoted. **Quoted claims, never a
-directory** — a vague scope returns a vague answer (measured, not asserted).
-If handed a directory-shaped scope, narrow it first: which files, which
-sections, which sentences.
+<fix>
+Without `--fix`, report and change nothing. The caller weighs the findings.
 
-### 2. Extract the claims
+With `--fix`, apply only the corrections the evidence settles:
+- replace a wrong count, status, capability or pointer with what the command
+  showed;
+- apply the `<numbers>` recommendation (delete, point, or mark unsupported);
+- repair or remove a pointer that doesn't resolve.
 
-List every count, status, and attribution in the scoped prose. One line each,
-verbatim or near-verbatim.
+Leave as findings anything that needs judgment: a claim that is partly right,
+a rationale, a claim whose command gave an ambiguous result, and anything in a
+file the user did not name. Show each applied change as a before and after.
+Never commit.
+</fix>
 
-### 3. Name the deriving command before running anything
+<report>
+One table row per claim: sentence, class, command, output, verdict, and the
+recommended or applied fix. Then the findings left for the caller.
 
-For each claim, write the command whose output is the claim: the `grep -c`,
-the `pytest -q` tail, the `git log` line, the `jq` read. Naming it first is
-the discipline — a command chosen after seeing output drifts toward
-confirming. **No command nameable is itself the finding** (step 5).
+End with the scope line, so a clean report can be told apart from a run that
+read nothing:
 
-Never pipe a validator through `tail` or `grep` for the verdict — exit-status
-masking has bitten repeatedly. Capture the exit status, then filter for
-display.
+`scope: 214 lines read, 17 claims, 14 derived, 2 labelled, 1 out of scope, 3 fixed`
 
-**A single-line `grep` over hard-wrapped prose produces false negatives, and a
-green from one is not evidence of absence.** Most repos wrap docs near 80
-columns, so any phrase longer than a few words spans a line break and no
-single-line pattern can match it. Join lines first (`tr '\n' ' '`) when the
-claim is "this rule is stated nowhere" — that verdict is the one this failure
-mode silently inverts, and acting on it deletes things. Three instances in one
-day on record, one of which nearly removed a rule that was plainly present.
-Watch the regex dialect too: `\|` means alternation in `grep`'s default syntax
-and a literal pipe under `-E`, so the same pattern reports opposite results
-depending on the flag.
-
-### 4. Run them; record both sides
-
-One row per claim: the sentence, the command, its actual output, the verdict.
-Output pasted, not paraphrased — the row must let a reader disagree with your
-verdict.
-
-### 5. Label the unsourceable; do not fail it
-
-A claim with no deriving command gets one of:
-
-- rewritten to past tense with an observation time ("as of the 10:30 run, ..."),
-- tagged `(memory)`, `(local)`, or `(reported)` — stating where it came from,
-- **out of scope** — a judgment or design rationale ("we chose X because Y") is
-  unsourceable by construction, and that is what makes it worth writing. Leave
-  it and count it. A pass that only preserves derivable prose starves the class
-  of writing docs exist for,
-- or recommended for deletion.
-
-These are report recommendations for the caller — see step 7.
-
-**Counts take one more question, including the ones that derived green.**
-Substitute a plausible different value: if the reader's next action is
-unchanged, the number is decorative and the recommendation is deletion, not a
-corrected figure. A live count that derives green today and stays unbound in
-the prose drifts on the next commit, so a green verdict on one is a temporary
-result recorded as permanent. Order is **delete, then bind, then derive** —
-binding a decorative number makes it permanently true and permanently useless,
-and still charges the reader a reconciliation.
-
-### 6. Run the extra arms when the diff qualifies
-
-- **Adversarial input** — when the diff touches executable behavior, spend
-  one pass *constructing* hostile inputs and running them, not reading. This
-  instruction was the entire difference in finding the only true code defects
-  in both motivating samples. Dispatch it as its own subagent pass where
-  available, briefed with the quoted claims and the instruction to execute.
-  Where the `postmortem` plugin is installed, `/postmortem:adversarial-verify`
-  is this move with a separate check that each hostile input actually
-  reached the code; use it.
-- **Control vs. reimplementation** — when the diff touches anything that
-  mirrors logic living elsewhere (a validator reimplementing its subject's
-  semantics, a check duplicating a parser), read the two side by side for
-  divergence. Highest yield of any instrument measured.
-- **Invalidation pass** — when a decision, merge, or version just landed,
-  grep the same day's output for the framing it invalidated: distinctive
-  phrases of the *old* state, case-insensitive, with stem variants (`delet`
-  misses nothing; `deleted` missed `Deleting` on record). Newest prose is
-  most likely wrong about a change because it was written closest to it.
-
-### 7. Report; do not rewrite
-
-The caller fixes. This is load-bearing, not ceremony: in the record, auditor
-findings shrank on the caller's verification in two of four, then two of six
-cases. Present findings as claims-with-evidence; let the caller weigh them.
-
-## The report states its own scope
-
-Every report ends with its own tallies: lines read, claims extracted, claims
-derived by execution, claims labeled, claims held out of scope. A green report
-that cannot be told from a run that read nothing is exactly the class this
-skill exists to catch — and that applies to the skill's own output first.
-
-```
-scope: 214 added lines read, 17 claims extracted, 14 derived, 2 labeled, 1 out of scope
-```
-
-## Grounding in this repo's record
-
-Findings land harder citing the installing repo's own failures than someone
-else's scar tissue. If the repo keeps postmortems, session logs, or a
-changelog, cite its own prose-drift incidents when reporting. On a first run
-in a repo with no such record, run report-only: collect the drift examples
-this audit itself surfaces, and let them become the local evidence base.
+If the repo keeps postmortems, session logs or a changelog, cite its own
+prose-drift incidents when a finding matches one.
+</report>

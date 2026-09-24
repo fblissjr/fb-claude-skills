@@ -49,7 +49,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped `fast-executor` / `task-coder` agents. **Installation is paused (2026-08-01)** — the rule asserts a cost/quality tradeoff nothing has measured, so it was removed everywhere and the skill is now user-invoked only. Removal still works. See [model_routing_flywheel.md](docs/internals/model_routing_flywheel.md). |
-| [improvement-loops](skills/improvement-loops/) | Skills | Two standing prompts for long, mostly unattended runs. `/improve` works toward the project's north star (its `VISION.md`) across repeated runs, with a ledger, bookmarks and a scoreboard carrying state between them. `/optimize` runs a one-session speed campaign against a hard target. `/trim-agents-md` trims always-loaded agent instructions without losing a rule. All measure through the real path, land one commit per change on a worktree branch, and report what needs the owner first. User-invoked only. |
+| [improvement-loops](skills/improvement-loops/) | Skills | Structured standing prompts for long runs on any project. `/design-scoreboard` chooses what to climb and what must not get worse (goal metrics, guardrails, and checks against gaming each gain). `/improve` and `/optimize` climb it, citing the repo's AGENTS.md sections from the bundled template. `/trim-agents-md` keeps that hub short. User-invoked only. |
 | [grilling](skills/grilling/) | Skill | A design interview that works the problem as a tree instead of asking questions in the order they occur. Each round asks every question whose prerequisites are already settled, with a recommended answer attached; facts the codebase can settle are looked up, never asked; the session ends when nothing is left unasked. |
 
 ### plugin & skill maintenance
@@ -57,7 +57,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [skill-maintainer](skills/skill-maintainer/) | Skills + Hooks + Agent | Maintenance tools for skill repos: quality, upstream detection (per-page snapshots + line/char deltas), best practices review, wiki-sanity `lint` (orphans, count drift, link-rot), tracked pre-commit hook scaffolding, `finish-session` workflow, `session-log-drafter` agent, PostToolUse bundled-ref sync, Stop-event session-log nudge |
+| [skill-maintainer](skills/skill-maintainer/) | Skills | `/maintain`: the maintenance pass (source pulls, upstream detection with per-page snapshots, quality, controls audit, mutation sample, best practices review), and `/sync-versions`. Ships `best_practices.md`, the one copy of this repo's authoring rules. The checks are the `skill-maintain` CLI below |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, version alignment |
 
 ### MCP servers & apps
@@ -217,6 +217,7 @@ Once installed, invoke as namespaced slash commands:
 /grilling:grilling               # Design interview in rounds over a tree; facts looked up, not asked
 /improve  /optimize              # Long improvement or speed runs (user-invoked only; set /goal first when unattended)
 /trim-agents-md                  # Trim AGENTS.md / CLAUDE.md to what the first edit needs, losing no rule
+/design-scoreboard               # Choose what a loop climbs, with guardrails and anti-gaming checks
 /model-routing:model-routing     # Per-project down-tier delegation rule (install paused; removal works)
 /claim-audit:claim-audit         # Audit added prose as claims, each re-derived by execution
 
@@ -230,12 +231,8 @@ Once installed, invoke as namespaced slash commands:
 /dangling-refs:retire            # Remove a unit without leaving references behind
 
 
-/skill-maintainer:quality              # Quick quality check for all skills
-/skill-maintainer:quality path-privacy   # Check a specific skill
 /skill-maintainer:maintain             # Full maintenance pass
-/skill-maintainer:init-maintenance     # Set up maintenance in a new repo
 /skill-maintainer:sync-versions path-privacy 0.7.4  # Bump version across all sources
-/skill-maintainer:finish-session       # Orchestrate end-of-session: log -> sync -> bumps -> quality
 ```
 
 ### keyword activation
@@ -296,7 +293,7 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 
 Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI package** for CI/headless automation.
 
-**Plugin** (recommended): install via the marketplace (see above), then use `/skill-maintainer:quality`, `/skill-maintainer:maintain`, `/skill-maintainer:init-maintenance`, `/skill-maintainer:sync-versions`. Skills accept `$ARGUMENTS` for targeting specific skills or directories.
+**Plugin**: install via the marketplace (see above), then use `/skill-maintainer:maintain` and `/skill-maintainer:sync-versions`.
 
 **CLI**: available after `uv sync --all-packages` in this repo, or git-installable into other repos:
 
@@ -315,7 +312,6 @@ uv run skill-maintain quality           # validation + budget + description repo
 uv run skill-maintain upstream          # check Claude Code docs for changes
 uv run skill-maintain sources           # pull tracked repos, detect changes
 uv run skill-maintain lint              # wiki sanity: orphans, count drift, broken links
-uv run skill-maintain log --tail 5      # query audit log
 ```
 
 The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources -> upstream -> quality -> review`. See [skill-maintainer CLI README](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.

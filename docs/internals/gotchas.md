@@ -55,11 +55,11 @@ Deliberately NOT shipped in the skill-maintainer hook template: that would impos
 
 ## path-privacy interaction
 
-The path-privacy plugin's pre-commit and commit-msg hooks hard-block any commit whose staged content, message, or branch name references an absolute path outside the repo root. This includes `~`, `$HOME`, and `/Users/<name>/...` shapes.  <!-- path-privacy: ignore -->
+The path-privacy plugin's pre-commit and commit-msg hooks hard-block any commit whose staged content, message, or branch name references a path outside the repo root that names something on this machine (a named directory under `~` or `$HOME`, `/Users/<name>/...`), or whose added lines carry the git `user.name` full name. Generic tool locations such as `~/.claude/...` pass.  <!-- path-privacy: ignore -->
 
 For paths that legitimately need to mention an external-looking path (regex source, doc example, system reference), append `path-privacy: ignore` to that line. Use sparingly.
 
-For system-level references in prose (e.g., "the global agent-state DB lives at `<HOME>/.claude/agent_state.duckdb`"), the placeholder `<HOME>` is the canonical replacement — passes the rule, communicates the meaning.
+For system-level references in prose, `~/.claude/agent_state.duckdb` and `<HOME>/.claude/agent_state.duckdb` both pass; use whichever reads better.
 
 If pre-commit blocks a leak you didn't write, it's likely grandfathered content from before path-privacy was installed. Fix the leak in the same commit; don't `--no-verify`.
 

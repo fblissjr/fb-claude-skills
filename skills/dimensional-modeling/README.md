@@ -1,4 +1,4 @@
-last updated: 2026-07-26
+last updated: 2026-09-24
 
 # dimensional-modeling
 
@@ -21,18 +21,6 @@ claude --plugin-dir /path/to/fb-claude-skills/dimensional-modeling
 ```
 
 ## hooks
-
-| Hook | Event | What it does |
-|------|-------|--------------|
-| `session-start.sh` | SessionStart | Detects DuckDB or dimensional modeling usage in cwd, injects Kimball principles as additionalContext. |
-
-### detection markers
-
-The hook looks for: `duckdb` imports in `.py` files, `.duckdb` files in the project, or SQL files containing `fact_` / `dim_` table patterns. If any match, it injects `hooks/directives/kimball-principles.md` -- core Kimball dimensional modeling principles.
-
-### composable directives
-
-All injected content lives in `hooks/directives/` as standalone `.md` files. The hook reads matching directive files and returns them as `additionalContext`.
 
 This plugin ships no hook. The SessionStart directive was removed on 2026-07-26: dimensional modelling is a technique you reach for when designing a schema, not a convention needed before the first action of a session, so the methodology lives in the skill and loads on demand.
 
@@ -79,4 +67,3 @@ Or describe what you need:
 ## related
 
 - [star-schema-llm-context](https://github.com/fblissjr/star-schema-llm-context) -- pattern library and conceptual framework
-- [fb-claude-skills/skill-maintainer/scripts/store.py](../skill-maintainer/scripts/store.py) -- working reference implementation (v0.6.0)

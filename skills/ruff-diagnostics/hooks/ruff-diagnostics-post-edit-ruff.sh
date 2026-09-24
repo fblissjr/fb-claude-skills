@@ -143,7 +143,7 @@ for cfg in "$ROOT/.ruff.toml" "$ROOT/ruff.toml" "$ROOT/pyproject.toml"; do
     stamp="$stamp_dir/${stamp_key:-fallback}"
     if [ ! -f "$stamp" ]; then
       mkdir -p "$stamp_dir" 2>/dev/null && : > "$stamp" 2>/dev/null
-      SELECT_NOTE="Ruff config note: this project sets \`select\`, which REPLACES Ruff's defaults (413 rules since 0.16) rather than extending them, so it may be enabling fewer checks than no config at all. \`extend-select\` keeps the defaults and adds to them. Raise it with the user; do not change their lint config unprompted."
+      SELECT_NOTE="Ruff config note: this project sets \`select\`, which replaces Ruff's defaults (413 rules since 0.16) rather than extending them, so it may enable fewer checks than no config at all. \`extend-select\` keeps the defaults and adds to them. The lint config is the user's; this is worth raising with them rather than changing."
     fi
   fi
   break
@@ -184,8 +184,7 @@ fi
 if [ "$FIXABLE" -gt 0 ]; then
   SUMMARY="${SUMMARY}
 
-Apply the mechanical ones with: ruff check --fix -- ${REL}
-Fix the rest by hand -- do not suppress them without a reason."
+\`ruff check --fix -- ${REL}\` applies the auto-fixable ones; the rest need a fix by hand, and a suppression needs a stated reason."
 fi
 
 if [ -n "$SELECT_NOTE" ]; then

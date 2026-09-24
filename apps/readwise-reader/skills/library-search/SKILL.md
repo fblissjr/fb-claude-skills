@@ -3,89 +3,30 @@ name: library-search
 description: Decomposes natural language queries into targeted searches across Readwise Reader documents, highlights, and tags. Use when the user searches their reading library, asks what they saved about a topic, or wants to find specific highlights.
 ---
 
-# Library Search
+# Library search
 
-The search intelligence behind Readwise Reader queries. Transforms a natural language question into targeted searches across your reading library and produces ranked, relevant results.
+Turn a question about the user's Reader library into calls against this plugin's MCP tools, then merge the results into one ranked answer. The tools read a local DuckDB copy of the library, so results are only as fresh as the last sync.
 
-## The Goal
+<tools>
+| Need | Call |
+|---|---|
+| Documents by topic | `search_library(query, category?, location?, tag?, limit=20)` |
+| The user's highlights and annotations | `search_highlights(query, tag?, limit=20)` |
+| Everything under a tag | `list_tags()` to find the exact key, then `get_documents_by_tag(tag)` |
+| Inbox, later, archive listings | `search_library` or `list_documents` with `location` |
+| Freshness | `library_stats()` reports `last_sync`; `sync_library()` pulls changes |
 
-Turn this:
-```
-"What articles have I saved about distributed systems that I highlighted?"
-```
+Map words in the question onto filters: "articles", "PDFs", "tweets" to `category` (article, email, rss, pdf, epub, tweet, video, note); "inbox", "saved for later", "archived" to `location` (new, later, archive, feed); a named tag to `tag`. Run document and highlight searches in parallel for any topic question, because the user's own highlights are often the answer and a document search alone misses them.
+</tools>
 
-Into targeted searches:
-```
-Documents: search_library("distributed systems", limit=30)
-Highlights: search_highlights("distributed systems", limit=20)
-Tags: get_documents_by_tag("distributed-systems")
-```
+<ranking>
+Order merged results by engagement: documents with the user's highlights and notes first, then highlighted, then read or partly read, then saved but unread. Within a tier, a direct title or summary match beats a tag-only match. "That article I saved about X" is a recall question: favour title matches and recent saves.
+</ranking>
 
-Then synthesize into a prioritized knowledge brief.
+<gotchas>
+- **Filtered search is a literal substring match.** With any of `category`, `location` or `tag` set, `search_library` matches the whole query string against title, summary and notes, and only among the most recent 200 filtered documents. A multi-word query matches only where that exact phrase appears. Filter with one or two keywords, or search unfiltered and filter the results yourself.
+- **Filtered results come back by recency, not relevance** (an unfiltered search is ranked by BM25). Apply the ranking above either way.
+- **Few or no results**: drop filters, try alternate terms, search highlights if only documents were searched and the reverse. If `last_sync` is old or absent, say so and offer `sync_library` before concluding the library has nothing.
+</gotchas>
 
-## Query Decomposition
-
-### Step 1: Identify Query Type
-
-| Query Type | Example | Strategy |
-|-----------|---------|----------|
-| **Topic search** | "articles about X" | Broad document search + highlight search |
-| **Recall** | "that article I saved about X" | Search titles and summaries, prioritize recent saves |
-| **Highlight retrieval** | "my notes on X" | Prioritize highlight search, include annotations |
-| **Tag browse** | "everything tagged X" | Tag-based document lookup |
-| **Status query** | "what's in my inbox" | Location-filtered document list |
-| **Cross-reference** | "X related to Y" | Multiple searches, intersect results |
-
-### Step 2: Extract Search Components
-
-From the query, extract:
-- **Keywords**: Core topic terms
-- **Category hints**: "articles", "PDFs", "tweets" map to category filters
-- **Location hints**: "inbox", "saved for later", "archived" map to location filters
-- **Tag hints**: Explicit tag references
-- **Time constraints**: "this week", "last month", "recent"
-- **Engagement signals**: "highlighted", "annotated", "read" suggest filtering by reading_progress or highlight count
-
-### Step 3: Generate Search Plan
-
-For each query type, determine which tools to call and in what order:
-
-**Topic search:**
-1. `search_library(query, category?, limit=30)` -- broad document search
-2. `search_highlights(query, limit=20)` -- parallel highlight search
-3. Merge and rank by: documents with highlights > documents with notes > title matches
-
-**Recall search:**
-1. `search_library(query, limit=20)` -- focus on titles
-2. If few results, broaden: remove filters, try alternate terms
-
-**Tag browse:**
-1. `list_tags()` -- find matching tag keys
-2. `get_documents_by_tag(tag)` -- fetch tagged documents
-
-## Result Ranking
-
-### Scoring Factors
-
-| Factor | Weight | Description |
-|--------|--------|-------------|
-| Highlight count | 0.3 | Documents you highlighted are more valuable |
-| Recency | 0.25 | More recently saved/updated items rank higher |
-| Title/summary match | 0.25 | Direct keyword match in title or summary |
-| Reading progress | 0.1 | Partially read items may be more relevant than unread |
-| Tag match | 0.1 | Exact tag match boosts relevance |
-
-### Priority Hierarchy
-
-For knowledge retrieval:
-```
-Highlighted + annotated documents > Highlighted documents > Read documents > Saved but unread
-```
-
-## Fallback Strategies
-
-When initial search returns too few results:
-1. Remove category/location filters
-2. Try alternate keyword formulations
-3. Search highlights if only documents were searched (and vice versa)
-4. Suggest the user sync their library if data seems stale
+Cross-document synthesis of what the results say belongs to the knowledge-retrieval skill.

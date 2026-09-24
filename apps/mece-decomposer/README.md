@@ -1,6 +1,6 @@
 # mece-decomposer
 
-last updated: 2026-03-31
+last updated: 2026-09-24
 
 A plugin for Claude Code and Cowork that decomposes goals, tasks, processes, and workflows into MECE (Mutually Exclusive, Collectively Exhaustive) components. Produces dual output -- a human-readable tree for SME validation and structured JSON that maps directly to Claude Agent SDK primitives for agentic execution. Includes an interactive tree visualizer (MCP App).
 
@@ -129,7 +129,7 @@ mece-decomposer/
 |   +-- mece-decomposer/
 |       +-- SKILL.md                                   # Domain knowledge (auto-loaded)
 |       +-- references/
-|       |   +-- decomposition_methodology.md           # 8-step procedure
+|       |   +-- decomposition_methodology.md           # dimension scoring, cut and atomicity calls
 |       |   +-- sme_interview_protocol.md              # 5-phase extraction protocol
 |       |   +-- validation_heuristics.md               # ME/CE scoring rubrics
 |       |   +-- agent_sdk_mapping.md                   # Tree -> SDK mapping rules

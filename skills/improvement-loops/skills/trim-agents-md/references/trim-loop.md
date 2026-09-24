@@ -1,11 +1,11 @@
-Trim this repository's always-loaded agent instructions to what an agent needs on its first edit, without losing a rule. The main target is `AGENTS.md` and `CLAUDE.md`. Anything else loaded every session is in scope when it duplicates them: unconditional `.claude/rules/` files, SessionStart hook output, and MEMORY.md.
+Tighten this repository's always-loaded agent instructions: keep what an agent needs on its first edit, move everything else to where it loads when it matters, and fill the gaps a capable newcomer would fall into. Lose no rule. The test for every line: would removing it cause a mistake? The main target is `AGENTS.md` and `CLAUDE.md`. Anything else loaded every session is in scope when it duplicates them: unconditional `.claude/rules/` files, SessionStart hook output, and MEMORY.md.
 
 Done means:
-- every line still in the target files passes the test in <verdicts>;
+- every line still in the target files passes the test in <verdicts>, and the file carries what <keep_or_add> names that this repo actually has;
 - every line removed was deleted on purpose or moved to a named home, and the placement map says which;
 - every pointer left behind resolves to text that actually says what the pointer promises;
 - everything that read or cited the old text still works: docs citing sections by number, and checks that read the file by name;
-- a fresh-context reviewer compared the old and new text and found no rule that is now stated nowhere;
+- a fresh-context reviewer compared the old and new text and found no rule that is now stated nowhere, and a fresh session given typical tasks with the new file got nothing wrong that the old file prevented;
 - sizes before and after are recorded with the commands that produced them;
 - the work is committed, and the report is written.
 
@@ -31,6 +31,7 @@ Before cutting anything, find out what depends on the text.
 2. Find the file's readers. From the repo root, `git grep` for each target's filename, and for every section name or number the file uses ("invariant 1c", "rule 3"). A section cited by number keeps its number: remove an entry, never renumber.
 3. Find the machinery that reads the file: pre-commit hooks, lint or size checks, CI steps, scripts. A check that reads `CLAUDE.md` by name goes blind the moment the content moves to `AGENTS.md`, and it keeps passing.
 4. Note duplicates: a rule that also lives in the user-level file, a rule file, a skill, or the README.
+5. Mine the evidence. Read the postmortems, session logs, sharp-edges record and fix commits for places an agent actually went wrong. A rule traced to one of them has earned its place. A rule nothing ever needed is a candidate to cut or move.
 </inventory>
 
 <verdicts>
@@ -38,25 +39,49 @@ Judge each line on its own. It stays only if it passes one of two tests:
 - It carries something the model cannot learn from the repo: a convention, a version cascade, a trap that bites on the first edit, a command whose flags matter.
 - It overrides something the model would otherwise do, and says why.
 
-Everything else goes: restated general competence ("write clean code", "handle errors"), descriptions of what the code already shows, and history.
+Everything else goes: restated general competence ("write clean code", "use descriptive names"), descriptions of what the code already shows, rules a formatter or linter already enforces, and history.
 
 Cut on sight, whatever else the line says:
 - "think carefully", "think step by step" and "ultrathink". Depth is set by effort, not prose.
 - Step-by-step procedures for work the model plans well by itself.
-- Capitals or bold spread over many lines. Emphasis marks at most the one rule that was seen being skipped.
+- Pressure language: capitals or bold spread over many lines, "MUST", threats. Current models follow instructions closely, and pressure makes them overreact. Emphasis marks at most the one rule that was seen being skipped.
 - "Ask me rather than guessing" and other check-in rules. They produce the early stops current models are already prone to.
-- Requests to explain or show reasoning in the reply.
+- Requests to explain or show reasoning in the reply. They can be refused.
+- Rules that made up for an older model's weakness and no longer reproduce.
+- Rules for removed features and retired tools. Keep one line only if it stops someone reviving the thing.
+- Long code samples. Point to a real file that shows the pattern.
 - Model names and dates that only record when something happened.
 
-Don't add a "keep going, stop only when blocked" rule pre-emptively. Add one only if runs actually end with "Want me to continue?".
+Every line that stays gets these checks:
+- **It carries its reason in one clause** ("X, because Y"). The model uses the reason for cases the rule doesn't name.
+- **It is concrete enough to check.** "Keep functions small" does nothing; "stage files by name, never `git add -A`" does. Make it concrete or cut it.
+- **It is scoped.** Current models follow instructions literally, so "always run the tests after an edit" fires on every edit, including the ones it shouldn't. Narrow any rule that applies more widely than intended, and resolve any two rules that clash.
+- **It sits in order of how often it matters:** orientation and commands first, subsystem detail last or moved out.
 </verdicts>
+
+<keep_or_add>
+A capable newcomer needs these. Check that each is present, but add one only when the repo actually has the thing: no parallel-session rules without parallel sessions, no benchmark command without benchmarks. `${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md` shows a shape for each.
+- **A short north star:** purpose, non-goals, principles, direction, marked as a direction and not a spec.
+- **A map of where things live:** status, plans, backlog, settled decisions, sharp edges, local notes, the session log.
+- **Exact commands:** setup, building what users get, tests, lint, benchmarks, profiling. These are often the most valuable lines in the file.
+- **What "done" means** for the common kinds of change, and the checks to run before committing.
+- **The stops you want:** keep going when a step doesn't need the owner, put status in the same message as the next action, and stop only when blocked or before anything destructive. Name the early stops you don't want (a summary that announces the next step, an offer to continue, a list of non-blocking decisions). Anthropic's Opus 5.5 guide recommends this rule for every CLAUDE.md.
+- **Rules for working beside other sessions,** if the owner runs them.
+- **The hazards:** the non-obvious traps where a capable newcomer goes wrong. These earn their place more than anything else.
+- **Which tool verifies which kind of change,** when that isn't obvious.
+- **Settled decisions,** or a pointer to them, and the rule not to reopen one without a new reason.
+</keep_or_add>
 
 <placement>
 A line that fails the test may still be true and worth keeping somewhere else. Move it to the narrowest place that loads when it matters:
-- History ("retired on", "since v2") goes to the changelog or to the design doc that already records it.
-- Rationale goes to the doc it came from. The hub keeps the rule and a pointer.
-- A rule that matters only while editing certain files goes to a `.claude/rules/` file with `paths:` frontmatter, which loads only when those files are touched. A rule that must survive compaction stays unconditional.
-- A procedure goes into a skill.
+- A rule a script can check becomes a hook, test, lint or pre-commit guard, and the prose shrinks to a pointer or disappears. Propose wiring for machinery shared across worktrees (git hooks, `.git/` config) instead of installing it.
+- History and incident stories ("retired on", "set up after it misled two sessions") go to the changelog, the sharp-edges record, or the design doc that already records them.
+- Rationale goes to the doc it came from. The hub keeps the rule, its one-clause reason, and a pointer.
+- Status ("since v2.0.86", "until X lands") goes to the status doc.
+- A number copied from code or a measurement becomes a pointer to the constant or the data.
+- A preference that applies across all the owner's repos goes to the user-level `CLAUDE.md`, proposed under "Needs from me".
+- A rule that matters only while editing certain files goes to a `.claude/rules/` file with `paths:` frontmatter, or a `CLAUDE.md` in that subdirectory, which loads only when those files are touched. A rule that must survive compaction stays unconditional.
+- A procedure (release, eval, deploy) goes into a skill.
 - A long table of docs becomes a short "where to look first" list of the rows that change what someone does on their first edit, plus a pointer to the docs index.
 
 An `@import` is not a cut: an imported file loads in full at launch. Splitting a file into imports moves text without moving cost.
@@ -81,16 +106,21 @@ Then re-point every consumer from <inventory> step 3 to the file that now holds 
 <verify>
 1. Re-run the reference sweep. Every remaining hit on the old names should be one you chose to keep, such as a changelog entry.
 2. Run the repo's own checks and tests.
-3. You made the cuts, so you read your own work generously. Dispatch one fresh-context subagent. Give it the old text (`git show HEAD:<file>`), the new text and the placement map, but not your reasoning. Ask only one question: which rules from the old text are now stated nowhere that loads or that a pointer reaches? Check each claim it makes against the files before acting on it.
-4. Re-measure with the commands from <inventory> step 1.
+3. Check every claim the new file makes against the repo: every path, function and command still exists and behaves as described. A stale line is worse than a missing one.
+4. You made the cuts, so you read your own work generously. Dispatch one fresh-context subagent. Give it the old text (`git show HEAD:<file>`), the new text and the placement map, but not your reasoning. Ask only one question: which rules from the old text are now stated nowhere that loads or that a pointer reaches? Check each claim it makes against the files before acting on it.
+5. Spot-test the behaviour. Give three to five fresh-context subagents one typical task each for this repo, drawn from recent session logs or commits, with the new file as their instructions and read-only tools. Ask each what it would do first and what it would need to ask. Anything one gets wrong that the old file would have prevented goes back in, or under "Needs from me".
+6. Re-measure with the commands from <inventory> step 1.
 </verify>
 
 <report>
 Your last message starts with these headings, in this order:
 - Needs from me: rules with no home, proposed edits to files outside this run's reach (such as the user-level `CLAUDE.md`), and conflicts with the repo's rules. Give your recommendation for each.
 - Sizes: before and after for each always-loaded item, with the command.
-- Moved: each moved line and where it went.
+- Moved: each moved line and where it went (the placement map).
 - Cut: each deleted line and which test it failed.
+- Added: what <keep_or_add> filled in, and why the repo needed it.
+- Proposed as checks: rules that should become a hook, test or lint, with the wiring.
+- Settled decisions touched: any whose wording or home changed. Never drop one without saying so.
 - Kept on purpose: lines that look cuttable but stay, and why.
 - Consumers re-pointed: checks, citations and indexes you updated.
 - Choices made alone.

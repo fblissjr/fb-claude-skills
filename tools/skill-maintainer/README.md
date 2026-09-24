@@ -28,7 +28,7 @@ This creates `.skill-maintainer/config.json` in the current directory with defau
 
 ## data flow
 
-skill-maintainer is a maintenance pipeline. Think of it as a DAG with three input types, seven processing stages, and two output layers.
+skill-maintainer is a maintenance pipeline. Think of it as a DAG: inputs on the left, processing stages in the middle, state and reports on the right.
 
 ```
 INPUTS                      PROCESSING                      STATE / OUTPUT
@@ -37,13 +37,13 @@ INPUTS                      PROCESSING                      STATE / OUTPUT
 SKILL.md files              validate ──────────────────┐
 (local, discovered          quality ────────────────────┤
  by glob)                   provenance ─────────────────┤──► CLI reports
-                            measure ────────────────────┤    (tables, pass/fail,
-upstream docs               upstream ──────────────────►┤     exit codes for CI)
-(llms-full.txt via HTTP)    sources ───────────────────►┤
-                            test ───────────────────────┘
-tracked git repos                                              .skill-maintainer/
-(coderef/ or configured     log ──────────────────────────►   state/upstream_hashes.json
- paths)                                                        state/changes.jsonl
+                            upstream ──────────────────►┤    (tables, pass/fail,
+upstream docs               sources ───────────────────►┤     exit codes for CI)
+(llms-full.txt via HTTP)    test ───────────────────────┘
+                                                               .skill-maintainer/
+tracked git repos           upstream, sources, quality ──►     state/upstream_hashes.json
+(coderef/ or configured                                        state/changes.jsonl
+ paths)
 ```
 
 The `/maintain` slash command orchestrates the pipeline in sequence: `sources → upstream → quality → review`.
@@ -79,11 +79,9 @@ All subcommands accept `--dir <path>` to target a skill repo other than the curr
 | `init` | Create `.skill-maintainer/config.json` in the target repo |
 | `validate` | Validate skills against Agent Skills spec + best practices |
 | `quality` | Unified report: validation + token budget + description quality |
-| `measure` | Token budget measurement with per-file breakdown |
 | `test` | Red/green test suite (skills, plugins, repo hygiene) |
 | `upstream` | Fetch Claude Code docs via llms-full.txt; snapshots each watched page to `state/pages/<slug>.md` and reports line/char deltas across runs |
 | `sources` | Pull tracked git repos, detect changes since last run |
-| `log` | Query the `.skill-maintainer/state/changes.jsonl` audit log |
 
 ### examples
 
@@ -102,11 +100,8 @@ skill-maintain quality
 # target a different repo
 skill-maintain quality --dir /path/to/other-skill-repo
 
-# check a single skill's token budget
-skill-maintain measure --skill path-privacy
-
-# see last 5 audit log entries
-skill-maintain log --tail 5
+# one skill's token-budget verdict (`claude plugin details <plugin>` for a real count)
+skill-maintain test --category skills --verbose | grep path-privacy
 ```
 
 ## workflow
@@ -161,7 +156,6 @@ skill-maintain init --dir /path/to/other-skill-repo
 # validate and check quality
 skill-maintain validate --all --dir /path/to/other-skill-repo
 skill-maintain quality --dir /path/to/other-skill-repo
-skill-maintain measure --dir /path/to/other-skill-repo
 ```
 
 **Option B: git-install (standalone)**
@@ -230,16 +224,6 @@ skill-maintain quality
 skill-maintain quality --no-log   # skip audit log entry
 ```
 
-### measure
-
-Detailed token budget measurement with per-file breakdown. Classifies files by type (skill_md, reference, script, agent, etc.) and estimates tokens as chars / 4.
-
-```bash
-skill-maintain measure
-skill-maintain measure --skill path-privacy
-skill-maintain measure --output report.md   # write to file
-```
-
 ### test
 
 Red/green test suite with three categories: skills, plugins, repo hygiene.
@@ -303,16 +287,6 @@ For each repo:
 skill-maintain sources
 skill-maintain sources --no-pull    # check SHAs without pulling
 skill-maintain sources --no-save    # don't persist updated SHAs
-```
-
-### log
-
-Queries the append-only audit log at `.skill-maintainer/state/changes.jsonl`.
-
-```bash
-skill-maintain log --tail 5
-skill-maintain log --days 7
-skill-maintain log --type upstream_check
 ```
 
 ## ad-hoc queries (`queries/`)
@@ -383,7 +357,7 @@ Top-level keys are URLs (written by `upstream`). The `"local_repos"` key holds g
 
 ### changes.jsonl
 
-Append-only audit log. One JSON object per line. Three event types:
+Append-only audit log, written by `upstream`, `sources` and `quality`; no subcommand reads it (the `log` query command was removed in 0.41.0). Its reader is `queries/upstream_churn.sql`. One JSON object per line. Three event types:
 
 ```json
 {"type": "source_pull", "date": "2026-03-06", "repos_checked": 10, "repos_changed": 3, "changes": [...]}

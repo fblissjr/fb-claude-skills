@@ -12,9 +12,8 @@ description: >-
 
 # Dependency security audit
 
-Everything below about *what the tools print* and *how to read it* is omitted
-deliberately — running them shows you that. What is not obvious is that they
-exist at all.
+What is not obvious is that these subcommands exist at all; running them shows
+what they print.
 
 ## The commands
 
@@ -36,9 +35,9 @@ path may never be entered. Check who pulls it in (`uv tree --package X
 that may break something real. The default reflex is to upgrade on sight; that
 reflex is what this line exists to interrupt.
 
-**Report the delta, never the tree.** Do not paste full `uv tree` or `bun pm ls`
-output into a summary. Report what changed and summarise a long transitive tail
-by count. Recording dependency changes in a session log has its own format:
+**Report the delta, never the tree.** A summary names what changed and
+summarises a long transitive tail by count, rather than pasting `uv tree` or
+`bun pm ls` output. Recording dependency changes in a session log has its own format:
 `/dev-conventions:doc-conventions`.
 
 ## What here is perishable

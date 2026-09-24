@@ -5,50 +5,27 @@ description: Validate a MECE decomposition for compliance, structural integrity,
 
 # /validate
 
-Check a MECE decomposition for structural integrity, MECE compliance, and Agent SDK readiness.
+Check a MECE decomposition for structural integrity, MECE quality and export readiness.
 
-## Usage
+Usage: `/validate <decomposition JSON or file path>`, or `/validate` after `/decompose` or `/interview` to check the last output.
 
-```
-/validate <decomposition JSON or file path>
-```
+<layers>
+1. **Structural, deterministic.** Run the validator first and report its findings as it states them:
 
-Examples:
-- `/validate` then paste decomposition JSON
-- `/validate output.json`
-- `/validate` after a `/decompose` or `/interview` session (validates the last output)
+   ```bash
+   uv run ${CLAUDE_PLUGIN_ROOT}/skills/mece-decomposer/scripts/validate_mece.py <decomposition.json>
+   ```
 
-## Validation Layers
+   It checks schema compliance and enums, hierarchical ID consistency, dependency references, fan-out and parallel limits, atom and branch completeness, tool and prompt size per atom, and depth.
 
-### 1. Structural Validation (deterministic)
+2. **MECE quality, judgment.** Score ME and CE at each level with the tests, weights and depth-adaptive rigor in `references/validation_heuristics.md` of the mece-decomposer skill. Every score cites the pairs, examples or scenarios it was computed from, so the user can dispute a specific one.
+</layers>
 
-```bash
-uv run mece-decomposer/skills/mece-decomposer/scripts/validate_mece.py <decomposition.json>
-```
-
-Checks:
-- Schema compliance (required fields, types, valid enums)
-- Hierarchical ID consistency (parent-child prefix pattern)
-- Cross-branch dependency validity (IDs exist, no self-references)
-- Fan-out limits (2-7 children per branch, max 7 parallel)
-- Atom completeness (all atoms have `atom_spec`, all branches have `orchestration`)
-- Prompt/tool limits (flag atoms with >5 tools or >500 word prompts)
-- Depth limits (warn at >5 levels)
-
-### 2. MECE Quality Assessment (judgment-based)
-
-Using the scoring rubrics from the **mece-decomposer** skill:
-- **ME testing**: definition-based, example-based, boundary-case at each level
-- **CE testing**: scenario enumeration, negation test, stakeholder test
-- **Depth-adaptive rigor**: L1 full, L2 pairwise, L3 spot-check, L4+ trust
-- Weighted score aggregation
-
-## Output
-
+<report>
 ```
 ## Validation Report
 
-**Status:** PASS / FAIL
+**Status:** PASS / CONDITIONAL PASS / FAIL
 **ME Score:** 0.XX -- [interpretation]
 **CE Score:** 0.XX -- [interpretation]
 **Overall:** 0.XX -- [interpretation]
@@ -64,22 +41,7 @@ Using the scoring rubrics from the **mece-decomposer** skill:
 - [Improvement for each warning]
 ```
 
-### Interactive Report (when MCP server connected)
+Status follows the gates: overall >= 0.85 pass, 0.70 to 0.84 conditional pass (exportable with the issues documented), below 0.70 fail. When the `mece-validate` MCP tool is available, also render the report through it.
+</report>
 
-The `mece-validate` MCP tool renders a visual report with clickable issue locations that navigate to the problem node in the tree.
-
-## Score Interpretation
-
-| Range | ME | CE |
-|-------|----|----|
-| 0.85-1.0 | Strong: no overlap | Strong: no gaps |
-| 0.70-0.84 | Acceptable: minor boundary issues | Acceptable: minor gaps documented |
-| 0.50-0.69 | Weak: redefine boundaries | Weak: add missing components |
-| < 0.50 | Failed: re-cut this level | Failed: restructure |
-
-Quality gate: >= 0.70 for export, >= 0.85 for confidence.
-
-## Next Steps
-
-- Score too low? "Let me fix the issues" -> re-run `/validate`
-- Ready? "Export as Agent SDK code" -> `/export`
+A decomposition at or above 0.70 goes to `/export`; below it, fix the issues and validate again.

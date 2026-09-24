@@ -1,4 +1,4 @@
-last updated: 2026-02-14
+last updated: 2026-09-24
 
 # key generation
 
@@ -97,7 +97,7 @@ When the natural key IS the only interesting attribute, skip the dimension table
 
 Common degenerate dimensions:
 - `session_id` -- UUID of the Claude Code session
-- `model` -- model name (e.g., "claude-opus-4-6")
+- `model` -- model ID (e.g., "claude-opus-5-5")
 - `project_dir` -- project directory path
 
 These appear in fact tables as plain TEXT columns. No surrogate key needed because there's no dimension table to join to.

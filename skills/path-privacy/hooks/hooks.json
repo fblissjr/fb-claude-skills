@@ -1,8 +1,9 @@
 {
-  "description": "path-privacy hooks: SessionStart injects the rule directive into a git-repo session; PreToolUse Write/Edit blocks would-be leaks before bytes hit disk (the git pre-commit hook remains the authoritative gate).",
+  "description": "path-privacy hooks: SessionStart (startup only) refreshes stale git hook wrappers and is silent otherwise; PreToolUse rewrites in-repo absolute paths to repo-relative and blocks external paths and the git user.name full name in Write/Edit content and git/gh commands (the git hooks remain the authoritative gate).",
   "hooks": {
     "SessionStart": [
       {
+        "matcher": "startup",
         "hooks": [
           {
             "type": "command",

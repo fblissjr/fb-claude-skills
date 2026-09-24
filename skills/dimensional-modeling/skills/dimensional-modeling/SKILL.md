@@ -4,163 +4,63 @@ description: Design and implement Kimball-style star schemas in DuckDB for LLM a
 allowed-tools: "Read"
 ---
 
-# Dimensional Modeling for Agent Systems
+# Dimensional modeling for agent systems
 
-Design and implement Kimball-style star schemas in DuckDB for tracking agent state, execution, and operational data.
+Design Kimball-style star schemas in DuckDB for agent state, execution and operational data. Kimball's method (business process, grain, dimensions, facts) is assumed; this skill carries the house conventions layered on it, which differ from textbook defaults in ways that matter.
 
-## When to Use
+The principle behind the choice: abstract the data, not the behavior. Frameworks that abstract interaction patterns break when practice moves faster than the abstraction; facts (what happened) in dimensions (what context) stay model-agnostic.
 
-- Designing a new DuckDB schema for agent/tool state tracking
-- Adding fact or dimension tables to an existing star schema
-- Implementing SCD Type 2 for slowly changing dimensions
-- Choosing between degenerate dimensions and full dimension tables
-- Designing surrogate key generation strategies
-- Building analytical views over star schema data
-- Modeling agent execution as a data pipeline DAG
+<scope>
+For: a new DuckDB schema for agent or tool state, adding facts or dimensions to an existing star schema, SCD Type 2, surrogate keys, analytical views, and modeling agent execution as a DAG. Not for transactional application schemas, where normalization and FK integrity are the right default; not for ad-hoc querying of a JSON file (json-query owns that).
+</scope>
 
-## Core Principle
+<conventions>
+Every design follows all of these. Each overrides a common default, for the reason given.
 
-**Abstract the data, not the behavior.** Frameworks that abstract interaction patterns (chains, agents, retrievers) break when research moves faster than the abstraction. Dimensional modeling abstracts what happened (facts) in what context (dimensions) -- patterns that are 30+ years old and model-agnostic.
+- **Grain is a sentence, written before any table.** "One row in fact_tool_call is one tool invocation by one agent in one session." Between two candidate grains, take the finer: aggregation recovers the coarse one, nothing recovers the fine one.
+- **Surrogate keys are MD5 hex of the natural key components**, not sequences. Deterministic keys let a rebuilt database and parallel writers agree without coordination. Use these two functions verbatim, because keys only join across stores when every store hashes identically:
 
-## Process
+  ```python
+  import hashlib
 
-### Step 1: Identify the Business Process
+  def dimension_key(*natural_keys) -> str:
+      parts = [str(k) if k is not None else "-1" for k in natural_keys]
+      return hashlib.md5("|".join(parts).encode("utf-8")).hexdigest()
 
-What are you tracking? Every schema starts by naming the business process:
+  def hash_diff(**attributes) -> str:
+      parts = [f"{k}={v}" for k, v in sorted(attributes.items()) if v is not None]
+      return hashlib.md5("|".join(parts).encode("utf-8")).hexdigest()
+  ```
 
-| Business Process | Example Grain | Example Facts |
-|-----------------|---------------|---------------|
-| Agent task execution | One tool call | duration_ms, input_tokens, output_tokens, status |
-| Skill quality tracking | One validation run | error_count, warning_count, is_valid |
-| CDC change detection | One page check | content_hash, change_type, severity |
-| Session cost tracking | One session | total_tokens, cost_usd, tool_call_count |
-| Task decomposition | One routing decision | subtask_count, agent_assigned, success |
+- **Dimensions are SCD Type 2 and carry no PRIMARY KEY**, because `hash_key` repeats across an entity's versions. Columns: `effective_from`, `effective_to` (NULL means current), `is_current`, and `hash_diff` over the mutable non-key attributes. On a change: close the old row (`effective_to = now`, `is_current = FALSE`) and insert the new one.
+- **Facts are append-only with no PRIMARY KEY, no sequence and no FK constraint.** The grain is the dimension keys plus the event timestamp. A DuckDB foreign key must reference a PRIMARY KEY or UNIQUE column, and a dimension's `hash_key` can be neither, so the application layer enforces integrity.
+- **Every row carries lineage:** `inserted_at` (`created_at` on dimensions), `record_source`, `session_id`.
+- **Full dimension or degenerate:** a full dimension table when attributes change, history matters, or several facts share the entity; otherwise carry the natural key in the fact row (`session_id`, `model`, `project_dir`).
+- **Facts never join to facts row to row.** To relate two facts, aggregate each to the grain of a conformed dimension and join the aggregates (drill-across). A direct join on a shared key fans rows out and double-counts measures.
+- **Views join dimensions with `is_current = TRUE`**, except point-in-time queries, which bound `effective_from` / `effective_to` instead.
+- **Every database has `meta_schema_version` and `meta_load_log`.**
+- **DuckDB is columnar:** batch inserts over single-row writes, and treat the `.duckdb` file as a rebuildable cache, not the source of truth.
+</conventions>
 
-### Step 2: Declare the Grain
+<agent_dag>
+The primary use case models agent execution as a pipeline DAG: goal, task, branch or attempt, session, agent, tool chain, tool call. Each phase becomes one fact table at its own grain:
 
-The grain is the most atomic level of data captured in the fact table. State it as a sentence:
+| Phase | Fact table | Captures |
+|-------|-----------|----------|
+| Decompose | fact_task_decomposition | goal to tasks |
+| Route | fact_routing_decision | task to agent or tool |
+| Execute | fact_execution_step | one tool call: timing, tokens, status |
+| Prune | fact_pruning_event | what was abandoned and why |
+| Synthesize | fact_synthesis_result | merged output with a quality signal |
+| Verify | fact_verification | checks on the final output |
 
-> "One row in fact_tool_call represents a single tool invocation by a single agent in a single session."
+Schemas, hook-based capture and views: [references/dag_execution.md](references/dag_execution.md).
+</agent_dag>
 
-**Rules:**
-- Too coarse = you lose detail you can't recover
-- Too fine = you waste storage on noise
-- When in doubt, go finer -- you can always aggregate up
-
-When choosing between grain levels, use ultrathink to reason through the trade-offs before committing.
-
-### Step 3: Identify the Dimensions
-
-Dimensions answer who/what/where/when/why/how about each fact row.
-
-**Full dimension table** when:
-- The entity has mutable attributes (name changes, status changes)
-- You need to track history (SCD Type 2)
-- Multiple fact tables reference the same entity
-
-**Degenerate dimension** (carried in fact rows) when:
-- The natural key IS the only interesting attribute
-- High cardinality (session_id, transaction_id)
-- No mutable attributes to track
-
-See [references/schema_patterns.md](references/schema_patterns.md) for dimension table templates.
-
-### Step 4: Design the Facts
-
-Fact tables are append-only event logs. Every fact table follows these rules:
-
-1. **No primary keys.** Grain = composite dimension keys + event timestamp.
-2. **No sequences.** Deterministic surrogate keys via MD5 hash.
-3. **No FK constraints.** Join by convention, validate at application layer.
-4. **Metadata on every row:** `inserted_at`, `record_source`, `session_id`.
-
-See [references/schema_patterns.md](references/schema_patterns.md) for fact table templates.
-
-### Step 5: Generate Keys
-
-All surrogate keys use MD5 hash of natural key components:
-
-```python
-import hashlib
-
-def dimension_key(*natural_keys) -> str:
-    """MD5 surrogate from natural key components."""
-    parts = [str(k) if k is not None else "-1" for k in natural_keys]
-    return hashlib.md5("|".join(parts).encode("utf-8")).hexdigest()
-
-def hash_diff(**attributes) -> str:
-    """MD5 of non-key attributes for SCD Type 2 change detection."""
-    parts = [f"{k}={v}" for k, v in sorted(attributes.items()) if v is not None]
-    return hashlib.md5("|".join(parts).encode("utf-8")).hexdigest()
-```
-
-See [references/key_generation.md](references/key_generation.md) for details on key design.
-
-### Step 6: Implement SCD Type 2
-
-When a dimension attribute changes:
-1. Set `effective_to = NOW()` and `is_current = FALSE` on the old row
-2. Insert new row with updated attributes, `effective_from = NOW()`, `is_current = TRUE`
-3. Compute new `hash_diff` from non-key attributes
-
-This requires **no PRIMARY KEY** on dimension tables (hash_key appears in multiple rows).
-
-### Step 7: Build Views
-
-Views compose dimensions and facts to answer analytical questions. Always filter `is_current = TRUE` when joining dimensions unless doing point-in-time analysis.
-
-See [references/query_patterns.md](references/query_patterns.md) for view recipes.
-
-### Step 8: Add Meta Tables
-
-Every database needs:
-- `meta_schema_version` -- tracks schema evolution
-- `meta_load_log` -- tracks script execution for operational visibility
-
-## Agent Execution as a DAG
-
-The primary use case: model agent execution as a data pipeline DAG.
-
-```
-Goal / Objective     (why -- spans days, sessions)
-  Task               (what -- decomposed unit)
-    Branch / Attempt (how -- specific approach, may be pruned)
-      Session        (where -- execution boundary)
-        Agent        (delegation -- routed sub-problem)
-          Tool chain (sequence -- ordered operations)
-            Tool call(atomic -- read/write/search/execute)
-```
-
-The five invariant operations (decompose, route, prune, synthesize, verify) become fact table grains:
-
-| Phase | Fact Table | What It Captures |
-|-------|-----------|-----------------|
-| Decompose | fact_task_decomposition | goal -> tasks (what was broken down and how) |
-| Route | fact_routing_decision | task -> agent/tool (what was assigned where) |
-| Execute | fact_execution_step | atomic tool call with timing, tokens, status |
-| Prune | fact_pruning_event | what was killed/abandoned and why |
-| Synthesize | fact_synthesis_result | merged output with quality signal |
-| Verify | fact_verification | quality checks on final output |
-
-See [references/dag_execution.md](references/dag_execution.md) for full schema and capture mechanisms.
-
-## Common Anti-Patterns
-
-See [references/anti_patterns.md](references/anti_patterns.md) for mistakes to avoid:
-- Adding PRIMARY KEY to SCD Type 2 dimension tables
-- Using auto-increment sequences instead of hash keys
-- Normalizing fact tables (they should be denormalized)
-- Making dimension tables too wide (split into outriggers)
-- Forgetting metadata columns (record_source, session_id)
-
-## Reference Implementation
-
-Working proof: `skill-maintainer/scripts/store.py` -- the full Kimball schema (v0.6.0) with 3 dimensions, 6 fact tables, analytical views, and automatic schema migration.
-
-## References
-
-- [schema_patterns.md](references/schema_patterns.md) -- dimension and fact table templates
-- [query_patterns.md](references/query_patterns.md) -- star schema query cookbook
-- [key_generation.md](references/key_generation.md) -- hash keys, natural keys, degenerate dimensions
-- [anti_patterns.md](references/anti_patterns.md) -- common mistakes and how to avoid them
-- [dag_execution.md](references/dag_execution.md) -- agent execution as data pipeline DAG
+<references>
+- [schema_patterns.md](references/schema_patterns.md): dimension, fact, bridge, meta and session-event table templates
+- [key_generation.md](references/key_generation.md): natural keys, composite keys, NULL handling, what goes in `hash_diff`
+- [anti_patterns.md](references/anti_patterns.md): the mistakes these conventions exist to prevent, each with its failure (PK on an SCD2 dimension, sequences, FK constraints, normalized facts, one fact table for everything, over-wide dimensions)
+- [query_patterns.md](references/query_patterns.md): DuckDB query recipes over this schema shape (latest-per-entity, point-in-time, drill-across, FILTER aggregates)
+- [dag_execution.md](references/dag_execution.md): agent execution as a DAG
+</references>

@@ -26,7 +26,7 @@ If CLI is not available, check for tracked repos in `.skill-maintainer/config.js
 2. Pull: `git -C <path> pull --ff-only`
 3. Compare new HEAD to old. Report CHANGED (with `git -C <path> log --oneline <old>..<new>`) or UP_TO_DATE.
 
-If no config file exists, skip this phase and note "no .skill-maintainer/config.json found -- skip source pull (run /skill-maintainer:init-maintenance to set up)".
+If no config file exists, skip this phase and note "no .skill-maintainer/config.json found -- skip source pull (run `skill-maintain init` to set up)".
 
 ## Phase 2: Check upstream docs
 

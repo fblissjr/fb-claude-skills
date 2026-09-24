@@ -11,11 +11,6 @@ description: >-
 
 # Documentation conventions
 
-Only what a repo cannot tell you by being read. Lowercase filenames, subfolders
-by topic, and "explain the why, not just the what" are omitted deliberately —
-they are already the default behaviour, and restating them costs context to
-change nothing.
-
 ## Dates
 
 A last-updated date at the top of every document you create or modify, as
@@ -65,15 +60,13 @@ the test. To audit prose already written rather than prose being written:
 `./internal/` for documentation not meant to be shared — design notes, debugging
 logs, scratch work — gitignored. Session logs at `./internal/log/log_YYYY-MM-DD.md`.
 
-This is the owner's layout, not a universal one. A repo that already has
-somewhere for unshared notes keeps its own arrangement; adopt this only where
-there is none.
+A repo that already has somewhere for unshared notes keeps its own
+arrangement; use this layout only where there is none.
 
 ## Dependency changes
 
 When a session adds, removes, or bumps package versions, record it in the
-session log. That is the only place dependency changes are written outside the
-source-of-truth files.
+session log, and nowhere else outside the manifest and lock files.
 
 ```markdown
 ## Dependency changes
@@ -85,11 +78,11 @@ source-of-truth files.
 | removed | requests | 2.31.0 | -- | direct |
 ```
 
-Read the changes off `git diff` against the manifest and lock files. What not to
-do, because each is a plausible default worth overriding:
+Read the changes off `git diff` against the manifest and lock files. Two
+plausible defaults this overrides:
 
-- Do **not** create a `deps.md`, `dependencies.json`, or any separate manifest.
-  The source of truth is always `pyproject.toml` / `package.json` and the lock
-  files.
-- Do **not** dump full `uv tree` or `bun pm ls` output — report only what
-  changed. Summarise a long transitive tail by count rather than listing it.
+- The record is the session-log table only. A `deps.md`, `dependencies.json` or
+  other separate manifest would be a second source of truth beside
+  `pyproject.toml` / `package.json` and the lock files.
+- The table lists what changed, never full `uv tree` or `bun pm ls` output.
+  Summarise a long transitive tail by count.

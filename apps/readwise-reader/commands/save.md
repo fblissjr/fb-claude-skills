@@ -36,13 +36,10 @@ Location: [inbox/later/archive]
 Tags: [tags if any]
 ```
 
-### 4. Handle Duplicates
+### 4. Duplicates
 
-If the document already exists (HTTP 200 instead of 201), note this:
-```
-This URL is already in your Reader library.
-ID: [doc_id]
-```
+The tool returns only `id` and `url`, not whether the URL was already in the
+library, so report the save without claiming it is new.
 
 ## Examples
 

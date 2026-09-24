@@ -1,4 +1,4 @@
-last updated: 2026-07-25
+last updated: 2026-09-24
 
 # plugin-toolkit
 
@@ -29,32 +29,27 @@ claude --plugin-dir /path/to/fb-claude-skills/plugin-toolkit
 ## invocation
 
 ```
-/plugin-toolkit:analyze /path/to/plugin
-/plugin-toolkit:polish /path/to/plugin
-/plugin-toolkit:feature add /path/to/my-plugin command "review" "Review code for issues"
+/plugin-toolkit:plugin-toolkit analyze /path/to/plugin
+/plugin-toolkit:plugin-toolkit polish /path/to/plugin
+/plugin-toolkit:plugin-toolkit feature add /path/to/my-plugin command "review" "Review code for issues"
 ```
 
-## commands
+## modes
 
-| Command | Purpose |
-|---------|---------|
-| `/plugin-toolkit:analyze <path>` | Produce structured analysis documentation |
-| `/plugin-toolkit:polish <path>` | Add standard utility commands (help, status, on/off) |
-| `/plugin-toolkit:feature <action> <path>` | Add, remove, or modify plugin features |
+The modes are arguments to the one skill; there are no separate commands.
+
+| Mode | Purpose |
+|------|---------|
+| `analyze <path>` | Validate, inventory and rate the plugin; write `analysis/` docs |
+| `polish <path>` | Add the utilities the plugin lacks (help, status, off/on, CHANGELOG) where the built-ins do not already cover them |
+| `feature <action> <path>` | Add, remove, or change a skill, command, agent, or hook |
 
 ## components
 
 ### agents
 
 - **plugin-scanner** -- Explores plugin structure, returns inventory
-- **quality-checker** -- Evaluates against checklist, returns ratings
-
-### references
-
-- **analysis-template.md** -- Structure for analysis documentation
-- **command-template.md** -- Boilerplate for new commands
-- **quality-checklist.md** -- Evaluation criteria
-- **hook-patterns.md** -- Common hook implementations
+- **quality-checker** -- Reviews what `claude plugin validate` cannot see, returns ratings with evidence
 
 ## integration with other tools
 

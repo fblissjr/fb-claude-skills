@@ -104,21 +104,18 @@ Apply per instruction, not per skill:
       its place, defining the anti-pattern precisely helps more than a bare
       ban. This governs behaviour steering in a body, not the negative *scope*
       a description carries — see `description precision`
-- [ ] **XML tags where content types mix; headings everywhere else.**
-      Anthropic's prompting guide recommends tags "especially when your
-      prompt mixes instructions, context, examples, and variable inputs".
-      Tags earn their place in three cases:
-      - a parameters block the user edits;
-      - a long run prompt whose steps refer to sections by name ("the test in
-        `<verdicts>`");
-      - text that came from somewhere else, fenced off so it reads as data.
-
-      A short skill body or an always-loaded CLAUDE.md is instruction of one
-      kind, and markdown headings already give it structure. Anthropic's own
-      skills use headings. Never in a `description` (angle brackets fail
-      validation). In hook output, avoid tags that could pass for harness
-      tags, because model-facing text shaped like an out-of-band command can
-      trip prompt-injection defences
+- [ ] **Structure a prompt with XML tags when it has clear sections.** A
+      skill or prompt with distinct parts (parameters, scope, procedure,
+      gotchas, report shape), or whose steps refer to other parts by name
+      ("the test in `<verdicts>`"), puts each part in its own tag. Anthropic's
+      prompting guide recommends tags for prompts that mix instructions,
+      context, examples and inputs, and Opus 5.5 adds them when asked to adapt
+      a prompt for itself. Use descriptive snake_case names, and reuse them
+      across skills: `<parameters>`, `<how_to_run>`, `<scope>`, `<procedure>`,
+      `<gotchas>`, `<report>`. A short single-purpose skill does not need
+      them. Never in a `description` (angle brackets fail validation), and not
+      in hook output, where a tag can pass for a harness tag and trip
+      prompt-injection defences
 - [ ] **One term per concept, used throughout.** Consistency is what lets the
       model parse and follow instructions. *Craft, not documented upstream:*
       prefer a pretrained word to a coined one — a term the model already holds
@@ -871,7 +868,7 @@ not a gate — it is an opinion, and it either gets a command or gets deleted.
 <!-- class: harness | source: coderef/agentskills | verified_hash: 69ef37e | last_verified: 2026-09-21 -->
 <!-- class: craft | note: the 4,000/8,000 token thresholds and the estimator band are house conventions | last_verified: 2026-09-21 -->
 
-**Command:** `skill-maintain test` (the gate) and `skill-maintain measure` (the
+**Command:** `skill-maintain test` (the gate) and `skill-maintain quality` (the
 report). For a real count, `claude plugin details <plugin>` on the installed
 build.
 

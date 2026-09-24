@@ -287,7 +287,7 @@ wheels = [
 
 [[package]]
 name = "gemini-bridge"
-version = "0.15.2"
+version = "0.16.0"
 source = { editable = "apps/gemini-bridge" }
 dependencies = [
     { name = "google-genai" },
@@ -406,7 +406,7 @@ wheels = [
 
 [[package]]
 name = "mece-decomposer"
-version = "0.6.2"
+version = "0.7.0"
 source = { virtual = "apps/mece-decomposer" }
 dependencies = [
     { name = "orjson" },
@@ -876,7 +876,7 @@ wheels = [
 
 [[package]]
 name = "skill-maintainer"
-version = "0.40.0"
+version = "0.41.0"
 source = { editable = "tools/skill-maintainer" }
 dependencies = [
     { name = "httpx" },

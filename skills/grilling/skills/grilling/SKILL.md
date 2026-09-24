@@ -30,7 +30,7 @@ yet. That word is doing the work: it is what separates this from asking
 questions in the order they occur to you.
 
 A question whose answer depends on another question still open belongs to a
-**later round**, not this one. Asking it now produces an answer the user will
+later round, not this one. Asking it now produces an answer the user will
 revise, and revised answers quietly invalidate everything built on them.
 
 ## Rounds
@@ -41,16 +41,13 @@ Each answer reshapes the tree: settled decisions push the frontier outward and
 unblock questions that depended on them. Recompute the frontier and ask the next
 round.
 
-**Every question carries your recommended answer.** A bare question makes the
+Every question carries your recommended answer. A bare question makes the
 user do the thinking twice. A recommendation they can accept, reject, or amend
 costs them one judgment instead.
 
-Two formats, by size:
-
-- **Two to four questions with enumerable choices** — use `AskUserQuestion`, one
-  question per decision, recommended option first and labelled as such.
-- **A larger frontier, or open-ended answers** — numbered plain text, one block
-  per question:
+Ask in numbered plain text, one block per question, with the options inline
+where there are any. Use the `AskUserQuestion` picker only when the user asks
+for it by name: a picker hides the tradeoffs a recommendation needs.
 
 ```text
 Q1 — <question title>
@@ -58,17 +55,15 @@ Q1 — <question title>
 Recommended: <your answer, and the one-line reason>
 ```
 
-No emoji in either form.
-
 ## Facts are yours, decisions are theirs
 
-**Never ask the user something the environment can answer.** File contents,
+Look up anything the environment can answer instead of asking. File contents,
 which version is installed, what the config already says, whether a thing
 already exists: go and look. A question the codebase settles is a question that
 wastes the user's turn and signals you did not check.
 
 When a frontier question needs a fact you do not have, dispatch the lookup and
-**keep going**. A running exploration is an unsettled prerequisite, so only the
+keep going. A running exploration is an unsettled prerequisite, so only the
 questions downstream of it wait. Ask the rest of the frontier now rather than
 blocking the round on one lookup.
 
@@ -76,8 +71,9 @@ Delegate the lookup rather than doing it inline where the search is broad or the
 output is large — the point is to keep the interview in the main thread and the
 file-reading out of it.
 
-The **decisions** are the user's. Put each one to them and wait. Do not decide
-by inference from a previous answer, and do not treat silence as assent.
+The decisions are the user's. Put each one to them and wait: a decision
+inferred from a previous answer, or taken from silence, is one the user never
+made.
 
 ## Done
 
@@ -86,14 +82,3 @@ left silently assumed.
 
 Do not act on the design until the user confirms you have reached a shared
 understanding. Reaching the end of the questions is not the same as agreement.
-
-## Where this fits
-
-A primitive. Other skills invoke it rather than reimplementing an interview:
-anything that designs before building wants this loop, and a skill that carries
-its own ad-hoc question list will drift from it.
-
-Two wrappers are worth knowing even though this repo ships neither: a stateless
-one that just runs the interview, and a stateful one that also writes what it
-learns into a project glossary and decision records. The stateful variant is the
-better default wherever there is a repo to leave a trail in.

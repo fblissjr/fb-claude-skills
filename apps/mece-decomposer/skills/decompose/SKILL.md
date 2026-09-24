@@ -5,89 +5,39 @@ description: Break down a goal, process, or workflow into MECE components with A
 
 # /decompose
 
-Decompose a process, goal, or workflow into MECE (Mutually Exclusive, Collectively Exhaustive) components with dual output -- a human-readable tree and structured JSON mapping to Claude Agent SDK primitives.
+Decompose a process, goal or workflow into MECE components, producing a human-readable tree and JSON that maps to agent primitives. The method, limits and scoring are in the **mece-decomposer** skill and its references; this skill adds the input rules and the output shape.
 
-## Usage
+Usage: `/decompose <what to decompose>`, or `/decompose` followed by a pasted JSON, YAML or CSV export from a workflow tool.
 
-```
-/decompose <description of what to decompose>
-```
+<input_rules>
+- **Structured input gets its schema confirmed before any cut.** For JSON, XML, YAML, CSV or any tool export, ask what the data represents, what the key fields mean and how the entities relate; state your interpretation and let the user correct it until they agree. Field names in exports are routinely misleading, and a tree built on a misread schema is wrong at every level. Free text skips this.
+- **Scope is asked, not guessed.** When the trigger, completion criteria or exclusions are ambiguous, ask; an assumed boundary makes the exhaustiveness score meaningless. If scope cannot be established from the conversation, switch to `/interview`.
+</input_rules>
 
-Examples:
-- `/decompose our customer onboarding process from sign-up to first value delivery`
-- `/decompose the CI/CD pipeline for our microservices architecture`
-- `/decompose quarterly financial close process`
-- `/decompose` then paste a JSON/YAML/CSV export from a workflow tool
+<done>
+Done is a tree that passes the structural validator and carries ME/CE scores for every level the depth-adaptive schedule tests, with dimension rationale, atom classifications, model tiers and cross-branch dependencies filled in.
+</done>
 
-## Workflow
+<output>
+1. The human-readable tree. One line per node: label, execution type in brackets, estimated duration, and model tier or integration method:
 
-### 1. Interpret Input
+   ```
+   Process Name (orchestration type)
+   +-- Phase 1 (parallel)
+   |   +-- [agent] Step A (~5m, sonnet)
+   |   +-- [human] Step B (~2h, webhook)
+   +-- Phase 2 (sequential)
+       +-- [tool] Step C (~10s, tool_name)
+       +-- [agent] Step D (~1m, haiku)
+   ```
 
-If the user provides structured data (JSON, XML, YAML, CSV, or any workflow/process export), do NOT assume you understand the schema. Ask what the data represents, what key fields mean, and how entities relate. Present your interpretation back, let them correct it, repeat until agreed. For free-text, skip this.
+2. The JSON, conforming to `references/output_schema.md` in the mece-decomposer skill, checked with:
 
-### 2. Define Scope
+   ```bash
+   uv run ${CLAUDE_PLUGIN_ROOT}/skills/mece-decomposer/scripts/validate_mece.py <output.json>
+   ```
 
-Establish boundary, trigger, and completion criteria. If ambiguous, ask clarifying questions. Do not guess at scope boundaries.
+3. When the `mece-decompose` MCP tool is available, call it with the full JSON string to render the interactive tree.
+</output>
 
-### 3. Select Dimension
-
-Score candidate dimensions (temporal, functional, stakeholder, state, input-output) using the 4-criteria rubric from the **mece-decomposer** skill. Document the winner and rationale.
-
-### 4. First-Level Cut
-
-Produce 3-7 L1 components. Apply full MECE validation (see `references/validation_heuristics.md`).
-
-### 5. Recursive Descent
-
-Decompose each L1. Choose dimension per branch (may differ from L1). Decrease validation rigor with depth per the depth-adaptive schedule.
-
-### 6. Atomicity Testing
-
-At each leaf, apply the co-occurrence heuristic. Classify atoms by execution type: agent, human, tool, or external.
-
-### 7. Cross-Branch Dependencies
-
-Identify data, sequencing, resource, and approval dependencies between branches.
-
-### 8. SDK Mapping
-
-Map atoms to Agent SDK primitives per `references/agent_sdk_mapping.md`. Assign model tiers.
-
-### 9. Validation Sweep
-
-Run final structural checks. Compute ME/CE scores.
-
-## Output
-
-### 1. Human-Readable Tree (markdown)
-
-```
-Process Name (orchestration type)
-+-- Phase 1 (parallel)
-|   +-- [agent] Step A (~5m, sonnet)
-|   +-- [human] Step B (~2h, webhook)
-+-- Phase 2 (sequential)
-    +-- [tool] Step C (~10s, tool_name)
-    +-- [agent] Step D (~1m, haiku)
-```
-
-Each line: label, execution type in brackets, estimated duration, model tier or integration method.
-
-### 2. Agent SDK JSON
-
-Full JSON conforming to `references/output_schema.md`. To validate structurally:
-
-```bash
-uv run mece-decomposer/skills/mece-decomposer/scripts/validate_mece.py <output.json>
-```
-
-### 3. Interactive Visualization (when MCP server connected)
-
-After producing the JSON, call the `mece-decompose` MCP tool with the full JSON string to render the interactive tree in Claude Desktop, Cowork, or Claude.ai.
-
-## Next Steps
-
-After decomposition:
-- "Want me to validate this decomposition for MECE compliance?" -> `/validate`
-- "Should we refine any branches through an SME interview?" -> `/interview`
-- "Ready to export Agent SDK code?" -> `/export`
+Adjacent skills: `/validate` scores an existing decomposition, `/interview` extracts one from an SME, `/export` turns a validated one into code.

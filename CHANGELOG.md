@@ -1,5 +1,95 @@
 # changelog
 
+## 1.61.0
+
+The Opus 5.5 pass across the whole repo. Each change below was checked against its source before landing. Every changed skill validates, `skill-maintain test` reports no failures (the `heylook-provider` token budget, failing since 1.56.0, is now certainly under), and the routing suite re-ran 20/20.
+
+### added
+- **`improvement-loops` 0.2.0 -> 0.3.0:**
+  - **`/design-scoreboard`.** A loop can only climb what it is given, and a single number gets reward-hacked, so this chooses a set: goal metrics measured on the real path, guardrails for what must not get worse, and a counter-check aimed at the cheapest way to fake each gain. Each proxy must be shown to track its outcome by moving it on purpose, and its noise is measured. Scenarios are written as data in the loop state; the AGENTS.md Measurement fill is proposed, never written. Rerun in review mode when the goal changes.
+  - **The owner's updated loops.** `/improve` and `/optimize` now cite the repo's AGENTS.md sections by name (North star, Where things live, Commands, How to work, Other sessions, Measurement, Reporting, Loop state).
+  - **The AGENTS.md template.** It ships as `templates/AGENTS.md`, with one outdated line corrected: Claude Code does read AGENTS.md directly, but not in every session, so the one-line `@AGENTS.md` import stays the recommendation.
+  - **The North star is a direction, not a spec.** The loops use it to choose a direction and break ties, never as requirements.
+  - The routers point at the template and at `/design-scoreboard` when the loop state has nothing to climb, and use tags.
+  - **`/trim-agents-md` also adds, not only cuts.** It takes in a second review of the same problem:
+    - a fuller move map: checkable rules become hooks or tests; status goes to the status doc; numbers become pointers; cross-repo preferences go to the user-level file; long code samples become a pointer to a real file;
+    - checks on every kept line: its reason in one clause, concrete enough to check, scoped (current models follow rules literally), no two rules clashing;
+    - a `<keep_or_add>` list: north star, where things live, commands, done criteria, stops, other sessions, hazards, verification tools, settled decisions. Each is added only when the repo has the thing;
+    - evidence mining from postmortems and session logs;
+    - spot-tests where fresh subagents are given typical tasks with the new file.
+
+    It reverses 1.60.0's "don't add a keep-going rule pre-emptively": Anthropic's Opus 5.5 guide recommends the stop rule for every CLAUDE.md.
+
+### changed
+- **`claim-audit` 0.4.0 -> 0.5.0: made useful beyond diffs.**
+  - **Scope.** It now audits one of three things: a diff, standing docs checked against today's code (a README, AGENTS.md, a SKILL.md), or quoted text about to be sent.
+  - **Claims.** Capability, pointer and measurement claims join count, status and attribution.
+  - **Numbers.** Every number is checked against the three kinds (derivable now, measured once, normative) after a decorative test.
+  - **`--fix`.** It applies only what a command's output settles: a wrong value, a dead pointer, a number with no home. Anything partly right, a rationale, or an ambiguous result stays a finding.
+  - **Structure.** Tagged sections.
+  - **Routing.** The description names standing docs, so "is this README still true?" reaches it. That case missed twice under 0.4.0 and passed on the re-run, and no sibling lost a route.
+- **`path-privacy` 0.17.0 -> 0.18.0: less friction, wider cover.**
+  - **Measured first.** Over 60 days of transcripts (2,905 files, 78 blocks), about half the blocks were false positives:
+    - generic tool locations (`~/.claude/...`);
+    - `$HOME` used as a shell variable;
+    - stand-in users such as `/Users/dev`.
+
+    Replaying every recovered block through the old and new scanners, 40 no longer fire and 31 still do. What still fires is named projects, folder layout, and deliberate probes.
+  - **Fix instead of block.** An absolute path inside the repo, in any of its `~` or `$HOME` forms, is rewritten to repo-relative on Write and Edit through `updatedInput`, with no permission decision, so your permission prompt still applies, and one context line saying what changed. Pairing `updatedInput` with no decision is not in the upstream docs; it was confirmed against the 2.1.281 binary. If a later release drops it, the original input runs as before.
+  - **Full-name guard.**
+    - It reads the git `user.name` at run time and never stores it. It blocks the name in Write and Edit content, in git and gh command text, and at commit (added lines, the message and the branch).
+    - The handle and email are allowed, as are LICENSE files and `Signed-off-by:` trailers.
+    - Block messages give `file:line`, never the name.
+  - **Commit messages in heredocs are scanned.** Claude Code writes commits that way, and the old extraction never saw them.
+  - **SessionStart stops emitting.** The directive is deleted and the matcher is `startup` only. The one rule no hook could enforce, "a routine correction goes unmentioned in commit messages, branch names and the changelog", is appended to every block message, at the moment it applies. A repo with a current gate gets 0 bytes on start, resume, clear and compact, where it used to get about 1 KB each time; an ungated repo gets a one-time notice.
+  - **A silent-clean defect fixed.** The scanner ran one `rg` per line with failures swallowed by `|| true`, so a killed `rg` (exit 137 in the sandbox) turned every later line clean. One `rg` call now scans the text, and a failure exits 2.
+  - **Policy change.** Generic home locations (`~/.claude/...`, `$HOME/.config/...`) are no longer leaks; a named directory under home still is. AGENTS.md invariant 2 and `gotchas.md` say so.
+  - **Tests.** `tools/skill-maintainer/tests/test_path_privacy_hooks.py` has 51 tests. The new-behaviour tests were red first, and 12 mutations of kept behaviour each turned a test red. SKILL.md went from 16.3 KB to 7.6 KB and is tagged.
+  - **Not covered:** NotebookEdit; in-repo absolute paths written through Bash (`skill-maintain test` still catches those here); the name reversed, as initials, or as a nickname.
+- **`skill-maintainer` 0.34.0 -> 0.35.0: cut to what earns its place.** Kept: `/maintain`, `/sync-versions` and `best_practices.md`. Removed:
+  - **The Stop hook.** It exited 0 with stderr, which the hooks page says goes to the debug log only, so its nudge never reached anyone.
+  - **The `quality` skill.** Its advertised filter fails: `skill-maintain quality path-privacy` gives "unrecognized arguments". The CLI command stays.
+  - **`init-maintenance`.** It calls a CLI the plugin does not ship.
+  - **`finish-session` and the `session-log-drafter` agent.** They had no use outside the 2026-07-26 eval runs; session logs are written directly.
+
+  The README now says the checks are the `skill-maintain` CLI and how to install it. `/sync-versions` names a major bump as its one stop.
+- **`best_practices.md`: XML tags wherever a prompt has clear sections** (parameters, scope, procedure, gotchas, report) or steps that refer to other parts by name. Names are descriptive snake_case and reused across skills; tags never go in a `description` or in hook output. This is the owner's call and replaces 1.60.0's narrower rule. The token-budget gate's report command is now `skill-maintain quality`.
+- **The Opus 5.5 trim, by plugin.** Common to all: "ultrathink" removed; step-by-step textbook procedures rewritten as goal, constraints and the house conventions the model cannot derive; capitals, bold bans and reports after every step replaced by target behaviour and named stops; numbers with no home removed; tags where a skill has clear sections. Sizes are before -> after `wc -c` of each SKILL.md unless noted.
+  - `dimensional-modeling` 0.6.0 (7,594 -> 5,718):
+    - The Kimball process is gone. The house conventions stay: MD5 keys, no PK on SCD2, no PK or FK on facts, lineage columns, DuckDB.
+    - The orphan `kimball-principles` directive is deleted; its one unique rule, facts never join facts, moved into the body.
+    - A stale pointer to a deleted `store.py` is removed.
+    - Reference bugs fixed: duplicate `session_id` columns, fact-to-fact joins that contradicted the rule (now drill-across), and hook-capture code reading fields the hook input does not carry.
+  - `mece-decomposer` 0.7.0:
+    - The methodology, interview and validation references are rewritten as judgment rules (10,612 / 11,098 / 8,973 -> 3,659 / 4,549 / 3,277).
+    - The interview confirms at three named stops instead of every few answers.
+    - Stale `claude-*-4-6` IDs are replaced with current ones, including the MCP app's `MODEL_MAP`.
+    - The validator path no longer points at a pre-move location.
+  - `gemini-bridge` 0.16.0 (16,137 -> 12,937): of the four bold bans, the two the CLI enforces are cut; the three things it does not block (splitting a call, disabling the gate, overriding TMPDIR) are stated once as target behaviour. The thresholds point at their config keys instead of carrying the values in prose.
+  - `heylook-provider` 0.18.0 (22,673 -> 13,066): the version-boundary arms move to `references/older_servers.md`, and the done-criterion moves up so it survives compaction.
+  - `readwise-reader` 1.2.0: generic triage and search frameworks are cut. Added gotchas checked against the source: filtered search covers only the most recent 200 documents; `batch_triage` does not refresh the local DB; delete removes the document from Reader. Fixed `save`'s HTTP 200/201 duplicate check, which the tool cannot report, and `digest`'s template, which asked for fields `reading_digest` does not return.
+  - `skill-dashboard` 1.5.0: documents both MCP tools, and names the 5,000-token gate, keeping 4,000/8,000 as display bands only.
+  - `json-query` 0.2.0: the syntax guide moved to where the skill's link points, and the benchmark numbers are gone. If `jg` is missing, the skill now falls back to `jq` and offers the install rather than installing.
+  - `plugin-toolkit` 0.3.0 (skill, references and agents 26,731 -> 7,739):
+    - `hook-patterns.md` is deleted. It contradicted `best_practices.md`, and its on/off design put matchers on `UserPromptSubmit`, which ignores them.
+    - The command template, quality checklist and analysis template are deleted.
+    - The `/plugin-toolkit:analyze`, `:polish` and `:feature` commands it documented never existed; they are modes of the one skill.
+  - `writing` 0.7.0: `plain-language-us` folds every graded rule into the body and cuts general US conventions (6,909 -> 3,657 bytes across three files). `voice-match` read a profile path nothing writes; it now reads the global and per-repo profiles its reference and `/writing:voice` use. The writing suite's graders still pass: `bun evals/check_graders.ts .`.
+  - `dev-conventions` 0.20.0: a meta preamble, a hedge and two numbers with no dated record are removed; the numbers section is unchanged.
+  - `grilling` 0.2.0: asks in numbered prose with a recommended answer. The picker is used only when asked for by name, because it hides the tradeoffs.
+  - `scan-for-secrets` 0.2.0: commands use `${CLAUDE_SKILL_DIR}`. `allowed-tools` is narrowed from bare `Bash` to the two exact commands. The interactive `-r` prompt is handed to the user.
+  - `dangling-refs` 0.2.0: the measured counts are removed and the body is tagged.
+  - `model-routing` 0.6.0: history is removed; the pause and its confirmation stop are kept.
+  - `ruff-diagnostics` 0.1.5, `pyright-autoconfig` 0.3.3: model-facing hook text is stated as fact rather than imperative, per `best_practices.md`.
+  - `.claude/rules/` (not shipped):
+    - `general.md` (3,091 -> 1,491) drops sections the global file, AGENTS.md or a skill already holds. It keeps the bun pinning policy, which exists nowhere else.
+    - `plugins.md` and `skills.md` point at AGENTS.md invariant 1 instead of restating it.
+
+### removed
+- **`skill-maintain measure` and `log` (CLI 0.40.0 -> 0.41.0).** `measure` duplicated `quality`, the `test` scope line and `claude plugin details`, and its only unique output (per-file reference sizes) had no reader. `log` had no caller. `changes.jsonl` is still written, because `queries/upstream_churn.sql` reads it.
+- **CLI 0.41.0 also:** `tighten` joins the description check's verb list, per the list's rule to extend it rather than reword.
+- **`tools/skill-maintainer/scripts/`** (`make_evals.py`, `trigger_eval.py`): a home-grown trigger-eval harness that `claude plugin eval` and the committed suites replace. It still listed a skill retired in August.
+
 ## 1.60.0
 
 ### added

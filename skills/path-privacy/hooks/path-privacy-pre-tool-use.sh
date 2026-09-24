@@ -1,193 +1,290 @@
 #!/usr/bin/env bash
 # path-privacy: skip-file
-# pre-tool-use.sh - block Write/Edit calls that would introduce a path leak
-# BEFORE the bytes ever hit disk.
+# path-privacy-pre-tool-use.sh -- catch path leaks and the owner's full name
+# before they land, and FIX what can be fixed without asking.
 #
-# Why: the existing pre-commit hook catches leaks at commit time, after the
-# user (or Claude) has already spent tokens authoring + reading the leaked
-# content. This hook fails the Write/Edit immediately — Claude sees the
-# block in the same turn and can re-author with a placeholder.
+# Why here: the git hooks catch the same things at commit time, after tokens
+# have been spent writing and re-reading the leaked content. Here the problem
+# is caught in the same turn.
 #
-# Hook contract:
-#   stdin:  Claude Code hook payload (JSON) with .tool_input.file_path
-#           plus .tool_input.content (Write) or .tool_input.new_string (Edit).
-#   stdout: ignored.
-#   stderr: diagnostic shown to user + Claude when blocking.
-#   exit 0: allow the write.
-#   exit 2: block the write (Claude Code surfaces stderr).
+# What it does, per tool:
+#   Write / Edit (content / new_string of a tracked file inside the repo)
+#     1. REWRITES absolute and home-relative spellings of a path INSIDE the repo
+#        to repo-relative, via `updatedInput` with no permissionDecision -- the
+#        call proceeds through the normal permission flow with the fixed input,
+#        and one line of additionalContext says what changed. These used to pass
+#        silently and then fail the whole-tree audit, since they carry the
+#        username.
+#     2. BLOCKS (exit 2) a path that resolves OUTSIDE the repo.
+#     3. BLOCKS (exit 2) the git user.name full name (see _name_guard.sh);
+#        LICENSE files excepted, and the skip-file marker does not exempt it.
+#   Bash (git / gh commands)
+#     4. BLOCKS a commit message, tag message, PR title/body or branch name that
+#        carries an external path. Message text only -- including heredoc bodies,
+#        the default Claude Code commit shape -- never the whole command, which
+#        is full of legitimate absolute paths.
+#     5. BLOCKS the full name anywhere in a git or gh command. A lookup can pass
+#        "$(git config user.name)" instead of the literal.
 #
-# Fails open on every error path: missing jq, malformed payload, scanner
-# unreachable, file outside any repo. The git-side hooks remain the
-# authoritative gate; this is a UX accelerator.
+# Every block message carries the one rule no hook can enforce: the correction
+# is routine and stays out of commit messages, branch names and the changelog.
+# That sentence used to be a SessionStart directive re-injected on every start,
+# resume, clear and compact; it now appears only when a leak is actually being
+# corrected, which is the moment it applies.
 #
-# Skipped contexts:
-#   - file_path outside the repo (nothing to enforce against)
-#   - file_path that's gitignored (can't reach a commit anyway)
-#   - file carrying the `path-privacy: skip-file` marker as a line's leading
-#     content, on disk or in the content being written (see _skip_marker.sh;
-#     a prose mention of the marker is not an opt-out)
-#   - missing/empty content (nothing to scan)
+# WHY NOT permissionDecision "allow" with the rewrite: allow skips the
+# permission prompt, which would make a privacy hook loosen permissions. The
+# field-less form is not in the upstream docs; it was read from Claude Code
+# 2.1.281, where a PreToolUse result with updatedInput and no decision replaces
+# the input and falls through to the normal flow. If that ever stops holding, the
+# failure is benign: the original input runs, exactly as before this hook
+# learned to rewrite. Another PreToolUse hook rewriting the same Edit/Write call
+# would race this one (last to finish wins, per upstream).
+#
+# Fails open on every error path (missing jq, malformed payload, scanner
+# unreachable, file outside any repo). The git hooks are the authoritative gate.
 
 set -u
 
-# jq is the only hard dep beyond bash + the scanner. Fail open if absent so a
-# fresh clone without jq doesn't block every Write.
-if ! command -v jq >/dev/null 2>&1; then
-  exit 0
-fi
+command -v jq >/dev/null 2>&1 || exit 0
 
 PAYLOAD=$(cat)
 [ -z "$PAYLOAD" ] && exit 0
 
 TOOL=$(jq -r '.tool_name // ""' <<<"$PAYLOAD" 2>/dev/null)
 
-# --- Bash: commit messages and branch names ----------------------------------
-# These reach the repo without ever passing through Write or Edit, so until now
-# they were caught only by the commit-msg git hook -- correct, but one step too
-# late: the commit fails and has to be retried. Catching it here turns a failed
-# commit into a corrected argument, and lets the SessionStart directive stop
-# explaining a rule that is now enforced.
-#
-# Narrow on purpose. Only `-m`/`--message` values and `-b`/`-B`/`-c` branch
-# names are extracted, and anything that does not parse cleanly falls through
-# untouched. `if`-style Bash matching fails open by design, so this must never
-# pretend to be exhaustive -- the commit-msg hook remains the real backstop.
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPTS="$SELF_DIR/../skills/path-privacy/scripts"
+SCANNER="$SCRIPTS/find-external-paths.sh"
+
+QUIET_NOTE="The correction is routine: commit messages, branch names and changelog entries do not mention it."
+
+# Name guard: fail open here (the git hooks fail closed on the same condition).
+# shellcheck source=/dev/null
+[ -r "$SCRIPTS/_name_guard.sh" ] && . "$SCRIPTS/_name_guard.sh" 2>/dev/null
+if ! command -v pp_name_regex >/dev/null 2>&1 \
+   || ! command -v pp_name_lines >/dev/null 2>&1 \
+   || ! command -v pp_is_license_file >/dev/null 2>&1; then
+  pp_name_regex() { return 1; }
+  pp_is_license_file() { return 1; }
+fi
+
+# --- Bash: git and gh commands -------------------------------------------------
 if [ "$TOOL" = "Bash" ]; then
   CMD=$(jq -r '.tool_input.command // ""' <<<"$PAYLOAD" 2>/dev/null)
   [ -z "$CMD" ] && exit 0
-  case "$CMD" in *git*) ;; *) exit 0 ;; esac
-  SUBJECT=$(printf '%s' "$CMD" | sed -n \
-    -e "s/.*-m[[:space:]]*'\([^']*\)'.*/\1/p" \
-    -e 's/.*-m[[:space:]]*"\([^"]*\)".*/\1/p' \
-    -e 's/.*checkout[[:space:]]\{1,\}-[bB][[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' \
-    -e 's/.*switch[[:space:]]\{1,\}-c[[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' | head -1)
-  [ -z "$SUBJECT" ] && exit 0
+  case "$CMD" in *git*|*gh\ *) ;; *) exit 0 ;; esac
   ROOT_B="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
   [ -z "$ROOT_B" ] && exit 0
-  SELF_B="$(cd "$(dirname "$0")" && pwd)"
-  SCANNER_B="$SELF_B/../skills/path-privacy/scripts/find-external-paths.sh"
-  [ -x "$SCANNER_B" ] || exit 0
-  OUT_B=$("$SCANNER_B" --against-root "$(cd "$ROOT_B" && pwd -P)" --text "$SUBJECT" 2>&1)
-  RC_B=$?
-  if [ "$RC_B" -ne 1 ]; then exit 0; fi
+
+  if NAME_RE=$(pp_name_regex "$ROOT_B") \
+     && printf '%s\n' "$CMD" | pp_name_lines "$NAME_RE" >/dev/null; then
+    {
+      echo "path-privacy: blocked -- this git/gh command contains the git user.name full name."
+      echo "Use the GitHub handle or a placeholder such as <author>. To look the name up, pass"
+      echo "\"\$(git config user.name)\" rather than the literal."
+      echo "$QUIET_NOTE"
+    } >&2
+    exit 2
+  fi
+
+  # Message text and branch names only. One awk pass over the whole command:
+  #   - quoted values of -m / --message / --title / --body, across newlines
+  #   - heredoc bodies (<<EOF, <<'EOF', <<-EOF), which the old line-by-line sed
+  #     never saw -- and `-m "$(cat <<'EOF' ... EOF)"` is how Claude Code commits
+  #   - branch names after checkout -b/-B and switch -c/-C
+  MSG=$(printf '%s' "$CMD" | LC_ALL=C awk '
+    BEGIN { RS = "\001" }
+    {
+      s = $0
+      while (match(s, /(^|[ \t])(-m|--message|--title|--body)[ =]*"[^"]*"/)) {
+        v = substr(s, RSTART, RLENGTH); sub(/^[^"]*"/, "", v); sub(/"$/, "", v)
+        if (v !~ /<</) print v
+        s = substr(s, RSTART + RLENGTH)
+      }
+      s = $0
+      while (match(s, /(^|[ \t])(-m|--message|--title|--body)[ =]*\047[^\047]*\047/)) {
+        v = substr(s, RSTART, RLENGTH); sub(/^[^\047]*\047/, "", v); sub(/\047$/, "", v)
+        print v
+        s = substr(s, RSTART + RLENGTH)
+      }
+      s = $0
+      while (match(s, /(checkout[ \t]+-[bB]|switch[ \t]+-[cC])[ \t]+[^ \t\n;&|]+/)) {
+        v = substr(s, RSTART, RLENGTH); sub(/^.*[ \t]/, "", v)
+        print v
+        s = substr(s, RSTART + RLENGTH)
+      }
+      n = split($0, L, "\n"); d = ""
+      for (i = 1; i <= n; i++) {
+        if (d != "") {
+          t = L[i]; gsub(/^[ \t]+|[ \t]+$/, "", t)
+          if (t == d) { d = ""; continue }
+          print L[i]; continue
+        }
+        if (match(L[i], /<<-?[ \t]*[\047"]?[A-Za-z_][A-Za-z0-9_]*[\047"]?/)) {
+          d = substr(L[i], RSTART, RLENGTH); gsub(/^<<-?[ \t]*[\047"]?|[\047"]$/, "", d)
+        }
+      }
+    }')
+  [ -z "$MSG" ] && exit 0
+  [ -x "$SCANNER" ] || exit 0
+  OUT_B=$("$SCANNER" --against-root "$(cd "$ROOT_B" && pwd -P)" --text "$MSG" --lax-boundary 2>&1)
+  [ $? -eq 1 ] || exit 0
   {
-    echo "Blocked: would put an external path into a commit message or branch name."
-    printf '%s\n' "$OUT_B" | sed 's|<text>:|message:|g'
-    echo
-    echo "These reach the repo without passing through Write or Edit. Use a"
-    echo "repo-relative path, or say it generically."
+    echo "path-privacy: blocked -- an external path in a commit/PR message or branch name:"
+    printf '%s\n' "$OUT_B" | grep '^<text>:' | sed 's|^<text>:|  message line |'
+    echo "Use a repo-relative path or say it generically (\"another project\")."
+    echo "$QUIET_NOTE"
   } >&2
   exit 2
 fi
 
+# --- Write / Edit -------------------------------------------------------------
+case "$TOOL" in
+  Write) FIELD=content ;;
+  Edit)  FIELD=new_string ;;
+  *)     exit 0 ;;
+esac
+
 FILE_PATH=$(jq -r '.tool_input.file_path // ""' <<<"$PAYLOAD" 2>/dev/null) || exit 0
 [ -z "$FILE_PATH" ] && exit 0
 
-# Resolve repo root. Prefer CLAUDE_PROJECT_DIR (set by the harness on session
-# start), fall back to walking from the file's parent.
+# Prefer CLAUDE_PROJECT_DIR (set by the harness), else walk from the file.
 ROOT="${CLAUDE_PROJECT_DIR:-}"
 if [ -z "$ROOT" ]; then
   ROOT=$(git -C "$(dirname "$FILE_PATH" 2>/dev/null || echo .)" rev-parse --show-toplevel 2>/dev/null || echo "")
 fi
 [ -z "$ROOT" ] && exit 0
-
 ROOT_REAL=$(cd "$ROOT" 2>/dev/null && pwd -P) || exit 0
 
-# Compute repo-relative form. If the file lives outside the repo, nothing to enforce.
 case "$FILE_PATH" in
   "$ROOT_REAL"/*) REL="${FILE_PATH#"$ROOT_REAL"/}" ;;
   "$ROOT"/*)      REL="${FILE_PATH#"$ROOT"/}" ;;
   *)              exit 0 ;;
 esac
 
-# Skip gitignored targets — they can't reach a commit, so the rule doesn't bind.
+# Gitignored targets cannot reach a commit, so no rule binds on them.
 if git -C "$ROOT_REAL" check-ignore -q "$FILE_PATH" 2>/dev/null; then
   exit 0
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCANNER="$SCRIPT_DIR/../skills/path-privacy/scripts/find-external-paths.sh"
+TEXT=$(jq -r --arg f "$FIELD" '.tool_input[$f] // empty' <<<"$PAYLOAD" 2>/dev/null)
+[ -z "$TEXT" ] && exit 0
 
-# Shared definition of the file-level opt-out; see _skip_marker.sh for why it is
-# anchored. Resolved BEFORE the check below, which is why SCRIPT_DIR moved up
-# from under it. Missing library fails closed, matching the scanner: nothing is
-# exempt, so a genuine marker stops working loudly rather than a prose mention
-# working silently.
-_PP_SKIP_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_skip_marker.sh"
-# Sourced with its stderr discarded, then VERIFIED. Both halves matter here.
-# `[ -r ]` alone tests readability rather than definition, so a broken library
-# left `pp_head_has_skip_marker` undefined, and an undefined function exits 127,
-# which the check below reads as "not exempt". And bash's own diagnostic for a
-# broken library names an absolute path under the plugin root -- which this hook
-# would then capture and print back to the user, leaking a home path from inside
-# the tool whose only job is stopping that.
+# File-level opt-out (path checks only). Shared definition in _skip_marker.sh;
+# a missing or broken library fails closed -- nothing is exempt. Read from the
+# file on disk for an Edit (the fragment never contains the header), and from
+# the content itself for a Write via --allow-skip-file below.
 # shellcheck source=/dev/null
-[ -r "$_PP_SKIP_LIB" ] && . "$_PP_SKIP_LIB" 2>/dev/null
+[ -r "$SCRIPTS/_skip_marker.sh" ] && . "$SCRIPTS/_skip_marker.sh" 2>/dev/null
 if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
-   || ! command -v pp_head_has_skip_marker >/dev/null 2>&1; then
-  pp_head_has_skip_marker() { return 1; }   # fail closed: nothing is exempt
+   || ! command -v pp_head_has_skip_marker >/dev/null 2>&1 \
+   || ! command -v pp_text_has_skip_marker >/dev/null 2>&1; then
+  pp_head_has_skip_marker() { return 1; }
+  pp_text_has_skip_marker() { cat >/dev/null; return 1; }
 fi
-
-# File-level opt-out, read from the TARGET as it exists on disk. An Edit sends
-# only `new_string` — a fragment from the middle of the file — so a marker at the
-# top is never in the payload and scanning the payload alone can never honour it.
-# Write of a brand-new file has no disk copy; that case is covered by passing
-# --allow-skip-file below, which reads the marker out of the content itself.
+PATH_EXEMPT=0
 if [ -f "$FILE_PATH" ] && pp_head_has_skip_marker "$FILE_PATH"; then
-  exit 0
+  PATH_EXEMPT=1
+elif [ "$TOOL" = "Write" ] && printf '%s\n' "$TEXT" | pp_text_has_skip_marker; then
+  PATH_EXEMPT=1
 fi
 
-# Concatenate Write content + Edit new_string (one of them is set per call).
-CONTENT=$(jq -r '[.tool_input.content // empty, .tool_input.new_string // empty] | join("\n")' <<<"$PAYLOAD" 2>/dev/null)
-[ -z "$CONTENT" ] && exit 0
-
-[ -x "$SCANNER" ] || exit 0
-
-# --allow-skip-file: the string being scanned is a FILE's contents, so the
-# file-level marker has to mean here what it means on disk. Without it this hook
-# blocked writes to files carrying the marker while advertising that very marker
-# as the way out -- including the plugin's own files, every one of which uses it.
-SCANNER_OUT=$("$SCANNER" --against-root "$ROOT_REAL" --allow-skip-file --text "$CONTENT" 2>&1)
-SCANNER_EXIT=$?
-
-# Exit 1 = leak, anything else = clean or scanner internal error (fail open).
-if [ "$SCANNER_EXIT" -ne 1 ]; then
-  exit 0
-fi
-
-# Re-emit findings with the user's actual file path swapped in for the
-# scanner's `<text>:N:` label, so the diagnostic points at the right file.
-RELABELED=$(printf '%s\n' "$SCANNER_OUT" | sed "s|<text>:|${REL}:|g")
-
-# Name the comment syntax that is actually legal in THIS file. The message used
-# to suggest the HTML-comment form unconditionally, which is a syntax error in
-# Python, shell, and Makefiles, and has no valid equivalent at all in JSON --
-# sending the user to an escape hatch that cannot work in the file they are in.
-case "$REL" in
-  *.md|*.markdown|*.html|*.htm|*.xml|*.svg) SKIP_FORM='<!-- path-privacy: skip-file -->' ;;
-  *.js|*.jsx|*.ts|*.tsx|*.c|*.h|*.cc|*.cpp|*.go|*.rs|*.java|*.swift|*.kt|*.scala)
-                                            SKIP_FORM='// path-privacy: skip-file' ;;
-  *.sql|*.lua|*.hs|*.ada)                   SKIP_FORM='-- path-privacy: skip-file' ;;
-  *.json|*.jsonc|*.csv|*.tsv)               SKIP_FORM='' ;;
-  *)                                        SKIP_FORM='# path-privacy: skip-file' ;;
-esac
-
-{
-  echo "Blocked: would introduce an external path into ${REL}"
-  echo ""
-  printf '%s\n' "$RELABELED"
-  echo ""
-  echo "Bypass options:"
-  echo "  - replace the path with a repo-relative form or generic placeholder"
-  echo "  - append 'path-privacy: ignore' to the offending line"
-  if [ -n "$SKIP_FORM" ]; then
-    echo "  - put '$SKIP_FORM' at the START of a line near the top of the file"
-    echo "    (it must lead the line; a mention inside a sentence is not an opt-out)"
+# --- 1. rewrite in-repo absolute / home-relative spellings -------------------
+# Prefixes that spell the repo root: its canonical and given forms, and the
+# ~/, $HOME/ and ${HOME}/ forms when it lives under HOME. Anchored on the left
+# (not preceded by a path character) and on the right (followed by `/`, or a
+# terminator for the bare root), so `<root>-old/x` and `/mnt<root>` are left
+# alone. `<root>/` becomes empty, a bare root becomes `.`.
+NEWTEXT="$TEXT"
+REWRITES=0
+if [ $PATH_EXEMPT -eq 0 ]; then
+  # A function, not inline in $( ): bash 3.2 (stock macOS) cannot parse a
+  # `case` arm's `)` inside command substitution.
+  root_spellings() {
+    local r h rest home_real
+    printf '%s\n' "$ROOT_REAL" "$ROOT"
+    home_real=$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P)
+    for r in "$ROOT_REAL" "$ROOT"; do
+      for h in "${HOME:-}" "$home_real"; do
+        [ -n "$h" ] || continue
+        case "$r" in
+          "$h"/*) rest="${r#"$h"/}"
+                  printf '%s\n' "~/$rest" "\$HOME/$rest" "\${HOME}/$rest" ;;
+        esac
+      done
+    done
+  }
+  PREFIXES=$(root_spellings | awk 'NF && !seen[$0]++' | jq -R . | jq -sc .)
+  RESULT=$(jq -c --arg f "$FIELD" --argjson p "$PREFIXES" '
+    def esc: gsub("(?<c>[.^$|?*+()\\[\\]{}\\\\/-])"; "\\\(.c)");
+    ($p | map(esc) | join("|")) as $alt
+    | ("(?<![A-Za-z0-9._~/-])(?:" + $alt + ")") as $root
+    | "(?=[\\s\"'"'"'`)\\],;:>]|$)" as $end
+    | .tool_input[$f] as $t
+    | ([$t | match($root + "(?:/|" + $end + ")"; "g")] | length) as $n
+    | if $n == 0 then {n: 0}
+      else {n: $n,
+            input: (.tool_input | .[$f] = ($t
+              | gsub($root + "/" + $end; "./")
+              | gsub($root + "/"; "")
+              | gsub($root + $end; ".")))}
+      end' <<<"$PAYLOAD" 2>/dev/null) || RESULT='{"n":0}'
+  REWRITES=$(jq -r '.n // 0' <<<"$RESULT" 2>/dev/null || echo 0)
+  if [ "${REWRITES:-0}" -gt 0 ] 2>/dev/null; then
+    NEWTEXT=$(jq -r --arg f "$FIELD" '.input[$f]' <<<"$RESULT")
   else
-    echo "  - this file type has no file-level opt-out (no comment syntax);"
-    echo "    use the per-line marker above, or write to a gitignored path"
+    REWRITES=0
   fi
-  echo "  - write to a gitignored path instead"
-} >&2
+fi
 
-exit 2
+BLOCK=""
+
+# --- 2. external paths ---------------------------------------------------------
+if [ $PATH_EXEMPT -eq 0 ] && [ -x "$SCANNER" ]; then
+  SCAN_OUT=$("$SCANNER" --against-root "$ROOT_REAL" --allow-skip-file --text "$NEWTEXT" 2>&1)
+  if [ $? -eq 1 ]; then
+    # Keep the finding lines and their suggestions; drop the scanner's footer,
+    # which repeats the rule and prints the absolute repo root.
+    FINDINGS=$(printf '%s\n' "$SCAN_OUT" | awk '/^<text>:/ || /^  → use:/' | sed "s|^<text>:|  ${REL}:|")
+    SKIP_FORM=""
+    case "$REL" in
+      *.md|*.markdown|*.html|*.htm|*.xml|*.svg) SKIP_FORM='<!-- path-privacy: skip-file -->' ;;
+      *.js|*.jsx|*.ts|*.tsx|*.c|*.h|*.cc|*.cpp|*.go|*.rs|*.java|*.swift|*.kt|*.scala)
+                                                SKIP_FORM='// path-privacy: skip-file' ;;
+      *.sql|*.lua|*.hs|*.ada)                   SKIP_FORM='-- path-privacy: skip-file' ;;
+      *.json|*.jsonc|*.csv|*.tsv)               SKIP_FORM='' ;;
+      *)                                        SKIP_FORM='# path-privacy: skip-file' ;;
+    esac
+    BLOCK+="path-privacy: blocked -- ${REL} would gain a path outside the repo:"$'\n'
+    BLOCK+="${FINDINGS}"$'\n'
+    BLOCK+="Write it repo-relative, or say it generically (\"another project\", <HOME>/...)."$'\n'
+    if [ -n "$SKIP_FORM" ]; then
+      BLOCK+="For a file that is ABOUT such paths: 'path-privacy: ignore' on the line, or '${SKIP_FORM}' leading a line in the first 30."$'\n'
+    else
+      BLOCK+="For a line that must keep it: append 'path-privacy: ignore' (this format has no file-level opt-out)."$'\n'
+    fi
+  fi
+fi
+
+# --- 3. full name ---------------------------------------------------------------
+if ! pp_is_license_file "$REL" && NAME_RE=$(pp_name_regex "$ROOT_REAL"); then
+  if NAME_LINES=$(printf '%s\n' "$NEWTEXT" | pp_name_lines "$NAME_RE"); then
+    BLOCK+="path-privacy: blocked -- ${REL} would contain the git user.name full name:"$'\n'
+    BLOCK+="$(printf '%s\n' "$NAME_LINES" | sed "s|^|  ${REL}:|")"$'\n'
+    BLOCK+="Use the GitHub handle or a placeholder such as <author>."$'\n'
+  fi
+fi
+
+if [ -n "$BLOCK" ]; then
+  { printf '%s' "$BLOCK"; echo "$QUIET_NOTE"; } >&2
+  exit 2
+fi
+
+# --- 4. emit the rewrite, if any ------------------------------------------------
+if [ "$REWRITES" -gt 0 ]; then
+  CTX="path-privacy: rewrote ${REWRITES} absolute in-repo path(s) in ${REL} to repo-relative form; they now resolve against the repo root. ${QUIET_NOTE}"
+  jq -c --arg ctx "$CTX" '{hookSpecificOutput: {hookEventName: "PreToolUse",
+      updatedInput: .input, additionalContext: $ctx}}' <<<"$RESULT"
+fi
+exit 0
