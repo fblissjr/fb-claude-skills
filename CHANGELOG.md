@@ -1,5 +1,10 @@
 # changelog
 
+## 1.68.2
+
+### fixed
+- **`improvement-loops` 0.4.1 -> 0.4.2: the `base` worktree gets its gitignored config.** `common.md` had loops create `base` with `git worktree add` and trust `.worktreeinclude` to copy config in. Upstream `worktrees.md` ("Copy gitignored files into worktrees") says Claude Code applies that file only to worktrees it creates, and copies only files that are also gitignored. So `base` measured without it: in heylook, without `models.toml`. A session there flagged the claim as unchecked on 2026-09-24. `common.md` now states both limits and gives a one-liner that copies the same set into `base`: `git ls-files` for the listed and the gitignored files, intersected with `comm`, piped to `rsync --files-from`. It was live-fired against a scratch repo with a real `git worktree add`, and it copied the listed-and-gitignored files and nothing else. The AGENTS.md template row and the README follow.
+
 ## 1.68.1
 
 ### fixed

@@ -3,7 +3,9 @@ What `/improve` and `/optimize` share. Read this before the loop file; the loop 
 <worktrees>
 - **Your branch.** Enter it with the `EnterWorktree` tool, on a branch named as the loop's Landing parameter says. Once you are inside, Claude Code moves the session's working directory and project configuration to the worktree, and blocks edits and git commands aimed at the main checkout. The same checks cover every subagent you launch.
 - **The `base` worktree** for measuring: create it with `git worktree add` at the base commit (the default branch's HEAD when the run starts). Never edit it.
-- **Untracked config** a worktree needs, such as `.env` or a local models file, is copied in by a `.worktreeinclude` file at the project root, in `.gitignore` syntax. If one is missing, list what it should name under "Needs from me".
+- **Gitignored config** a worktree needs, such as `.env` or a local models file, is copied in by a `.worktreeinclude` file at the project root, in `.gitignore` syntax. Claude Code copies only files that match it *and* are gitignored, and only into worktrees it creates; `git worktree add` gets nothing, so after creating `base`, copy the same set in yourself from the main checkout:
+  `comm -12 <(git ls-files -oi --exclude-standard | sort) <(git ls-files -oi --exclude-from=.worktreeinclude | sort) | rsync -a --files-from=- ./ <base path>/`
+  If `.worktreeinclude` is missing, or config a worktree needs is untracked but not gitignored, list it under "Needs from me".
 - **Before trusting a measurement,** confirm each arm runs its own worktree's code. An editable install can silently point at the main checkout.
 - **Worktrees from a `-p` run are not cleaned up** automatically. Remove `base` when the run ends.
 </worktrees>

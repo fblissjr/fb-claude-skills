@@ -41,7 +41,7 @@ none of them costs anything in the always-loaded skill listing.
 
 ## What runs underneath
 
-- **`references/common.md`** holds what `/improve` and `/optimize` share: entering the branch worktree with `EnterWorktree`, the `base` worktree for measuring, `.worktreeinclude` for untracked config, loop-state writes, the stop guard, and how to use the reviewers. Both loops read it first.
+- **`references/common.md`** holds what `/improve` and `/optimize` share: entering the branch worktree with `EnterWorktree`, the `base` worktree for measuring, `.worktreeinclude` for gitignored config (and copying it into `base` by hand), loop-state writes, the stop guard, and how to use the reviewers. Both loops read it first.
 - **`scripts/loop_state.py`** is the only writer of the loop state: run records with a heartbeat, the scoreboard, the ledger, bookmarks and the session-log section.
   - It refuses a measurement without its conditions.
   - It refuses to tidy the ledger while another run is live, and refuses to call a run done while a done-list item is open.

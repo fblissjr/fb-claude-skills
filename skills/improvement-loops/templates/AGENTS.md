@@ -43,7 +43,7 @@ says.
 | Sharp edges and incident history | <path> |
 | Local notes (untracked) | <path, such as `internal/`> |
 | Loop state (untracked) | <path, such as `internal/loops/`> |
-| Untracked files each worktree needs | `.worktreeinclude`, in `.gitignore` syntax |
+| Gitignored files each worktree needs | `.worktreeinclude`, in `.gitignore` syntax; only gitignored matches are copied, and `base` gets them by hand (`common.md` <worktrees>) |
 | Session log | <pattern, such as `internal/log/log_YYYY-MM-DD.md`> |
 
 Untracked paths are relative to the main checkout, because a git worktree doesn't contain
