@@ -17,7 +17,9 @@
     "https://code.claude.com/docs/en/goal",
     "https://code.claude.com/docs/en/worktrees",
     "https://code.claude.com/docs/en/tools-reference",
-    "https://code.claude.com/docs/en/context-window"
+    "https://code.claude.com/docs/en/context-window",
+    "https://code.claude.com/docs/en/model-config",
+    "https://code.claude.com/docs/en/output-styles"
   ],
   "llms_full_url": "https://code.claude.com/docs/llms-full.txt",
   "tracked_repos": [
@@ -27,6 +29,7 @@
     "coderef/knowledge-work-plugins",
     "coderef/claude-agent-sdk-python",
     "coderef/claude-cookbooks",
+    "coderef/claude-quickstarts",
     "coderef/mcp/modelcontextprotocol",
     "coderef/mcp/python-sdk",
     "coderef/mcp/ext-apps",

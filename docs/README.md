@@ -1,4 +1,4 @@
-last updated: 2026-08-07
+last updated: 2026-09-24
 
 # documentation
 
@@ -8,7 +8,7 @@ See the root [README.md](../README.md) for plugin installation, surface compatib
 
 ## internals (`internals/`)
 
-Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md) hub.
+Repo-specific operating reference. Spokes for the root [AGENTS.md](../AGENTS.md) hub, which `CLAUDE.md` imports.
 
 | Document | Description |
 |----------|-------------|
@@ -23,13 +23,20 @@ Repo-specific operating reference. Spokes for the [root CLAUDE.md](../CLAUDE.md)
 | [tiered_authorization.md](internals/tiered_authorization.md) | Gating expensive or external calls by tier: UserPromptExpansion provenance, PreToolUse policy, PermissionRequest subagent default-deny |
 | [model_routing_flywheel.md](internals/model_routing_flywheel.md) | Why the delegation feedback layer was a report rather than a loop; schema, grain and cost fixes |
 | [upstream_drift_backlog.md](internals/upstream_drift_backlog.md) | Unabsorbed upstream doc changes since the 2026-05-04 snapshot |
-| [claim_audit_design.md](internals/claim_audit_design.md) | Spec for the claim-audit skill (diff prose audited by execution, instrument-yield routing) — designed 2026-08-03, NOT started |
+| [claim_audit_design.md](internals/claim_audit_design.md) | Design record for the claim-audit skill (diff prose audited by execution, instrument-yield routing); shipped as `skills/claim-audit/` |
+| [audit_family_holds.md](internals/audit_family_holds.md) | What the audit family specified and deliberately did not build, the trigger that reopens each, and the tripwire for new proposals |
 | [best_practices_maintenance.md](internals/best_practices_maintenance.md) | Why `best_practices.md` drifts: three kinds of knowledge (harness / model / craft) on one calendar clock. Source keep-add-remove verdicts, the hash-join proposal, ordered build list — analysed 2026-08-07, NOT started |
 | [mcp_spec_2026_07_28.md](internals/mcp_spec_2026_07_28.md) | What MCP's 2026-07-28 spec breaks (stateless, no handshake, mandatory `server/discover`), where this repo's two MCP units actually stand, and why moving is a migration rather than a bump — filed 2026-08-07, NOT started |
 | [context-cost.md](internals/context-cost.md) | Where context cost actually goes; the tier test for a rule; built-in introspection not to rebuild; transcript-mining traps |
 | [control_audit_design.md](internals/control_audit_design.md) | Design record for control-audit: census plus live-fire over hooks, validators, reminders; why the adversarial primitive shipped first |
 | [agent_state_population.md](internals/agent_state_population.md) | Why `agent-state` was retired rather than populated: every candidate duplicated a file, and effectiveness needs a controlled A/B |
 | [postmortem_output_formats.md](internals/postmortem_output_formats.md) | Postmortem multi-format output (markdown + HTML, pluggable styling) — designed, NOT started |
+
+## postmortems (`postmortems/`)
+
+Dated retrospectives on finished work. [postmortems/README.md](postmortems/README.md)
+states the frame and evidence standard; `.postmortem.json` resolves the directory,
+and `/postmortem:postmortem-index` builds the browsable listing.
 
 ## package documentation
 
@@ -55,11 +62,7 @@ skill-maintain upstream
 That writes `.skill-maintainer/state/pages/*.md` (gitignored), reports a
 per-page line and character delta against the previous snapshot, and then runs
 the provenance join described in [maintenance.md](internals/maintenance.md).
-Eleven pages are tracked, listed in `.skill-maintainer/config.json`: skills,
-plugins, plugins-reference, plugin-marketplaces, hooks, hooks-guide,
-sub-agents, memory, settings, permissions, mcp. `discover-plugins` was dropped
-on 2026-08-07 — no section of `best_practices.md` derived from it, which the
-join's `unattributed` bucket surfaced.
+The tracked pages are the `upstream_urls` in `.skill-maintainer/config.json`.
 
 Anything not tracked there is a link away at
 [code.claude.com/docs](https://code.claude.com/docs/en/overview) — read it live

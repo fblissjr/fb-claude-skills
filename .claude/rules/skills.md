@@ -15,6 +15,14 @@ Every skill description must include natural language phrases users would say. W
 
 Write those descriptions to state the action and, where it is not obvious, that invocation is manual.
 
+## State the rule flatly
+
+Do not hedge a skill body for hypothetical installers ("this is the owner's
+preference, not a universal layout"). That these are one person's house style is
+stated once, in `README.md` and `VISION.md`; a per-instance qualifier loads on
+every activation and tells the reader nothing the front door did not. Put the
+stance in the plugin README, where it costs nothing per activation.
+
 ## Description limit
 
 Keep skill descriptions under 1024 characters. The description field in frontmatter is what users see and what determines when the skill loads.
