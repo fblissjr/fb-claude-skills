@@ -257,6 +257,50 @@ def test_bash_git_command_with_the_full_name_is_blocked(tmp_path):
     assert "Jane" not in r.stderr
 
 
+def test_git_command_path_that_spells_the_name_joined_is_not_the_name(tmp_path):
+    # Claim: the name guard reads a git command's message and branch text, not
+    # the whole command. A home directory named after the owner ("janeexample",
+    # first and last name joined) appears in every absolute path passed to
+    # `git -C`; scanning the whole command blocked all of them. Breaks if the
+    # guard goes back to scanning the full command text.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": "git -C /Users/janeexample/work/repo status --short"})
+    assert r.returncode == 0, r.stderr
+
+
+def test_gh_title_with_the_full_name_is_still_blocked(tmp_path):
+    # Claim: narrowing the scan to message text keeps PR titles covered.
+    # Breaks if --title stops being part of the scanned text.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": f'gh pr create --title "Fix from {FULL_NAME}" --body "x"'})
+    assert r.returncode == 2
+    assert "Jane" not in r.stderr
+
+
+def test_heredoc_in_a_command_that_does_not_commit_is_not_a_message(tmp_path):
+    # Claim: heredoc bodies are scanned as message text only when the command
+    # commits, tags, or opens/edits a PR or issue. A script fed to python or cat
+    # through a heredoc, in a command that merely mentions git, is not a
+    # message. Breaks if every heredoc in any git-mentioning command is scanned.
+    repo = _repo(tmp_path)
+    cmd = ("git status >/dev/null; python3 - <<'EOF'\n"
+           "print('/Users/janeexample/elsewhere/notes.md')\nEOF")
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 0, r.stderr
+
+
+def test_heredoc_commit_message_is_still_scanned(tmp_path):
+    # Claim: the heredoc form Claude Code uses for commit messages stays covered.
+    # Breaks if narrowing heredoc scanning drops real commit messages.
+    repo = _repo(tmp_path)
+    cmd = ("git commit -m \"$(cat <<'EOF'\n"
+           "notes at /Users/janeexample/elsewhere/notes.md\nEOF\n)\"")
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": cmd})
+    assert r.returncode == 2
+
+
 def _commit_msg(tmp_path, repo, message) -> subprocess.CompletedProcess:
     msg = tmp_path / "MSG"
     msg.write_text(message)

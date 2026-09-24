@@ -1,5 +1,13 @@
 # changelog
 
+## 1.65.0
+
+### fixed
+- **`path-privacy` 0.18.1 -> 0.18.2: two false positives found by using it.**
+  - **The name guard read the whole git command.** A home directory named after the owner (first and last name joined) matches the guard's no-separator form, so every git command given an absolute path under home was blocked as containing the full name. The guard now reads only the message and branch text that the path check already extracts: `-m`, `--message`, `--title`, `--body`, heredoc message bodies, and new branch names.
+  - **Any heredoc in a command that mentioned git was read as a commit message.** A Python script fed through a heredoc was blocked for a path it printed. Heredoc bodies now count as message text only when the command commits, tags, or writes a gh pr, issue or release.
+  - **Tests.** Four new ones in `test_path_privacy_hooks.py`: the two false positives, red before the fix, and two pins showing PR titles and heredoc commit messages are still scanned, each mutation-proved.
+
 ## 1.64.0
 
 ### added

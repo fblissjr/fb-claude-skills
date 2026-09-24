@@ -20,11 +20,13 @@
 #        LICENSE files excepted, and the skip-file marker does not exempt it.
 #   Bash (git / gh commands)
 #     4. BLOCKS a commit message, tag message, PR title/body or branch name that
-#        carries an external path. Message text only -- including heredoc bodies,
-#        the default Claude Code commit shape -- never the whole command, which
-#        is full of legitimate absolute paths.
-#     5. BLOCKS the full name anywhere in a git or gh command. A lookup can pass
-#        "$(git config user.name)" instead of the literal.
+#        carries an external path. Message text only -- including heredoc bodies
+#        when the command commits, tags or writes a gh pr/issue/release (the
+#        default Claude Code commit shape) -- never the whole command, which is
+#        full of legitimate absolute paths.
+#     5. BLOCKS the full name in that same message and branch text. Not the
+#        whole command: a home directory named after the owner (first and last
+#        name joined) appears in every absolute path a git command is given.
 #
 # Every block message carries the one rule no hook can enforce: the correction
 # is routine and stays out of commit messages, branch names and the changelog.
@@ -77,23 +79,18 @@ if [ "$TOOL" = "Bash" ]; then
   ROOT_B="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo "")}"
   [ -z "$ROOT_B" ] && exit 0
 
-  if NAME_RE=$(pp_name_regex "$ROOT_B") \
-     && printf '%s\n' "$CMD" | pp_name_lines "$NAME_RE" >/dev/null; then
-    {
-      echo "path-privacy: blocked -- this git/gh command contains the git user.name full name."
-      echo "Use the GitHub handle or a placeholder such as <author>. To look the name up, pass"
-      echo "\"\$(git config user.name)\" rather than the literal."
-      echo "$QUIET_NOTE"
-    } >&2
-    exit 2
-  fi
+  # Heredoc bodies count as message text only when the command writes one: a
+  # commit, a tag, or a gh pr/issue/release. A heredoc feeding python or cat
+  # in a command that merely mentions git is a script, not a message.
+  SCAN_HEREDOC=0
+  printf '%s' "$CMD" | grep -Eq '(git([[:space:]][^;&|]*)?[[:space:]](commit|tag)([[:space:]]|$)|gh[[:space:]]+(pr|issue|release)[[:space:]])' && SCAN_HEREDOC=1
 
   # Message text and branch names only. One awk pass over the whole command:
   #   - quoted values of -m / --message / --title / --body, across newlines
   #   - heredoc bodies (<<EOF, <<'EOF', <<-EOF), which the old line-by-line sed
   #     never saw -- and `-m "$(cat <<'EOF' ... EOF)"` is how Claude Code commits
   #   - branch names after checkout -b/-B and switch -c/-C
-  MSG=$(printf '%s' "$CMD" | LC_ALL=C awk '
+  MSG=$(printf '%s' "$CMD" | LC_ALL=C awk -v scan_heredoc="$SCAN_HEREDOC" '
     BEGIN { RS = "\001" }
     {
       s = $0
@@ -115,6 +112,7 @@ if [ "$TOOL" = "Bash" ]; then
         s = substr(s, RSTART + RLENGTH)
       }
       n = split($0, L, "\n"); d = ""
+      if (!scan_heredoc) n = 0
       for (i = 1; i <= n; i++) {
         if (d != "") {
           t = L[i]; gsub(/^[ \t]+|[ \t]+$/, "", t)
@@ -127,6 +125,20 @@ if [ "$TOOL" = "Bash" ]; then
       }
     }')
   [ -z "$MSG" ] && exit 0
+
+  # The name guard reads the same message and branch text, never the whole
+  # command: a home directory named after the owner (first and last name
+  # joined) appears in every absolute path a git command is given.
+  if NAME_RE=$(pp_name_regex "$ROOT_B") \
+     && printf '%s\n' "$MSG" | pp_name_lines "$NAME_RE" >/dev/null; then
+    {
+      echo "path-privacy: blocked -- a commit/PR message or branch name contains the git user.name full name."
+      echo "Use the GitHub handle or a placeholder such as <author>."
+      echo "$QUIET_NOTE"
+    } >&2
+    exit 2
+  fi
+
   [ -x "$SCANNER" ] || exit 0
   OUT_B=$("$SCANNER" --against-root "$(cd "$ROOT_B" && pwd -P)" --text "$MSG" --lax-boundary 2>&1)
   [ $? -eq 1 ] || exit 0
