@@ -179,7 +179,7 @@ _WHAT_VERBS = frozenset({
     "handles", "inspect", "install", "manage", "manages", "monitor",
     "monitors", "orchestrate", "pair", "query", "record", "remove", "render",
     "report", "reproduce", "rewrite", "run", "scan", "set", "show", "speed",
-    "synthesize", "synthesizes", "validate", "validates", "verify", "write",
+    "synthesize", "synthesizes", "trim", "validate", "validates", "verify", "write",
 })
 
 def _is_what_verb(word: str) -> bool:

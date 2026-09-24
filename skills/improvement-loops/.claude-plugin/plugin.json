@@ -1,7 +1,7 @@
 {
   "name": "improvement-loops",
-  "version": "0.1.0",
-  "description": "Long, unattended improvement runs for any codebase: /improve works toward the project's own stated purpose across repeated runs, /optimize runs a one-session speed campaign against a hard target. Both measure through the real path, keep state in files, and report what needs the owner first",
+  "version": "0.2.0",
+  "description": "Structured, user-invoked standing prompts for long runs: /improve works toward a project's north star across repeated runs, /optimize runs a one-session speed campaign against a hard target, and /trim-agents-md trims always-loaded agent instructions without losing a rule. Each keeps state in files and reports what needs the owner first",
   "author": {
     "name": "fblissjr"
   },

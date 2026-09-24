@@ -1,5 +1,20 @@
 # changelog
 
+## 1.60.0
+
+### added
+- **`improvement-loops` 0.1.0 -> 0.2.0: `/trim-agents-md`.** This turns the AGENTS.md trim done on 2026-09-24 into a user-invoked standing prompt, in the same tagged shape as `/improve` and `/optimize`: a `<parameters>` block (targets, depth trim or rebuild, hub, landing), then `<inventory>`, `<verdicts>`, `<placement>`, `<pointers>`, `<hub_file>`, `<verify>` and `<report>`. It encodes the failures that trim actually hit:
+  - docs cite invariants by number, so entries are removed, never renumbered;
+  - two checks read `CLAUDE.md` by name and went blind when the content moved;
+  - a kept pointer led to a file that never covered its topic;
+  - the docs index that the cuts fell back on was itself stale.
+  
+  Verification follows the fan-out rule's authorship case: the context that made the cuts hands the old text, the new text and the placement map (never its reasoning) to one fresh-context reviewer, which reports any rule now stated nowhere.
+
+### changed
+- **`skill-maintainer` 0.33.0 -> 0.34.0: `best_practices.md` says when to use XML tags.** Anthropic's prompting guide recommends tags "especially when your prompt mixes instructions, context, examples, and variable inputs". So tags go where content types mix: a parameters block the user edits, a long run prompt whose steps refer to sections by name, and text from elsewhere fenced off as data. Markdown headings go everywhere else, including short skill bodies and always-loaded files, which are instruction of one kind; Anthropic's own skills use headings. Tags never go in a `description`, where angle brackets fail validation, or in hook output shaped like a harness tag.
+- **`skill-maintainer` CLI 0.39.0 -> 0.40.0:** `trim` joins the description check's verb list, per the list's own rule to extend it rather than reword a description.
+
 ## 1.59.0
 
 ### added

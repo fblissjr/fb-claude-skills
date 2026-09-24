@@ -104,6 +104,21 @@ Apply per instruction, not per skill:
       its place, defining the anti-pattern precisely helps more than a bare
       ban. This governs behaviour steering in a body, not the negative *scope*
       a description carries — see `description precision`
+- [ ] **XML tags where content types mix; headings everywhere else.**
+      Anthropic's prompting guide recommends tags "especially when your
+      prompt mixes instructions, context, examples, and variable inputs".
+      Tags earn their place in three cases:
+      - a parameters block the user edits;
+      - a long run prompt whose steps refer to sections by name ("the test in
+        `<verdicts>`");
+      - text that came from somewhere else, fenced off so it reads as data.
+
+      A short skill body or an always-loaded CLAUDE.md is instruction of one
+      kind, and markdown headings already give it structure. Anthropic's own
+      skills use headings. Never in a `description` (angle brackets fail
+      validation). In hook output, avoid tags that could pass for harness
+      tags, because model-facing text shaped like an out-of-band command can
+      trip prompt-injection defences
 - [ ] **One term per concept, used throughout.** Consistency is what lets the
       model parse and follow instructions. *Craft, not documented upstream:*
       prefer a pretrained word to a coined one — a term the model already holds

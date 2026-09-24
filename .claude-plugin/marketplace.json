@@ -40,7 +40,7 @@
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "version": "0.33.0"
+      "version": "0.34.0"
     },
     {
       "name": "json-query",
@@ -70,7 +70,7 @@
     {
       "name": "improvement-loops",
       "source": "./skills/improvement-loops",
-      "version": "0.1.0"
+      "version": "0.2.0"
     },
     {
       "name": "model-routing",

@@ -49,7 +49,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 |--------|------|-------------|
 | [mece-decomposer](apps/mece-decomposer/) | Hook + Skills + MCP App | MECE decomposition of goals and workflows into Agent SDK-ready components, with interactive tree visualizer. Hook detects Agent SDK imports. |
 | [model-routing](skills/model-routing/) | Skill | Opt a project into down-tier model delegation: installs a standalone `.claude/rules/model-delegation.md` telling Claude to route well-specified data/coding tasks to a cheaper model in a subagent, keeping judgment-heavy work in the main loop. Optional pre-shaped `fast-executor` / `task-coder` agents. **Installation is paused (2026-08-01)** — the rule asserts a cost/quality tradeoff nothing has measured, so it was removed everywhere and the skill is now user-invoked only. Removal still works. See [model_routing_flywheel.md](docs/internals/model_routing_flywheel.md). |
-| [improvement-loops](skills/improvement-loops/) | Skills | Two standing prompts for long, mostly unattended runs. `/improve` works toward the project's north star (its `VISION.md`) across repeated runs, with a ledger, bookmarks and a scoreboard carrying state between them. `/optimize` runs a one-session speed campaign against a hard target. Both measure through the real path, land one commit per change on a worktree branch, and report what needs the owner first. User-invoked only. |
+| [improvement-loops](skills/improvement-loops/) | Skills | Two standing prompts for long, mostly unattended runs. `/improve` works toward the project's north star (its `VISION.md`) across repeated runs, with a ledger, bookmarks and a scoreboard carrying state between them. `/optimize` runs a one-session speed campaign against a hard target. `/trim-agents-md` trims always-loaded agent instructions without losing a rule. All measure through the real path, land one commit per change on a worktree branch, and report what needs the owner first. User-invoked only. |
 | [grilling](skills/grilling/) | Skill | A design interview that works the problem as a tree instead of asking questions in the order they occur. Each round asks every question whose prerequisites are already settled, with a recommended answer attached; facts the codebase can settle are looked up, never asked; the session ends when nothing is left unasked. |
 
 ### plugin & skill maintenance
@@ -216,6 +216,7 @@ Once installed, invoke as namespaced slash commands:
 /writing:wait-what               # Rewrite the last message when it did not land (user-invoked only)
 /grilling:grilling               # Design interview in rounds over a tree; facts looked up, not asked
 /improve  /optimize              # Long improvement or speed runs (user-invoked only; set /goal first when unattended)
+/trim-agents-md                  # Trim AGENTS.md / CLAUDE.md to what the first edit needs, losing no rule
 /model-routing:model-routing     # Per-project down-tier delegation rule (install paused; removal works)
 /claim-audit:claim-audit         # Audit added prose as claims, each re-derived by execution
 
