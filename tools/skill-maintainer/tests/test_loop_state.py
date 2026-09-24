@@ -590,3 +590,16 @@ def test_runs_on_python_3_9(tmp_path):
     g = run(["stop-guard"], state=tmp_path, python=py,
             stdin=json.dumps({"session_id": "s", "stop_hook_active": False}))
     assert json.loads(g.stdout)["decision"] == "block", g.stderr
+
+
+def test_run_folder_without_a_record_blocks_tidy_and_shows_in_status(tmp_path):
+    # Deleting this lets a run the script didn't write (an older record format, or a start that died after mkdir) be tidied over while it still writes the ledger.
+    mine = start(tmp_path)
+    legacy = tmp_path / "runs" / "2026-09-24"
+    legacy.mkdir(parents=True)
+    (legacy / "run.md").write_text("status: running\n")
+    r = run(["can-tidy", "--run", mine], state=tmp_path)
+    assert r.returncode != 0 and "2026-09-24" in (r.stdout + r.stderr), r
+    rows = json.loads(run(["status"], state=tmp_path).stdout)
+    assert any(row["run_id"] == "2026-09-24" and "error" in row for row in rows), rows
+    assert "2026-09-24" not in guard(tmp_path).stderr

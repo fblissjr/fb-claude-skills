@@ -1,5 +1,11 @@
 # changelog
 
+## 1.68.4
+
+### fixed
+- **`improvement-loops` 0.4.2 -> 0.4.3: a run folder without `record.json` blocks tidying instead of being invisible.** `all_records()` globbed `runs/*/record.json`, so a run the script didn't write was skipped by every caller. That covers a run in an older record format, and a `start` that died after creating its folder. `can-tidy` then answered clear, and `tidy` could rewrite `ledger.md` while that run was still appending to it. The case was live in heylook on 2026-09-24, where a pre-plugin run with a `run.md` record was still writing. A heylook session reported it in a handoff memo that included the fix, and this follows it. Such a folder is now reported as a `NoRecord` error, so tidy blocks on it, `status` lists it, and the owner decides when it has finished. The stop guard still skips it, now without a stderr line on every Stop.
+  - **Tests.** One new test, red first (`can-tidy` exited 0). Making the stop guard's skip loud again turns it red.
+
 ## 1.68.3
 
 ### fixed

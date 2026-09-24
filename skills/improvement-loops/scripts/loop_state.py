@@ -298,17 +298,30 @@ def save_record(state: Path, rec: dict) -> None:
     write_atomic(record_file(state, rec["run_id"]), dump(rec))
 
 
+class NoRecord(Exception):
+    """A run folder with no record.json: not written by this script."""
+
+
 def all_records(state: Path):
-    """Yield (run_id, record or None if unreadable, error)."""
+    """Yield (run_id, record or None, error) for every run folder.
+
+    A folder with no record.json is yielded with a NoRecord error, not skipped:
+    it may be a run in an older record format, or a start that died after
+    creating the folder, still writing the ledger. Tidy must block on it and
+    status must show it; the owner decides when it has finished."""
     runs = state / "runs"
     if not runs.is_dir():
         return
-    for path in sorted(runs.glob("*/record.json")):
-        run_id = path.parent.name
+    for folder in sorted(p for p in runs.iterdir() if p.is_dir()):
+        path = folder / "record.json"
+        if not path.exists():
+            yield folder.name, None, NoRecord(
+                "no record.json: not written by loop_state.py; the owner decides whether it has finished")
+            continue
         try:
-            yield run_id, json.loads(path.read_text(encoding="utf-8")), None
+            yield folder.name, json.loads(path.read_text(encoding="utf-8")), None
         except (OSError, ValueError) as exc:
-            yield run_id, None, exc
+            yield folder.name, None, exc
 
 
 def unmet(rec: dict) -> list:
@@ -650,7 +663,10 @@ def stop_guard(flag: str | None) -> int:
         candidates = []
         for run_id, rec, err in all_records(state):
             if rec is None:
-                print("loop_state stop-guard: skipping unreadable record %s: %s" % (run_id, err), file=sys.stderr)
+                # A folder this script did not write can't belong to this
+                # session's run; saying so on every Stop would be noise.
+                if not isinstance(err, NoRecord):
+                    print("loop_state stop-guard: skipping unreadable record %s: %s" % (run_id, err), file=sys.stderr)
                 continue
             if rec.get("status") == "running" and rec.get("session") == session:
                 candidates.append(run_id)
