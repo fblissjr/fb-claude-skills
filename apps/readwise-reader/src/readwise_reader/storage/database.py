@@ -191,6 +191,13 @@ class Database:
         columns = [desc[0] for desc in self.conn.description]
         return [dict(zip(columns, row)) for row in results]
 
+    def set_document_location(self, doc_id: str, location: str) -> None:
+        """Record a move made in Reader without re-reading the document."""
+        self.conn.execute(
+            "UPDATE dim_documents SET location = ?, last_moved_at = ? WHERE doc_id = ?",
+            [location, datetime.now(UTC), doc_id],
+        )
+
     def delete_document(self, doc_id: str) -> bool:
         """Delete a document. Returns True if a row was deleted."""
         self.conn.execute("DELETE FROM fact_highlights WHERE doc_id = ?", [doc_id])
@@ -277,15 +284,19 @@ class Database:
 
     def search_documents(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         """Full-text search across documents using BM25 scoring, with ILIKE fallback."""
+        # match_bm25 is a scalar macro, not a table function; it returns NULL for
+        # rows that do not match, and a higher score is a better match.
         try:
             results = self.conn.execute(
                 """
-                SELECT d.doc_id, d.url, d.title, d.author, d.category, d.location,
-                       d.summary, d.word_count, d.reading_progress, d.tags, d.published_date,
-                       fts.score
-                FROM fts_main_dim_documents.match_bm25(doc_id, ?) fts
-                JOIN dim_documents d ON d.doc_id = fts.doc_id
-                ORDER BY fts.score
+                SELECT * FROM (
+                    SELECT doc_id, url, title, author, category, location,
+                           summary, word_count, reading_progress, tags, published_date,
+                           fts_main_dim_documents.match_bm25(doc_id, ?) AS score
+                    FROM dim_documents
+                )
+                WHERE score IS NOT NULL
+                ORDER BY score DESC
                 LIMIT ?
                 """,
                 [query, limit],
@@ -395,14 +406,18 @@ class Database:
                 tag_filter = "AND h.tags::VARCHAR ILIKE ?"
                 params.append(f"%{tag}%")
             params.append(limit)
+            # Scalar macro, NULL on no match, higher is better: see search_documents.
             results = self.conn.execute(
                 f"""
-                SELECT h.*, d.title as doc_title, d.url as doc_url, fts.score
-                FROM fts_main_fact_highlights.match_bm25(highlight_id, ?) fts
-                JOIN fact_highlights h ON h.highlight_id = fts.highlight_id
-                LEFT JOIN dim_documents d ON h.doc_id = d.doc_id
-                WHERE 1=1 {tag_filter}
-                ORDER BY fts.score
+                SELECT * FROM (
+                    SELECT h.*, d.title as doc_title, d.url as doc_url,
+                           fts_main_fact_highlights.match_bm25(h.highlight_id, ?) AS score
+                    FROM fact_highlights h
+                    LEFT JOIN dim_documents d ON h.doc_id = d.doc_id
+                    WHERE 1=1 {tag_filter}
+                )
+                WHERE score IS NOT NULL
+                ORDER BY score DESC
                 LIMIT ?
                 """,
                 params,

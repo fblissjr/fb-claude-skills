@@ -35,7 +35,7 @@
     {
       "name": "readwise-reader",
       "source": "./apps/readwise-reader",
-      "version": "1.2.0"
+      "version": "1.2.1"
     },
     {
       "name": "skill-maintainer",

@@ -1,5 +1,15 @@
 # changelog
 
+## 1.62.0
+
+App bugs found during the 1.61.0 trim, each reproduced before it was fixed.
+
+### fixed
+- **`readwise-reader` 1.2.0 -> 1.2.1:**
+  - **BM25 search never ran.** `search_documents` and `search_highlights` called `match_bm25` as a table function (`FROM fts_main_<table>.match_bm25(...)`). DuckDB defines it as a scalar macro, so every call raised a CatalogException, and the blanket `except duckdb.Error` sent every search to the ILIKE fallback: no score, ordered by recency. The ascending `ORDER BY fts.score` behind it never ran. It was also backwards, since a higher BM25 score is a better match. Both queries now use the scalar form, drop NULL (non-matching) rows and sort descending. `tests/test_search_ranking.py` asserts a non-null `score` so the fallback can no longer pass for BM25; the old search tests could not tell the two apart. The `search_library` tool description now says it ranks by relevance, and the package CLAUDE.md records the trap.
+  - **`batch_triage` left moved items in the local inbox.** For `later` and `archive` it wrote only the audit log, so the next `get_inbox` returned the same items. Both triage tools now share `_record_move`. A move without tags is written locally (`Database.set_document_location`), because a re-read per item spends the 20-per-minute read budget. A move that sets tags re-reads the document, because Reader replaces the whole tag set. `triage_document` also stops re-reading for tag-free moves. The "sync after a batch" workaround is gone from `content-triage` and `/triage`. `tests/test_triage_local_state.py` covers this; the no-reads pin was mutation-proven at birth.
+  - `uv.lock` had stayed at 1.1.4 through the 1.2.0 bump and is re-locked.
+
 ## 1.61.0
 
 The Opus 5.5 pass across the whole repo. Each change below was checked against its source before landing. Every changed skill validates, `skill-maintain test` reports no failures (the `heylook-provider` token budget, failing since 1.56.0, is now certainly under), and the routing suite re-ran 20/20.

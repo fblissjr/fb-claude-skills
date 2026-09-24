@@ -19,6 +19,24 @@ def _get_deps(ctx: Context) -> tuple[ReadwiseClient, Database]:  # type: ignore[
     return app_ctx.client, app_ctx.db
 
 
+async def _record_move(
+    client: ReadwiseClient, db: Database, doc_id: str, location: str, tags: list[str] | None
+) -> None:
+    """Mirror a successful later/archive move into the local copy.
+
+    `get_inbox` reads the local copy, so a move that is not recorded here comes
+    back as `new`. Without tags the move is written locally: a re-read would
+    spend one of 20 reads a minute per item. With tags, Reader replaced the whole
+    tag set, so the row is re-read rather than rebuilt from a list of names.
+    """
+    if tags is not None:
+        doc = await client.get_document(doc_id)
+        if doc:
+            db.upsert_document(doc.model_dump())
+            return
+    db.set_document_location(doc_id, location)
+
+
 def register_triage_tools(mcp: FastMCP) -> None:
     """Register inbox triage MCP tools."""
 
@@ -75,9 +93,7 @@ def register_triage_tools(mcp: FastMCP) -> None:
 
         request = UpdateDocumentRequest(location=action, tags=tags)
         await client.update_document(doc_id, request)
-        doc = await client.get_document(doc_id)
-        if doc:
-            db.upsert_document(doc.model_dump())
+        await _record_move(client, db, doc_id, action, tags)
         db.log_change(doc_id, "update", f"triage:{action}")
         return {"triaged": True, "action": action, "doc_id": doc_id}
 
@@ -111,6 +127,7 @@ def register_triage_tools(mcp: FastMCP) -> None:
                 try:
                     request = UpdateDocumentRequest(location=action, tags=tags)
                     await client.update_document(doc_id, request)
+                    await _record_move(client, db, doc_id, action, tags)
                     db.log_change(doc_id, "update", f"batch_triage:{action}")
                     results.append({"doc_id": doc_id, "action": action, "success": True})
                 # Per-item error collector: one document failing must not abort

@@ -9,8 +9,9 @@ Help the user empty their Reader inbox into a queue they will actually read. Ite
 
 <tools>
 - `get_inbox(category?, limit=20)` lists `new` items from the local copy, most recent first.
-- `triage_document(doc_id, action, tags?)` applies one of `later`, `archive`, `delete`, optionally tagging, and refreshes the local copy.
+- `triage_document(doc_id, action, tags?)` applies one of `later`, `archive`, `delete`, optionally tagging.
 - `batch_triage(actions)` applies many at once; each result row carries its own `success` and `error`, so report failures per item.
+- Both update the local copy, so the next `get_inbox` no longer lists moved items.
 </tools>
 
 <decisions>
@@ -19,7 +20,6 @@ The user decides; you recommend. A recommendation weighs relevance to the user's
 
 <gotchas>
 - **Delete is not reversible from here.** It removes the document from Reader itself. Delete only items the user named for deletion, and prefer archive when they are unsure.
-- **`batch_triage` does not refresh the local copy for `later` and `archive`.** Moved items still read as `new`, so the next `get_inbox` returns them again. Run `sync_library` after a batch before fetching the next one, or triage item by item with `triage_document`.
 </gotchas>
 
 <inbox_health>

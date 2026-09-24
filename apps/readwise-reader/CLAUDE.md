@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-last updated: 2026-02-06
+last updated: 2026-09-24
 
 Project-specific instructions for Claude instances working on this codebase.
 
@@ -32,6 +32,8 @@ When highlights arrive from v2, their `book_id` may not match any known document
 ### FTS search
 
 DuckDB FTS extension provides BM25-scored full-text search. Indexes are static snapshots rebuilt after sync operations (`rebuild_fts_indexes()`). All search methods have an ILIKE fallback if FTS fails.
+
+The fallback catches every `duckdb.Error`, so a broken FTS query still looks like working search. That hid a table-function call to `match_bm25` for as long as the query existed. `match_bm25` is a scalar macro that returns NULL on no match, and a higher score is a better match. `tests/test_search_ranking.py` asserts a non-null `score` to prove the BM25 path ran. Tests need the `fts` extension installed; without it they skip rather than pass.
 
 ### OAuth flow
 

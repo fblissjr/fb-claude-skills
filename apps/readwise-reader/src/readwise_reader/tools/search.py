@@ -39,7 +39,8 @@ def register_search_tools(mcp: FastMCP) -> None:
             limit: Max results (default 20).
 
         Returns:
-            Matching documents ranked by recency.
+            Matching documents ranked by BM25 relevance, or by recency when a
+            filter is set.
         """
         db = _get_db(ctx)
         # If filters are provided, combine with search
