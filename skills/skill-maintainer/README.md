@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-09-24
 
 # skill-maintainer
 
@@ -69,13 +69,3 @@ The `skill-maintainer` Python package at `tools/skill-maintainer/` provides the 
 ## references
 
 - `references/best_practices.md` -- portable best practices for building skills and plugins for Claude, in three parts: constraints (what must not happen), gates (each naming the command that measures it), and reference (lookup tables). Read by the `/maintain` skill's review phase and by authors directly; **not** parsed by any code. Each section states its evidence class and what enforces it, and "nothing" is a common and deliberate answer -- the hook and agent constraints have no mechanical check anywhere
-
-## `tune` — observed behaviour, not declared behaviour
-
-`skill-maintain tune` reads session transcripts and reports how plugins actually
-behave in every project they run in: how often each hook fired versus spoke,
-bytes emitted by channel, LSP diagnostic density, skill invocation counts, and
-drift in files plugins wrote into repos. It runs as Phase 4 of
-`/skill-maintainer:maintain` rather than on a schedule — a cron that quietly
-stops is the failure this tooling exists to avoid, and neither built-in
-scheduler fits (session-only jobs, or cloud routines with no local transcripts).

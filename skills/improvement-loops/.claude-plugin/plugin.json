@@ -1,0 +1,9 @@
+{
+  "name": "improvement-loops",
+  "version": "0.1.0",
+  "description": "Long, unattended improvement runs for any codebase: /improve works toward the project's own stated purpose across repeated runs, /optimize runs a one-session speed campaign against a hard target. Both measure through the real path, keep state in files, and report what needs the owner first",
+  "author": {
+    "name": "fblissjr"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills"
+}

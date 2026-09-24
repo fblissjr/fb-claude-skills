@@ -10,10 +10,10 @@ These rules load when working with plugin manifests and .claude-plugin/ director
 
 ## After creating a new plugin -- required checklist
 
-1. `uv run skill-maintain validate <plugin>/skills/<skill>/SKILL.md`
+1. `uv run skill-maintain validate <plugin>/skills/<skill>` (the skill directory)
 2. Add plugin entry to root `.claude-plugin/marketplace.json`
 3. Add repo to `tracked_repos` in `.skill-maintainer/config.json` if watching upstream
-4. Bump root `pyproject.toml` + add a `CHANGELOG.md` entry
+4. Add a `CHANGELOG.md` entry (the root `pyproject.toml` is a virtual workspace with no version; never bump it)
 5. Update root `README.md`: plugins table, install list, invocation list
 6. Append session entry to `internal/log/log_YYYY-MM-DD.md`
 
@@ -21,7 +21,7 @@ These rules load when working with plugin manifests and .claude-plugin/ director
 
 A plugin content change bumps `<plugin>/.claude-plugin/plugin.json`, the root
 `marketplace.json` entry, and `CHANGELOG.md`. Plus `tools/<plugin>/pyproject.toml`
-and root `pyproject.toml` + `uv lock` only where those exist.
+and `uv lock` only where the plugin's marketplace `source` ships them.
 
 **Do NOT put a version in SKILL.md.** `metadata.version` was removed from every
 SKILL.md on 2026-07-21: it duplicated `plugin.json`, and its only reader was the

@@ -14,7 +14,7 @@ uv sync --all-packages                          # setup from a fresh clone
 uv run skill-maintain validate                  # SKILL.md frontmatter, Claude Code schema
 uv run skill-maintain test                      # repo gates: token budget, hygiene, path audit
 claude plugin validate <plugin-dir> --strict    # per plugin, not only the marketplace root
-claude plugin eval <plugin-dir>                 # behaviour, with and without the plugin
+claude plugin eval <plugin-dir>                 # behaviour, with and without the plugin; suites and run notes: evals/README.md
 uv run skill-maintain upstream                  # current Claude Code docs into .skill-maintainer/state/pages/
 ```
 
@@ -29,8 +29,8 @@ Other documents cite these by number. Remove an entry; never renumber.
 `marketplace.json`, and a `CHANGELOG.md` entry. Add `tools/<plugin>/pyproject.toml`
 only when the marketplace `source` ships `tools/`. Plugin content is what `source`
 ships *and* changes an installed session: a SKILL.md body, a `references/` file a
-skill reads, a hook script. SKILL.md frontmatter and a plugin's own CLAUDE.md are
-not. Never add `metadata.version`, `metadata.author`, `metadata.last_verified` or
+skill reads, a hook script. SKILL.md frontmatter, a plugin's own CLAUDE.md, and its
+`evals/` are not. Never add `metadata.version`, `metadata.author`, `metadata.last_verified` or
 `metadata.review_interval_days` to a SKILL.md. The root `pyproject.toml` has no
 version. Detail: [plugin-versioning.md](docs/internals/plugin-versioning.md).
 

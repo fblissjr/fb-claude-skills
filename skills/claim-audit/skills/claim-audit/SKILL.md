@@ -34,6 +34,25 @@ Extract by reading, not by regex — a scanner cannot recognize a count in
 arbitrary prose (measured above 85% false positives when tried). You are the
 generator; there is no scannable pattern.
 
+## Where the audit runs
+
+Decided by who wrote the prose, before anything else:
+
+- **Written earlier in this session** (by this context): dispatch steps 2 to 5
+  to one fresh-context subagent for the whole set. Brief it with the scoped
+  prose and the repo, never with why the prose says what it says. The
+  context that wrote a claim is biased toward confirming it; one extra
+  startup buys independence.
+- **Written elsewhere** (another session, another author, a commit you are
+  reviewing): run it here, in one context.
+- **Claims spanning several independent units** (more than one plugin,
+  package or doc tree, and enough claims to fill a context): one subagent
+  per unit, in parallel.
+
+Whichever runs it, check the returned rows before accepting them: open two
+or three rows' commands and confirm the pasted output is what the command
+prints. A subagent's report is a claim like any other.
+
 ## Procedure
 
 ### 1. Scope to added lines
@@ -107,6 +126,9 @@ and still charges the reader a reconciliation.
   instruction was the entire difference in finding the only true code defects
   in both motivating samples. Dispatch it as its own subagent pass where
   available, briefed with the quoted claims and the instruction to execute.
+  Where the `postmortem` plugin is installed, `/postmortem:adversarial-verify`
+  is this move with a separate check that each hostile input actually
+  reached the code; use it.
 - **Control vs. reimplementation** — when the diff touches anything that
   mirrors logic living elsewhere (a validator reimplementing its subject's
   semantics, a check duplicating a parser), read the two side by side for

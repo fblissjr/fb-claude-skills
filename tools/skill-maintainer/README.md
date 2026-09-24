@@ -139,10 +139,10 @@ Pulls upstream sources, checks for doc changes, runs the quality report, and pro
 skill-maintain sources   # phase 1: pull tracked repos
 skill-maintain upstream  # phase 2: check upstream docs
 skill-maintain quality   # phase 3: validate all skills
-# phase 4: Claude reviews results and proposes best_practices.md edits
+# final phase: Claude reviews results and proposes best_practices.md edits
 ```
 
-Phase 4 never auto-writes. Claude shows proposed changes and waits for approval.
+The review phase never auto-writes. Claude shows proposed changes and waits for approval.
 
 **Where:** `/skill-maintainer:maintain` (plugin skill, replaces legacy `.claude/commands/maintain.md`)
 

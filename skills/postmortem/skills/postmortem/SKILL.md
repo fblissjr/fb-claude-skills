@@ -55,6 +55,16 @@ record first; do not reconstruct the span from memory of it.
 5. **Distinguish measurement from inference.** Label anything not directly
    observed as inference.
 
+## Checking the findings before filing
+
+In session mode the context writing the postmortem is the one that did the
+work, and it reads its own record generously. Before filing, dispatch one
+fresh-context subagent with the draft findings and their cited artifacts,
+asking only whether each artifact says what its finding claims. Do not send
+the reasoning behind the findings. Read what it returns before changing a
+finding. In span mode the record is the repository's, not yours, so this
+check is optional.
+
 ## Writing the report
 
 The section-by-section format and the table for routing each kind of finding

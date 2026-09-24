@@ -30,12 +30,29 @@ the reader's next action is unchanged, the number is decorative — delete it.**
 enforced by nothing" prompt the same next step, so the count is liability
 carrying no information.
 
-A number that survives is one of two things:
+A number that survives is one of three kinds, and each has a home the machine
+can re-derive. A copy in prose is a cache with no invalidation, so prose names
+what was compared, which way it came out, and where the value lives:
 
-- **Normative** — a limit you are setting ("keep the body under 500 lines").
-  Cannot drift, because the world moves toward it rather than away.
-- **Descriptive** — then it needs an observation point (a date, a commit, an
-  attribution, past tense), and it belongs only in a dated record.
+- **Derivable now** (a file size, a row count, the current default): give the
+  command or the constant's path, never the value.
+- **Measured once** (a speedup, a wall time): point at the dated record that
+  carries the conditions (hardware, commit, inputs, cache state). A results
+  file, a changelog entry, a session log or a postmortem is that home; prose
+  is not.
+- **Normative** (a limit you are setting, an exit code): allowed, cited by the
+  one constant that holds it, with a word for whether it was measured,
+  inherited or reasoned. It cannot drift, because the world moves toward it.
+
+Identifiers (a version, a date, a resolution, an index) are names, not
+measurements. Pointers must resolve, in whatever form the project checks
+(`path::symbol`, `path:line`, a relative link): a pointer to nothing is worse
+than a number.
+
+An existing number with no findable origin gets no invented pointer. Delete it
+if the reader's next action does not depend on it; otherwise mark it
+unsupported in place, with the date, so it reads as withdrawn rather than never
+checked. Re-measuring to refresh it is not the fix.
 
 Binding is not a lesser fix for a decorative number. It makes the claim
 permanently true and permanently useless, and still charges every reader a

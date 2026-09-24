@@ -25,6 +25,12 @@ is that move, stated once, as two separate judgments:
    never threaded is the worst outcome of all: an open question converted
    into a settled one.
 
+**Who runs the needle check.** When this context wrote the claim, check or
+threshold being verified, the needle check is a fresh dispatch, not the
+caller: the author of a claim reads its evidence generously. When the subject
+came from elsewhere, the caller may run it. Either way, the caller reads the
+evidence each dispatch returns before accepting its verdict.
+
 Constructor and verifier are separate judgments, kept separate on purpose:
 judge the gate and the outcome separately, because a control can be right
 for a bogus reason, and both facts belong in the record. Do not let the
@@ -74,6 +80,5 @@ the construction back rather than counting for either side.
 
 The siblings apply this protocol to their own subjects: `test-audit`'s spot
 mutation (per test) and `control-audit`'s live-fire (per hook or validator)
-are dispatches to this primitive. `claim-audit`'s adversarial arm states
-the same move independently today and gains its explicit pointer here at
-its next content release.
+are dispatches to this primitive, and `claim-audit`'s adversarial arm points
+here when this plugin is installed.

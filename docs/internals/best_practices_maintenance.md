@@ -14,6 +14,11 @@ gotchas entry are all deleted. Passages below describing that pair — and the
 `tests.py` line numbers around it — are the state as of filing, not now. The rest
 of the record stands.
 
+**Status 2026-09-24.** `skill-maintain tune` was retired, and with it the
+maintain skill's observed-behaviour phase, so its later phases moved up one:
+the review phase cited below as Phase 7 is now Phase 6. Mentions of `tune` and
+of the old phase numbers below are as of filing.
+
 **Status, same day.** Steps 0-2 of the build list are SHIPPED; the analysis in
 sections 1-3 stands as the record of why.
 

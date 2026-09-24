@@ -258,3 +258,7 @@ docs/postmortems/*.html
 # tree at creation, but that is one file and one deletion away from exposing
 # prompts and responses. This is the belt to its braces.
 .gemini-runs/
+
+# claude plugin eval run output (aggregate-result.json, report.html, mock
+# recordings), written to <eval dir>/results/<timestamp>/ on every run.
+**/evals/results/

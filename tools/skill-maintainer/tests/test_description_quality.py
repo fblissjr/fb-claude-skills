@@ -62,3 +62,26 @@ class TestWhatVerbBreadth:
             "A collection of assorted notes.", model_invocable=False
         )
         assert "missing WHAT verb" in issues
+
+
+class TestThirdPersonForms:
+    """best_practices.md requires third-person descriptions ("Runs X", not "Run
+    X"), but the verb list held only some third-person forms, so a listed verb
+    in the required person was flagged. Deleting this lets that false positive
+    return for every verb whose -s form was never added by hand.
+    """
+
+    def test_third_person_of_a_listed_verb_is_a_what_verb(self):
+        for desc in [
+            "Runs one improvement pass over a project.",
+            "Audits an existing test suite.",
+            "Rewrites bloated prose into plain language.",
+            "Scans the tree for leaked paths.",
+        ]:
+            issues = check_description_quality(desc, model_invocable=False)
+            assert "missing WHAT verb" not in issues, desc
+
+    def test_a_plural_noun_is_not_mistaken_for_a_verb(self):
+        # "Notes" strips to "note", which is not a listed verb.
+        issues = check_description_quality("Notes about the build.", model_invocable=False)
+        assert "missing WHAT verb" in issues

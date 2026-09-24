@@ -1,5 +1,40 @@
 # changelog
 
+## 1.59.0
+
+### added
+- **The first committed eval suites.**
+  - `evals/verification-routing/` has 20 cases. Each should land on exactly one of postmortem, test-audit, control-audit, adversarial-verify, postmortem-index or claim-audit, or on none of them when the request belongs to the built-in `/code-review` or `/verify`. The suite lives at the repo root because a case may load only plugins under its containment root, and it needs both postmortem and claim-audit.
+  - `skills/writing/evals/` has 7 cases, graded by regex except front-loading, which gets the one `llm` grader.
+  - Every case states what it pins; every grader carries a `# claim:` comment.
+  - First pass, 2026-09-24, `claude-opus-5-5`, 1 run per arm. Writing: 7/7 with the plugin, which raised the score on 4 of the 7. Routing: 18/20. `to-postmortem-index-by-file` routed correctly on a re-run. `to-claim-audit-readme` missed twice: claim-audit's description scopes it to "the added prose of a diff", and a standing README is not a diff. That is a scope decision for the owner, recorded rather than tuned away.
+  - `evals/check_graders.ts` is the offline check the eval CLI lacks. The CLI never compiles grader regexes, so the script compiles them, confirms each `not_contains` grader goes red on its draft and every grader goes green on a compliant reply, and confirms each routing pattern matches exactly its skill. Mutation-proved: a broken pattern exits 1. `evals/README.md` has the run commands; results are gitignored.
+  - Invariant 1 now names a plugin's `evals/` as outside the cascade: it ships, but it changes nothing in an installed session.
+- **`improvement-loops` 0.1.0: `/improve` and `/optimize`, the owner's two standing prompts, packaged.** The loop texts moved from `docs/prompts/` into each skill's `references/`, which is now their one home; `docs/README.md` points there. They already encoded the Opus 5.5 guidance: a done list, named stops, state in files, read-only reviewers whose cited code the lead re-reads before accepting an idea, exact counts proven against wall-clock time, and a re-check on the final commit. Each SKILL.md is a short router, for two reasons. Auto-compaction re-attaches only the first 5,000 tokens of an invoked skill, and a full loop sits near that cut. And its one standing instruction, to re-read the loop and the run's state files after a compaction, is the rule the loops already follow. Both skills are `disable-model-invocation: true`: a run spends hours and many subagents, and the flag keeps both out of the listing. The README pairs an unattended run with `/goal` set to the loop's done list, so the harness holds Opus 5.5 to finishing rather than stopping to report.
+- **`/improve` reads `VISION.md` as the north star, not the spec.** It carries the project's purpose, its long-term direction and its principles, so it steers what to pursue and what to rule out. Current behaviour, which no change may break, comes from the README, the docs and the tests. With no `VISION.md`, the loop proposes one under "Needs from me" instead of writing it, because the north star is the owner's to set.
+
+### changed
+- **Where verification runs is now one rule, applied per skill.** `best_practices.md` replaces its recorded open tension with the resolution. Authorship decides first: when the judging context produced the subject earlier in this session, one fresh-context verifier takes the whole set. Isolation decides next: items that interfere, such as mutations or live-fire, get one dispatch each in its own worktree. Size decides last. In every case the lead checks each report's evidence before accepting it. Each dispatching skill states its own application:
+  - **`claim-audit` 0.3.0 -> 0.4.0:** a "Where the audit runs" section: a fresh verifier for same-session prose, per-unit fan-out for claims spanning units. Its adversarial arm now points at `/postmortem:adversarial-verify`.
+  - **`postmortem` 0.9.0 -> 0.10.0:**
+    - `adversarial-verify`: the needle check is a fresh dispatch when the caller wrote the subject. Its forward reference to claim-audit's pointer is closed.
+    - `test-audit`: mutations run one at a time, or in parallel only with a worktree each.
+    - `control-audit`: one live-fire dispatch per control, in parallel; the census stays in one reader.
+    - `postmortem` session mode: one fresh-context pass checks that each finding's cited artifact says what the finding claims.
+  - **`skill-maintainer` 0.32.0 -> 0.33.0:**
+    - `/maintain` fans out the upstream diff reading when many pages moved, and confirms each quoted sentence against the snapshot before using it.
+    - "Report results after each phase" is replaced by a done state and one named stop: the approval before `best_practices.md` is written. This is the early stop Opus 5.5 over-produces.
+    - The no-CLI fallback stops teaching the retired 4,000/8,000 whole-directory budget and the retired "days since verified" column.
+    - The `tune` phase is removed (below).
+- **`dev-conventions` 0.18.0 -> 0.19.0:** `doc-conventions` "Numbers in prose" now carries the full rule: three kinds (derivable now, measured once, normative), identifiers are not measurements, pointers must resolve, and an orphan number is deleted or marked unsupported rather than re-measured. The owner's global instructions now keep a short version and point here.
+- **`.claude/rules/plugins.md`** no longer tells a new plugin to bump the root `pyproject.toml`, which is a virtual workspace with no version (invariant 1). Its validate example names a skill directory, which is what the command takes.
+
+### removed
+- **`skill-maintain tune` (CLI 0.38.0 -> 0.39.0).** Its skill-invocation counter reported zero everywhere on current transcripts. `/skill-doctor` now reports per-skill cost and use, and hook emission is measured more reliably by running the hook than by mining transcripts. It also checked whether files a plugin wrote into a repo had fallen behind the plugin; nothing replaces that check. `context-cost.md`, `maintenance.md` and `upstream_drift_backlog.md` are updated, and `best_practices_maintenance.md` carries a dated status note.
+
+### fixed
+- **The description check accepts the third-person form of any listed verb.** `best_practices.md` requires third person ("Runs X"), but the verb list held only a few -s forms by hand, so "Runs" failed as "missing WHAT verb" while "run" passed. `_is_what_verb` strips -s/-es before the lookup, and `speed` joins the list. `TestThirdPersonForms` was red before the change and mutation-proved after; a plural noun ("Notes") still fails.
+
 ## 1.58.0
 
 ### removed

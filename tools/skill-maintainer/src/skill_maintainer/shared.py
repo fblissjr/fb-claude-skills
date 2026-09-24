@@ -178,9 +178,22 @@ _WHAT_VERBS = frozenset({
     "enforces", "extract", "generate", "generates", "guide", "handle",
     "handles", "inspect", "install", "manage", "manages", "monitor",
     "monitors", "orchestrate", "pair", "query", "record", "remove", "render",
-    "report", "reproduce", "rewrite", "run", "scan", "set", "show",
+    "report", "reproduce", "rewrite", "run", "scan", "set", "show", "speed",
     "synthesize", "synthesizes", "validate", "validates", "verify", "write",
 })
+
+def _is_what_verb(word: str) -> bool:
+    """A listed verb, or its third-person form ("runs", "audits", "rewrites").
+
+    Descriptions are written in the third person, so the -s/-es form of every
+    listed verb counts without being added by hand.
+    """
+    if word in _WHAT_VERBS:
+        return True
+    if word.endswith("es") and word[:-2] in _WHAT_VERBS:
+        return True
+    return word.endswith("s") and word[:-1] in _WHAT_VERBS
+
 
 _WHAT_PHRASES = ("use when", "use for", "used to", "helps with")
 
@@ -214,7 +227,7 @@ def check_description_quality(
     desc_lower = description.lower()
     first_word = desc_lower.split()[0].strip(",.:;!?") if desc_lower.split() else ""
 
-    has_what = first_word in _WHAT_VERBS or any(
+    has_what = _is_what_verb(first_word) or any(
         p in desc_lower for p in _WHAT_PHRASES
     )
     if not has_what:

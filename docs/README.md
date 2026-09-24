@@ -38,6 +38,17 @@ Dated retrospectives on finished work. [postmortems/README.md](postmortems/READM
 states the frame and evidence standard; `.postmortem.json` resolves the directory,
 and `/postmortem:postmortem-index` builds the browsable listing.
 
+## evals
+
+[evals/README.md](../evals/README.md): the committed `claude plugin eval` suites, how to run them, and the offline grader check.
+
+## standing prompts
+
+The improvement and optimizer loops live in the
+[improvement-loops](../skills/improvement-loops/README.md) plugin as `/improve`
+and `/optimize`. Their full text is in each skill's `references/`, where it can
+also be copied into a session without installing.
+
 ## package documentation
 
 | Document | Description |

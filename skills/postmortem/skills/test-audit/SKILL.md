@@ -68,6 +68,11 @@ after a separate pass confirms the mutation actually reached the subject.
 Full mutation tooling (mutmut, Stryker) is an escalation for suites where spot
 checks keep failing, not the default.
 
+Mutations collide when two run in one working tree, so run them one at a time
+here, or dispatch one per test in parallel only when each gets its own
+scratch worktree. Recovering claims (step 2) and classifying (step 3) stay in
+this context; they read, they do not mutate.
+
 ### 5. Envelope mapping
 
 Enumerate what the harness never exercises, by construction: one viewport, one

@@ -193,14 +193,33 @@ split the sequence only if the bound is irreducibly fuzzy *and* the rush is
 observed. Splitting works only across a real context boundary — a hand-off or a
 subagent dispatch — because an inline call leaves the later steps in context.
 
-An open tension, recorded rather than resolved: Anthropic's delegation guidance
-for Opus 5 says verification belongs in the main loop, not a subagent, while its
-Fable 5 guidance finds fresh-context verifier subagents outperform
-self-critique. The Opus 5.5 guidance narrows it without settling it: fan large
-audits and migrations out to subagents, and have the lead check each report's
-evidence before accepting it. The work leaves the main loop; the acceptance
-decision does not. A verification step that dispatches a subagent should know
-which side it has taken and why.
+**Where verification runs is decided by authorship, then by isolation, and
+last by size.** Anthropic's Opus 5 guidance keeps verification in the main
+loop; its Fable 5 guidance finds fresh-context verifiers beat self-critique;
+its Opus 5.5 guidance fans work out and keeps acceptance in the lead. They
+agree once the question is who produced the subject. *Craft, reasoned from
+those sources and not yet measured here:*
+
+- **The judging context produced the subject** — wrote the prose, made the
+  change, chose the threshold, earlier in this session: the judgment goes to
+  one fresh-context verifier for the whole set. Brief it with the claims and
+  where the evidence lives, never with the reasoning that produced them.
+  Independence is the benefit, and one extra startup buys it
+- **Items interfere with each other** — each mutates files, each needs its
+  own scratch worktree: one dispatch per item, run in parallel
+- **The set is large and spans independent units:** fan out per unit. Each
+  dispatch pays its own startup context (system prompt, tools, CLAUDE.md),
+  so per-item fan-out multiplies that fixed cost by the item count; below
+  that size, stay in one context
+- **Otherwise** the main context verifies, by running the command whose
+  output decides
+- **In every case the lead checks each report's evidence before accepting
+  it.** A subagent's report arrives framed as data; its verdict is a claim
+  like any other
+
+A skill that dispatches says which case it is in and why, in its own words:
+the gate differs per subject, so each skill states its own rather than
+pointing at a shared copy.
 
 **Unattended runs end on a text-only turn.** In `-p`, a routine, or an eval
 case, a turn that ends with a progress report ends the run. A skill used there

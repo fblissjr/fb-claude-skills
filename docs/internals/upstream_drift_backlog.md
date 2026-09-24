@@ -1,4 +1,4 @@
-last updated: 2026-09-21
+last updated: 2026-09-24
 
 # Upstream drift backlog
 
@@ -19,8 +19,6 @@ Re-derive with: `skill-maintain upstream`, then diff
   most of "Operational shape", the "References" map and "Done means". The fix
   is to move the last two to the top and "Operational shape" into
   `references/`. Each is its own plugin with its own version bump.
-- **`tune`'s invocation counts versus `/skill-doctor`.** Run both over the same
-  skills and compare scope and window before retiring anything from `tune`.
 - **Marketplace descriptions after push.** Entries no longer carry a
   `description`; once the marketplace updates, confirm with `claude plugin
   details <name>` that the text shown is `plugin.json`'s.

@@ -10,7 +10,7 @@ description: >-
 
 # Full Maintenance Pass
 
-Run each phase in order. Report results after each phase. Continue even if one phase has no changes.
+Done means every phase has run or recorded why it skipped, and Phase 6 has either proposed `best_practices.md` changes or said it is current. Run the phases in order without stopping between them: put each phase's result in the same message as the next phase's first action. The one stop is Phase 6's approval before anything is written to `best_practices.md`.
 
 ## Phase 1: Pull local sources
 
@@ -40,6 +40,13 @@ If CLI is not available, check `.skill-maintainer/config.json` for `llms_full_ur
 
 If no config file exists, skip and note "no config -- skip upstream check".
 
+When many cited pages moved, read their diffs in parallel: one subagent per
+group of pages, each returning the changed rules with the page, the section
+heading and the sentence quoted. Pages are independent, and the diffs are
+long. Before Phase 6 uses a reported change, open the snapshot and find the
+quoted sentence; a report is a claim until the page confirms it. With only a
+few pages moved, read the diffs here.
+
 ## Phase 3: Quality report
 
 If `skill-maintain` CLI is available:
@@ -56,8 +63,8 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 - No disallowed frontmatter fields (allowed: name, description, license, allowed-tools, metadata, compatibility)
 
 ### Token budget
-- Count total chars in the skill directory (`.md` files only), divide by 4
-- Warn if over 4,000 tokens, critical if over 8,000
+- Count SKILL.md characters only; references are on-demand and not budgeted
+- Over 5,000 tokens even at 4.5 characters per token: fail (truncated when re-attached after compaction). Under 5,000 even at 2.65: pass. Between: unverified; measure with `claude plugin details <plugin>`
 
 ### Body size
 - SKILL.md under 500 lines
@@ -66,55 +73,19 @@ If CLI is not available, perform the checks manually. For every SKILL.md found i
 - Description contains a WHAT verb (handles, generates, validates, designs, checks, runs, creates, builds, manages, monitors, tracks, reports)
 - Description contains a WHEN trigger phrase ("use when", "when user", "when the user", "invoke with")
 
-Output a table with one row per skill: name, valid, tokens, lines, days since verified, description quality.
+Output a table with one row per skill: name, valid, tokens, lines, description quality.
 
-## Phase 4: Observed behaviour across repos
-
-```bash
-skill-maintain tune --days 30 --repo <each repo where plugins from here are installed>
-```
-
-The other phases check what this repo *says*. This one checks what its plugins
-actually *do*, in every project they run in — it reads session transcripts, so it
-reports machine-wide regardless of which repo you run it from.
-
-Deliberately part of the maintenance pass rather than a scheduled job. A cron
-that quietly stops is the same never-zero-channel failure this tooling exists to
-avoid, and neither built-in scheduler fits: `CronCreate` jobs are session-only
-and expire after 7 days, and cloud routines cannot read local transcripts.
-
-What to act on:
-
-- **A hook emitting at a high rate.** Read the rate, not the count: a hook firing
-  thousands of times and staying silent is nearly free, while one firing rarely
-  and always speaking is not. A 100% emitter on `SessionStart` is the shape to
-  question.
-- **`ambiguous(...)` in the plugin column.** Two plugins sharing a hook script
-  filename. Rename to `hooks/<plugin>-<purpose>.sh` — the transcript stores the
-  plugin-root variable unexpanded, so a shared filename is unattributable to
-  anything reading it back.
-- **LSP diagnostic density above ~3 per push.** A channel that is never at zero
-  is a channel that gets ignored. Fix the underlying diagnostics rather than
-  suppressing them.
-- **Skills at zero invocations.** Ambiguous on its own: not-needed and
-  not-discoverable look identical here, and the remedies are opposite. Use
-  `skill-creator`'s description-tuning harness to tell them apart before
-  deleting anything.
-- **Artifact drift.** Files a plugin wrote into a repo, with their staleness
-  verdict. Plugin *code* cannot drift — it installs once per user — so this is
-  the only place staleness hides.
-
-## Phase 5: Controls audit (periodic, on-demand)
+## Phase 4: Controls audit (periodic, on-demand)
 
 Where the `postmortem` plugin is installed, run `/postmortem:control-audit`
 periodically: a census of everything check-shaped outside the test suite
 (git hooks, Claude Code hooks, CLI validators, reminders), with live-fire
 violation of any control nothing watches. Not every maintenance pass needs
 it — it is listed here so the cadence has an owner, deliberately without a
-scheduler (same reasoning as Phase 4). Skip and note when the plugin is not
-installed or a recent audit exists.
+scheduler, because a scheduled job that quietly stops is a failure nobody
+sees. Skip and note when the plugin is not installed or a recent audit exists.
 
-## Phase 6: Mutation sample (scoped to changed subjects)
+## Phase 5: Mutation sample (scoped to changed subjects)
 
 Red-first proves an oracle can fail on the day it is written; nothing
 re-proves it after, and a test drifts toward decorative as its subject moves
@@ -134,24 +105,23 @@ Whole-suite mutation stays `postmortem:test-audit`'s job; this phase targets
 recently-changed subjects because that is where drift concentrates, at a
 cost small enough to run every pass.
 
-## Phase 7: Review and propose updates
+## Phase 6: Review and propose updates
 
 After the preceding phases:
 
 1. Read `references/best_practices.md` (bundled with this plugin) or `.skill-maintainer/best_practices.md` (if present in the repo)
-2. Review change details from Phases 1-6
+2. Review change details from Phases 1-5
 3. Determine whether `best_practices.md` needs updates based on:
    - New or changed upstream doc pages (Phase 2) that affect skill authoring rules
    - New patterns or conventions from pulled repo changes (Phase 1)
    - Quality report findings that suggest missing or outdated checklist items (Phase 3)
-   - Behaviour findings from Phase 4 that point at a rule rather than a one-off
-   - Controls-audit findings from Phase 5 (empty guarded-by slots, header rot) that warrant a control-authoring rule
+   - Controls-audit findings from Phase 4 (empty guarded-by slots, header rot) that warrant a control-authoring rule
 4. If updates needed: list each proposed change with rationale. Wait for user approval before writing.
 5. If no updates needed: report "best_practices.md is current -- no changes needed"
 
 ## Rules
 
 - Never auto-write to `best_practices.md` -- always show proposed changes and wait for approval
-- Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, 5, and 6 define theirs -- in particular, Phase 5's default on a routine pass is skip-and-note, never an unrequested live-fire)
+- Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, 4, and 5 define theirs -- in particular, Phase 4's default on a routine pass is skip-and-note, never an unrequested live-fire)
 - If a phase fails, report the error and continue with remaining phases
-- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, behaviour findings across repos, controls-audit outcome (run or skipped, and why), mutation sample (mutations-run over arms-in-frame, or the skip note), best practices edits (if any)
+- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, controls-audit outcome (run or skipped, and why), mutation sample (mutations-run over arms-in-frame, or the skip note), best practices edits (if any)

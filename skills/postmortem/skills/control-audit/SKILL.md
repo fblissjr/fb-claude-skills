@@ -75,6 +75,12 @@ constructor and needle-verifier as separate judgments.
 **Required** for every control whose guarded-by slot is empty. Sampled
 beyond that as budget allows.
 
+Each live-fire needs its own scratch worktree anyway, so dispatch one per
+control, in parallel. The census (tier 1) stays in this context: it reads
+config and code, and one reader sees the cross-control pattern that per-control
+readers cannot. Read each returned report's needle evidence before tallying
+it.
+
 Safety protocol, non-negotiable:
 
 - A separate scratch worktree (or throwaway clone) for anything that
