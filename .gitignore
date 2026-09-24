@@ -262,3 +262,7 @@ docs/postmortems/*.html
 # claude plugin eval run output (aggregate-result.json, report.html, mock
 # recordings), written to <eval dir>/results/<timestamp>/ on every run.
 **/evals/results/
+
+# Personal, per-project Claude instructions (upstream: add to .gitignore). Private
+# paths and notes can live here: the path-privacy hook skips gitignored files.
+CLAUDE.local.md

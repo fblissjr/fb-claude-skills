@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-09-24
 
 # Gotchas
 
@@ -68,6 +68,19 @@ If pre-commit blocks a leak you didn't write, it's likely grandfathered content 
 `/code-review ultra` with no argument diffs against `origin/main` — **pushing first empties the review target**. Pass an explicit base instead. It also rejects diffs over 8,000 lines, which this repo hits easily once doc deletions are involved.
 
 Splitting a diff across branches to fit that cap manufactures false positives: reviewers report content as "missing" when it only lives in the half they cannot see. Four findings in the 2026-07-21 review were exactly this. Prefer an explicit base that excludes bulk deletions over splitting by path.
+
+## `internal/` is a separate git repo
+
+`internal/` is a nested private repo that tracks only `log/`, `postmortems/` and the few root files its own `.gitignore` whitelists; everything else in it is untracked by both repos. Two consequences:
+
+- **`git clean -ffdx` in the outer repo destroys it**, unpushed history included. Double force removes nested repos. Never run it here.
+- **A linked worktree has no `internal/`.** A session log written from a worktree session is lost when the worktree is removed. Write logs from the main checkout.
+
+An ignored root file in `internal/` has no history anywhere, so a proposal or record that must survive belongs on the whitelist.
+
+## Private notes go in `CLAUDE.local.md`
+
+`CLAUDE.local.md` is gitignored, so personal paths and notes can live there: path-privacy skips gitignored files. It exists only in the checkout where it was written, not in other worktrees.
 
 ## Two sessions in one worktree
 
