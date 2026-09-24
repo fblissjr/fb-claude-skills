@@ -1,5 +1,15 @@
 # changelog
 
+## 1.68.0
+
+### added
+- **The always-on ratchet measures MCP servers and per-call hooks (`skill-maintain` CLI 0.42.0 -> 0.43.0).** Both were gaps a peer session's review named.
+  - **`mcp_servers`**: the distinct server names across `.mcp.json` and the plugin.json `mcpServers` field, in every form (path, list, inline; wrapped or bare map). Upstream says servers have their own merge rule but does not state it, so the count is the union by name and errs high. An unreadable declaration is a measure error, not a zero.
+  - **`per_call_emitters`**: handlers on PostToolUse, PostToolUseFailure and PostToolBatch, whose `additionalContext` lands beside every matching tool result. Kept apart from `emitting_hooks`, because this cost scales with tool calls rather than sessions.
+  - **Not measured: MCP server instructions.** The running server supplies them in `initialize`, so no file holds them. `context-cost.md` says so.
+  - **A baseline entry without a metric's key fails that plugin's row**, with the `--write` fix named, the same stance as a plugin with no ceiling. The baseline was rewritten on 2026-09-24 with only the two new keys added. At that write, `mece-decomposer` had the one MCP server and `ruff-diagnostics` the one per-call emitter.
+  - **Tests.** Nine new tests, red first, and five mutations, each red.
+
 ## 1.67.0
 
 ### fixed

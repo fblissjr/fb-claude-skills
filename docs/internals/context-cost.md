@@ -98,8 +98,12 @@ always-on text grows back after a trim: `claude plugin details` reads the
 installed copy, can't see an uninstalled plugin, has no JSON output, and counts
 hooks as zero. So the `always-on ratchet` arm of `skill-maintain test` measures
 the working tree with a deterministic proxy instead: per plugin, listing
-characters, handlers on the hook events whose stdout enters context, and
-always-started monitors (definitions in `skill_maintainer/always_on.py`). It is
+characters, handlers on the hook events whose stdout enters context,
+always-started monitors, declared MCP servers, and handlers on the post-tool
+events whose `additionalContext` lands beside every matching tool result (kept
+apart from the session-start hooks because that cost scales with tool calls).
+Definitions are in `skill_maintainer/always_on.py`. A server's instructions are
+not measured: the running server supplies them, so no file holds them. It is
 not a cost report, and it is not a counter that duplicates the built-ins. It
 only compares each metric against a ceiling in the tracked
 `.skill-maintainer/always_on_baseline.json`, which only goes down unless a

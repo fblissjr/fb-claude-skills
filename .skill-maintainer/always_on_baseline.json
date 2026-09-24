@@ -2,101 +2,141 @@
   "claim-audit": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 797
+    "listing_chars": 797,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "dangling-refs": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 703
+    "listing_chars": 703,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "dev-conventions": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 1704
+    "listing_chars": 1704,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "dimensional-modeling": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 570
+    "listing_chars": 570,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "gemini-bridge": {
     "always_monitors": 0,
     "emitting_hooks": 1,
-    "listing_chars": 1091
+    "listing_chars": 1091,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "grilling": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 712
+    "listing_chars": 712,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "heylook-provider": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 897
+    "listing_chars": 897,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "improvement-loops": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 588
+    "listing_chars": 588,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "json-query": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 418
+    "listing_chars": 418,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "mece-decomposer": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 1477
+    "listing_chars": 1477,
+    "mcp_servers": 1,
+    "per_call_emitters": 0
   },
   "model-routing": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 0
+    "listing_chars": 0,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "path-privacy": {
     "always_monitors": 0,
     "emitting_hooks": 1,
-    "listing_chars": 742
+    "listing_chars": 742,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "plugin-toolkit": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 946
+    "listing_chars": 946,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "postmortem": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 3630
+    "listing_chars": 3630,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "pyright-autoconfig": {
     "always_monitors": 0,
     "emitting_hooks": 1,
-    "listing_chars": 0
+    "listing_chars": 0,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "ruff-diagnostics": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 0
+    "listing_chars": 0,
+    "mcp_servers": 0,
+    "per_call_emitters": 1
   },
   "scan-for-secrets": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 575
+    "listing_chars": 575,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "skill-dashboard": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 398
+    "listing_chars": 398,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "skill-maintainer": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 637
+    "listing_chars": 637,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   },
   "writing": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 2112
+    "listing_chars": 2112,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
   }
 }

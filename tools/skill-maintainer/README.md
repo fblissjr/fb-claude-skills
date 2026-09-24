@@ -263,13 +263,15 @@ Read that count. A green that resolved 0 of 4 claims checked nothing, and looks 
 
 ### ratchet
 
-Holds each plugin's always-on surface to a ceiling in `.skill-maintainer/always_on_baseline.json` (tracked; only `state/` is gitignored). Three metrics per plugin in `marketplace.json`, read from the working tree:
+Holds each plugin's always-on surface to a ceiling in `.skill-maintainer/always_on_baseline.json` (tracked; only `state/` is gitignored). Five metrics per plugin in `marketplace.json`, read from the working tree:
 
 - `listing_chars`: `description` + `when_to_use` of every model-invocable skill and command, plus every agent's `description`
 - `emitting_hooks`: handlers on `SessionStart`, `UserPromptSubmit`, `UserPromptExpansion` and `PostModelSwitch`, the events whose stdout enters context. A handler that is silent in practice still counts: the ratchet guards the capability
 - `always_monitors`: monitors whose `when` is absent or `"always"`
+- `mcp_servers`: distinct server names in `.mcp.json` and plugin.json `mcpServers`. Each one's tool names and instructions load every session; the instructions come from the running server, so they are not measured
+- `per_call_emitters`: handlers on `PostToolUse`, `PostToolUseFailure` and `PostToolBatch`, whose `additionalContext` enters context on every matching tool call. Separate from `emitting_hooks` because the cost scales with tool calls, not sessions
 
-This is a proxy, not a cost report. `claude plugin details <name>` is the real count; it reads the installed copy, so it can't gate a commit. The `always-on ratchet` arm of `test` fails when a metric exceeds its ceiling, when a marketplace plugin has no ceiling, when the baseline names a plugin that's gone, and when the baseline is missing or unreadable.
+This is a proxy, not a cost report. `claude plugin details <name>` is the real count; it reads the installed copy, so it can't gate a commit. The `always-on ratchet` arm of `test` fails when a metric exceeds its ceiling, when a marketplace plugin has no ceiling or its entry lacks one for a metric (a baseline older than the metric; `--write` records it), when the baseline names a plugin that's gone, and when the baseline is missing or unreadable.
 
 ```bash
 skill-maintain ratchet           # table: each metric, its ceiling, headroom; exits 1 if the arm would fail

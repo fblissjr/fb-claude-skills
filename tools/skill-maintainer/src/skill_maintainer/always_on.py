@@ -8,7 +8,7 @@ installed, has no JSON output, and counts hooks as zero. This module answers a
 narrower question it can answer deterministically from the working tree: did
 any plugin's always-loaded surface GROW since the baseline was last written?
 
-Three metrics per plugin in `.claude-plugin/marketplace.json`:
+Five metrics per plugin in `.claude-plugin/marketplace.json`:
 
 - `listing_chars`: the authored text the skill listing carries on every turn.
   len(description) + len(when_to_use) for each skill in `skills/*/SKILL.md`
@@ -23,12 +23,25 @@ Three metrics per plugin in `.claude-plugin/marketplace.json`:
   because whether it speaks is a runtime property a file read cannot see.
 - `always_monitors`: monitors that start every session (`when` absent or
   "always"); each stdout line of one reaches Claude as a notification.
+- `mcp_servers`: distinct server names the plugin declares, from `.mcp.json`
+  and plugin.json `mcpServers` (path, list, or inline object). A plugin server
+  starts with the plugin, and under tool search its tool names and its
+  instructions load every session. The instructions themselves are NOT
+  measured: the server returns them in its `initialize` response at runtime,
+  so no file in the tree holds them and a character count would be invented.
+  The server count is the static handle on that cost.
+- `per_call_emitters`: handlers on PER_CALL_EVENTS, whose `additionalContext`
+  enters context beside a tool result. Same capability stance as
+  `emitting_hooks`, kept separate because its cost scales with tool calls, not
+  sessions, and summing the two would hide which one grew.
 
 The baseline (BASELINE_PATH, tracked) holds a ceiling per plugin per metric.
-`skill-maintain test` fails when a metric exceeds its ceiling; `skill-maintain
-ratchet --write` resets every ceiling to the current value, which is how a trim
-is locked in and how a deliberate raise is made -- either way the change shows
-up as a diff to the baseline in the commit.
+`skill-maintain test` fails when a metric exceeds its ceiling, and when a
+plugin's entry has no ceiling for a metric (a baseline written before the
+metric existed) -- the same stance as a plugin missing from the baseline.
+`skill-maintain ratchet --write` resets every ceiling to the current value,
+which is how a trim is locked in, how a deliberate raise is made, and how a
+new metric is first recorded -- each shows up as a diff to the baseline.
 """
 
 import sys
@@ -42,15 +55,20 @@ from skill_maintainer.shared import _skipped
 BASELINE_PATH = Path(".skill-maintainer") / "always_on_baseline.json"
 """Tracked on purpose: `.skill-maintainer/state/` is the gitignored part."""
 
-METRICS = ("listing_chars", "emitting_hooks", "always_monitors")
+METRICS = ("listing_chars", "emitting_hooks", "always_monitors", "mcp_servers", "per_call_emitters")
 
 EMITTING_EVENTS = frozenset({
     "SessionStart", "UserPromptSubmit", "UserPromptExpansion", "PostModelSwitch",
 })
 """Upstream hooks reference, exit-code-0 section: for these four events Claude
 Code adds plain-text stdout to context; for the rest stdout goes to the debug
-log. `additionalContext` on other events (PostToolUse, for one) fires per tool
-call, not per session, so it is not always-on in the sense this guards."""
+log. `additionalContext` on the tool events fires per tool call, not per
+session; those handlers are PER_CALL_EVENTS, counted apart."""
+
+PER_CALL_EVENTS = frozenset({"PostToolUse", "PostToolUseFailure", "PostToolBatch"})
+"""Upstream hooks reference, decision-control sections: each of these can return
+`additionalContext`, which Claude Code places next to the tool result. It fires
+on every matching tool call (PostToolBatch once per batch, with no matcher)."""
 
 _MANIFEST_COMPONENT_PATHS = ("skills", "commands", "agents")
 """Manifest fields that move where components load from. Not resolved here."""
@@ -154,41 +172,48 @@ def _listing_chars(plugin_dir: Path) -> int:
     return total
 
 
-def _hook_sources(plugin_dir: Path, manifest: dict) -> list[dict]:
-    """Every hooks config for the plugin: the default file plus manifest `hooks`."""
+def _config_sources(plugin_dir: Path, manifest: dict, field: str, default: Path) -> list[dict]:
+    """Every config for a component with its own merge rule: the default file plus
+    the manifest field, which may be a path, an inline object, or a list of either.
+
+    Used for `hooks` and `mcpServers`, whose manifest field has the same
+    string|array|object shape. A path named twice (the default among them) is
+    read once.
+    """
     paths: list[Path] = []
     configs: list[dict] = []
-    default = plugin_dir / "hooks" / "hooks.json"
     if default.is_file():
         paths.append(default)
-    declared = manifest.get("hooks")
+    declared = manifest.get(field)
     for item in (declared if isinstance(declared, list) else [declared] if declared else []):
         if isinstance(item, str):
             p = plugin_dir / item.removeprefix("./")
             if not p.is_file():
-                raise MeasureError(f"{plugin_dir.name}: manifest hooks path missing: {item}")
+                raise MeasureError(f"{plugin_dir.name}: manifest {field} path missing: {item}")
             if p.resolve() not in {q.resolve() for q in paths}:
                 paths.append(p)
         elif isinstance(item, dict):
             configs.append(item)
         else:
-            raise MeasureError(f"{plugin_dir.name}: unsupported manifest hooks entry: {item!r}")
+            raise MeasureError(f"{plugin_dir.name}: unsupported manifest {field} entry: {item!r}")
     for p in paths:
-        data = _read_json(p, "hooks config")
+        data = _read_json(p, f"{field} config")
         if not isinstance(data, dict):
             raise MeasureError(f"{p} is not a JSON object")
         configs.append(data)
     return configs
 
 
-def _emitting_hooks(plugin_dir: Path, manifest: dict) -> int:
+def _hook_handlers(plugin_dir: Path, manifest: dict, counted: frozenset[str]) -> int:
+    """Handlers registered on any event in `counted`, across every hooks config."""
     count = 0
-    for config in _hook_sources(plugin_dir, manifest):
+    configs = _config_sources(plugin_dir, manifest, "hooks", plugin_dir / "hooks" / "hooks.json")
+    for config in configs:
         events = config.get("hooks", config)
         if not isinstance(events, dict):
             raise MeasureError(f"{plugin_dir.name}: hooks config `hooks` is not an object")
         for event, groups in events.items():
-            if event not in EMITTING_EVENTS:
+            if event not in counted:
                 continue
             if not isinstance(groups, list):
                 raise MeasureError(f"{plugin_dir.name}: {event} is not a list of matcher groups")
@@ -198,6 +223,31 @@ def _emitting_hooks(plugin_dir: Path, manifest: dict) -> int:
                     raise MeasureError(f"{plugin_dir.name}: {event} group has no `hooks` list")
                 count += len(handlers)
     return count
+
+
+def _mcp_servers(plugin_dir: Path, manifest: dict) -> int:
+    """Distinct server names across `.mcp.json` and manifest `mcpServers`.
+
+    Each config is `{"mcpServers": {...}}` or a bare server map, as `.mcp.json`
+    files are written both ways. The reference page says only that MCP servers
+    have their own merge rule, not what it is, so this counts the union by
+    name: a server declared in two places counts once, and if the manifest in
+    fact replaced `.mcp.json` the count errs high, never low. A `$`-prefixed key
+    (`$schema`) names no server; any other non-object entry is an error rather
+    than a silent zero.
+    """
+    names: set[str] = set()
+    for config in _config_sources(plugin_dir, manifest, "mcpServers", plugin_dir / ".mcp.json"):
+        servers = config.get("mcpServers", config)
+        if not isinstance(servers, dict):
+            raise MeasureError(f"{plugin_dir.name}: MCP config `mcpServers` is not an object")
+        for name, spec in servers.items():
+            if name.startswith("$"):
+                continue
+            if not isinstance(spec, dict):
+                raise MeasureError(f"{plugin_dir.name}: MCP server '{name}' is not an object")
+            names.add(name)
+    return len(names)
 
 
 def _always_monitors(plugin_dir: Path, manifest: dict) -> int:
@@ -234,8 +284,10 @@ def measure_plugin(plugin_dir: Path) -> dict[str, int]:
         )
     return {
         "listing_chars": _listing_chars(plugin_dir),
-        "emitting_hooks": _emitting_hooks(plugin_dir, manifest),
+        "emitting_hooks": _hook_handlers(plugin_dir, manifest, EMITTING_EVENTS),
         "always_monitors": _always_monitors(plugin_dir, manifest),
+        "mcp_servers": _mcp_servers(plugin_dir, manifest),
+        "per_call_emitters": _hook_handlers(plugin_dir, manifest, PER_CALL_EVENTS),
     }
 
 
@@ -248,8 +300,17 @@ def measure(root: Path) -> dict[str, dict[str, int]]:
     return {name: measure_plugin(d) for name, d in sorted(marketplace_plugins(root).items())}
 
 
+def _is_int(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
 def load_baseline(root: Path) -> dict[str, dict[str, int]]:
-    """The tracked ceilings. Missing, unparseable or mis-shaped is a MeasureError."""
+    """The tracked ceilings. Missing, unparseable or mis-shaped is a MeasureError.
+
+    An absent metric key is not mis-shaped: it is a baseline older than the
+    metric, and `findings` reports it against the plugin. A key that is present
+    but not an integer is corruption and fails the whole file.
+    """
     path = Path(root) / BASELINE_PATH
     if not path.is_file():
         raise MeasureError(
@@ -259,9 +320,7 @@ def load_baseline(root: Path) -> dict[str, dict[str, int]]:
     if not isinstance(data, dict):
         raise MeasureError(f"{BASELINE_PATH} is not a JSON object")
     for plugin, row in data.items():
-        if not isinstance(row, dict) or any(
-            not isinstance(row.get(m), int) or isinstance(row.get(m), bool) for m in METRICS
-        ):
+        if not isinstance(row, dict) or any(m in row and not _is_int(row[m]) for m in METRICS):
             raise MeasureError(
                 f"{BASELINE_PATH}: entry for '{plugin}' needs integer {', '.join(METRICS)}"
             )
@@ -285,7 +344,15 @@ def findings(current: dict, baseline: dict) -> list[tuple[str, str]]:
                 "-- record it with `skill-maintain ratchet --write`"
             )))
             continue
+        missing = [m for m in METRICS if m not in baseline[plugin]]
+        if missing:
+            out.append((plugin, (
+                f"no ceiling for {', '.join(missing)} in {BASELINE_PATH}: the entry predates "
+                "the metric -- record it with `skill-maintain ratchet --write`"
+            )))
         for m in METRICS:
+            if m in missing:
+                continue
             cur, ceil = current[plugin][m], baseline[plugin][m]
             if cur > ceil:
                 out.append((plugin, (
@@ -301,20 +368,28 @@ def findings(current: dict, baseline: dict) -> list[tuple[str, str]]:
 
 
 def scope_line(current: dict, baseline: dict) -> str:
-    total = sum(r["listing_chars"] for r in current.values())
-    ceiling = sum(baseline[p]["listing_chars"] for p in current if p in baseline)
+    """The one green line. Called only when `findings` is empty, so every ceiling exists."""
+    def pair(m: str) -> str:
+        total = sum(r[m] for r in current.values())
+        ceiling = sum(baseline[p][m] for p in current if p in baseline)
+        return f"{total:,}/{ceiling:,}"
+
     roomy = sum(
         1 for p in current
         if p in baseline and any(current[p][m] < baseline[p][m] for m in METRICS)
     )
     return (
-        f"{len(current)} plugins measured; listing {total:,}/{ceiling:,} chars; "
+        f"{len(current)} plugins measured; listing {pair('listing_chars')} chars; "
+        f"mcp servers {pair('mcp_servers')}; per-call hooks {pair('per_call_emitters')}; "
         f"{roomy} with headroom -- tighten with `skill-maintain ratchet --write`"
     )
 
 
 def _table(current: dict, baseline: dict) -> str:
-    short = {"listing_chars": "listing", "emitting_hooks": "hooks", "always_monitors": "monitors"}
+    short = {
+        "listing_chars": "listing", "emitting_hooks": "hooks", "always_monitors": "monitors",
+        "mcp_servers": "mcp", "per_call_emitters": "percall",
+    }
     header = ["plugin"]
     for m in METRICS:
         header += [short[m], "ceil", "room"]
@@ -324,16 +399,22 @@ def _table(current: dict, baseline: dict) -> str:
         out = []
         for m in METRICS:
             c = cur[m]
-            if base is None:
+            ceil = None if base is None else base.get(m)
+            if ceil is None:
                 out += [f"{c:,}", "-", "-"]
             else:
-                out += [f"{c:,}", f"{base[m]:,}", f"{base[m] - c:+,}" if base[m] != c else "0"]
+                out += [f"{c:,}", f"{ceil:,}", f"{ceil - c:+,}" if ceil != c else "0"]
         return out
 
     for plugin in sorted(current):
         rows.append([plugin] + cells(current[plugin], baseline.get(plugin)))
     total = {m: sum(r[m] for r in current.values()) for m in METRICS}
-    total_base = {m: sum(baseline[p][m] for p in current if p in baseline) for m in METRICS}
+    # A metric no in-scope entry records has no total ceiling: `-`, not a false 0.
+    total_base = {
+        m: sum(baseline[p][m] for p in current if m in baseline.get(p, {}))
+        if any(m in baseline.get(p, {}) for p in current) else None
+        for m in METRICS
+    }
     rows.append(["TOTAL"] + cells(total, total_base if baseline else None))
     widths = [max(len(r[i]) for r in rows) for i in range(len(header))]
     lines = []
@@ -354,7 +435,9 @@ def _changes(old: dict, new: dict) -> list[str]:
         else:
             for m in METRICS:
                 a, b = old[plugin].get(m), new[plugin][m]
-                if a != b:
+                if a is None:
+                    out.append(f"{plugin}.{m}: recorded {b:,}")
+                elif a != b:
                     verb = "tightened" if isinstance(a, int) and b < a else "raised"
                     out.append(f"{plugin}.{m}: {a} -> {b} ({verb})")
     return out
