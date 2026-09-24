@@ -230,10 +230,6 @@ tools/skill-maintainer/state/changes.jsonl
 **/.skill-maintainer/state/
 *.backup/
 
-# readwise-reader local artifacts
-certs/
-models/
-
 # Private nested repo (its own git history, NAS remote only)
 internal/
 research/schema-processing/results/

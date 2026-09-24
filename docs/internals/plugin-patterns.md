@@ -1,4 +1,4 @@
-last updated: 2026-08-04
+last updated: 2026-09-24
 
 # Plugin patterns
 
@@ -341,7 +341,7 @@ The pre-commit hook (jq-based), `regex-scan.sh`, and `find-external-paths.sh` al
 
 ## Greenfield default for local DBs
 
-For local DuckDB instances (e.g. readwise-reader's), prefer `CREATE OR REPLACE VIEW` + schema re-init on next connection over migration bridges. "OK to drop data, greenfield is fine" is the working default for non-production state.
+For local DuckDB instances (e.g. a local mirror of a remote service), prefer `CREATE OR REPLACE VIEW` + schema re-init on next connection over migration bridges. "OK to drop data, greenfield is fine" is the working default for non-production state.
 
 ## Schema evolution: production-facing
 

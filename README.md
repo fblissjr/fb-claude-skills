@@ -28,7 +28,7 @@ a lesson this repo learned the expensive way and recorded in
 
 ## plugins
 
-Grouped by purpose: development conventions & authoring, decomposition & model routing, plugin & skill maintenance, MCP servers & apps, privacy & pre-share safety.
+Grouped by purpose: development conventions & authoring, decomposition & model routing, plugin & skill maintenance, privacy & pre-share safety.
 
 ### development conventions & authoring
 
@@ -59,12 +59,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
 | [skill-maintainer](skills/skill-maintainer/) | Skills | `/maintain`: the maintenance pass (source pulls, upstream detection with per-page snapshots, quality, controls audit, mutation sample, best practices review), and `/sync-versions`. Ships `best_practices.md`, the one copy of this repo's authoring rules. The checks are the `skill-maintain` CLI below |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, version alignment |
-
-### MCP servers & apps
-
-| Plugin | Type | Description |
-|--------|------|-------------|
-| [readwise-reader](apps/readwise-reader/) | MCP Server | Search, save, and surface your Readwise Reader library via MCP with OAuth, DuckDB, and full-text search |
 
 ### cross-model bridges
 
@@ -111,7 +105,6 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install dimensional-modeling@fb-claude-skills
 /plugin install dev-conventions@fb-claude-skills
 /plugin install skill-maintainer@fb-claude-skills
-/plugin install readwise-reader@fb-claude-skills
 /plugin install json-query@fb-claude-skills
 /plugin install pyright-autoconfig@fb-claude-skills
 /plugin install ruff-diagnostics@fb-claude-skills

@@ -1,6 +1,6 @@
 # ruff-diagnostics
 
-last updated: 2026-07-26
+last updated: 2026-09-24
 
 Runs Ruff on each `.py`/`.pyi` file Claude edits, and reports the findings back to Claude as context. Read-only: it never writes Ruff config, never syncs your environment, and says nothing when a file is clean.
 
@@ -62,7 +62,7 @@ Ruff 0.16 (2026-07-23) raised the default rule set from 59 rules to 413. Critica
 - `select` **replaces** the default set.
 - `extend-select` **extends** it.
 
-So a curated `select = [...]` written before 0.16 now enables *fewer* checks than having no Ruff config at all, and does so silently. Measured on this repo's own `readwise-reader`: its seven-group `select` reports the package clean, while Ruff's defaults find seven real issues in it, including four blind-`except` handlers.
+So a curated `select = [...]` written before 0.16 now enables *fewer* checks than having no Ruff config at all, and does so silently. Measured on this repo's own `readwise-reader` package before its retirement: its seven-group `select` reports the package clean, while Ruff's defaults find seven real issues in it, including four blind-`except` handlers.
 
 When the hook sees a project using `select` without `extend-select`, it says so **once per session per project** — including when the edited file is clean, since a narrow `select` is precisely what makes everything look clean. It never edits your config.
 

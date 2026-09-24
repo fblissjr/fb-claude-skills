@@ -91,11 +91,10 @@ Python managed as a uv workspace. The root `pyproject.toml` coordinates members,
 |--------|------|-----------------|
 | `skill-maintainer` | `tools/skill-maintainer` | orjson, httpx, skills-ref; CLI: `skill-maintain` |
 | `mece-decomposer` | `apps/mece-decomposer` | orjson |
-| `readwise-reader` | `apps/readwise-reader` | mcp, httpx, duckdb, pydantic, authlib, skill-maintainer (workspace); opt-in (Python 3.13+, excluded by default) |
 
 JS/TS: `skill-dashboard` at `apps/skill-dashboard/mcp-app` is a TypeScript ext-apps MCP App (gray-matter, react, zod); no Python deps.
 
-Setup: `uv sync --all-packages` installs all member deps into a shared venv. `readwise-reader` is excluded from the default workspace; opt in by removing it from the `exclude` list in root `pyproject.toml`.
+Setup: `uv sync --all-packages` installs all member deps into a shared venv.
 
 
 ## Decision: no local copies of upstream docs (2026-07-21)

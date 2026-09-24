@@ -1,4 +1,4 @@
-last updated: 2026-08-07
+last updated: 2026-09-24
 
 # best_practices.md: what it is for, and how it should be maintained
 
@@ -84,10 +84,9 @@ are; it dates a real fetch now rather than any file a second writer touches.
 
 ### Decisions waiting on the owner
 
-- **MCP 2026-07-28 migration** — see `mcp_spec_2026_07_28.md`. The prior
-  question is whether `readwise-reader` should move at all; it is a single-user
-  local STDIO server and most of what the stateless redesign buys, it does not
-  need. `skill-dashboard`'s `^1.24.0` waits on the same call.
+- **MCP 2026-07-28 migration** — see `mcp_spec_2026_07_28.md`. `readwise-reader`
+  was retired on 2026-09-24, so what remains is `skill-dashboard`'s and
+  `mece-decomposer`'s `^1.24.0` pins and the ext-apps 2.0 API move.
 - **The postmortem branch** (`claude/generalized-postmortem-skill-bbqnks`) is
   rebased, verified, and a clean fast-forward — 7 commits, unmerged.
 
@@ -424,7 +423,7 @@ decays when the thing it describes changes.
 
 | Source | Evidence | Recommendation |
 |---|---|---|
-| The four MCP repos (`modelcontextprotocol`, `python-sdk`, `ext-apps`, `experimental-ext-skills`) | Produced 122/54/203-commit bursts per pull. Zero best_practices rules cite any of them. They serve readwise-reader and skill-dashboard, which is a different consumer | Move out of best-practices sourcing into dependency tracking. They are real sources for real things, just not for this file |
+| The four MCP repos (`modelcontextprotocol`, `python-sdk`, `ext-apps`, `experimental-ext-skills`) | Produced 122/54/203-commit bursts per pull. Zero best_practices rules cite any of them. They serve the MCP apps (mece-decomposer, skill-dashboard), which is a different consumer | Move out of best-practices sourcing into dependency tracking. They are real sources for real things, just not for this file |
 | `claude-cookbooks` | API-usage notebooks. Zero citations | Drop from best-practices sourcing |
 | `claude-plugins-official`, `knowledge-work-plugins`, `claude-plugins-community` | Also zero citations across five months — but these are the **highest untapped value** in the list. They are real shipped plugins from Anthropic; they are practice evidence, not doc evidence, and the reason they have produced nothing is that nobody has mined them, not that they are unproductive | Keep, and give them an actual extraction method (the BACKLOG already proposes one: `git log` plus diff on SKILL.md and plugin.json, surfaced as evidence) |
 

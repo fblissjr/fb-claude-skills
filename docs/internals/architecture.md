@@ -1,4 +1,4 @@
-last updated: 2026-08-13
+last updated: 2026-09-24
 
 # architecture
 
@@ -87,7 +87,7 @@ Knowledge graphs are seductive but brittle. Updates are impossible without break
 
 **Substrate follows from consumers.** Ask what reads the artifact besides a query:
 
-- **Nothing else reads it** -- a database is the store. `readwise-reader` mirrors a remote SaaS with FTS indexes and staged reconciliation: no local file could be authoritative, because the truth is on someone else's server.
+- **Nothing else reads it** -- a database is the store. A local mirror of a remote SaaS, with FTS indexes and staged reconciliation, is the case: no local file could be authoritative, because the truth is on someone else's server.
 
   This case is rarer than it looks, and the cautionary tale is worth more than the rule. `agent-state` was cited here as the second example and did not survive its own test: watermarks duplicated `upstream_hashes.json` plus `changes.jsonl`, skill-version rows duplicated what git already stores, and the delegation table was one the same repo had already decided not to populate. What remained was run lineage with no producer. The package was retired on 2026-08-02. **Run the test on your own units before citing them as exemplars** -- a principle illustrated by something that fails it ships with a counterexample built in.
 - **Something else reads it** -- files are the store, and relational is a *lens* over them. A prompt that must stay re-runnable, a response another agent opens deliberately with Read, a manifest that is the only local record of remote state: none of those survive being flattened into a row. Query them in place instead. DuckDB reads JSON and JSONL directly, in memory by default, so relational access costs no ingestion step and creates no second copy.
@@ -129,6 +129,6 @@ Build the feedback mechanism where users already spend their days. Adoption of n
 - **Agent topology**: orchestration uses tree decomposition, not linear handoff chains. Subagents get scoped context and return results to the orchestrator (trees, not workflows).
 - **Model tiering**: well-specified, verifiable work delegates to lower-tier models in subagents; judgment-heavy work stays in the orchestrator. Opt-in per project via the model-routing plugin (route to the cheapest capable model).
 - **Harness-native design**: all behavior is expressed as data inside the harness -- skills, rules, metadata, hooks. No external wrappers (the harness is the system).
-- **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (`readwise-reader`; the retired `agent-state` is the section's cautionary tale, not an example), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
+- **State management**: agent outputs carry a relational *shape* -- append-only facts with explicit grain. The substrate follows from what else reads them: a database when nothing does (a local mirror of a remote service; the retired `agent-state` is the section's cautionary tale, not an example), files with query layered on when something does (`postmortem`, `gemini-bridge`) (structured outputs as state).
 - **Verification**: greens must prove they can fail. Audits are runs, not artifacts -- re-derived per run, report-only, self-scoping; adversarial construction is the instrument and everything else is targeting (verify by construction).
 - **Compound feedback**: each maintenance cycle generates signal that refines the data driving the next cycle. The loop compounds (feedback loops compound).

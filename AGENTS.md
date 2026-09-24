@@ -72,4 +72,3 @@ unit you touched, and this file only if a repo-wide rule changed.
 | A unit with a design record or postmortem | find it in [docs/README.md](docs/README.md) before changing the unit's shape |
 | Which tier a rule belongs in | [context-cost.md](docs/internals/context-cost.md) |
 | Upstream drift | [maintenance.md](docs/internals/maintenance.md), [upstream_drift_backlog.md](docs/internals/upstream_drift_backlog.md) |
-| `apps/readwise-reader` | its own `CLAUDE.md` |

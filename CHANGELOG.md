@@ -1,5 +1,11 @@
 # changelog
 
+## 1.66.0
+
+### removed
+- **`readwise-reader` retired**, with a `renames` entry mapping it to `null` so installed copies are cleaned up rather than orphaned. Readwise now runs an official hosted MCP server (`https://mcp2.readwise.io/mcp`, browser OAuth). Connected and inventoried on 2026-09-24, it covers everything this server did except deleting documents and library-wide statistics. It also does hybrid keyword and semantic search, which `spec.md` had listed as a feature to add. What made this server worth keeping is superseded: the OAuth bridge, mkcert TLS, the API client, the sync engine and the 2026-07-28 spec migration that was never started. The work continues outside this repo as `readwise-tinkering`, a TypeScript MCP App with generative UI over a local DuckDB copy fed by the official export. Its handoff memo cites the last code here: `af0b2e1`, readwise-reader 1.2.1.
+- Swept with the `retire` procedure. Structural references removed: the marketplace entry, the workspace `exclude`, its `.gitignore` block, its ratchet baseline key, and the AGENTS.md, README and `maintenance.md` rows. The resolved `STRICT_EXEMPT` backlog item is gone. `mcp_spec_2026_07_28.md` and `best_practices_maintenance.md` now record the retirement as how their open question was settled. Examples that named the app in `architecture.md` and `plugin-patterns.md` are now generic. Left as history: this changelog, the postmortems, and the case narratives in `plugin-versioning.md`. The ruff-diagnostics README keeps its measurement on the package and now notes the retirement.
+
 ## 1.65.0
 
 ### fixed

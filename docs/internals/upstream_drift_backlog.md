@@ -22,8 +22,6 @@ Re-derive with: `skill-maintain upstream`, then diff
 - **Marketplace descriptions after push.** Entries no longer carry a
   `description`; once the marketplace updates, confirm with `claude plugin
   details <name>` that the text shown is `plugin.json`'s.
-- **`STRICT_EXEMPT="readwise-reader"`** in the local pre-commit hook retires when
-  `apps/readwise-reader/CLAUDE.md` moves out of the plugin root.
 
 ## Seen on 2026-09-21, deliberately not absorbed
 

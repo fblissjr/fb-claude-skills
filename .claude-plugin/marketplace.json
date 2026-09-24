@@ -33,11 +33,6 @@
       "version": "0.20.0"
     },
     {
-      "name": "readwise-reader",
-      "source": "./apps/readwise-reader",
-      "version": "1.2.1"
-    },
-    {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
       "version": "0.36.1"
@@ -121,6 +116,7 @@
     "explainer-video": null,
     "screenwright": null,
     "cogapp-markdown": null,
-    "advisor": null
+    "advisor": null,
+    "readwise-reader": null
   }
 }

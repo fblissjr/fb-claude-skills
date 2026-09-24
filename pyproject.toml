@@ -9,7 +9,6 @@
 
 [tool.uv.workspace]
 members = ["tools/skill-maintainer", "apps/mece-decomposer", "apps/gemini-bridge"]
-exclude = ["apps/readwise-reader"]
 
 [tool.uv.sources]
 skill-maintainer = { workspace = true }
