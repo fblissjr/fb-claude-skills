@@ -1,0 +1,17 @@
+{
+  "description": "improvement-loops: hold a running /improve or /optimize run to its done list. Silent unless this session has a run in progress; stands down after three continuations without progress.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/loop_state.py", "stop-guard"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

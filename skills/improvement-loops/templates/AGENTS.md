@@ -43,6 +43,7 @@ says.
 | Sharp edges and incident history | <path> |
 | Local notes (untracked) | <path, such as `internal/`> |
 | Loop state (untracked) | <path, such as `internal/loops/`> |
+| Untracked files each worktree needs | `.worktreeinclude`, in `.gitignore` syntax |
 | Session log | <pattern, such as `internal/log/log_YYYY-MM-DD.md`> |
 
 Untracked paths are relative to the main checkout, because a git worktree doesn't contain
@@ -237,8 +238,10 @@ These apply to every benchmark and every performance claim, inside a loop or not
 ## Loop state
 
 The improvement and optimizer loops share one untracked folder, named under Where things
-live. If none is named, use `.loops/` in the main checkout, never stage it, and ask the
-owner to name a folder. Several runs may use the folder at once, so it follows these rules:
+live. If none is named, the plugin uses `.loops/` in the main checkout and excludes it from
+git; ask the owner to name a folder. Several runs may use the folder at once, so it follows
+these rules. With the improvement-loops plugin, every write goes through its
+`loop_state.py`, which enforces them:
 
 - **Runs.** Each run has an id, `<date>-<time>-<loop>`, used for its branch name and its
   folder, `runs/<id>/`. The folder holds the run record, charts, screenshots and the report.

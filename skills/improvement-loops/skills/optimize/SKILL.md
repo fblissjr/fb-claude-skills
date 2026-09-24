@@ -2,6 +2,7 @@
 name: optimize
 description: "Speeds up a codebase as far as it will go in one session, against a hard target (every primary benchmark at least 1.2x faster than the base commit by default) without regressing correctness, output quality or safety. Works with the repo's AGENTS.md sections (North star, Measurement, Loop state); base and branch worktrees, exact counts proven against wall-clock time, read-only reviewers one lens each, a re-check of every headline result on the final commit. User-invoked only, because a run spends hours and many subagents."
 disable-model-invocation: true
+allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loop_state.py *)
 argument-hint: "[overrides, e.g. 'Target: 1.5x; Reviewers: 8; Other sessions: mrblue on main']"
 ---
 
@@ -9,9 +10,17 @@ argument-hint: "[overrides, e.g. 'Target: 1.5x; Reviewers: 8; Other sessions: mr
 
 <run>
 This skill is a standing prompt. The campaign is in
-`${CLAUDE_SKILL_DIR}/references/optimizer-loop.md`. Read it now and execute it
+`${CLAUDE_SKILL_DIR}/references/optimizer-loop.md`. Read `common.md`, then the loop file, and execute it
 as written: it is the instruction set for this run, not background.
 </run>
+
+<paths>
+- Plugin root: `${CLAUDE_PLUGIN_ROOT}`
+- This session's id: `${CLAUDE_SESSION_ID}`
+- Shared rules: `${CLAUDE_PLUGIN_ROOT}/references/common.md`. Read it before the loop file.
+- Loop-state script: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/loop_state.py`
+- AGENTS.md template: `${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md`
+</paths>
 
 <parameters>
 Start from the campaign's `<parameters>` block and apply these overrides from
@@ -25,7 +34,7 @@ guessed into one.
 <prerequisites>
 - The campaign cites sections of the repo's AGENTS.md by name, above all
   Measurement (real path, primary benchmarks, instruments, hazards). If they
-  are missing, the template is `${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md`;
+  are missing, the template is at the path above;
   propose the fill under "Needs from me" rather than writing it yourself.
 - If the primary benchmarks are unnamed, or their guardrails and
   counter-checks are, recommend `/design-scoreboard` first. A speed target with

@@ -39,6 +39,17 @@ All four are user-invoked only (`disable-model-invocation: true`). A run
 spends time and many subagents, so it starts only when someone types it, and
 none of them costs anything in the always-loaded skill listing.
 
+## What runs underneath
+
+- **`references/common.md`** holds what `/improve` and `/optimize` share: entering the branch worktree with `EnterWorktree`, the `base` worktree for measuring, `.worktreeinclude` for untracked config, loop-state writes, the stop guard, and how to use the reviewers. Both loops read it first.
+- **`scripts/loop_state.py`** is the only writer of the loop state: run records with a heartbeat, the scoreboard, the ledger, bookmarks and the session-log section.
+  - It refuses a measurement without its conditions.
+  - It refuses to tidy the ledger while another run is live, and refuses to call a run done while a done-list item is open.
+  - Worktree isolation blocks the Write and Edit tools from reaching the main checkout, where the loop state lives. A script run from the worktree can still write there (probed 2026-09-24). That path is not documented, so if Claude Code closes it, pass `--state` to a folder the worktree can reach.
+  - It needs only `python3` and the standard library. `uv run` fails in a sandboxed session unless its cache is redirected, and isolation refuses a command that redirects it.
+- **`agents/loop-reviewer`** (Read, Grep, Glob, WebSearch, WebFetch) and **`agents/loop-grader`** (Read) are read-only by their tool lists, not by instructions. The reviewer's brief lives once, in its own file.
+- **`hooks/hooks.json`** registers a Stop hook. While a run started in the current session is `running` with done-list items open and budget left, it sends the open items back instead of letting the turn end, and stands down after three continuations without progress. In every other session and turn it prints nothing. It is deterministic and costs no model call; `/goal` remains the model-graded alternative.
+
 ## Installation
 
 ```
@@ -62,17 +73,7 @@ none of them costs anything in the always-loaded skill listing.
 Overrides are free text or `Key: value` pairs matching the `<parameters>` block
 at the top of each prompt file. Edit the parameters, not the body.
 
-**For a run you will not watch, set a goal first.** Opus 5.5 sometimes ends a
-turn with a progress report while work is still owed. The loops tell it not
-to, and Claude Code's `/goal` makes the harness hold it to that. Set the loop's
-done list as the condition, for example `/goal every item in the improve run's
-done list is met, with its evidence printed`, then invoke the skill. The goal's
-evaluator reads only what the conversation shows, and the loops print their
-evidence in the final report.
-
-**To paste without installing,** copy a prompt from its skill's `references/`
-into a session, and give the repo the sections of `templates/AGENTS.md` it
-cites.
+**For a run you will not watch,** the stop guard already holds `/improve` and `/optimize` to their done lists. Opus 5.5 sometimes ends a turn with a progress report while work is still owed, and the guard sends it back to the open items. `/goal` with the done list as its condition is the model-graded alternative for anything the guard doesn't cover.
 
 ## Why a skill body is only a router
 

@@ -60,7 +60,7 @@ Every line that stays gets these checks:
 </verdicts>
 
 <keep_or_add>
-A capable newcomer needs these. Check that each is present, but add one only when the repo actually has the thing: no parallel-session rules without parallel sessions, no benchmark command without benchmarks. `${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md` shows a shape for each.
+A capable newcomer needs these. Check that each is present, but add one only when the repo actually has the thing: no parallel-session rules without parallel sessions, no benchmark command without benchmarks. The AGENTS.md template whose path the skill gave you shows a shape for each.
 - **A short north star:** purpose, non-goals, principles, direction, marked as a direction and not a spec.
 - **A map of where things live:** status, plans, backlog, settled decisions, sharp edges, local notes, the session log.
 - **Exact commands:** setup, building what users get, tests, lint, benchmarks, profiling. These are often the most valuable lines in the file.

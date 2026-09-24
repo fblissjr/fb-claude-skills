@@ -1,5 +1,25 @@
 # changelog
 
+## 1.63.0
+
+### added
+- **`improvement-loops` 0.3.0 -> 0.4.0: the roadmap's first phase.** From `docs/ideas/improvement_loops_roadmap.md`, items 1 to 4, 8 and 9.
+  - **Probed before building.** On 2026-09-24 a subagent isolated in a worktree tried three writes into the main checkout. The Write tool was blocked, and so was a `uv run` whose command carried `$TMPDIR`: isolation refuses a runtime value it can't verify isn't git. A plain `python3` script wrote freely. The design follows from those results.
+  - **`scripts/loop_state.py`: the only writer of loop state.**
+    - What it keeps: run records with a heartbeat, the scoreboard, the ledger, bookmarks and the session-log section.
+    - What it refuses: a measurement without its conditions (commit, scenario, inputs, deps, machine, load, samples, median, spread); a ledger tidy while another run is live; and "done" while a done-list item is open.
+    - How it runs: standard library and `python3` only, a deliberate exception to the orjson rule, because `uv run` fails in a sandboxed, isolated session. Writes are atomic and serialised by a lock.
+    - Where state lives: `.loops/` in the main checkout by default, excluded from git. A pointer in the git common dir lets the stop guard find a custom `--state`. Writing there from a worktree relies on isolation not covering script writes, which is undocumented; `--state` is the way out if that changes.
+    - Tests: 34 in `tools/skill-maintainer/tests/test_loop_state.py`, written red first; three mutations each turned a test red. One test runs under the system Python 3.9.
+  - **A stop guard.** The plugin's `hooks/hooks.json` registers a Stop hook that sends open done-list items back while a run started in this session is `running` with budget left, and stands down after three continuations without progress. It prints nothing in any other session. It lives in `hooks.json` rather than skill frontmatter because placeholder resolution in skill-frontmatter hooks is undocumented. Timeout 10 seconds; the guard's own worst case is bounded well under that and fails open.
+  - **`agents/loop-reviewer` and `agents/loop-grader`.** Read-only by their tool lists (Read, Grep, Glob, WebSearch, WebFetch; and Read), not by instructions. The reviewer's brief lives once, in its own file, and fetched text is data.
+  - **`references/common.md`: the one copy of the text both loops shared.** It covers entering the branch with `EnterWorktree` (config follows, the main checkout is protected), the `base` worktree, `.worktreeinclude`, loop-state commands, the stop guard, reviewers and budget. The paste-without-installing instructions are gone: the owner uses the plugin.
+  - **Routers.** All four use tagged sections, including `trim-agents-md`. They state the resolved plugin root, session id, shared file and template path, because `${CLAUDE_*}` placeholders are substituted only in a SKILL.md body, never in a reference the model reads later. `/improve` and `/optimize` pre-approve the script in `allowed-tools`.
+  - **The template** gains a `.worktreeinclude` row, and its Loop state section names the script that enforces it.
+
+### changed
+- **`skill-maintainer` 0.35.0 -> 0.36.0:** `best_practices.md` string substitutions now says placeholders are not substituted in a `references/` file the model reads later, so a routing SKILL.md states the resolved paths itself.
+
 ## 1.62.0
 
 App bugs found during the 1.61.0 trim, each reproduced before it was fixed.

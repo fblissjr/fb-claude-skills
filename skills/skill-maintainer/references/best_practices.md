@@ -1182,7 +1182,10 @@ variable in both is the supported way to run a bundled script with no permission
 prompt — `allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/render.sh *)` matched
 against the exact command the body tells Claude to run. These placeholders are
 not environment variables in commands Claude runs through the Bash tool; write
-the placeholder in plugin content.
+the placeholder in plugin content. Nor are they substituted in a `references/`
+file the model reads later: there the placeholder arrives as literal text. A
+SKILL.md that routes to a reference states the resolved paths itself, and the
+reference refers to them by name.
 
 Inline `` !`cmd` `` is recognised **only** at line start or immediately after
 whitespace; `KEY=!`cmd`` is left as literal text and never runs. Substitution

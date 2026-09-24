@@ -1,6 +1,6 @@
 {
   "name": "skill-maintainer",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "description": "Maintenance tools for skills repos: validation, quality checks, upstream change detection, best practices review, and wiki-sanity lint",
   "author": {
     "name": "fblissjr"

@@ -7,16 +7,26 @@ argument-hint: "[overrides, e.g. 'Depth: rebuild; Hub: agents-md; Targets: CLAUD
 
 # Trim agent instructions
 
+<run>
 This skill is a standing prompt. The run is in
 `${CLAUDE_SKILL_DIR}/references/trim-loop.md`. Read it now and execute it as
 written: it is the instruction set for this run, not background.
+</run>
 
-**Parameters.** Start from its `<parameters>` block and apply these overrides
-from the invocation: $ARGUMENTS
+<paths>
+- AGENTS.md template: `${CLAUDE_PLUGIN_ROOT}/templates/AGENTS.md`
+</paths>
+
+<parameters>
+Start from its `<parameters>` block and apply these overrides from the
+invocation: $ARGUMENTS
 
 An override that names no parameter goes under "Needs from me" rather than
 being guessed into one.
+</parameters>
 
-**After a compaction,** re-read the run file and your placement map before the
-next action. The run's instructions do not survive compaction on their own.
-Keep the placement map in a file for that reason.
+<after_compaction>
+Re-read the run file and your placement map before the next action. The run's
+instructions do not survive compaction on their own, which is why the
+placement map lives in a file.
+</after_compaction>
