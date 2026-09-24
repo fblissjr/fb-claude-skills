@@ -1,6 +1,6 @@
 {
   "name": "path-privacy",
-  "version": "0.18.4",
+  "version": "0.18.5",
   "description": "Keeps personal identifiers out of repo content: every path stays relative to the repo root, and the git user.name full name never appears. A PreToolUse hook rewrites in-repo absolute paths to relative and blocks the rest in edits, commit messages and branch names; pre-commit and commit-msg hooks hard-block at commit time. Silent at session start in a repo whose gate is installed.",
   "author": {
     "name": "fblissjr"

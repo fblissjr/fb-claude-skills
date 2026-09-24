@@ -29,7 +29,10 @@
 #        masking home-directory prefixes (slash form and Claude Code's
 #        dash-encoded project folders), so a home directory named after the
 #        owner (first and last name joined) never blocks a read-only command.
-#     Both read the command with heredoc bodies removed unless it writes a
+#     6. BLOCKS `git config user.name` spliced into a command that publishes
+#        text (gh; git commit/tag/push/branch/checkout/switch): the shell
+#        expands it after this check, so it is the name, unseen.
+#     4-6 read the command with heredoc bodies removed unless it writes a
 #     message or feeds the heredoc to a shell: a script body that mentions
 #     `git commit` is neither a git command nor a message.
 #
@@ -127,9 +130,21 @@ if [ "$TOOL" = "Bash" ]; then
      && printf '%s\n' "$NAME_CMD" | pp_name_lines "$NAME_RE" >/dev/null; then
     {
       echo "path-privacy: blocked -- this git/gh command contains the git user.name full name."
-      echo "Use the GitHub handle or a placeholder such as <author>. To look the name up, pass"
-      echo "\"\$(git config user.name)\" rather than the literal."
+      echo "Use the GitHub handle or a placeholder such as <author>."
       echo "$QUIET_NOTE"
+    } >&2
+    exit 2
+  fi
+
+  # The same name spliced in by the shell: the hook sees `$(git config
+  # user.name)` before expansion, so in a command that publishes text (any
+  # gh command; git commit, tag, push, or a new branch) the lookup is the name.
+  if printf '%s' "$NAME_SRC" | grep -Eq '(^|[^[:alnum:]_-])(gh[[:space:]]|git([[:space:]][^;&|]*)?[[:space:]](commit|tag|push|branch|checkout|switch)([[:space:]]|$))' \
+     && printf '%s' "$NAME_SRC" | grep -Eq 'git[[:space:]]+config([[:space:]]+-[-[:alnum:]]+)*[[:space:]]+user\.name'; then
+    {
+      echo "path-privacy: blocked -- this command splices git user.name into text it publishes."
+      echo "The shell expands it after this check, so the full name would go out unseen."
+      echo "Use the GitHub handle or a placeholder such as <author>."
     } >&2
     exit 2
   fi

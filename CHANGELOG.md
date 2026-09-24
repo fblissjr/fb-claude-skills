@@ -1,5 +1,11 @@
 # changelog
 
+## 1.68.3
+
+### fixed
+- **`path-privacy` 0.18.4 -> 0.18.5: the name guard's block message advertised its own bypass.** 0.18.3's Bash block message told the model to pass `"$(git config user.name)"` rather than the literal name. The hook sees a command before the shell expands it, so that substitution in a gh title or body, a tag, or a ref name sends the full name out unseen, and the message suggested it at the moment a gh command had just been blocked. Found while reviewing a heylook session's replay of the 0.18.4 fixes on 2026-09-24. The line is gone. A `git config user.name` lookup inside a command that publishes text (any gh command; git commit, tag, push, branch, checkout, switch) is now blocked; a read-only lookup such as `git log --author=...` still passes.
+  - **Tests.** Four red first: three substitution shapes (`$(...)`, backticks, piped through `tr`) and the message. A pin for the read-only lookup goes red when the publishing gate is widened to every git command.
+
 ## 1.68.2
 
 ### fixed

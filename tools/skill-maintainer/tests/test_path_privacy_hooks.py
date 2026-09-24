@@ -309,6 +309,40 @@ def test_heredoc_in_a_command_that_does_not_commit_is_not_a_message(tmp_path):
     assert r.returncode == 0, r.stderr
 
 
+@pytest.mark.parametrize("command", [
+    'gh pr create -t "by $(git config user.name)" -b x',
+    'gh issue comment 5 -b "thanks `git config --get user.name`"',
+    'git tag "$(git config user.name | tr " " -)-v1"',
+])
+def test_name_spliced_in_by_substitution_is_blocked(tmp_path, command):
+    # Claim: the hook sees text before the shell expands it, so a user.name
+    # lookup spliced into a gh/tag/ref command sends the name unseen; it is
+    # blocked outright. Breaks if substitution of user.name is let through.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash", {"command": command})
+    assert r.returncode == 2, command
+
+
+def test_name_block_message_does_not_suggest_substitution(tmp_path):
+    # Claim: the block message must not tell the model to splice the name in
+    # with $(git config user.name) -- that is the bypass above. Breaks if the
+    # message names the lookup.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": f'gh pr create -t "Fix from {FULL_NAME}" -b x'})
+    assert r.returncode == 2
+    assert "git config user.name" not in r.stderr
+
+
+def test_reading_user_name_outside_a_publishing_command_is_allowed(tmp_path):
+    # Claim: looking the name up is fine when the command publishes nothing.
+    # Breaks if every mention of user.name in a git command blocks.
+    repo = _repo(tmp_path)
+    r = _pre_tool_use(tmp_path, repo, "Bash",
+                      {"command": 'git log --author="$(git config user.name)" -3'})
+    assert r.returncode == 0, r.stderr
+
+
 def test_claude_project_dir_encoding_of_the_home_path_is_not_the_name(tmp_path):
     # Claim: Claude Code names project folders by the path with dashes for
     # slashes (-Users-<user>-work-repo), so an owner whose username is the
