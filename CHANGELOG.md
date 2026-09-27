@@ -1,5 +1,10 @@
 # changelog
 
+## 1.72.2
+
+### fixed
+- **`heylook-provider` 0.21.1 -> 0.21.2: a run with no tokens reports its durations in both modes (heylook 2.0.183).** Found on the 2.0.182 live pass: a cancel during a cold load returned `performance: null` non-streaming, while the stream reported the same run's two durations. heylook took the stream's side, since present means measured, and 2.0.183 removes the non-streaming token gate. The skill no longer says `performance` is null for a run with no tokens: such a run carries only `request_duration_ms` and `generation_duration_ms`, and the object stays optional. Checked live on 2.0.183 with a cancel during a cold load. The old behaviour moves to `older_servers.md`. `verified_against` moves to 2.0.183.
+
 ## 1.72.1
 
 ### fixed

@@ -313,9 +313,11 @@ failure (`api_error`).
 
 ## Telemetry
 
-`performance` rides `message_stop` on every stream and the non-streaming body
-on every run that produced tokens; it is `null` only when the run yielded none
-(test for presence, not truthiness). There is no request flag for it. One
+`performance` rides `message_stop` on every stream and every non-streaming
+body. A run that produced no tokens (a cancel during the load, an immediate
+stop) carries only `request_duration_ms` and `generation_duration_ms`, in both
+modes. The object is still optional, so null-check it and test for presence,
+not truthiness. There is no request flag for it. One
 builder serves both modes, so the rule is one line:
 
 > Every field, when present, is a real measurement of exactly the thing its
@@ -394,7 +396,8 @@ DELETE /v1/requests/{request_id}
 **A request is cancellable from the moment it arrives**, including while its
 model loads or it waits in the generation queue. A cancel during a cold load
 is accepted (`cancelled: 1`); the load itself cannot be interrupted and
-finishes, and the run then ends with no tokens and `stop_reason: "max_tokens"`. A conversation `generate` is not reached by this route by
+finishes, and the run then ends with no tokens, `stop_reason: "max_tokens"`,
+and a `performance` carrying only the two durations. A conversation `generate` is not reached by this route by
 design: stop it with `DELETE /v1/conversations/{id}/generate`, which also
 persists the partial reply (`routes.md`).
 

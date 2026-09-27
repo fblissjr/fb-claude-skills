@@ -114,6 +114,8 @@ the range spans.
   `performance` also carried `kv_cache_bytes`.
 - **Before 2.0.64** `thinking_duration_ms` and `content_duration_ms` were
   streaming-only.
+- **Before 2.0.183** a non-streaming run with no tokens answered
+  `performance: null`, while the stream carried its two durations.
 - **Before 2.0.91** non-streaming `usage.thinking_tokens` and
   `content_tokens` were not filled.
 

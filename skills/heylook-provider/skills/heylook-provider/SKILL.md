@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (its OpenAI-compatible route was removed in 1.79.66). Use when adding heylook as a provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when using its conversation store or presets, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime discovery of install-local model ids, capability gating, client-side image resize, and its differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 2.0.182"
+  verified_against: "heylookitsanllm 2.0.183"
 ---
 
 # heylook as an inference provider
@@ -97,7 +97,7 @@ After a stream's headers flush the status is already 200, so a late refusal arri
 - **Inference has no API key.** An admin token gates admin routes only; an integration needs neither. **The Host check** answers 403 to a `Host` that is not an IP, `localhost`, the machine's own name or an `allowed_hosts` entry in `heylook.toml`: a LAN client using a DNS name hits it. **There is no CORS**: a browser app is same-origin or proxies.
 - **Send a fresh `X-Request-ID` on every request**: a new UUID each time. A reused id cancels every request sharing it. It is echoed on every response and is the cancel handle: `DELETE /v1/requests/{request_id}`. Without it, the server's id is one you never learn on the non-streaming path.
 - **Cancel non-streaming calls explicitly.** A stream is cancelled by hanging up; a non-streaming request keeps holding the GPU after the client leaves. A cancelled run returns what it produced with `stop_reason: "max_tokens"`, indistinguishable from budget exhaustion, so track your own cancels. Detail: `references/wire_reference.md`.
-- **Telemetry is always on and never guaranteed.** `performance` is `null` for a run with no tokens, and every field is optional: present is a real measurement, absent means this mode could not measure it. The throughput denominator is `generation_duration_ms` (excludes queue wait and load). Time to first token is never returned: time the first delta yourself.
+- **Telemetry is always on and never guaranteed.** A run with no tokens carries only its two durations; `performance` and every field in it are optional: present is a real measurement, absent means this mode could not measure it. The throughput denominator is `generation_duration_ms` (excludes queue wait and load). Time to first token is never returned: time the first delta yourself.
 </operations>
 
 <references>
