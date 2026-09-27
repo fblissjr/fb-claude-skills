@@ -51,6 +51,12 @@ chat page uses it.
   turn first; `regenerate` replaces everything from the `message_id` anchor;
   `continue` extends the anchor row. `overrides` layers one-shot sampler
   values (and `model`) over the stored `params`.
+- **`params` and `overrides` use the store's key names, not the wire's.**
+  The thinking switch is `enable_thinking` and the budget is
+  `thinking_budget_tokens`; `reasoning_effort` and the sampler fields keep
+  their `/v1/messages` names. Any other key is **dropped silently**, so
+  `{"thinking": false}` in `overrides` leaves thinking at the model's
+  default.
 - **One extra event, always last.** The stream is the `/v1/messages` grammar
   plus `event: heylook_saved`, carrying `end_reason`
   (`complete`, `aborted` or `error`), the full stored rows in `messages`,
@@ -63,8 +69,9 @@ chat page uses it.
   all persist; an error before any output persists nothing. A regenerate or
   continue that fails leaves the thread untouched.
 - **One generation per conversation.** A second `generate` is a 409
-  `{"error":{"code":"generation_in_progress"}}`, and so is any message write
-  or conversation delete while one runs. Metadata `PUT`s stay open.
+  `{"error":{"code":"generation_in_progress"}}`. A message write or a
+  conversation delete while one runs is also a 409, with a plain `detail`
+  body and no code, so key on the status. Metadata `PUT`s stay open.
 - **Unknown fields are ignored, not refused.** Unlike `/v1/messages`, this
   route has no 422 for retired fields.
 - **Stored media comes back by reference.** Send base64 as usual; the stored
@@ -95,7 +102,10 @@ chat page uses it.
 
 A preset is a named bundle of `system_prompt` and sampler `params`. The
 **client** expands it: copy `system_prompt` into the request and `params` into
-the sampler fields. The server never applies a preset to a request, and
+the sampler fields. `params` uses the store's key names, so rename on the way
+to `/v1/messages`: `enable_thinking` becomes `thinking`, and
+`thinking_budget_tokens` becomes `thinking: {"budget_tokens": N}`. Sent
+unrenamed, `enable_thinking` is a 422 there. The server never applies a preset to a request, and
 `preset` on `/v1/messages` is a 422. A preset stores only the fields it pins,
 so absent fields still fall to the server cascade.
 

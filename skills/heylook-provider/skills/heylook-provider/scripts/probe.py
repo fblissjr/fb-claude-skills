@@ -259,14 +259,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         matched_ids = {m["id"] for m in matched}
         width = max(len(m["id"]) for m in models)
+        # Sized to the data: a vocabulary is as long as the template says.
+        dwidth = max([len("DEPTH")] + [len(_depth(m)) for m in models])
         print(f"{'MODEL'.ljust(width)}  {'PROVIDER':<8}  {'CONTEXT':>8}  "
-              f"{'DEPTH':<20}  CAPABILITIES")
-        print(f"{'-' * width}  {'-' * 8}  {'-' * 8}  {'-' * 20}  {'-' * 40}")
+              f"{'DEPTH'.ljust(dwidth)}  CAPABILITIES")
+        print(f"{'-' * width}  {'-' * 8}  {'-' * 8}  {'-' * dwidth}  {'-' * 40}")
         for m in sorted(models, key=lambda r: r["id"]):
             cap = ",".join(m.get("capabilities") or []) or "-"
             mark = "*" if need and m["id"] in matched_ids else ""
             print(f"{m['id'].ljust(width)}  {(m.get('provider') or '-'):<8}  "
-                  f"{_context(m):>8}  {_depth(m):<20}  {cap}{mark}".rstrip())
+                  f"{_context(m):>8}  {_depth(m).ljust(dwidth)}  {cap}{mark}".rstrip())
 
     if need:
         print()

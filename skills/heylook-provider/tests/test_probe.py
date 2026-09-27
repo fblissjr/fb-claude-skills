@@ -529,6 +529,19 @@ class TestEngineColumns:
         out = capsys.readouterr().out
         assert "qwen-text" in out and "odd" in out
 
+    def test_columns_stay_aligned_with_long_depth_values(self, capsys):
+        """RED against 0.20.0: DEPTH was a fixed 20-character column, and a
+        model with a long vocabulary (enabled,disabled,adaptive) pushed its
+        CAPABILITIES out of line, found on the live pass."""
+        wide = {"id": "wide", "provider": "gguf", "capabilities": ["chat", "reasoning_effort"],
+                "engine": {"thinking": {"depth": {"values": ["enabled", "disabled", "adaptive", "xhigh"]}}}}
+        with serving(json_routes([VISION_ROW, wide])) as base:
+            assert run(base) == 0
+        lines = [l for l in capsys.readouterr().out.splitlines()
+                 if l.startswith(("wide", "qwen-vl"))]
+        starts = {l.index("chat") for l in lines}
+        assert len(lines) == 2 and len(starts) == 1
+
     def test_no_sampler_roster(self, capsys):
         # heylook removed named sampler bundles and `samplers` from
         # /v1/capabilities in 2.0.30. RED against 0.18.0, whose --json

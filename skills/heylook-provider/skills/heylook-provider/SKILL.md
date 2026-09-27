@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (the OpenAI-compatible /v1/chat/completions was removed in 1.79.66). Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 2.0.178"
+  verified_against: "heylookitsanllm 2.0.179"
 ---
 
 # heylook as an inference provider

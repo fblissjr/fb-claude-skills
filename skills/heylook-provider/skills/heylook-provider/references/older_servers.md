@@ -106,6 +106,8 @@ the range spans.
   (`draft_acceptance` stood in for the latter until then). From 2.0.78 the
   whole prompt is `input_tokens + cache_read_input_tokens`. **Before 2.0.81**
   `performance` also carried `kv_cache_bytes`.
+- **Before 2.0.64** `thinking_duration_ms` and `content_duration_ms` were
+  streaming-only.
 - **Before 2.0.91** non-streaming `usage.thinking_tokens` and
   `content_tokens` were not filled.
 

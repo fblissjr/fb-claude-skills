@@ -222,9 +222,12 @@ and `text` (heylook's original); read `thinking`.
 `usage.input_tokens` is what this request **processed**; the part of the
 prompt reused from a previous request is `cache_read_input_tokens`, so the
 whole prompt is their sum. A null `cache_read_input_tokens` means the engine
-reported nothing about reuse, not a claimed zero. `thinking_tokens` and
-`content_tokens` split `output_tokens` when the model produced a thinking
-block.
+reported nothing about reuse, not a claimed zero. `output_tokens` is the
+engine's own count. `thinking_tokens` and `content_tokens` count emitted text
+segments, not engine tokens: an approximate split that **need not sum to
+`output_tokens`** (template markers, the end-of-sequence token and
+multi-token characters emit no segment of their own). They are null when the
+reply had no thinking.
 
 `stop_reason` is Anthropic's vocabulary with no additions. A non-streaming
 failure is an HTTP 4xx/5xx with no response body of this shape.
@@ -312,7 +315,7 @@ Absent has two spellings: streaming omits the key, non-streaming returns
 | `request_duration_ms` | Arrival to done, **including** queue wait and model load: user-perceived latency |
 | `generation_duration_ms` | Generation only, **excluding** both: the throughput denominator |
 | `queue_wait_ms` | Time in the FIFO generation gate. An idle gate reports a tiny nonzero float, so absent means not measured |
-| `thinking_duration_ms`, `content_duration_ms` | Streaming only: the translator times them as it emits |
+| `thinking_duration_ms`, `content_duration_ms` | Time from the first emitted segment of each kind to its end, in both modes. `0` is a real value: under one millisecond, as when a short answer is released in one piece |
 | `peak_memory_gb` | MLX only: generation on gguf runs in a subprocess that does not report it |
 | `cache` | `{prompt_tokens, cached_tokens, processed_tokens, outcome, cause, reason}`; `outcome` is `reused`, `miss` or `ineligible` |
 | `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities |
@@ -328,7 +331,7 @@ Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 | 400 | No `model`, or an unknown or disabled one | reason plus available ids in `detail` |
 | 400 | The model refuses the input: images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` without `thinking_budget`, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
 | 403 | Host check: the `Host` header is not an IP, `localhost`, one of the machine's own names, or an `allowed_hosts` entry in `heylook.toml` | names the fix |
-| 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}`: restore the user's text and retry after the run ends |
+| 409 | A conversation-store write while that conversation is generating | A second `generate` answers `{"error":{"code":"generation_in_progress"}}`; a message write answers a plain `detail`. Key on the status, restore the user's text, and retry after the run ends |
 | 422 | Body failed validation: a refused field (table above), an out-of-range value, a media block with no payload | FastAPI validation detail |
 | 500 | Model exists but failed to load, or a gguf decode failed | message in `detail` |
 | 503 | Backpressure: the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. `error.message` names the blocking models; show it rather than a generic retry notice |

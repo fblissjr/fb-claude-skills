@@ -1,5 +1,18 @@
 # changelog
 
+## 1.71.1
+
+### fixed
+- **`heylook-provider` 0.20.0 -> 0.20.1: the first live pass, against a running heylook 2.0.179.** The owner started a server with seeded conversations and presets. The pass followed heylookdude's ten-step plan: the probe; both modes on an MLX and a gguf model; stop sequences; refused depth; retired fields; load and warm; image-plan; cancel; prompt preview; and generate into a throwaway conversation. It also covered the Host check, the busy 503 and a keepalive `ping` during a slow image prefill. The owner's data was only read. The two test conversations were deleted. Most of the skill held. Fixed from what did not:
+  - `thinking_duration_ms` and `content_duration_ms` are filled in both modes (since 2.0.64), and `0` is a real value, not "unknown".
+  - `thinking_tokens` and `content_tokens` count emitted text segments. They are an approximate split and need not sum to `output_tokens`. heylook corrected its own schema description to match in 2.0.180.
+  - On a conversation, a second `generate` gets the 409 `generation_in_progress` envelope, but a message write during a run gets a plain `detail` body. Clients should key on the status.
+  - Conversation `params` and generate `overrides` use the store's key names (`enable_thinking`, `thinking_budget_tokens`) and silently drop anything else, so `{"thinking": false}` there does nothing. A client expanding a preset into a `/v1/messages` request has to rename those keys, or `enable_thinking` is a 422.
+  - `probe.py` sizes its DEPTH column to the data; a long vocabulary pushed CAPABILITIES out of line. One test red first.
+  - `verified_against` moves to 2.0.179.
+
+  Three disagreements are with heylookdude, unresolved: `budget_tokens` on a model without `thinking_budget` answered 200, not the documented 400; `response_format` on one gguf model fails with llama-server's own sampler error; and a gguf continuation of an assistant turn carrying media is a 400 the skill does not mention.
+
 ## 1.71.0
 
 ### added
