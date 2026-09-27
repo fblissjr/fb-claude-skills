@@ -173,6 +173,10 @@ the range spans.
 - **On 1.79.44 and 1.79.45** the non-streaming response did not echo
   `X-Request-ID`, so a client could not tell its id had been rejected.
 - **Through 1.79.51** a malformed id on DELETE answered 404, not 422.
+- **Before 2.0.182** a request was registered for cancelling only after its
+  model loaded, so a DELETE during a cold load answered 404 as if the run had
+  already finished, and the run went ahead. Against those servers, load the
+  model first (`/load`) or repeat the DELETE until the call returns.
 - **Before 2.0.181** a conversation message write or delete during a
   generation answered 409 with a bare `detail`; only a second `generate` had
   the `generation_in_progress` envelope.

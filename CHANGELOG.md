@@ -1,5 +1,10 @@
 # changelog
 
+## 1.72.1
+
+### fixed
+- **`heylook-provider` 0.21.0 -> 0.21.1: a cancel during a cold load now works, and the TypeScript client has run live.** heylook 2.0.182 registers a request for cancelling when it arrives, not after its model loads. Before, a DELETE during a cold load answered 404 as though the run had finished, and the run went ahead. The skill now says a cancel during the load is accepted: the load finishes, and the run ends with no tokens and `stop_reason: "max_tokens"`. The old behaviour and its workaround move to `older_servers.md`. This was checked live on 2.0.182 in both modes, with the model genuinely cold. The TypeScript streaming client, extracted from `client_recipes.md`, ran against the live server. It also ran against a fake server that closes before `message_stop`, where it throws; removing that throw turns the check red. `verified_against` moves to 2.0.182.
+
 ## 1.72.0
 
 ### added

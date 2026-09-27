@@ -9,10 +9,10 @@ Every Python block below was run against a live heylook at the version in
 SKILL.md's frontmatter: the streaming client with a stop sequence, the
 cancellable call, the conversation store, preset expansion against real
 presets, thinking control, image-plan and the model switch. The TypeScript
-client was executed against a server emitting the grammar in
-`wire_reference.md` (the thinking/text split, `message_stop` termination, the
-in-band `error` event, a 503 with `Retry-After`); its closing throw for a
-stream that ends without `message_stop` was added after that run. The Pillow resize recipe has a harness that extracts this
+client, extracted from this file, ran against the live server too (a stream
+ending on a stop sequence), and against a fake server that closes before
+`message_stop`, where it throws; removing that throw turns the check red. The
+Pillow resize recipe has a harness that extracts this
 file's own code block rather than copying it and runs it on Pillow 12.3.0
 across PNG and JPEG on both sides of `MAX_EDGE` plus an EXIF-orientation
 case: `uv run pytest skills/heylook-provider/tests/`. Nothing runs it

@@ -391,13 +391,12 @@ DELETE /v1/requests/{request_id}
 | `404` | Nothing is running under that id. Usually it already finished; otherwise the original request carried no usable id. Treat it as "too late" |
 | `422` | The id is malformed and could never have been tracked. Fix the id generator; retrying cannot help |
 
-**A request is cancellable once its model has loaded.** It is registered
-after the model is resolved, so a DELETE during a cold load answers 404 before
-the run has started ("too early", not "too late"); a request waiting in the
-generation queue is already registered. Load the model first (`/load`) so a
-request is cancellable from its first moment, or repeat the DELETE until the
-call returns. A conversation `generate` is not reached by this route at all:
-stop it with `DELETE /v1/conversations/{id}/generate` (`routes.md`).
+**A request is cancellable from the moment it arrives**, including while its
+model loads or it waits in the generation queue. A cancel during a cold load
+is accepted (`cancelled: 1`); the load itself cannot be interrupted and
+finishes, and the run then ends with no tokens and `stop_reason: "max_tokens"`. A conversation `generate` is not reached by this route by
+design: stop it with `DELETE /v1/conversations/{id}/generate`, which also
+persists the partial reply (`routes.md`).
 
 **This matters most for non-streaming calls.** A stream is cancelled by
 hanging up, since the server notices the dead peer on its next write. A
