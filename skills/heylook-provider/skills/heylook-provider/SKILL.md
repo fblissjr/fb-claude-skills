@@ -1,6 +1,6 @@
 ---
 name: heylook-provider
-description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (the OpenAI-compatible /v1/chat/completions was removed in 1.79.66). Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
+description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (its OpenAI-compatible route was removed in 1.79.66). Use when adding heylook as a provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when using its conversation store or presets, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime discovery of install-local model ids, capability gating, client-side image resize, and its differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
   verified_against: "heylookitsanllm 2.0.181"
 ---
@@ -38,7 +38,7 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/probe.py --base http://localhost:8000 --need
 
 Exit 2: no served model has every required capability (an empty roster counts). Exit 1: it could not read the server; the message says unreachable, refused, or not heylook's shape. Discovery is never gated, so a 401 is something in front of heylook, and a 403 is heylook's Host check (see `<operations>`).
 
-**Gate features on `capabilities`, not `modalities`.** `capabilities` is what the server will serve; `modalities` is what the checkpoint author declared (MLX strips audio towers at load). Finer controls come from each row's `engine` object: context length, the thinking switch and depth vocabulary, which request fields the engine reads (hide a control whose field is not in `engine.decoding.request_fields`). Its leaves are facts, `{value, provenance, source}`; read `.value` in one helper. Shape: `references/wire_reference.md` (Discovery endpoints).
+**Gate features on `capabilities`, not `modalities`.** `capabilities` is what the server will serve; `modalities` is what the checkpoint author declared (MLX strips audio towers at load). Finer controls come from each row's `engine` object: context length, the thinking switch and depth vocabulary, which request fields the engine reads (hide a control whose field is not in `engine.decoding.request_fields`). Most of it is facts, `{value, provenance, source}`, read at `.value`; `engine.thinking` is a plain object. Shape: `references/wire_reference.md` (Discovery endpoints).
 
 On MLX, the advertised `vision` capability and the refusal come from one resolver. Keep handling the refusal anyway, because three arms stay open:
 
@@ -111,5 +111,5 @@ After a stream's headers flush the status is already 200, so a late refusal arri
 | `references/client_recipes.md` | Streaming clients in Python and TypeScript; image resize and image-plan | Writing the client |
 | `${CLAUDE_SKILL_DIR}/scripts/probe.py` | Capability matrix from a live server | Discovery |
 
-Authoritative beyond all of these: the running server's `/openapi.json`, and [docs/api_integration.md](https://github.com/fblissjr/heylookitsanllm/blob/main/docs/api_integration.md) in the heylook repo.
+Authoritative beyond all of these: the running server's `/openapi.json`, then `docs/api_integration.md` in the heylook repo (the GitHub copy lags an unpushed local server).
 </references>

@@ -287,7 +287,8 @@ any event type you do not recognise. A cold model load still happens before
 headers are sent, so no ping covers it.
 
 `message_start.usage.input_tokens` is 0, because it is emitted before the
-first chunk; read usage from `message_delta`. When a stop sequence ended the
+first chunk; read usage from `message_delta`, which carries the same fields as
+the non-streaming `usage`, omitting the ones that would be null. When a stop sequence ended the
 reply, `message_delta.delta` also carries `stop_sequence`.
 
 Blocks open and close as the content type switches, so a thinking model emits
@@ -390,6 +391,14 @@ DELETE /v1/requests/{request_id}
 | `404` | Nothing is running under that id. Usually it already finished; otherwise the original request carried no usable id. Treat it as "too late" |
 | `422` | The id is malformed and could never have been tracked. Fix the id generator; retrying cannot help |
 
+**A request is cancellable once its model has loaded.** It is registered
+after the model is resolved, so a DELETE during a cold load answers 404 before
+the run has started ("too early", not "too late"); a request waiting in the
+generation queue is already registered. Load the model first (`/load`) so a
+request is cancellable from its first moment, or repeat the DELETE until the
+call returns. A conversation `generate` is not reached by this route at all:
+stop it with `DELETE /v1/conversations/{id}/generate` (`routes.md`).
+
 **This matters most for non-streaming calls.** A stream is cancelled by
 hanging up, since the server notices the dead peer on its next write. A
 non-streaming request writes nothing until done and does not poll for
@@ -438,13 +447,17 @@ author's description. Gate on the former. The capabilities are `chat`,
 force), `reasoning_effort` (a detected depth control) and `thinking_budget`.
 
 The `engine` object has one shape on every engine and answers for unloaded
-models too. Its leaves are **facts**, `{value, provenance, source}`: read
-`.value` through one helper rather than at each call site. What a client
-gates on:
+models too. `runtime`, `context`, `settings`, `cache`, `decoding` and
+`speculative` hold **facts**, `{value, provenance, source}`: read `.value`
+through one helper rather than at each call site. `thinking` and `image` are
+plain objects, read directly (`client_recipes.md`, Thinking control, gives the
+`thinking` shape). What a client gates on:
 
 - `engine.context.length.value`: the model's window (null where the files do
   not say). Size a prompt against it rather than learning the ceiling from a
-  400.
+  400. `engine.context.running.value` is the context llama-server actually
+  allocated for a loaded gguf model; it is null before a load, and on MLX,
+  which allocates none up front.
 - `engine.thinking.depth.values`: the `reasoning_effort` vocabulary.
 - `engine.decoding.request_fields.value`: the request fields this engine path
   reads; null means every sampler field. Hide a control whose field is not
@@ -504,3 +517,11 @@ time: loading an MLX model evicts resident gguf models and the reverse.
 
 `GET /v1/capabilities` returns `server_version`, `optimizations`, Metal device
 info, an `endpoints` map and `features`.
+
+`/v1/models` does not say which models are loaded. `GET /v1/system/metrics`
+does: its `models` object is keyed by the ids resident now, each with context
+use, memory and requests active and queued.
+
+A model id is the model's directory or file name, and the routes take it as a
+path segment. Percent-encode it when building a URL
+(`urllib.parse.quote(model_id, safe="")`, `encodeURIComponent`).

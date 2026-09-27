@@ -5,19 +5,21 @@ Working code for the parts that are heylook-specific: SSE framing with no
 requires. Adapt rather than copy wholesale — the parts worth keeping are the
 event handling and the block separation.
 
-Both streaming clients below were executed against a server emitting the
-grammar in `wire_reference.md`, covering the thinking/text split,
-`message_stop` termination, the in-band `error` event, and a 503 with
-`Retry-After`. The Pillow resize recipe has a harness that extracts this
+Every Python block below was run against a live heylook at the version in
+SKILL.md's frontmatter: the streaming client with a stop sequence, the
+cancellable call, the conversation store, preset expansion against real
+presets, thinking control, image-plan and the model switch. The TypeScript
+client was executed against a server emitting the grammar in
+`wire_reference.md` (the thinking/text split, `message_stop` termination, the
+in-band `error` event, a 503 with `Retry-After`); its closing throw for a
+stream that ends without `message_stop` was added after that run. The Pillow resize recipe has a harness that extracts this
 file's own code block rather than copying it and runs it on Pillow 12.3.0
 across PNG and JPEG on both sides of `MAX_EDGE` plus an EXIF-orientation
 case: `uv run pytest skills/heylook-provider/tests/`. Nothing runs it
 automatically — the repo has no CI and `skill-maintain test` carries no
 pytest dependency by design — so it is a check you can re-run, not a gate
 that will notice drift on its own. The `sharp` recipe was not executed; its
-settings are transcribed from heylook's own frontend. Nor were the image-plan,
-thinking-control and model-switch snippets, nor the `stop_sequence` read added to the Python
-client after that run; they follow heylook's route code and frontend.
+settings are transcribed from heylook's own frontend.
 
 That split is not bookkeeping. The Pillow recipe shipped with a bug the note
 predicted: `keep_png` read `.format` after `exif_transpose`, which returns a
@@ -72,6 +74,7 @@ def stream_message(
         "X-Request-ID": str(uuid.uuid4()),
     }
     out = Result()
+    finished = False
     with httpx.Client(timeout=httpx.Timeout(None, connect=10.0)) as client:
         with client.stream("POST", f"{base}/v1/messages", json=body, headers=headers) as r:
             if r.status_code >= 400:
@@ -106,6 +109,7 @@ def stream_message(
                 elif event == "message_stop":
                     # Terminates the stream. There is no [DONE] sentinel.
                     out.performance = data.get("performance", {})
+                    finished = True
                     break
 
                 elif event == "error":
@@ -115,6 +119,10 @@ def stream_message(
                 # Anything else -- `ping` every 5s of silence, `heylook_progress`
                 # during prefill, an event type added later -- falls through.
 
+    if not finished:
+        # The connection closed before message_stop: `out.text` is a
+        # fragment, not an answer.
+        raise RuntimeError("stream ended without message_stop")
     return out
 
 
@@ -187,15 +195,178 @@ def pick_model(base: str, *, need: set[str] = frozenset({"chat"})) -> str:
     """Resolve a model id at runtime. Ids are install-local -- a literal id
     in source is a 400 on someone else's machine."""
     rows = httpx.get(f"{base}/v1/models", timeout=10).json()["data"]
-    for row in rows:
-        # `capabilities` is what the server will serve; `modalities` is what
-        # the checkpoint declared. They diverge (MLX strips audio towers).
-        if need <= set(row.get("capabilities", [])):
-            return row["id"]
-    raise LookupError(f"no served model has {sorted(need)}; have: "
-                      f"{[(r['id'], r.get('capabilities')) for r in rows]}")
+    # `capabilities` is what the server will serve; `modalities` is what the
+    # checkpoint declared. They diverge (MLX strips audio towers).
+    fit = [r["id"] for r in rows if need <= set(r.get("capabilities") or [])]
+    if not fit:
+        raise LookupError(f"no served model has {sorted(need)}; have: "
+                          f"{[(r['id'], r.get('capabilities')) for r in rows]}")
+    # Roster order says nothing about suitability: several rows can qualify,
+    # including image-pipeline encoders and diffusion models. Prefer one that
+    # is already resident (no load to pay); otherwise let the user choose.
+    resident = httpx.get(f"{base}/v1/system/metrics", timeout=10).json().get("models") or {}
+    return next((i for i in fit if i in resident), fit[0])
 
 vision_model = pick_model(base, need={"chat", "vision"})
+```
+
+## Python: a non-streaming call you can cancel
+
+Continues the streaming client module above (`_http_error`, `Overloaded`).
+Hanging up does not stop a non-streaming run, because the server does not poll
+for disconnects, so this holds its own request id and DELETEs it.
+
+```python
+import threading
+
+
+class CancellableCall:
+    """One non-streaming POST /v1/messages that another thread can stop."""
+
+    def __init__(self, base: str, body: dict):
+        self.base = base
+        self.body = {**body, "stream": False}
+        self.request_id = str(uuid.uuid4())  # fresh per request, never reused
+        self.cancelled = False               # the response cannot tell you
+        self.result: dict | None = None
+
+    def run(self) -> dict:
+        r = httpx.post(f"{self.base}/v1/messages", json=self.body,
+                       headers={"X-Request-ID": self.request_id},
+                       timeout=httpx.Timeout(None, connect=10.0))
+        if r.status_code >= 400:
+            raise _http_error(r)
+        self.result = r.json()
+        return self.result
+
+    def cancel(self) -> bool:
+        """True when a running generation was signalled. 404 means it had
+        already finished: too late, not an error."""
+        r = httpx.delete(f"{self.base}/v1/requests/{self.request_id}", timeout=10)
+        if r.status_code == 404:
+            return False
+        r.raise_for_status()  # 422: malformed id, a bug in this class
+        self.cancelled = r.json().get("cancelled", 0) > 0
+        return self.cancelled
+```
+
+```python
+call = CancellableCall(base, {"model": model_id, "messages": messages})
+worker = threading.Thread(target=call.run)
+worker.start()
+# ... the user presses Stop:
+call.cancel()
+worker.join()
+# call.result carries what was generated, with stop_reason "max_tokens"
+# whether it was cancelled or ran out of budget; call.cancelled tells them apart.
+```
+
+## Python: conversation store
+
+Continues the same module (`_sse`, `_http_error`). The server keeps the
+history and builds each request from it; see `routes.md` for the routes and how
+they differ from `/v1/messages`.
+
+```python
+def create_conversation(base: str, model_id: str, **fields) -> dict:
+    """fields: title, system_prompt, params (store key names), applied_preset_id."""
+    body = {"title": fields.pop("title", "untitled"), "model_id": model_id, **fields}
+    r = httpx.post(f"{base}/v1/conversations", json=body, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+
+def generate(base: str, conv_id: str, user_content, *, on_text=None,
+             **overrides) -> tuple[str, dict | None, list[dict]]:
+    """Append a user turn and generate the reply. Returns (answer text, the
+    heylook_saved payload, in-band errors).
+
+    `overrides` use the STORE's key names: enable_thinking and
+    thinking_budget_tokens, not thinking. Any other key is dropped silently."""
+    body = {"mode": "append", "user_content": user_content, "overrides": overrides}
+    text, saved, errors = "", None, []
+    with httpx.Client(timeout=httpx.Timeout(None, connect=10.0)) as client:
+        with client.stream("POST", f"{base}/v1/conversations/{conv_id}/generate",
+                           json=body, headers={"X-Request-ID": str(uuid.uuid4())}) as r:
+            if r.status_code >= 400:
+                r.read()
+                # 409 generation_in_progress: one run per conversation.
+                raise _http_error(r)
+            for event, data in _sse(r.iter_lines()):
+                if event == "content_block_delta" and data["delta"]["type"] == "text_delta":
+                    chunk = data["delta"].get("text") or ""
+                    text += chunk
+                    if on_text and chunk:
+                        on_text(chunk)
+                elif event == "error":
+                    # NOT terminal here, unlike /v1/messages: heylook_saved
+                    # still follows, and a partial reply is persisted.
+                    errors.append(data["error"])
+                elif event == "heylook_saved":
+                    saved = data  # always the last event
+                    break
+    return text, saved, errors
+
+
+def stop(base: str, conv_id: str) -> bool:
+    """Stop the running generation; the partial persists. False when none runs.
+    This is the only handle: DELETE /v1/requests/{id} does not reach a
+    conversation generate."""
+    r = httpx.delete(f"{base}/v1/conversations/{conv_id}/generate", timeout=10)
+    return r.status_code == 200
+```
+
+```python
+conv = create_conversation(base, model_id, title="notes", system_prompt="Be brief.")
+text, saved, errors = generate(base, conv["id"], "Hello", max_tokens=200,
+                               enable_thinking=False)
+rows = saved["messages"]      # the rows THIS run wrote (the new user turn and
+                              # the reply), not the whole thread; merge them into
+                              # client state by id, never by counting positions
+saved["end_reason"]           # "complete", "aborted" or "error"
+httpx.delete(f"{base}/v1/conversations/{conv['id']}", timeout=10)
+```
+
+## Python: expanding a preset
+
+A preset is expanded by the client; the server never applies one. There is no
+route to fetch a single preset, so list and filter (the list is not paged).
+`model_row` is the model's row from `/v1/models`.
+
+```python
+def expand_preset(base: str, preset_id: str, model_row: dict, request: dict) -> dict:
+    """A /v1/messages body: the preset as the base, the caller's fields on top."""
+    presets = httpx.get(f"{base}/v1/presets", timeout=10).json()["presets"]
+    preset = next(p for p in presets if p["id"] == preset_id)
+    params = dict(preset.get("params") or {})
+    body = {}
+    if preset.get("system_prompt"):
+        body["system"] = preset["system_prompt"]
+
+    # The two store names that differ from the wire. Both become `thinking`,
+    # so they merge into one object when a preset carries both. Like the
+    # store, drop a key whose capability the model lacks.
+    caps = set(model_row.get("capabilities") or [])
+    switch = params.pop("enable_thinking", None)
+    budget = params.pop("thinking_budget_tokens", None)
+    if budget is not None and "thinking_budget" in caps:
+        body["thinking"] = {"budget_tokens": budget}
+        if switch is not None:
+            body["thinking"]["type"] = "enabled" if switch else "disabled"
+    elif switch is not None and "thinking" in caps:
+        body["thinking"] = switch
+
+    # The store silently drops a depth the model does not offer;
+    # /v1/messages answers 400, so filter it here.
+    effort = params.pop("reasoning_effort", None)
+    depth = ((model_row.get("engine") or {}).get("thinking") or {}).get("depth") or {}
+    if effort is not None and (depth.get("unknown") == "verbatim"
+                               or effort in (depth.get("values") or [])
+                               or effort in (depth.get("aliases") or {})):
+        body["reasoning_effort"] = effort
+
+    body.update(params)          # every other key carries over unchanged
+    return {**body, **request}   # the caller's own fields win
 ```
 
 ## TypeScript: streaming client
@@ -295,7 +466,8 @@ export async function streamMessage(
     reader.cancel().catch(() => {});
   }
 
-  return out;
+  // Reached only when the connection closed before message_stop.
+  throw new Error("stream ended without message_stop");
 }
 ```
 
@@ -401,6 +573,10 @@ def prepare_image(path_or_bytes) -> tuple[str, str]:
 `thumbnail` resizes in place and never enlarges, so a small image passes
 through untouched.
 
+The Python standard library cannot decode or resize images, so a Python client
+needs Pillow. The server applies no EXIF orientation of its own: a client that
+cannot decode an image must send it already upright and within the cap.
+
 `.format` is set by `Image.open` and by nothing else. Every operation that
 returns a new image drops it, and `exif_transpose` returns a new image even
 when there is no orientation tag to apply, so the read has to happen first.
@@ -447,19 +623,25 @@ def image_plan(base: str, model: str, sizes: list[tuple[int, int]]) -> list[dict
 heylook's frontend shows **one** thinking control per model, built from
 `engine.thinking` on the model's `/v1/models` row:
 
-- **Options**: Default (send neither field), Off (`thinking: false`), On
-  (`thinking: true`), and one level per value in `depth.values` that is not in
-  `depth.off`. Values in `off` render the same prompt as thinking switched off,
-  so they fold into Off rather than appearing as levels.
+`engine.thinking` is a plain object, not facts: `switch` is the template's
+switch variable or null, `depth` is the object below or null, `template` names
+the template copy read, and `budget` is `{enforced, reason}` or null.
+
+- **Options**: Default (send neither field); Off and On (`thinking: false` /
+  `true`) only when `switch` is non-null; and one level per value in
+  `depth.values` that is not in `depth.off`. Values in `off` render the same
+  prompt as thinking switched off, so they fold into Off rather than
+  appearing as levels.
 - **On** is offered only when `depth.default` is null or is itself in `off`;
   otherwise the default level already means on.
 - **A level** is sent as `reasoning_effort` with the template's own word, never
   translated, and never gated on thinking being on.
 - **`depth.unknown == "verbatim"`** with no switch: a text box, with `values`
   as suggestions, since the template accepts any word.
-- **A budget input** (`thinking: {"budget_tokens": N}`) appears only when
-  `engine.thinking.budget.enforced` is true, and is hidden while thinking is
-  off.
+- **A budget input** (`thinking: {"budget_tokens": N}`) appears only when the
+  model has the `thinking_budget` capability (`budget.enforced` is true on
+  exactly those models, and `budget.reason` says how), and is hidden while
+  thinking is off.
 - **`depth.changes_prefix`**: say that changing the level mid-conversation
   re-processes the whole conversation, because the prompt prefix changes and
   the cache cannot be reused.
@@ -470,9 +652,11 @@ def thinking_options(row: dict) -> list[tuple[str, dict]]:
     thinking = (row.get("engine") or {}).get("thinking") or {}
     depth = thinking.get("depth") or {}
     off = set(depth.get("off") or [])
-    opts = [("Default", {}), ("Off", {"thinking": False})]
-    if depth.get("default") is None or depth.get("default") in off:
-        opts.append(("On", {"thinking": True}))
+    opts = [("Default", {})]
+    if thinking.get("switch"):
+        opts.append(("Off", {"thinking": False}))
+        if depth.get("default") is None or depth.get("default") in off:
+            opts.append(("On", {"thinking": True}))
     opts += [(v, {"reasoning_effort": v})
              for v in depth.get("values") or [] if v not in off]
     return opts

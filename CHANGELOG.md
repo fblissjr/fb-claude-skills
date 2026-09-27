@@ -1,5 +1,24 @@
 # changelog
 
+## 1.72.0
+
+### added
+- **`heylook-provider` 0.20.2 -> 0.21.0: enough to build a full consumer from the skill alone.** A fresh agent with no context read only the skill and wrote a stdlib client covering discovery, asks, cancel, load, the conversation store and presets, listing every point where it had to guess. Its gaps, and four found beforehand, were settled against the live 2.0.181 server or heylook's code, then fixed. Every Python recipe then ran against the live server.
+  - **New recipes.** A non-streaming call you can cancel from another thread. The conversation store: create, generate with `heylook_saved`, stop, delete. Preset expansion: list and filter, since there is no route to fetch one preset; merge `enable_thinking` and `thinking_budget_tokens` into one `thinking`; drop keys the model lacks the capability for; drop a `reasoning_effort` the model does not offer, which `/v1/messages` would answer with a 400; let the caller's fields win.
+  - **Fixed.** The Python and TypeScript streaming clients returned a fragment as a complete answer when the connection closed before `message_stop`; both now raise. `pick_model` took the first capable row, which on a real roster was a diffusion model; it now prefers one already loaded. The thinking control offered Off and On to models with no thinking switch, and gave two different gates for the budget input.
+  - **Stated where the skill was silent or contradicted itself.**
+    - Only part of `engine` is facts; `engine.thinking` is a plain object, with its shape given.
+    - What `context.running` means.
+    - Which models are loaded: `/v1/system/metrics`.
+    - Percent-encode a model id in a URL.
+    - A request becomes cancellable only after its model loads, so a DELETE during a cold load is "too early"; a queued request is cancellable.
+    - A conversation `generate` is stopped only by its own DELETE, never by `/v1/requests`.
+    - `heylook_saved.messages` holds only the rows that run wrote.
+    - List routes are not paged.
+    - `message_delta.usage` omits the null fields.
+    - Python needs Pillow to resize, and the server applies no EXIF orientation.
+  - **Discoverability.** The description now names the conversation store and presets. It was trimmed elsewhere, so the always-on ceiling is not raised. SKILL.md also says the GitHub copy of heylook's integration doc lags an unpushed local server.
+
 ## 1.71.2
 
 ### fixed

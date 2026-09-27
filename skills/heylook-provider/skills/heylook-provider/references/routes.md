@@ -31,7 +31,7 @@ chat page uses it.
 
 | Route | Purpose |
 |---|---|
-| `GET/POST /v1/conversations` | List; create (201) from `{title, model_id?, system_prompt?, params?, applied_preset_id?}` |
+| `GET/POST /v1/conversations` | List `{conversations, total}` (not paged); create (201) from `{title, model_id?, system_prompt?, params?, applied_preset_id?}`, answered with the whole conversation (`id`, `messages: []`, ...) |
 | `GET/PUT/DELETE /v1/conversations/{id}` | Read with messages; patch metadata; delete (media included) |
 | `POST /v1/conversations/{id}/clone` | Copy a conversation, media included |
 | `POST /v1/conversations/{id}/messages` | Append a message `{role, content, thinking?}` |
@@ -46,7 +46,8 @@ chat page uses it.
 
 - **The server builds the request.** `generate` takes
   `{mode: "append"|"regenerate"|"continue", message_id?, user_content?,
-  overrides?, stop_sequences?}` and reads the conversation's `system_prompt`,
+  overrides?, stop_sequences?}` (`user_content` is a string or a block list,
+  as on `/v1/messages`) and reads the conversation's `system_prompt`,
   `params`, `model_id` and rows. `append` stores `user_content` as a new user
   turn first; `regenerate` replaces everything from the `message_id` anchor;
   `continue` extends the anchor row. `overrides` layers one-shot sampler
@@ -62,9 +63,13 @@ chat page uses it.
   `thinking_budget_tokens` needs `thinking_budget`).
 - **One extra event, always last.** The stream is the `/v1/messages` grammar
   plus `event: heylook_saved`, carrying `end_reason`
-  (`complete`, `aborted` or `error`), the full stored rows in `messages`,
+  (`complete`, `aborted` or `error`), the stored rows this run wrote in
+  `messages` (the new user turn and the reply, not the whole thread),
   `dropped_media` and `timing` (the same object as `message_stop.performance`).
-  Set client state from `messages`, not by counting positions.
+  Merge those rows into client state by `id`, not by counting positions.
+- **Stop it with `DELETE /v1/conversations/{id}/generate`.** `DELETE
+  /v1/requests/{id}` does not reach a conversation generate, even with the
+  `X-Request-ID` it was sent with.
 - **An `error` event does not end the saga.** It may precede `heylook_saved`,
   and a partial reply still persists. On `/v1/messages` an error event ends
   the stream.
@@ -99,15 +104,18 @@ chat page uses it.
 |---|---|
 | `GET/POST /v1/notebooks` | List (content omitted); create |
 | `GET/PUT/DELETE /v1/notebooks/{id}` | Read, patch, delete a plain-text notebook |
-| `GET/POST /v1/presets` | List `{presets, total}`; create (201; duplicate name 409, blank 400) |
+| `GET/POST /v1/presets` | List `{presets, total}` (not paged; there is no route to fetch one preset, so filter the list); create (201; duplicate name 409, blank 400) |
 | `PUT/DELETE /v1/presets/{id}` | Patch, delete |
 
 A preset is a named bundle of `system_prompt` and sampler `params`. The
 **client** expands it: copy `system_prompt` into the request and `params` into
 the sampler fields. `params` uses the store's key names, so rename exactly
 two on the way to `/v1/messages`: `enable_thinking` becomes `thinking`, and
-`thinking_budget_tokens` becomes `thinking: {"budget_tokens": N}`. Every other
-key carries over unchanged. Sent
+`thinking_budget_tokens` becomes `thinking: {"budget_tokens": N}`, merged
+into one object when a preset has both. Every other key carries over
+unchanged, except that a `reasoning_effort` the target model does not offer
+must be dropped: the store drops it silently, `/v1/messages` answers 400.
+Recipe: `client_recipes.md`, Expanding a preset. Sent
 unrenamed, `enable_thinking` is a 422 there. The server never applies a preset to a request, and
 `preset` on `/v1/messages` is a 422. A preset stores only the fields it pins,
 so absent fields still fall to the server cascade.

@@ -17,7 +17,7 @@ not for working inside the server codebase.
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `heylook-provider` | "add heylook as a provider", "heylook API", a 400/403/409/422/503 from a heylook request, parsing its SSE stream, cancelling an in-flight request, sending images to a local model | Runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec |
+| `heylook-provider` | "add heylook as a provider", "heylook API", a 400/403/409/422/503 from a heylook request, parsing its SSE stream, cancelling an in-flight request, sending images to a local model, using its conversation store or presets | Runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec |
 
 ## Invocation
 
@@ -72,7 +72,9 @@ Beyond the skill body: reference files (full wire reference, every heylook
 route grouped by who calls it, with the conversation store's differences from
 `/v1/messages`, every version
 boundary for servers older than the verified one, porting off the removed
-OpenAI route, Gemini migration, working client code in Python and TypeScript)
+OpenAI route, Gemini migration, and client code run against a live server:
+streaming, a cancellable non-streaming call, the conversation store, preset
+expansion, thinking controls)
 and a stdlib `probe.py` that prints a capability matrix from a live server,
 with each model's context length and thinking-depth vocabulary.
 The body states current behaviour only, so it stays under the size at which
