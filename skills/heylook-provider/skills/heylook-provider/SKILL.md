@@ -7,7 +7,7 @@ metadata:
 
 # heylook as an inference provider
 
-Local inference server: FastAPI, Apple Silicon, MLX (text and vision) plus gguf through a `llama-server` subprocess. Default base `http://localhost:8000`.
+Local inference server on Apple Silicon: MLX plus gguf through a `llama-server` subprocess. Default base `http://localhost:8000`.
 
 `POST /v1/messages` conforms to Anthropic's Messages API (typed content blocks, top-level `system`, `stop_sequences`, the Messages SSE grammar with `ping` keepalives and no `[DONE]`), so an Anthropic SDK habit mostly transfers and Anthropic's spec answers most questions this skill does not. What does not transfer follows from the server being **local and single-user**: model ids belong to the install, capabilities vary per model, images are resized by you, and a busy server queues rather than scales.
 
@@ -36,7 +36,7 @@ curl -s localhost:8000/v1/capabilities  # server version
 python3 ${CLAUDE_SKILL_DIR}/scripts/probe.py --base http://localhost:8000 --need vision
 ```
 
-The probe prints a capability matrix. Exit 2: no served model has every required capability (an empty roster counts). Exit 1: it could not read the server; the message says unreachable, refused, or not heylook's shape. Discovery is never gated, so a 401 is something in front of heylook, and a 403 is heylook's Host check (see `<operations>`).
+Exit 2: no served model has every required capability (an empty roster counts). Exit 1: it could not read the server; the message says unreachable, refused, or not heylook's shape. Discovery is never gated, so a 401 is something in front of heylook, and a 403 is heylook's Host check (see `<operations>`).
 
 **Gate features on `capabilities`, not `modalities`.** `capabilities` is what the server will serve; `modalities` is what the checkpoint author declared (MLX strips audio towers at load). Finer controls come from each row's `engine` object: context length, the thinking switch and depth vocabulary, which request fields the engine reads (hide a control whose field is not in `engine.decoding.request_fields`). Its leaves are facts, `{value, provenance, source}`; read `.value` in one helper. Shape: `references/wire_reference.md` (Discovery endpoints).
 
@@ -50,7 +50,7 @@ The refusal has two shapes: non-streaming a 400; on a stream the guard fires aft
 
 Audio: MLX never advertises `audio` (sending it is a 400). gguf serves it with a projector.
 
-`GET /openapi.json` is generated from the Pydantic models at boot, so its fields, bounds and enums are current by construction: it is the field reference and wins over this file.
+`GET /openapi.json` is generated from the code at boot, so it is current by construction: it is the field reference and wins over this file.
 </discovery>
 
 <wire>
@@ -106,6 +106,7 @@ After a stream's headers flush the status is already 200, so a late refusal arri
 | `references/wire_reference.md` | Every `/v1/messages` field, block, stream event, error, and the `/v1/models` row | Writing or debugging a request |
 | `references/older_servers.md` | Every version boundary, by topic | The server predates `metadata.verified_against`, or the client must support a range |
 | `references/openai_wire.md` | Porting off the removed `/v1/chat/completions` | An OpenAI-SDK client points at heylook, or that route answers 404 |
+| `references/routes.md` | Every route by audience; the conversation store | A route beyond inference, or server-side history |
 | `references/gemini_migration.md` | Field-by-field Gemini mapping and structural mismatches | Adding heylook beside a Gemini integration |
 | `references/client_recipes.md` | Streaming clients in Python and TypeScript; image resize and image-plan | Writing the client |
 | `${CLAUDE_SKILL_DIR}/scripts/probe.py` | Capability matrix from a live server | Discovery |

@@ -1,5 +1,18 @@
 # changelog
 
+## 1.71.0
+
+### added
+- **`heylook-provider` 0.19.1 -> 0.20.0: every heylook route, not only inference.** The owner asked for the whole API. The new `references/routes.md` lists all 54 `/v1` operations, grouped as inference, conversation store, notebooks and presets, model administration, and maintenance. It marks which routes need the admin token. It is built from heylook's `docs/api_integration.md` §9 (3ac791f8) and checked operation by operation against the OpenAPI document the 2.0.179 app generates. The conversation store gets its own section, because a client might pick it over `/v1/messages`:
+  - `generate` builds the request from stored rows and ends with a `heylook_saved` event carrying those rows.
+  - An `error` event there does not end the run: a partial reply still persists.
+  - Only one generation runs per conversation (409 for a second).
+  - Stored media comes back as URL sources.
+  - `prompt` previews the exact rendered prompt.
+  - A stored thinking level the model does not offer is dropped, not refused.
+
+  Presets are expanded by the client, never applied by the server. SKILL.md carries one pointer row, trimmed elsewhere to stay under the re-attach budget.
+
 ## 1.70.1
 
 ### fixed

@@ -68,7 +68,9 @@ while other unknown fields are ignored, and heylook's stream extensions). That
 list is hand-maintained and has shipped incomplete, so the skill defers to the
 server's `/openapi.json`.
 
-Beyond the skill body: reference files (full wire reference, every version
+Beyond the skill body: reference files (full wire reference, every heylook
+route grouped by who calls it, with the conversation store's differences from
+`/v1/messages`, every version
 boundary for servers older than the verified one, porting off the removed
 OpenAI route, Gemini migration, working client code in Python and TypeScript)
 and a stdlib `probe.py` that prints a capability matrix from a live server,
