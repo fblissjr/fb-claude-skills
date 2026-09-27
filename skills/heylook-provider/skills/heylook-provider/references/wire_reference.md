@@ -71,8 +71,12 @@ names the match on the non-streaming body and on `message_delta.delta`.
 
 `thinking` is the template's thinking switch. A bool and Anthropic's object
 mean the same switch; the object may also carry `budget_tokens`, a hard cap
-the engine enforces on models with the `thinking_budget` capability and a 400
-elsewhere. Both object fields are optional: an absent `type` keeps the model's
+the engine enforces on models with the `thinking_budget` capability. Gate on
+that capability: its absence is not refused, the budget just is not
+guaranteed to cap (thinking off, a template with no thinking format, a gguf
+model where llama-server cannot find the template's thinking end tag). The
+one refusal is an MLX harmony model, whose thinking channel the engine cannot
+close: a 400. Both object fields are optional: an absent `type` keeps the model's
 default, so a budget can be set without deciding the switch. Absent
 `thinking` is the model's default, which the row reports as
 `thinking_default`.
@@ -106,12 +110,22 @@ default.
 JSON document matching the schema; `{"type": "json_object"}` any JSON object;
 `{"type": "text"}` free text. Thinking is not constrained. It is a 400 on
 harmony models, on masked-diffusion models, and combined with a continuation.
+On gguf, llama-server compiles the schema itself and can still refuse one; that
+refusal is a 400 (or an in-band `invalid_request_error`) in llama-server's
+words.
 
 ### Continuation
 
 A trailing assistant message is **continued**, not answered, and a trailing
 assistant message holding only a `thinking` block resumes inside that thought.
 There is no flag to force the other reading.
+
+Continuing a trailing assistant message that carries media is a 400 on
+templates that drop that turn's media marker when it is the one being
+continued; the error says so. heylook asks the template rather than assuming,
+so the same request works on templates that keep the marker. Remove the
+attachment or regenerate instead. Media on an assistant turn that is not the
+last one is unaffected (MLX still refuses media on any non-user turn).
 
 ### Fields refused, and fields ignored
 
@@ -329,9 +343,9 @@ Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 | Code | Condition | Body |
 |---|---|---|
 | 400 | No `model`, or an unknown or disabled one | reason plus available ids in `detail` |
-| 400 | The model refuses the input: images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` without `thinking_budget`, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
+| 400 | The model refuses the input: images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` on an MLX harmony model, a trailing assistant turn with media the template cannot continue, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
 | 403 | Host check: the `Host` header is not an IP, `localhost`, one of the machine's own names, or an `allowed_hosts` entry in `heylook.toml` | names the fix |
-| 409 | A conversation-store write while that conversation is generating | A second `generate` answers `{"error":{"code":"generation_in_progress"}}`; a message write answers a plain `detail`. Key on the status, restore the user's text, and retry after the run ends |
+| 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}`, for a second `generate` and for any message write or conversation delete: restore the user's text and retry after the run ends |
 | 422 | Body failed validation: a refused field (table above), an out-of-range value, a media block with no payload | FastAPI validation detail |
 | 500 | Model exists but failed to load, or a gguf decode failed | message in `detail` |
 | 503 | Backpressure: the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. `error.message` names the blocking models; show it rather than a generic retry notice |

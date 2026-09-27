@@ -2,7 +2,7 @@
 name: heylook-provider
 description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (the OpenAI-compatible /v1/chat/completions was removed in 1.79.66). Use when adding heylook as an inference provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime model discovery against install-local ids, capability gating, client-side image resize, and the deliberate differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 2.0.179"
+  verified_against: "heylookitsanllm 2.0.181"
 ---
 
 # heylook as an inference provider
@@ -59,7 +59,7 @@ Audio: MLX never advertises `audio` (sending it is a 400). gguf serves it with a
 Differences from Anthropic's Messages API:
 
 - **`max_tokens` is optional.** Absent means heylook's cascade decides (server floor, the publisher's generation config, model config). A client-side default carried over from Anthropic code overrides the model's own on every request; send only the fields you have an opinion about.
-- **`thinking` takes a bool** (the template's thinking switch) as well as Anthropic's `{"type","budget_tokens"}`. `budget_tokens` is a hard cap only on models with the `thinking_budget` capability, and a 400 elsewhere.
+- **`thinking` takes a bool** (the template's thinking switch) as well as Anthropic's `{"type","budget_tokens"}`. Gate `budget_tokens` on the `thinking_budget` capability: elsewhere it is accepted but may cap nothing.
 - **Depth is `reasoning_effort`**, in each model's own template vocabulary: read `engine.thinking.depth.values` and show those words (`depth.off` lists the ones that mean thinking off). Never map a low/medium/high scale across models. An unoffered value is a 400, unless `depth.unknown` is `verbatim`.
 - **No tools**: `tools` and `tool_choice` are a 422.
 - **`response_format`** is OpenAI's structured-output shape (`json_schema`, `json_object`, `text`), not an Anthropic field. 400 on harmony and diffusion models, and with a continuation.

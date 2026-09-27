@@ -1,5 +1,16 @@
 # changelog
 
+## 1.71.2
+
+### fixed
+- **`heylook-provider` 0.20.1 -> 0.20.2: the live pass's open disagreements, resolved against heylook 2.0.181.** heylookdude traced all five. Two were heylook bugs, fixed in 2.0.181. Each resolution was checked in heylook's code before landing.
+  - **`budget_tokens` (doc error).** It is refused only on an MLX harmony model. Anywhere else it is accepted and may cap nothing, so the skill now says to gate on `thinking_budget` rather than expect a 400.
+  - **`response_format` on gguf (heylook bug).** heylook sent the schema as llama-server's top-level `json_schema`, which clashed with some templates' reasoning grammar. 2.0.181 sends `response_format`. The skill keeps a general note that llama-server can still refuse a schema, in its own words.
+  - **Continuing an assistant turn that carries media (intended; depends on the template).** It is a 400 when the template drops that turn's media marker. Now documented.
+  - **409s on the conversation store (heylook bug).** Every write during a generation now returns the same `generation_in_progress` envelope. 0.20.1's "two body shapes" note is replaced, and the old shape moves to `older_servers.md`.
+  - **Store key names (intended).** `routes.md` lists the exact key set, the keys dropped when the model lacks the capability, and the two renames a preset needs for `/v1/messages`.
+  - `verified_against` moves to 2.0.181. The `response_format` and 409 fixes are checked in code only: the owner's server was still running 2.0.179, so they wait for a live re-run after a restart.
+
 ## 1.71.1
 
 ### fixed

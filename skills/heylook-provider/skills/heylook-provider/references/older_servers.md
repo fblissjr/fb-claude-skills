@@ -75,7 +75,13 @@ the range spans.
   ran past it and `stop_reason: "stop_sequence"` could not occur. `tools` and
   `tool_choice` were dropped silently rather than refused.
 - **Before 2.0.155** there was no `response_format`: prompt for the shape and
-  parse defensively.
+  parse defensively. **Before 2.0.181** gguf passed the schema to
+  llama-server as its top-level `json_schema`, which clashed with some
+  templates' reasoning grammar and answered 400 "Failed to initialize
+  samplers" where the same schema now works.
+- **Before 2.0.181** the documented rule was that `budget_tokens` without the
+  `thinking_budget` capability is a 400; the server never did that outside MLX
+  harmony models.
 
 ## Usage and telemetry
 
@@ -167,6 +173,9 @@ the range spans.
 - **On 1.79.44 and 1.79.45** the non-streaming response did not echo
   `X-Request-ID`, so a client could not tell its id had been rejected.
 - **Through 1.79.51** a malformed id on DELETE answered 404, not 422.
+- **Before 2.0.181** a conversation message write or delete during a
+  generation answered 409 with a bare `detail`; only a second `generate` had
+  the `generation_in_progress` envelope.
 - **Before 2.0.138** the busy 503 and 4xx responses carried no
   `X-Request-ID` echo (2.0.141 completed the rest).
 
