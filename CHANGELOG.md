@@ -9,7 +9,7 @@
   - **Continuing an assistant turn that carries media (intended; depends on the template).** It is a 400 when the template drops that turn's media marker. Now documented.
   - **409s on the conversation store (heylook bug).** Every write during a generation now returns the same `generation_in_progress` envelope. 0.20.1's "two body shapes" note is replaced, and the old shape moves to `older_servers.md`.
   - **Store key names (intended).** `routes.md` lists the exact key set, the keys dropped when the model lacks the capability, and the two renames a preset needs for `/v1/messages`.
-  - `verified_against` moves to 2.0.181. The `response_format` and 409 fixes are checked in code only: the owner's server was still running 2.0.179, so they wait for a live re-run after a restart.
+  - `verified_against` moves to 2.0.181, verified live. After the owner restarted the server on 2.0.181, both fixes were re-run. `response_format` on the gguf model returns JSON-only text that parses, for `json_schema` and `json_object`, streaming and not. During a generate, a second generate, append, edit, delete, truncate and conversation delete each return the one `generation_in_progress` envelope.
 
 ## 1.71.1
 
