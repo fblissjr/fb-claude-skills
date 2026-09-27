@@ -15,8 +15,8 @@ case: `uv run pytest skills/heylook-provider/tests/`. Nothing runs it
 automatically — the repo has no CI and `skill-maintain test` carries no
 pytest dependency by design — so it is a check you can re-run, not a gate
 that will notice drift on its own. The `sharp` recipe was not executed; its
-settings are transcribed from heylook's own frontend. Nor were the image-plan
-and model-switch snippets, nor the `stop_sequence` read added to the Python
+settings are transcribed from heylook's own frontend. Nor were the image-plan,
+thinking-control and model-switch snippets, nor the `stop_sequence` read added to the Python
 client after that run; they follow heylook's route code and frontend.
 
 That split is not bookkeeping. The Pillow recipe shipped with a bug the note
@@ -440,6 +440,42 @@ def image_plan(base: str, model: str, sizes: list[tuple[int, int]]) -> list[dict
         return None
     r.raise_for_status()
     return r.json()["images"]    # target is null on gguf
+```
+
+## Thinking control
+
+heylook's frontend shows **one** thinking control per model, built from
+`engine.thinking` on the model's `/v1/models` row:
+
+- **Options**: Default (send neither field), Off (`thinking: false`), On
+  (`thinking: true`), and one level per value in `depth.values` that is not in
+  `depth.off`. Values in `off` render the same prompt as thinking switched off,
+  so they fold into Off rather than appearing as levels.
+- **On** is offered only when `depth.default` is null or is itself in `off`;
+  otherwise the default level already means on.
+- **A level** is sent as `reasoning_effort` with the template's own word, never
+  translated, and never gated on thinking being on.
+- **`depth.unknown == "verbatim"`** with no switch: a text box, with `values`
+  as suggestions, since the template accepts any word.
+- **A budget input** (`thinking: {"budget_tokens": N}`) appears only when
+  `engine.thinking.budget.enforced` is true, and is hidden while thinking is
+  off.
+- **`depth.changes_prefix`**: say that changing the level mid-conversation
+  re-processes the whole conversation, because the prompt prefix changes and
+  the cache cannot be reused.
+
+```python
+def thinking_options(row: dict) -> list[tuple[str, dict]]:
+    """(label, request fields) pairs for one model's thinking control."""
+    thinking = (row.get("engine") or {}).get("thinking") or {}
+    depth = thinking.get("depth") or {}
+    off = set(depth.get("off") or [])
+    opts = [("Default", {}), ("Off", {"thinking": False})]
+    if depth.get("default") is None or depth.get("default") in off:
+        opts.append(("On", {"thinking": True}))
+    opts += [(v, {"reasoning_effort": v})
+             for v in depth.get("values") or [] if v not in off]
+    return opts
 ```
 
 ## Model switch

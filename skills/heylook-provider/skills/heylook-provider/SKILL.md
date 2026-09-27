@@ -43,7 +43,7 @@ The probe prints a capability matrix. Exit 2: no served model has every required
 On MLX, the advertised `vision` capability and the refusal come from one resolver. Keep handling the refusal anyway, because three arms stay open:
 
 - **A vision-capable MLX model refuses an image on a non-user turn** with a 400 (mlx-vlm would silently move it to the last user turn). Put images on user turns. gguf accepts the shape.
-- **gguf has no capability guard.** It advertises `vision` only with an mmproj projector, then forwards the block to `llama-server`, whose refusal is normalized into the same 400; accepting the block and ignoring it is the silent case, a 200 describing an image the model never used.
+- **gguf has no capability guard.** It advertises `vision` only with an mmproj projector, then forwards the block to `llama-server`, whose refusal becomes the same 400 (in llama-server's own words, so never string-match refusals); accepting the block and ignoring it is the silent case, a 200 describing an image the model never used.
 - **An explicit `capabilities` list in the model's `heylook.toml` config is honoured verbatim**, so an operator can assert what the server will not deliver.
 
 The refusal has two shapes: non-streaming a 400; on a stream the guard fires after headers flushed, so it arrives as an in-band `error` event typed `invalid_request_error`. The same two shapes carry an unreadable image and a prompt longer than the model's context. A client that treats gating as sufficient renders that as a hang or as assistant text.
@@ -60,7 +60,7 @@ Differences from Anthropic's Messages API:
 
 - **`max_tokens` is optional.** Absent means heylook's cascade decides (server floor, the publisher's generation config, model config). A client-side default carried over from Anthropic code overrides the model's own on every request; send only the fields you have an opinion about.
 - **`thinking` takes a bool** (the template's thinking switch) as well as Anthropic's `{"type","budget_tokens"}`. `budget_tokens` is a hard cap only on models with the `thinking_budget` capability, and a 400 elsewhere.
-- **Depth is `reasoning_effort`**, in each model's own template vocabulary: read `engine.thinking.depth.values` and show those words. Never map a low/medium/high scale across models. An unoffered value is a 400 naming the valid ones.
+- **Depth is `reasoning_effort`**, in each model's own template vocabulary: read `engine.thinking.depth.values` and show those words (`depth.off` lists the ones that mean thinking off). Never map a low/medium/high scale across models. An unoffered value is a 400, unless `depth.unknown` is `verbatim`.
 - **No tools**: `tools` and `tool_choice` are a 422.
 - **`response_format`** is OpenAI's structured-output shape (`json_schema`, `json_object`, `text`), not an Anthropic field. 400 on harmony and diffusion models, and with a continuation.
 - **Thinking blocks carry no `signature`**, and there is no `signature_delta`.

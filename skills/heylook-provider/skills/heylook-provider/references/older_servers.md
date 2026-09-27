@@ -140,6 +140,8 @@ the range spans.
 - **Before 2.0.147** a gguf model advertised `vision` from a declared modality
   without a projector, which llama-server cannot serve.
 - **Before 2.0.163** rows had no `sampler_sources`.
+- `engine.thinking.depth.off` arrived in 2.0.159; the schema's own
+  description of `engine.thinking` omitted it until 2.0.179.
 
 ## Access
 

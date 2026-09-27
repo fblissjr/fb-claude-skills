@@ -81,11 +81,23 @@ default, so a budget can be set without deciding the switch. Absent
 models read reasoning depth and have no thinking switch at all. The schema
 accepts any word matching `^[A-Za-z0-9_-]+$` up to 32 characters. What a model
 accepts is its template's own vocabulary, published per model at
-`engine.thinking.depth` on `/v1/models` (`values`, `aliases`, `default`). A
-value the model does not offer is a **400 naming the valid values**, returned
-before any stream opens or model loads. Show the template's own words and
-never translate between models: there is no shared low/medium/high scale.
-Omitting it applies the template's default.
+`engine.thinking.depth` on `/v1/models`. A value the model does not offer is a
+**400 naming the valid values**, returned before any stream opens or model
+loads, and so is any value sent to a model whose template has no depth
+control. The exception is `depth.unknown: "verbatim"` (gpt-oss, for one): the
+template pastes any word in, so every value is accepted. The value reaches the
+template under the template's own variable name (`depth.variable`), whether or
+not thinking is on. Show the template's own words and never translate between models:
+there is no shared low/medium/high scale. Omitting it applies the template's
+default.
+
+| `depth` key | Meaning |
+|---|---|
+| `variable` | The template variable the value is sent as |
+| `values`, `aliases`, `default` | The words to offer, other spellings the template accepts, and what applies when you send none |
+| `off` | Values that render identically to thinking switched off. Present them as "thinking off", not as a level |
+| `changes_prefix` | Switching depth changes the rendered prompt prefix, so it costs prompt-cache reuse |
+| `unknown` | What the template does with a value it does not recognise: `raises`, `ignored`, `verbatim` or `fallback`. Under `verbatim` any word is accepted, so offer a text box with `values` as suggestions |
 
 ### Structured output
 
@@ -394,7 +406,8 @@ reported `stop_sequence`. It is indistinguishable from budget exhaustion:
       "template": { "...": "which chat template is in force, incl. prefix_stable" },
       "settings": { "<field>": { "value", "configured", "auto", "reason", "provenance", "effect" } },
       "cache":    { "...": "how this model reuses a prompt" },
-      "thinking": { "switch": "...", "depth": { "variable", "values", "aliases", "default" },
+      "thinking": { "switch": "...", "depth": { "variable", "values", "aliases", "default",
+                                                "unknown", "changes_prefix", "off" },
                     "budget": { "enforced", "reason" }, "template": "..." },
       "image":    { "...": "image geometry" },
       "speculative": { "drafter", "type", "in_force" },
@@ -436,9 +449,13 @@ cannot disagree. Three arms stay open, so handle the refusal regardless:
 - gguf has no guard of its own. It advertises `vision` only when the model has
   an mmproj projector (a declared modality alone advertises nothing; `audio`
   needs the projector and the modality), then forwards the block to
-  `llama-server`. A 400 from llama-server is normalized into the same refusal.
-  If it accepts the block and ignores it, nothing refuses: a 200 describing an
-  image the model never used, decided by the model's packaging.
+  `llama-server`. A 400 from llama-server becomes the same refusal (a 400, or
+  an in-band `invalid_request_error`); any other llama-server status is a 500
+  or `api_error`. The status and error type match MLX, but the message is
+  llama-server's own text, so never string-match refusal messages across
+  engines. If llama-server accepts the block and ignores it, nothing refuses:
+  a 200 describing an image the model never used, decided by the model's
+  packaging.
 
 ### Image cost
 

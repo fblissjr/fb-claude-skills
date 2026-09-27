@@ -1,5 +1,10 @@
 # changelog
 
+## 1.70.1
+
+### fixed
+- **`heylook-provider` 0.19.0 -> 0.19.1: the gguf refusal path is traced, and every depth key is documented.** The heylook session traced the path it left open and pinned it with a test in heylook 2.0.179. A llama-server 400 becomes heylook's 400, or an in-band `invalid_request_error` on a stream; any other llama-server status is a 500 or `api_error`. The status and error type match MLX, but the message is llama-server's own text, so the skill now says never to string-match refusal messages across engines. `wire_reference.md` documents all seven `engine.thinking.depth` keys. The one a client most needs is `off`: the values that render the same as thinking switched off, which belong under "thinking off", not in the list of levels. The 400 for an unoffered depth does not apply when `depth.unknown` is `verbatim`, where the template accepts any word; SKILL.md now says so. `client_recipes.md` gains the frontend's single thinking control (Default, Off, On, one option per level) as a recipe that has not been executed. Checked against heylook's `thinking_controls.py` (`check_depth`), `llama_server_provider.py` and `docs/frontend_v3_spec.md`. `verified_against` stays at 2.0.178, because 2.0.179 changed only a schema description and a test.
+
 ## 1.70.0
 
 ### changed
