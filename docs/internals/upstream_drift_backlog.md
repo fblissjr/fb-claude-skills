@@ -1,4 +1,4 @@
-last updated: 2026-09-24
+last updated: 2026-09-27
 
 # Upstream drift backlog
 
@@ -12,13 +12,6 @@ Re-derive with: `skill-maintain upstream`, then diff
 
 ## Pending follow-ups from the 2026-09-21 refresh
 
-- **Two skills over the 5,000-token re-attach cut**, by `claude plugin details`:
-  `heylook-provider` (~7.6k; `skill-maintain test` reports it over) and
-  `path-privacy` (~5.7k; reported unverified, because its character count sits
-  inside the estimator's band). For heylook, what a compacted session loses is
-  most of "Operational shape", the "References" map and "Done means". The fix
-  is to move the last two to the top and "Operational shape" into
-  `references/`. Each is its own plugin with its own version bump.
 - **Marketplace descriptions after push.** Entries no longer carry a
   `description`; once the marketplace updates, confirm with `claude plugin
   details <name>` that the text shown is `plugin.json`'s.
