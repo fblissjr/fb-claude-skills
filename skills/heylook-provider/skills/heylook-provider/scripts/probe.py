@@ -19,10 +19,10 @@ The code is derived once and both renderers return it, because the two used
 to disagree: `--need vision` against an empty roster exited 0 in text mode
 and 2 in --json.
 
-Auth: --api-key, else $HEYLOOK_API_KEY. heylook's own key gate is a
-per-route dependency on the inference routes, so the two endpoints read here
-are open even when it is set -- the key is for a server behind something
-that gates discovery anyway. Never printed.
+Auth: heylook has no inference key and never gates the two endpoints read
+here. --api-key is only for a proxy in front of it that gates discovery; it is
+sent as a bearer token to that origin and never printed. A 403 is heylook's
+own Host check (DNS-rebinding guard), not auth.
 
 Standard library only; no install step.
 """
@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
-import os
 import sys
 import urllib.error
 import urllib.parse
@@ -96,20 +95,28 @@ def fetch(base: str, path: str, timeout: float, api_key: str | None = None) -> d
     except urllib.error.HTTPError as e:
         # HTTPError subclasses URLError subclasses OSError, so it must be
         # caught FIRST -- a 401 from a running server is not a dead server.
-        if e.code in (401, 403):
-            # Branch on whether a key was actually sent. Telling someone to
-            # pass --api-key when they just did is the same defect as telling
-            # them to start a server that is already running.
+        if e.code == 403:
+            # heylook's Host check (2.0.137) answers 403 to a Host header it
+            # does not know -- a LAN client using a DNS name. Not a credential.
+            raise Unreadable(
+                f"{base} answered HTTP 403 for {path}.",
+                "heylook refuses a Host it does not know. Address it by IP or "
+                "localhost, or add this hostname to `allowed_hosts` in the "
+                "server's heylook.toml.",
+            ) from e
+        if e.code == 401:
+            # heylook has no inference key and never gates discovery, so a
+            # 401 is always something in front of it. Branch on whether a key
+            # was sent: telling someone to pass --api-key when they just did
+            # is the same defect as telling them to start a running server.
             hint = (
-                "that key was rejected. Check it is the value of "
-                "HEYLOOK_API_KEY on the server, and that you are not hitting "
-                "a different server than you think."
+                "that credential was rejected by whatever sits in front of "
+                "heylook. Check you are hitting the server you think."
                 if api_key else
-                "heylook does not gate discovery, so this is something in "
-                "front of it. Pass --api-key or set HEYLOOK_API_KEY with "
-                "whatever credential that proxy expects."
+                "heylook does not gate discovery, so this is a proxy in front "
+                "of it. Pass --api-key with the credential that proxy expects."
             )
-            raise Unreadable(f"{base} answered HTTP {e.code} for {path}.", hint) from e
+            raise Unreadable(f"{base} answered HTTP 401 for {path}.", hint) from e
         raise Unreadable(
             f"{base} answered HTTP {e.code} for {path}.",
             f"a heylook server serves {path}. Check the base URL and port.",
@@ -169,17 +176,28 @@ def models_from(payload: dict, base: str) -> tuple[list[dict], int]:
     return usable, skipped
 
 
-def _samplers(caps: dict) -> list:
-    available = (caps.get("samplers") or {}).get("available") or []
-    return available if isinstance(available, list) else []
+def _dig(row: dict, *keys):
+    """Walk nested dicts; None as soon as a level is missing or not a dict."""
+    node = row
+    for k in keys:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(k)
+    return node
 
 
-def _sampler_names(caps: dict) -> list[str]:
-    return [
-        n
-        for n in (s.get("name") if isinstance(s, dict) else str(s) for s in _samplers(caps))
-        if n
-    ]
+def _context(row: dict) -> str:
+    """engine.context.length is a fact, {value, provenance, source}."""
+    value = _dig(row, "engine", "context", "length", "value")
+    return str(value) if isinstance(value, int) else "-"
+
+
+def _depth(row: dict) -> str:
+    """The model's own reasoning_effort words, shown untranslated."""
+    values = _dig(row, "engine", "thinking", "depth", "values")
+    if not isinstance(values, list):
+        return "-"
+    return ",".join(str(v) for v in values) or "-"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -190,12 +208,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeout", type=float, default=10.0)
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     ap.add_argument("--api-key", default=None,
-                    help="bearer token; defaults to $HEYLOOK_API_KEY. Never printed")
+                    help="bearer token for a proxy in front of heylook; never printed")
     ap.add_argument("--need", action="append", default=[], metavar="CAP",
                     help="require this capability; repeatable. Exit 2 if unmatched")
     args = ap.parse_args(argv)
 
-    api_key = args.api_key or os.environ.get("HEYLOOK_API_KEY") or None
+    api_key = args.api_key or None
 
     try:
         models, skipped = models_from(
@@ -227,7 +245,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         json.dump({"base": args.base,
                    "server_version": caps.get("server_version"),
-                   "samplers": _sampler_names(caps),
                    "models": models,
                    "matched": [m["id"] for m in matched]},
                   sys.stdout, indent=2)
@@ -235,22 +252,21 @@ def main(argv: list[str] | None = None) -> int:
         return status
 
     print(f"heylook {caps.get('server_version', 'unknown')} at {args.base}")
-    names = _sampler_names(caps)
-    if names:
-        print(f"samplers: {', '.join(names)}")
     print()
 
     if not models:
-        print("no models served. check the [scan] folders in models.toml.")
+        print("no models served. check the [scan] folders in heylook.toml.")
     else:
         matched_ids = {m["id"] for m in matched}
         width = max(len(m["id"]) for m in models)
-        print(f"{'MODEL'.ljust(width)}  {'PROVIDER':<14}  CAPABILITIES")
-        print(f"{'-' * width}  {'-' * 14}  {'-' * 40}")
+        print(f"{'MODEL'.ljust(width)}  {'PROVIDER':<8}  {'CONTEXT':>8}  "
+              f"{'DEPTH':<20}  CAPABILITIES")
+        print(f"{'-' * width}  {'-' * 8}  {'-' * 8}  {'-' * 20}  {'-' * 40}")
         for m in sorted(models, key=lambda r: r["id"]):
             cap = ",".join(m.get("capabilities") or []) or "-"
             mark = "*" if need and m["id"] in matched_ids else ""
-            print(f"{m['id'].ljust(width)}  {(m.get('provider') or '-'):<14}  {cap}{mark}".rstrip())
+            print(f"{m['id'].ljust(width)}  {(m.get('provider') or '-'):<8}  "
+                  f"{_context(m):>8}  {_depth(m):<20}  {cap}{mark}".rstrip())
 
     if need:
         print()

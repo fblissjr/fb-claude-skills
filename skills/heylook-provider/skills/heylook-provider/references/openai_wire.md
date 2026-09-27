@@ -36,8 +36,8 @@ resp = client.messages.create(
 )
 ```
 
-`api_key` is required by the SDK and ignored by the server unless
-`HEYLOOK_API_KEY` is set; when it is set, pass the real key.
+`api_key` is required by the SDK and ignored by the server: heylook has no
+inference key.
 
 ## Field mapping
 
@@ -47,16 +47,22 @@ resp = client.messages.create(
 | `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` | `{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":"..."}}` |
 | `data:` URI | raw base64, no prefix |
 | `{"type":"input_audio","input_audio":{"data":...,"format":...}}` (gguf only) | `{"type":"audio","source":{"type":"base64","media_type":...,"data":...}}` (still gguf only) |
-| `enable_thinking` | `thinking` (a bool, same meaning) |
-| `stream_options.include_usage` | nothing; `usage` rides `message_delta`, telemetry rides `message_stop.performance` unconditionally |
+| `enable_thinking` | `thinking` (a bool, same meaning). `enable_thinking` itself is a 422 naming `thinking` |
+| `stream_options.include_usage` | nothing (ignored); `usage` rides `message_delta`, telemetry rides `message_stop.performance` unconditionally |
 | `include_performance` | nothing; telemetry is unconditional (never a field on this wire since 1.79.49) |
 | `X-Request-ID` | unchanged, same cancellation endpoint |
+| `stop` | `stop_sequences` (honoured; `stop_reason: "stop_sequence"`) |
+| `response_format` | `response_format`, same shape |
+| `tools`, `tool_choice` | nothing: a 422, tool use is not built |
 
 Sampler knobs (`temperature`, `top_p`, `top_k`, `min_p`, `repetition_penalty`,
-`repetition_context_size`, `presence_penalty`, `seed`, `sampler`,
-`vision_tokens`, `reasoning_effort`) keep their names and bounds, and absent
-still means the server cascade decides. `logprobs` and `top_logprobs` do NOT
-port: they were removed in heylook 1.79.74 and now answer 422.
+`repetition_context_size`, `presence_penalty`, `seed`) keep their names and
+bounds, and absent still means the server cascade decides. `reasoning_effort`
+keeps its name, but its values are each model's own template vocabulary
+(`engine.thinking.depth.values` on `/v1/models`); an unoffered value is a 400.
+These do NOT port: `logprobs` and `top_logprobs` (removed, 422), `sampler`
+(named bundles removed, 422: send the fields), and `vision_tokens` (removed,
+422).
 
 | You read (OpenAI route) | Read now (`/v1/messages`) |
 |---|---|
@@ -79,8 +85,9 @@ here. Track your own cancel; never infer it from the response.
   `resize_height`, `image_quality` and `preserve_alpha` existed only on the
   removed route. Resize before sending: longest edge around 2048px, photos as
   JPEG at about 0.85 quality, PNG kept as PNG, EXIF orientation honoured.
-  Recipes for Node and Python are in `client_recipes.md`. `vision_tokens`
-  still caps the model-side cost directly and is the more direct lever.
+  Recipes for Node and Python are in `client_recipes.md`, along with
+  `/v1/models/{id}/image-plan`, which reports what an image of a given size
+  costs the model and the size the engine resizes it to.
 - **The batch endpoint and `processing_mode`.** Loop your requests. The
   server serialises generation through one FIFO gate, so a batch bought no
   parallelism; it only saved HTTP round trips on a local socket.
@@ -88,7 +95,7 @@ here. Track your own cancel; never infer it from the response.
   route's request. On `/v1/messages` the convention still holds: a trailing
   assistant message is continued rather than answered, and a trailing
   assistant message carrying a `thinking` block and no text resumes inside
-  that thought (1.79.63). What is gone is forcing the flag against the
+  that thought. What is gone is forcing the flag against the
   convention (user-role continuation, or `false` to open a fresh turn on a
   trailing assistant message).
 

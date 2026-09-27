@@ -64,9 +64,21 @@ _spec.loader.exec_module(probe)
 MODELS = "/v1/models"
 CAPS = "/v1/capabilities"
 
-VISION_ROW = {"id": "qwen-vl", "provider": "mlx", "capabilities": ["chat", "vision"]}
+def fact(value):
+    """heylook's engine leaves are facts, {value, provenance, source} (2.0.73)."""
+    return {"value": value, "provenance": "derived", "source": "fixture"}
+
+
+VISION_ROW = {
+    "id": "qwen-vl", "provider": "mlx", "capabilities": ["chat", "vision"],
+    "engine": {"runtime": fact("mlx-vlm"),
+               "context": {"length": fact(262144), "running": fact(32768)},
+               "thinking": {"switch": None,
+                            "depth": {"variable": "reasoning_effort",
+                                      "values": ["low", "high"]}}},
+}
 TEXT_ROW = {"id": "qwen-text", "provider": "mlx", "capabilities": ["chat"]}
-CAPS_BODY = {"server_version": "1.79.37", "samplers": {"available": ["balanced"]}}
+CAPS_BODY = {"server_version": "2.0.178"}
 
 
 def json_routes(rows, caps=None):
@@ -219,12 +231,11 @@ class TestUnreadableServers:
 
 
 class TestAuth:
-    """heylook's own key gate is a per-route dependency on the inference
-    routes, so the two endpoints the probe reads are open even when it is
-    set. The credential is for a deployment that gates discovery in front of
-    heylook -- the case 0.1.0 could not probe at all. What is pinned here is
-    the plumbing (header sent, env default, never echoed), which is the same
-    either way."""
+    """heylook never gated the two endpoints the probe reads, and from
+    2.0.127 it has no inference key at all. The credential
+    is for a deployment that gates discovery in front of heylook -- the case
+    0.1.0 could not probe at all. What is pinned here is the plumbing (header
+    sent only when asked, never echoed)."""
 
     def test_api_key_flag_sends_a_bearer_header(self):
         # RED at 0.1.0: no such flag existed.
@@ -233,21 +244,16 @@ class TestAuth:
             assert run(base, "--api-key", "sk-test-value") == 0
         assert all(h.get("Authorization") == "Bearer sk-test-value" for _, h in seen)
 
-    def test_env_var_is_the_default(self, monkeypatch):
-        # RED at 0.1.0. HEYLOOK_API_KEY is what the server itself reads, so
-        # a flag-only probe would force the secret into shell history.
+    def test_heylook_api_key_env_is_not_read(self, monkeypatch):
+        """heylook removed HEYLOOK_API_KEY in 2.0.127; it has no inference
+        key. Reading an env var of that name implied a server-side key that
+        does not exist and sent a credential nobody asked for. RED against
+        0.18.0, which defaulted --api-key to it."""
         monkeypatch.setenv("HEYLOOK_API_KEY", "sk-from-env")
         seen = []
         with serving(json_routes([VISION_ROW]), record=seen) as base:
             assert run(base) == 0
-        assert seen[0][1].get("Authorization") == "Bearer sk-from-env"
-
-    def test_flag_beats_env(self, monkeypatch):
-        monkeypatch.setenv("HEYLOOK_API_KEY", "sk-from-env")
-        seen = []
-        with serving(json_routes([VISION_ROW]), record=seen) as base:
-            assert run(base, "--api-key", "sk-from-flag") == 0
-        assert seen[0][1].get("Authorization") == "Bearer sk-from-flag"
+        assert all("Authorization" not in h for _, h in seen)
 
     def test_no_auth_header_when_no_key(self, monkeypatch):
         # Born green, and green against 0.1.0 too because it sent no header
@@ -299,8 +305,7 @@ class TestOutput:
             run(base, "--need", "vision", "--json")
         payload = json.loads(capsys.readouterr().out)
         assert payload["matched"] == ["qwen-vl"]
-        assert payload["server_version"] == "1.79.37"
-        assert payload["samplers"] == ["balanced"]
+        assert payload["server_version"] == "2.0.178"
 
 
 # --------------------------------------------------------------------------
@@ -452,6 +457,29 @@ class TestDiagnosticsFitTheSituation:
         # the already-sent case must not instruct you to do what you did
         assert "rejected" in with_key.lower() or "wrong" in with_key.lower()
 
+    def test_403_names_the_host_check(self, capsys):
+        """RED against 0.18.0, which read 403 as auth and told you to pass
+        --api-key. From heylook 2.0.137 a 403 is its DNS-rebinding Host
+        check, answered to a Host header it does not know (a LAN DNS name),
+        and the fix is on the server's allowed_hosts, not a credential."""
+        routes = {MODELS: (403, "application/json", '{"detail":"host not allowed"}')}
+        with serving(routes) as base:
+            assert run(base) == 1
+        err = capsys.readouterr().err
+        assert "allowed_hosts" in err
+        assert "--api-key" not in err
+
+    def test_401_hint_does_not_name_a_heylook_key(self, capsys):
+        """RED against 0.18.0: the hint told you to check HEYLOOK_API_KEY on
+        the server, a setting heylook removed in 2.0.127."""
+        routes = {MODELS: (401, "application/json", '{"detail":"unauthorized"}')}
+        with serving(routes) as base:
+            run(base, "--api-key", "sk-wrong-key")
+            with_key = capsys.readouterr().err
+            run(base)
+            without_key = capsys.readouterr().err
+        assert "HEYLOOK_API_KEY" not in with_key + without_key
+
     def test_one_unusable_row_does_not_condemn_the_roster(self, capsys):
         """RED before the fix: a single row without an `id` raised Unreadable
         and exited 1, which per SKILL.md means 'could not read the server' --
@@ -469,3 +497,42 @@ class TestDiagnosticsFitTheSituation:
         with serving(json_routes([{"provider": "mlx"}])) as base:
             assert run(base) == 1
         assert "id" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------
+# what a client gates on now
+# --------------------------------------------------------------------------
+
+
+class TestEngineColumns:
+    """From heylook 2.0.73 the context window and the thinking-depth
+    vocabulary live in each row's `engine` object, as facts read at
+    `.value`. Those are what a client gates on after `capabilities`, so the
+    matrix shows them."""
+
+    def test_matrix_shows_context_and_depth(self, capsys):
+        # RED against 0.18.0, which printed neither.
+        with serving(json_routes([VISION_ROW])) as base:
+            assert run(base) == 0
+        out = capsys.readouterr().out
+        assert "262144" in out
+        assert "low,high" in out
+
+    def test_row_without_engine_renders_not_raises(self, capsys):
+        # A row with no `engine`, or a malformed one, is still a usable row.
+        # Born green. Proved by reading row["engine"]["context"]["length"]
+        # ["value"] directly in _context: reddened. Reverted.
+        odd = {"id": "odd", "provider": "gguf", "capabilities": ["chat"],
+               "engine": {"context": "not-an-object"}}
+        with serving(json_routes([TEXT_ROW, odd])) as base:
+            assert run(base) == 0
+        out = capsys.readouterr().out
+        assert "qwen-text" in out and "odd" in out
+
+    def test_no_sampler_roster(self, capsys):
+        # heylook removed named sampler bundles and `samplers` from
+        # /v1/capabilities in 2.0.30. RED against 0.18.0, whose --json
+        # output still carried a `samplers` key.
+        with serving(json_routes([VISION_ROW])) as base:
+            assert run(base, "--json") == 0
+        assert "samplers" not in json.loads(capsys.readouterr().out)

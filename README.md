@@ -1,4 +1,4 @@
-last updated: 2026-09-24
+last updated: 2026-09-27
 
 # fb-claude-skills
 
@@ -70,7 +70,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [heylook-provider](skills/heylook-provider/) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes an Anthropic Messages-conformant `/v1/messages` beside an OpenAI-compatible `/v1/chat/completions`, so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. |
+| [heylook-provider](skills/heylook-provider/) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes one Anthropic Messages-conformant `/v1/messages` (the OpenAI-compatible route is gone), so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. |
 
 ### privacy & pre-share safety
 

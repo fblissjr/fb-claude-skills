@@ -1,41 +1,25 @@
 # `/v1/messages` wire reference
 
-Complete field, block, event and error reference for heylook's Messages
-endpoint, read out of `src/heylook_llm/schema/messages.py`,
-`content_blocks.py`, `responses.py`, `converters.py` and `messages_api.py`.
-The heylookitsanllm version this was verified against is in SKILL.md's
-frontmatter — one home, so there is no second copy here to drift.
+Field, block, event and error reference for heylook's Messages endpoint, read
+out of `src/heylook_llm/schema/messages.py`, `schema/responses.py`,
+`content_blocks.py`, `messages_api.py`, `stop_sequences.py`,
+`perf_collector.py` and `providers/contract.py`. The heylookitsanllm version it
+states is in SKILL.md's frontmatter, one home for that number. Every older
+behaviour is in `older_servers.md`, not here.
 
-Servers before 1.79.39 differ on three payloads: the image block accepted
-only the flat spelling, the thinking block and delta carried only `text`,
-and `stop_reason` was `"stop"` / `"length"`. Separately, **every version
-through 1.79.39** declared an `"error"` stop reason that nothing could emit;
-1.79.40 removed it rather than making it reachable, so no client ever needed
-a branch for it. That scope includes 1.79.39 itself, which is otherwise the
-first conforming release.
-
-In practice only `end_turn` and `max_tokens` occur, and `max_tokens` carries
-two meanings — a cancelled run reports it too, indistinguishably from budget
-exhaustion (see [Cancelling a request](#cancelling-a-request)).
-`stop_sequence` is declared and mapped but unreachable, since both engines
-report OpenAI's `stop`/`length`; it is kept because Anthropic's own spec
-defines it, so a client written against that spec already handles it and
-declaring it costs nothing. That is the distinction `"error"` failed: unreachable-and-standard
-is harmless, unreachable-and-bespoke makes clients write a branch for you.
-
-The live `/openapi.json` outranks this file — it is generated from the same
-Pydantic models at boot. Use this when you want the shape and the reasoning;
-use the schema when you want to confirm a bound.
+The live `/openapi.json` outranks this file: it is generated from the same
+Pydantic models at boot. Use this for the shape and the reasoning; use the
+schema to confirm a bound.
 
 ## Request body
 
 ```jsonc
 {
-  "model": "id from /v1/models",   // optional: falls back to loaded/default model
+  "model": "id from /v1/models",   // required in practice: absent is a 400 listing the ids
   "system": "top-level string",     // NOT a system role inside messages
   "messages": [ { "role": "user" | "assistant", "content": string | Block[] } ],
 
-  // sampling — every one optional, absent = server cascade decides
+  // sampling: every one optional, absent = server cascade decides
   "max_tokens":              1024,  // > 0
   "temperature":             0.7,   // 0.0 .. 2.0
   "top_p":                   0.95,  // 0.0 .. 1.0
@@ -46,80 +30,97 @@ use the schema when you want to confirm a bound.
   "presence_penalty":        0.0,   // 0.0 .. 2.0
   "seed":                    12345,
 
-  // thinking
-  "thinking":                true,          // Messages spelling of enable_thinking
-  "reasoning_effort":        "medium",      // MODEL-SPECIFIC vocabulary, see below
+  // ending
+  "stop_sequences":          ["\n\nUser:"],  // up to 16 strings, 1..256 chars each
 
-  // heylook extensions
-  "sampler":                 "balanced",    // named bundle from /v1/capabilities
-  "vision_tokens":           1024,          // 16 .. 16384, per-image visual budget
-  "show_special_tokens":     false,         // return declared specials instead of stripping
+  // thinking
+  "thinking":                true,  // or {"type": "enabled"|"disabled", "budget_tokens": N}
+  "reasoning_effort":        "<a word from engine.thinking.depth.values>",
+
+  // structured output (OpenAI's shape)
+  "response_format":         { "type": "json_schema", "json_schema": { "schema": { } } },
 
   "stream":                  true,
-  "stream_options":          { "include_usage": true },
   "metadata":                {"k": "v"}   // string->string, passed through to the response
 }
 ```
 
-**`stop_sequences` is NOT accepted.** Anthropic takes it on the request;
-heylook's request model has no such field, so it is ignored rather than
-honoured — a port that relies on it generates straight past the sequence it
-was meant to stop at, with no error to notice. There is no server-side
-equivalent; stop on the client, or rely on the model's own end-of-turn.
+**Absent means the server cascade decides**: the server floor, then the
+publisher's own recommended settings (the model directory's
+`generation_config.json` on MLX, the GGUF header's `general.sampling.*` block
+on gguf), then the model's config, then the request. "Send what you have an
+opinion about, omit the rest" therefore means *use the publisher's value*, not
+*use a generic default*. `max_tokens` is optional here, unlike Anthropic's
+required field: a hard client-side default overrides the model's configured
+floor on every request that had no opinion. Each `/v1/models` row reports what
+a silent request resolves to (`sampler_defaults`) and which layer each value
+came from (`sampler_sources`).
 
-**Absent means the server cascade decides** — per-request, then the named
-sampler bundle, then the model's `default_sampler`, then the model's own
-VENDOR layer, then the server floor. The vendor rung is the publisher's
-recommended decode settings shipped with the weights: on MLX it is the model
-directory's `generation_config.json` and has always been there; on gguf it is
-the header's `general.sampling.*` block and arrived in **2.0.23**. That
-boundary changes output for the same client code: a gguf request omitting
-`top_k` resolved to the floor's value below 2.0.23 and to the model's own
-above it. "Send what you have an opinion about, omit the rest" therefore
-means *use the publisher's value*, not *use a generic default*.
-`max_tokens` is deliberately optional here unlike Anthropic's required field:
-a hard client-side default silently overrides the model's configured floor
-for every request that did not actually have an opinion.
+A cascade field is **nullable with no default** in the generated schema
+(`anyOf` with `null`); a field with `"default": false` and no null member is a
+plain flag whose absence means `false`. `stream` is such a flag.
 
-**That cascade covers the sampling knobs, and the generated schema tells you
-which those are** — no roster to keep here, because a roster is what went
-stale when `include_performance` was removed. A cascade field is **nullable
-with no default** (`anyOf` with `null`); a field carrying `"default": false`
-and no null member is a plain flag whose absence means `false` permanently,
-with no server-side config behind it. Check the field in `/openapi.json` and
-the shape answers it. `show_special_tokens` and `stream` are the flags on this
-request today.
+### Stop sequences
 
-**`include_performance` is not a field on this wire, as of 1.79.49.** It was
-declared through 1.79.48 and never read: the Messages route returns telemetry
-**unconditionally in both modes** — `message_stop.performance` on every stream,
-a `performance` object on every non-streaming run that produced tokens — and
-the bundled frontend's status lines read the streaming half. So gating the
-non-streaming half alone would have split the two modes against each other,
-and gating both would have broken that frontend. Unconditional telemetry is
-the design here; the flag was what did not fit it, and it was removed rather
-than wired up. **Do not send it to `/v1/messages`** — there is nothing to
-ask for. It is not a wire break either way: the request model sets no
-`extra="forbid"`, so an unknown field is ignored rather than rejected, and an
-existing client needs no change. (The flag was real on the OpenAI route,
-which was removed in 1.79.66; nothing honours it anywhere now.)
+Honoured on both engines, the same way. The reply is matched on its **text
+only**, never on thinking; when a sequence appears, the reply is cut before
+it, generation aborts, `stop_reason` is `"stop_sequence"`, and `stop_sequence`
+names the match on the non-streaming body and on `message_delta.delta`.
 
-`sampler` names a bundle from the server's `SamplerRegistry`
-(`/v1/capabilities` → `samplers.available`). It is not a `/v1/presets` id —
-different system, same English word. Presets are saved user prompt+sampler
-bundles in the server's own database and are not part of this wire.
+### Thinking
 
-`reasoning_effort` accepts the **union** of every served model's vocabulary,
-so validation passes values a given model rejects. Qwen3.8 takes
-`xhigh|medium|low` and raises otherwise; harmony models take `low|medium|high`.
-A wrong-for-this-model value reaches the chat template, and on gguf a raised
-jinja exception is a 500. Gate on the `reasoning_effort` capability from
-`/v1/models`, and prefer omitting it (the template's own default applies).
+`thinking` is the template's thinking switch. A bool and Anthropic's object
+mean the same switch; the object may also carry `budget_tokens`, a hard cap
+the engine enforces on models with the `thinking_budget` capability and a 400
+elsewhere. Both object fields are optional: an absent `type` keeps the model's
+default, so a budget can be set without deciding the switch. Absent
+`thinking` is the model's default, which the row reports as
+`thinking_default`.
 
-`reasoning_effort` is separate from `thinking` on purpose: gpt-oss/harmony
-models read reasoning depth and have no `enable_thinking` at all, so gating
-depth behind the thinking flag makes it unreachable for the family it was
-built for.
+`reasoning_effort` is separate from `thinking` on purpose: harmony (gpt-oss)
+models read reasoning depth and have no thinking switch at all. The schema
+accepts any word matching `^[A-Za-z0-9_-]+$` up to 32 characters. What a model
+accepts is its template's own vocabulary, published per model at
+`engine.thinking.depth` on `/v1/models` (`values`, `aliases`, `default`). A
+value the model does not offer is a **400 naming the valid values**, returned
+before any stream opens or model loads. Show the template's own words and
+never translate between models: there is no shared low/medium/high scale.
+Omitting it applies the template's default.
+
+### Structured output
+
+`response_format` is OpenAI's shape, which llama-server also takes:
+`{"type": "json_schema", "json_schema": {"schema": {...}}}` makes the reply a
+JSON document matching the schema; `{"type": "json_object"}` any JSON object;
+`{"type": "text"}` free text. Thinking is not constrained. It is a 400 on
+harmony models, on masked-diffusion models, and combined with a continuation.
+
+### Continuation
+
+A trailing assistant message is **continued**, not answered, and a trailing
+assistant message holding only a `thinking` block resumes inside that thought.
+There is no flag to force the other reading.
+
+### Fields refused, and fields ignored
+
+The request model does not forbid unknown fields, by design (a blanket forbid
+would 422 an Anthropic SDK sending fields heylook does not implement). So an
+unknown field is **dropped silently**, and a typo in an optional field is a
+no-op that answers 200. The exceptions are the fields a client plausibly
+sends, which are refused with a 422 that names the fix:
+
+| Sent | Answer |
+|---|---|
+| `tools`, `tool_choice` | 422: tool use is not built |
+| `logprobs`, `top_logprobs` | 422: removed |
+| `vision_tokens` | 422: removed; cap pixels client-side and ask `image-plan` for the cost |
+| `sampler`, `preset` | 422: named sampler bundles were removed; send the sampler fields. `/v1/presets` is a separate system and the client expands a preset into those fields |
+| `show_special_tokens: true` | 422; `false` is what the server does anyway |
+| `enable_thinking` | 422: send `thinking` |
+| `max_new_tokens` | 422: send `max_tokens` |
+| `system_prompt` | 422: send `system` |
+| `chat_template_kwargs` | 422: send `thinking` and `reasoning_effort` |
+| `stream_options`, `include_performance` | ignored: removed, and nothing reads them |
 
 ## Input content blocks
 
@@ -144,8 +145,8 @@ Anthropic's nested `source`, which is what an Anthropic SDK sends:
 { "type": "image", "source": { "type": "url", "url": "https://..." } }
 ```
 
-heylook's original flat spelling is also accepted and normalizes to the
-same block, so existing clients keep working:
+heylook's original flat spelling is also accepted and normalizes to the same
+block:
 
 ```json
 { "type": "image", "source_type": "base64",
@@ -157,62 +158,19 @@ same block, so existing clients keep working:
 | `source_type` | `"base64"` or `"url"`; from `source.type` in the nested form |
 | `media_type` | required for base64, e.g. `image/jpeg` |
 | `data` | base64 with **no** `data:` URI prefix |
-| `url` | used when the source type is `"url"` |
+| `url` | `http(s)` only; MLX refuses a local file path with a 400 |
 
-Prefer the nested form: heylook's `/v1/conversations` store accepts **only**
-that shape, so it is the one that works on every surface.
+Prefer the nested form: heylook's `/v1/conversations` store accepts only that
+shape. Explicit `null` flat fields beside a nested `source` (what a generated
+or `model_dump()`-based client emits) are treated as absent. A flat field that
+is set wins over the nested object; the nested object is ignored wholesale only
+when the two spellings disagree about the kind of source.
 
-Both forms are visible in the generated JSON Schema as of 1.79.40: `source`
-is a declared `MediaSource` field and `source_type` is optional there, with a
-post-validation check keeping it mandatory in fact. Before that the nested
-form existed only in a `mode="before"` validator, which contributes nothing
-to the schema — so a client generated from `/openapi.json`, or a
-schema-validating proxy, would reject the spelling the docs recommend.
+A block with a source type but no `data` and no `url` is a 422 naming the
+missing field. An image that cannot be decoded is a 400, or an in-band
+`invalid_request_error` on a stream.
 
-**Explicit `null` flat fields beside a nested `source` are fine as of
-1.79.41 — and were a 422 before it.** Because `source_type` is optional in
-the schema, a client generated from `/openapi.json`, or any pydantic client
-calling `model_dump()` without `exclude_none`, emits every unset optional
-rather than omitting it:
-
-```json
-{ "type": "image", "source_type": null, "media_type": null, "data": null,
-  "source": { "type": "base64", "media_type": "image/jpeg", "data": "..." } }
-```
-
-Through 1.79.40 the normalizer tested key PRESENCE in two places — the gate
-and the `setdefault` under it — so those nulls suppressed the flattening and
-the block was rejected as "requires `source_type`", on the exact spelling
-this reference recommends. 1.79.41 treats null as absent in both. **If you
-target servers at or below 1.79.40, serialize with `exclude_none` (or send
-the flat form);** it is the single most likely way a correctly-written
-Anthropic-style client fails against an older heylook. A flat field that is
-actually set still wins over the nested object on every version.
-
-**A payload-less block is a 422 as of 1.79.42, and was a SILENT DROP before
-it.** A block carrying neither `source` nor `source_type` has always failed
-validation. A block whose source type IS set — nested `source.type`, or the
-flat `source_type` — but which carries no `data` and no `url` used to
-validate and then get **silently dropped** during conversion: the request
-returned **200**, the text parts survived, and the model never saw the image,
-so the caller got a confident answer about a picture that was never sent.
-1.79.42 rejects it with a message naming the missing field. Both spellings
-behave identically, and a nested `source` missing its `type` was always the
-422 case.
-
-**Against servers at or below 1.79.41 this is the failure to defend
-against**, because no status code reveals it: if a vision answer describes
-nothing, inspect the block's payload rather than trusting the 200.
-
-**Filling from `source` is per FIELD as of 1.79.42.** 1.79.41 suppressed the
-whole nested object as soon as any flat field was set, so
-`{"source_type":"base64","source":{...,"data":"..."}}` resolved the type and
-dropped the image. The nested object is ignored wholesale only when the two
-spellings DISAGREE about the kind of source (flat `source_type:"url"` against
-nested `type:"base64"`), where merging would build a block you never
-described.
-
-### Audio — gguf only
+### Audio: gguf only
 
 ```json
 { "type": "audio", "source": { "type": "base64",
@@ -220,8 +178,8 @@ described.
 ```
 
 Both spellings, exactly as for images. `media_type` is advisory; codecs are
-sniffed. MLX models answer 400 for any audio part, because audio towers are stripped at load —
-that refusal is deliberate and loud rather than a silent drop.
+sniffed. MLX models answer 400 for any audio part, because audio towers are
+stripped at load.
 
 ## Non-streaming response
 
@@ -236,81 +194,28 @@ that refusal is deliberate and loud rather than a silent drop.
     { "type": "text", "text": "..." }
   ],
   "stop_reason": "end_turn" | "max_tokens" | "stop_sequence",
+  "stop_sequence": null,
   "usage": { "input_tokens": 0, "output_tokens": 0,
+             "cache_read_input_tokens": null,
              "thinking_tokens": null, "content_tokens": null },
-  "performance": { "prompt_tps": 0.0, "generation_tps": 0.0,
-                   "request_duration_ms": 0, "generation_duration_ms": 0,
-                   "queue_wait_ms": 0.0044, "peak_memory_gb": 0.0,
-                   "thinking_duration_ms": null, "content_duration_ms": null }
+  "performance": { "...": "see Telemetry" }
 }
 ```
 
-Output block union: `text`, `thinking`, `hidden_states`.
-`thinking_tokens` and `content_tokens` appear only when the model produced a
-thinking block.
+Output blocks are `text` and `thinking` only. Join `text` blocks for the
+answer; a `thinking` block is the model's reasoning, not its response. A
+thinking block carries its content under both `thinking` (Anthropic's field)
+and `text` (heylook's original); read `thinking`.
 
-`performance` is present on any run that produced tokens (it is `null` only
-when the generation yielded none — test for presence, not for truthiness).
-The object is built by one shared function for both modes from **1.79.58**, so
-the field set is the same on both paths and the reading rule is one line:
+`usage.input_tokens` is what this request **processed**; the part of the
+prompt reused from a previous request is `cache_read_input_tokens`, so the
+whole prompt is their sum. A null `cache_read_input_tokens` means the engine
+reported nothing about reuse, not a claimed zero. `thinking_tokens` and
+`content_tokens` split `output_tokens` when the model produced a thinking
+block.
 
-> Every field, when present, is a real measurement of exactly the thing its
-> name says. Absent means this mode or engine could not measure it.
-
-Absent has two spellings and one meaning: streaming omits the key,
-non-streaming returns an explicit `null` (its response is materialised through
-`PerformanceInfo`, so every declared field appears). Test for `None`, not for
-key presence, if you want one branch that works on both.
-
-The rates are the engine's own measurements, taken tightly around prefill and
-decode. **Nothing is synthesized from 1.79.58** — `generation_tps` is the
-engine's figure or absent, never a wall-clock stand-in. What that beats is
-dividing tokens by an elapsed time spanning the whole request; the hazard is
-the span, not whose clock measured it, and the server ships spans of both kinds
-(see the duration fields under Streaming).
-
-**`prompt_tps` is `0.0` when the engine never measured it, on this path, on
-every version.** It is assigned raw from the telemetry accumulator, whose field
-defaults to `0.0` and latches only on a truthy value, so a run with no prefill
-rate emits a real zero rather than omitting the key. **Never read
-`prompt_tps == 0` here as "the server measured zero"** — on the streaming path
-that same run omits the field entirely. 1.79.54 fixed this shape one layer
-down, in the converter's `.get(key, 0)` default, but the builder above it still
-hands the converter a genuine `0.0`, so the fix does not reach this field.
-
-What is absent here, and whether you may rely on it, differs by field — the
-three cases are set out once under
-[Streaming](#heylook-extensions-on-the-same-stream) rather than twice.
-
-**`peak_memory_gb` is MLX-only, on every path and in both modes.** It is
-`mx.get_peak_memory()`, reported per chunk by the MLX engine; the gguf provider
-never sets it, because generation happens inside a `llama-server` subprocess
-that does not report it. **So absent there means "this model runs on the other
-backend", not "this server is old"** — and reading it off a stream instead, the
-obvious workaround, fails for the same reason. Only if you see it absent on an
-*MLX* model is it a version question, and then the answer is 1.79.50: before
-that release the non-streaming builder dropped it while the streaming half
-carried it (as did the since-removed OpenAI route).
-
-**Time to first token is not returned, on either mode.** The server computes
-it (net of FIFO queue wait) and keeps it for its own collector; no response
-field carries it. On a stream you can time the first `content_block_delta`
-yourself, but non-streaming TTFT is genuinely unobservable to a client —
-anything you compute from a non-streaming response is a different quantity.
-Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
-
-Join `text` blocks for the answer. A `thinking` block is the model's
-reasoning, not its response.
-
-A thinking block carries its content under **both** `thinking` (Anthropic's
-field name) and `text` (heylook's original, kept so existing readers keep
-working). Read `thinking`.
-
-`stop_reason` is Anthropic's vocabulary, with no additions. A non-streaming
-failure produces no response at all — it is an HTTP 4xx/5xx — so there is no
-error member and no branch to write for one. (Declared through 1.79.39 on a
-mechanism that did not exist; 1.79.40 removed it — see the version note at
-the top of this file.)
+`stop_reason` is Anthropic's vocabulary with no additions. A non-streaming
+failure is an HTTP 4xx/5xx with no response body of this shape.
 
 ## Streaming
 
@@ -318,7 +223,10 @@ Set `stream: true`. Events in order:
 
 ```
 event: message_start
-data: {"type":"message_start","message":{"id","type","role","model","content":[],"usage":{"input_tokens","output_tokens"}}}
+data: {"type":"message_start","message":{"id","type","role","model","content":[],"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: heylook_progress        (zero or more, during prefill)
+data: {"type":"heylook_progress","prefill":{"processed":512,"total":2048}}
 
 event: content_block_start
 data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
@@ -339,183 +247,25 @@ event: message_delta
 data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{...}}
 
 event: message_stop
-data: {"type":"message_stop","performance":{"request_duration_ms":1234, ...}}
+data: {"type":"message_stop","performance":{...}}
 ```
 
 **`message_stop` terminates the stream. There is no `data: [DONE]`.**
 
+**`event: ping`** (`{"type":"ping"}`, Anthropic's own keepalive) is sent after
+every 5 seconds of silence, during prefill and decode. Ignore it, and ignore
+any event type you do not recognise. A cold model load still happens before
+headers are sent, so no ping covers it.
+
+`message_start.usage.input_tokens` is 0, because it is emitted before the
+first chunk; read usage from `message_delta`. When a stop sequence ended the
+reply, `message_delta.delta` also carries `stop_sequence`.
+
 Blocks open and close as the content type switches, so a thinking model emits
-a `thinking` block, closes it, then opens a `text` block. Key on
-`delta.type` rather than on the block index — index is a running counter
-across the whole message, not a stable slot.
-
-`thinking_delta` carries the text under both `thinking` (conformant) and
-`text` (heylook's original). Read `thinking`.
-
-### heylook extensions on the same stream
-
-`event: heylook_progress` during prefill, plus the telemetry merged into
-`message_stop.performance`.
-
-`heylook_logprobs` was REMOVED in heylook 1.79.74 along with the `logprobs`
-and `top_logprobs` request fields -- the token explorer was their only
-consumer. Sending either field answers **422** from **1.79.79**; on
-1.79.74-1.79.78 the guard sat on a model no route binds, so the key was
-dropped silently and the request answered 200.
-
-**A gguf decode failure was an empty SUCCESS below 2.0.13.** llama-server
-answers 200 and then reports the failure as an error frame inside the stream;
-the adapter skipped that frame for carrying no `choices`, so the run ended
-`stop_reason: "end_turn"` with an empty `content` list and no error anywhere.
-From 2.0.13 it raises: 500 non-streaming, an in-band `api_error` when
-streaming. Against an older server, treat a zero-token `end_turn` on gguf as a
-possible failure rather than an empty answer — the same instinct as checking
-the payload when a vision answer describes nothing.
-
-**One builder, one rule, from 1.79.58.** Both modes and both Messages routes
-emit through a single function, so the per-field divergences below are closed
-rather than documented. The declared set is `request_duration_ms`,
-`generation_duration_ms`, `prompt_tps`, `generation_tps`, `peak_memory_gb`,
-`kv_cache_bytes`, `queue_wait_ms`, `draft_acceptance`, `thinking_duration_ms`
-and `content_duration_ms` — none required.
-
-**`total_duration_ms` is retired on this wire, not aliased.** It named two
-different spans depending on mode, so it was replaced by two fields that each
-name one:
-
-| Field | Span | Use it for |
-|---|---|---|
-| `request_duration_ms` | arrival to done — **includes** queue wait and model load | user-perceived latency |
-| `generation_duration_ms` | generation only — **excludes** both | the throughput denominator |
-
-On a server older than 1.79.58 you get `total_duration_ms` instead, and **which
-new field it corresponds to depends on the mode**: treat it as
-`request_duration_ms` non-streaming and `generation_duration_ms` streaming.
-That per-mode split is exactly the ambiguity the rename removed.
-
-Both modes report both. If you divide tokens by a duration, it is
-`generation_duration_ms`; `request_duration_ms` is the number that makes a cold
-load look like a hang, because it is measuring the load.
-
-**On 1.79.58 exactly, `generation_duration_ms` is not yet that denominator.**
-It contained the queue wait its own name excludes: the route's body is a
-generator function, so the FIFO gate is acquired on the first `next()` inside
-the consume loop — after the span clock has started. A request that queued 30s
-and generated 5s reported `35000`, and a client following the rule above
-computed a seventh of the true rate. **1.79.59 subtracts the wait
-server-side**, clamped at zero. Against a .58 server, net it out yourself
-using `queue_wait_ms` — with the caveat immediately below about what that field
-means there.
-
-**`total_duration_ms` survived on `/v1/chat/completions` until that route was
-removed in 1.79.66.** It was whole-request elapsed there, so a value a ported
-client still carries maps to `request_duration_ms`, never to the throughput
-denominator. See `openai_wire.md`.
-
-Absent-versus-zero is decided per field, on whether zero is a meaningful
-measurement of that quantity:
-
-- **Durations: zero is real.** The builder is handed an explicit integer or
-  nothing, so absence is a statement that the span was not measurable.
-- **Everything read off the telemetry accumulator — both rates,
-  `peak_memory_gb`, `kv_cache_bytes` and `queue_wait_ms`: zero is never
-  real**, so it is spelled as absence. A rate of zero would mean no tokens in
-  unbounded time, and a wait of exactly `0.0` is not something the gate can
-  produce.
-
-**`queue_wait_ms` is in that second group, and 1.79.58 briefly put it in the
-first on a premise that measurement refuted.** That release emitted the zero,
-reasoning that it rescued a real measurement on an idle server. There is no
-such measurement: the wait is an elapsed-counter difference, so an idle gate
-yields a tiny nonzero float — live runs reported `0.0044`, `0.0037` and
-`0.0024` ms, never `0.0`. What produces exactly `0.0` is the unmeasured set and
-only it. **1.79.59 restores the correct rule: absent means not measured, and
-`0` never appears.**
-
-`thinking_duration_ms` and `content_duration_ms` remain streaming-only, and
-under this rule that stops being an exception: they are spans the non-streaming
-path genuinely cannot measure.
-
-**On 1.79.58 exactly, `queue_wait_ms: 0.0` is a non-answer.** That release
-emits the field unconditionally, and the gguf provider never assigns it — gguf
-bypasses this server's FIFO gate and queues inside `llama-server` at `-np 1`,
-so a gguf request that genuinely waited seconds still publishes `0.0`. An MLX
-run that yields no chunk loses the tag the same way, since it rides the first
-one. So on a .58 server: **on gguf, `queue_wait_ms` is always meaningless**,
-and on MLX a `0.0` means the run produced nothing. Treat `0.0` as absent there
-and you have the .59 rule early.
-
-### Below 1.79.58 the two modes disagreed, per field
-
-Real, shipped, and live for anyone on an older build — all four are closed
-above, and none of them was visible in `/openapi.json`.
-
-- **`total_duration_ms` measured a different span in each mode.**
-  Non-streaming started its clock at request arrival, before the provider was
-  resolved, so it **included** queue wait and model load; streaming started at
-  event-translator construction and **excluded** both. Warm, they nearly
-  agreed; on a cold load the same work reported the whole load in one mode and
-  none of it in the other, with nothing marking which clock produced a value.
-- **`prompt_tps` was `0.0` when unmeasured, non-streaming** — assigned raw
-  from a field defaulting to zero and latching only on truthy. **On 1.79.54
-  through .57, never read `prompt_tps == 0` as "measured zero" on that path.**
-  1.79.54 removed the same trap from the converter beneath it, which is why
-  that release looks like it closed this and did not.
-- **`generation_tps` was synthesized non-streaming** — run through a helper
-  substituting tokens-over-elapsed when the engine reported no rate, while the
-  stream dropped it instead. Same name, two guarantees.
-- **`queue_wait_ms` was spelled `or None`, which turned out to be correct.**
-  It was read here and upstream as hiding a measured zero on an idle server —
-  the mirror of the `prompt_tps` trap. Measurement refuted that: an idle gate
-  reports a tiny nonzero float, so the dropped zero was never a measurement.
-  1.79.58 "fixed" it and 1.79.59 restored it. This entry is kept rather than
-  deleted because the reasoning was wrong on both this side and the server's,
-  and only a measurement settled it.
-
-Before **1.79.54** the object was also asymmetric in its declared shape: the
-two rates were declared **required** while the stream never sent them, so a
-strict client generated from `/openapi.json` failed on every `message_stop`;
-and `kv_cache_bytes`, `queue_wait_ms` and `draft_acceptance` were sent on the
-stream while the model declared none of them, so a generated client dropped
-three values per event with no error. Both were possible because the streaming
-payload was assembled as a raw dict that nothing checked against the model.
-**1.79.55** closed that by filtering the emitted keys to the declared fields;
-1.79.58 moved that filter into the shared builder, which is also what makes the
-opposite direction — a field declared and emitted by nothing — visible for the
-first time.
-
-`thinking_duration_ms` and `content_duration_ms` remain **streaming-only by
-design** — the translator times them as it emits, so there is nothing
-non-streaming to measure. Their absence there is a contract you may rely on.
-
-**Below 1.79.54 the object is asymmetric in both directions**, and if you
-target those builds, both bite. The rates were declared **required** while the
-stream never sent them, so a strict deserializer generated from
-`/openapi.json` failed on every `message_stop`. And `kv_cache_bytes`,
-`queue_wait_ms` and `draft_acceptance` were sent on the stream while the model
-declared none of them, so a generated client dropped three telemetry values
-per event with **no error anywhere** — the worse direction, because a
-declared-but-unsent field at least leaves a dead branch a reader can see.
-
-Both were possible because `MessageStopEvent.performance` is typed
-`Optional[PerformanceInfo]` while the streaming payload is assembled as a raw
-dict and written straight to the wire, so nothing checked one against the
-other. **1.79.55 closes that structurally**: the emitter now filters to the
-model's declared fields and logs what it drops, so the payload cannot carry a
-key the schema does not declare. For a client that means a new telemetry field
-appears in the schema *before* it appears on the wire, never after — so from
-.55 the generated document is trustworthy on this path, where before .54 it
-was the one place on this wire it was not.
-
-`message_stop.performance` carries the same declared set as the non-streaming
-object from 1.79.58 — see the reading rule above. On the stream **absent
-telemetry is omitted rather than sent as null**, so test for key presence here
-where the non-streaming path wants a `None` check.
-
-Through 1.79.57 this object was keyed on `total_duration_ms` with the
-telemetry merged beside it, and `draft_tokens` / `draft_accepted` appeared
-alongside `draft_acceptance`; the shared builder emits only the model's
-declared fields, so the two raw draft counters are no longer on the wire.
+a `thinking` block, closes it, then opens a `text` block. Key on `delta.type`
+rather than on the block index: index is a running counter across the whole
+message, not a stable slot. Image requests report prefill progress too, and
+are cancellable mid-prefill.
 
 ### In-band errors
 
@@ -525,183 +275,198 @@ data: {"type":"error","error":{"type":"invalid_request_error","message":"..."}}
 ```
 
 `error.type` is `invalid_request_error` (treat as 400) or `api_error` (treat
-as 500). On `/v1/messages` an error event **ends** the generation — nothing
-follows it. The message is diagnostic text and never model output.
+as 500). An error event **ends** the generation; nothing follows it. The
+message is diagnostic text, never model output. Refusals that fire after
+headers flush arrive this way: an image the model will not take, an image that
+cannot be decoded, a prompt longer than the model's context, and a gguf decode
+failure (`api_error`).
+
+## Telemetry
+
+`performance` rides `message_stop` on every stream and the non-streaming body
+on every run that produced tokens; it is `null` only when the run yielded none
+(test for presence, not truthiness). There is no request flag for it. One
+builder serves both modes, so the rule is one line:
+
+> Every field, when present, is a real measurement of exactly the thing its
+> name says. Absent means this mode or engine could not measure it.
+
+Absent has two spellings: streaming omits the key, non-streaming returns
+`null`. Test for `None` if you want one branch for both.
+
+| Field | Meaning |
+|---|---|
+| `prompt_tps`, `generation_tps` | The engine's own rates. Never synthesized, never `0.0` |
+| `request_duration_ms` | Arrival to done, **including** queue wait and model load: user-perceived latency |
+| `generation_duration_ms` | Generation only, **excluding** both: the throughput denominator |
+| `queue_wait_ms` | Time in the FIFO generation gate. An idle gate reports a tiny nonzero float, so absent means not measured |
+| `thinking_duration_ms`, `content_duration_ms` | Streaming only: the translator times them as it emits |
+| `peak_memory_gb` | MLX only: generation on gguf runs in a subprocess that does not report it |
+| `cache` | `{prompt_tokens, cached_tokens, processed_tokens, outcome, cause, reason}`; `outcome` is `reused`, `miss` or `ineligible` |
+| `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities |
+
+Time to first token is not returned in either mode. On a stream, time the
+first `content_block_delta` yourself; non-streaming it is unobservable.
+Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 
 ## HTTP errors
 
 | Code | Condition | Body |
 |---|---|---|
-| 400 | Unknown or disabled `model`; or no `model` given and no server `default_model` | reason plus available ids in `detail` |
-| 400 | The loaded model refuses the input: on the MLX path, images to a text-only model, audio to any MLX model, or an image on a NON-USER turn even when the model is vision-capable (2.0.18 — gguf accepts that shape) (non-streaming only — see in-band errors) | message in `detail` |
-| 422 | Body failed validation — an out-of-range sampler value, or a media block carrying neither `source` nor `source_type` | FastAPI validation detail |
-| 500 | Model exists but failed to load: corrupt weights, unsupported architecture; or, from **2.0.13**, a gguf decode that failed mid-stream | message in `detail` |
-| 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}` — restore the user's text and retry after the run ends |
-| 503 | Backpressure — the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. **No `X-Request-ID` echo** — this is the one response class you cannot correlate by id. `error.message` names the blocking models and what to do (`"cannot make room -- ['<id>'] is generating"`), so show it rather than a generic retry notice |
+| 400 | No `model`, or an unknown or disabled one | reason plus available ids in `detail` |
+| 400 | The model refuses the input: images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` without `thinking_budget`, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
+| 403 | Host check: the `Host` header is not an IP, `localhost`, one of the machine's own names, or an `allowed_hosts` entry in `heylook.toml` | names the fix |
+| 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}`: restore the user's text and retry after the run ends |
+| 422 | Body failed validation: a refused field (table above), an out-of-range value, a media block with no payload | FastAPI validation detail |
+| 500 | Model exists but failed to load, or a gguf decode failed | message in `detail` |
+| 503 | Backpressure: the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. `error.message` names the blocking models; show it rather than a generic retry notice |
 
-400 means pick a different model; 500 means that model is broken. The split
-is deliberate and worth honouring in client logic — a 400 is recoverable by
-falling back to another id, a 500 is not.
+400 means pick a different model or input; 500 means that model is broken. A
+400 is recoverable by falling back to another id, a 500 is not.
 
-## Auth
+## Access
 
-Both gates are opt-in and off by default; a default localhost deployment is
-open.
+**There is no inference API key.** `HEYLOOK_ADMIN_TOKEN` (header
+`X-Heylook-Admin-Token`) gates the admin routes, `/v1/data/clear` and
+`/v1/cache/clear`, and is off when unset. An integration needs neither.
+Discovery is never gated, so a 401 from `/v1/models` is something in front of
+heylook.
 
-| Env var | Header | Gates |
-|---|---|---|
-| `HEYLOOK_API_KEY` | `Authorization: Bearer <key>` | inference: chat completions, messages, embeddings, RLM, hidden states — plus `POST /v1/models/{id}/load` and `DELETE /v1/requests/{id}`, which are gated like inference rather than as admin |
-| `HEYLOOK_ADMIN_TOKEN` | `X-Heylook-Admin-Token` | admin routes and `/v1/data/clear` |
+**The Host check** guards against DNS rebinding. A LAN client that reaches the
+server by a DNS or VPN name gets a 403 until the operator adds that name to
+`allowed_hosts` in `heylook.toml`. Addressing the server by IP always passes.
 
-Loopback traffic is **exempt from the API-key gate by default**, so it
-appears only when the client is on another machine — or when the operator has
-set `HEYLOOK_API_KEY_ENFORCE_LOOPBACK=true`. Comparison is constant-time.
+**There is no CORS.** A browser page on another origin fails at preflight, so
+a browser client is served from the same origin or goes through a proxy.
 
-The gate is a per-route dependency on the inference routes, not middleware,
-so **discovery is never gated**: `/v1/models` and `/v1/capabilities` answer
-without a key on a server that has one set. A 401 from either is something
-in front of heylook, not heylook.
+## Request ids and cancelling
 
-Send `X-Request-ID` on every request, and make it **unique per request** —
-not per session or per client. It is how a request is correlated in the
-server's logs, and it is the handle you cancel by, so a reused id is a cancel
-that stops every in-flight request sharing it. It is echoed back as a response
-header: on the streaming path since 1.79.44, on the non-streaming path only
-since 1.79.46 (see below). **Not on a busy 503** — that envelope is built in
-one shared place carrying `Retry-After` and the `X-RateLimit-*` pair, and no
-echo, on every route that returns it. So the one response class you most want
-to correlate in the logs is the one you cannot correlate by id.
-
-## Cancelling a request
+Send `X-Request-ID` on every request, **unique per request**: not per session
+or per client. It correlates the server's logs and is the handle you cancel
+by, so a reused id is a cancel that stops every in-flight request sharing it.
+A usable value is `[A-Za-z0-9._:-]`, 1 to 128 characters, matched whole; a
+UUID qualifies. A valid id is echoed on every response, including a busy 503
+and 4xx errors; only an unhandled 500 lacks it. A missing or malformed id is
+replaced by a server-generated one, which you never learn in time on the
+non-streaming path, so **sending the header is the precondition for
+cancelling at all**.
 
 ```http
 DELETE /v1/requests/{request_id}
 ```
 
-Stops a generation that is still running. **The route is 1.79.44** — nothing
-could be cancelled by id before it. What 1.79.44 also changed is that
-`/v1/messages` began reading a client-supplied `X-Request-ID`, having always
-generated its own and ignored the header (the since-removed OpenAI route
-already read it for log correlation, so a client ported from it is probably
-already sending a usable id).
-
-**The id is the one you sent.** A usable header value is tracked verbatim;
-anything missing or malformed gets a server-generated id, which is still fine
-for logs and correlation but cannot be cancelled by a client that never chose
-it. Usable means `[A-Za-z0-9._:-]`, 1 to 128 characters, matched whole — a
-UUID string qualifies. On the non-streaming path you never learn a generated
-id in time, so **sending the header is the precondition for being able to
-cancel at all**; the response echoes the id actually tracked, so compare it if
-a cancel unexpectedly 404s. **That echo reached the non-streaming Messages
-response only in 1.79.46** — .44 and .45 returned the body with no
-`X-Request-ID` header on that path, so a client there could not tell that its
-own id had been rejected and a later DELETE 404'd with nothing to explain why.
-The streaming path carried the header from .44.
-
 | Response | Meaning |
 |---|---|
-| `200 {"cancelled": N, "request_id": "..."}` | N in-flight generations were signalled. A **count, not a boolean**: ids are client-supplied, so two in-flight requests may share one and cancelling it cancels both |
-| `404` | Nothing is running under that id, and the id was well-formed. Ids are tracked only while in flight, so the usual cause is that it already finished; the other is that the original request carried no `X-Request-ID` and is tracked under a generated one. Treat it as "too late", not as an error |
-| `422` | **The id is malformed and could never have been tracked** (1.79.52). Not the usual "your request was invalid" — the POST end rewrites an unusable `X-Request-ID` to a generated id, so an id failing this check was never registered and never could be. It means *fix your id generator*; retrying cannot help, and no run was stopped. Through 1.79.51 this case answered 404, so a client emitting bad ids saw permanent "too late" and could reasonably conclude cancellation was broken |
+| `200 {"cancelled": N, "request_id": "..."}` | N in-flight generations were signalled. A **count**, since two requests may share an id |
+| `404` | Nothing is running under that id. Usually it already finished; otherwise the original request carried no usable id. Treat it as "too late" |
+| `422` | The id is malformed and could never have been tracked. Fix the id generator; retrying cannot help |
 
-**This matters most for non-streaming calls.** A streaming request is already
-cancellable by hanging up: the server is writing chunks, so it notices the
-peer is gone. A non-streaming one writes nothing until the generation
-finishes, so an abandoned client is invisible and the run continues, holding
-the GPU and blocking whatever queued behind it. There is deliberately no
-disconnect polling — hanging up on a non-streaming request does **not** stop
-it. Call DELETE.
+**This matters most for non-streaming calls.** A stream is cancelled by
+hanging up, since the server notices the dead peer on its next write. A
+non-streaming request writes nothing until done and does not poll for
+disconnects, so an abandoned run keeps the GPU and blocks the queue. Call
+DELETE.
 
-**Cancellation is cooperative.** It sets an abort flag the decode loop checks
-between tokens, then the run unwinds normally: the generation gate is
-released, and a partial run against a conversation persists what it produced.
-It is not a kill — a generation blocked inside one long operation, such as
-prefill on a large context, stops at the next token boundary rather than
-instantly.
+**Cancellation is cooperative**: an abort flag checked between tokens, then a
+normal unwind. A partial run against a conversation persists what it produced.
 
-**There is no distinct cancellation stop value.** A cancelled run returns a
-normal response carrying whatever was generated and reports `stop_reason:
-"max_tokens"` —
-Anthropic's vocabulary has no cancellation member, since cancellation there is
-a dropped connection rather than an end state. The override applies only when
-the provider itself said nothing; a real `length` or `stop_sequence` from the
-engine keeps priority. So a cancelled run is indistinguishable on the wire
-from budget exhaustion: **track your own cancel, never infer it from the
-response.**
+**There is no cancellation stop value.** A cancelled run returns what it
+generated with `stop_reason: "max_tokens"`, unless the engine had already
+reported `stop_sequence`. It is indistinguishable from budget exhaustion:
+**track your own cancel, never infer it from the response.**
 
 ## Discovery endpoints
 
 `GET /v1/models`:
 
-```json
+```jsonc
 { "object": "list", "data": [
   { "id": "...", "object": "model", "owned_by": "user",
-    "provider": "mlx" | "mlx_embedding" | "gguf",
+    "provider": "mlx" | "gguf",
     "modalities": ["text", "vision"],
     "capabilities": ["chat", "vision", "thinking", "reasoning_effort"],
     "thinking_default": true,
-    "context_length": 262144,
-    "sampler_defaults": { "off": {"temperature": 1.0, "top_k": 64, "...": 0},
-                          "on":  {"temperature": 1.0, "top_k": 64, "...": 0} } } ] }
+    "sampler_defaults": { "off": {"temperature": 1.0, "top_k": 64}, "on": {"...": 0} },
+    "sampler_sources":  { "...": "model | vendor | default" },
+    "engine": {
+      "runtime":  { "value": "mlx-vlm", "provenance": "...", "source": "..." },
+      "context":  { "length": { "value": 262144, "...": "..." }, "running": { "value": 32768 } },
+      "template": { "...": "which chat template is in force, incl. prefix_stable" },
+      "settings": { "<field>": { "value", "configured", "auto", "reason", "provenance", "effect" } },
+      "cache":    { "...": "how this model reuses a prompt" },
+      "thinking": { "switch": "...", "depth": { "variable", "values", "aliases", "default" },
+                    "budget": { "enforced", "reason" }, "template": "..." },
+      "image":    { "...": "image geometry" },
+      "speculative": { "drafter", "type", "in_force" },
+      "decoding": { "mode": { "value": "autoregressive" }, "request_fields": { "value": null } }
+    } } ] }
 ```
 
-`capabilities` is what the server will serve. `modalities` is the
-checkpoint author's description. Gate on the former.
+`capabilities` is what the server will serve; `modalities` is the checkpoint
+author's description. Gate on the former. The capabilities are `chat`,
+`vision`, `audio` (gguf only), `thinking` (a switch detected in the template in
+force), `reasoning_effort` (a detected depth control) and `thinking_budget`.
 
-Three derived fields ride along, answered for unloaded models too:
+The `engine` object has one shape on every engine and answers for unloaded
+models too. Its leaves are **facts**, `{value, provenance, source}`: read
+`.value` through one helper rather than at each call site. What a client
+gates on:
 
-- `thinking_default` (**1.79.63**) — what thinking resolves to when the
-  request says nothing. Label your "model default" control with it instead of
-  making the user generate to find out.
-- `context_length` (**1.79.65**) — the model's window, or `null` where the
-  files do not say. Size a prompt against it rather than learning the ceiling
-  from a 400.
-- `sampler_defaults` (**2.0.21**; gguf values corrected in 2.0.25) — what
-  EVERY sampler key resolves to for a request that says nothing, straight from
-  the cascade above, vendor rung included. Keyed by the thinking switch,
-  because the anti-loop overlay changes the numbers: read `off` or `on` to
-  match the thinking state you are about to send. Keys the cascade does not
-  set are absent. This is the server answering the question a client would
-  otherwise have to generate to answer.
+- `engine.context.length.value`: the model's window (null where the files do
+  not say). Size a prompt against it rather than learning the ceiling from a
+  400.
+- `engine.thinking.depth.values`: the `reasoning_effort` vocabulary.
+- `engine.decoding.request_fields.value`: the request fields this engine path
+  reads; null means every sampler field. Hide a control whose field is not
+  listed.
 
-**`capabilities` could over-report, and 1.79.43 closed the arm that did.**
-Until then MLX's `vision` capability was derived from the checkpoint's own
-`config.json` while the refusal was decided by the model as loaded, so the two
-could disagree: a variant whose entry still declared vision advertised
-`vision` and was refused at generation time. Since 1.79.43 the loader router
-answers both (`capabilities.py` → `_mlx_serves_vision`, the same answer the
-provider's image guard reads), so they cannot diverge on MLX.
+`thinking_default` is what thinking resolves to when the request says nothing;
+label a "model default" control with it. `sampler_defaults` is what every
+sampler key resolves to for a silent request, keyed by the thinking state
+(`off` / `on`) because the anti-loop overlay changes the numbers.
 
-Three arms are still open, so handle the refusal regardless. A vision-capable
-MLX model refuses an image on a non-user turn (2.0.18): upstream would
-relocate it to the last user turn without saying so, so heylook refuses rather
-than silently rewrite the prompt. gguf accepts it. An explicit
-`capabilities` list on the model's entry is an **override** that
-short-circuits inference entirely (`effective_capabilities`), on either
-provider — an operator can assert what the server will not deliver. And gguf
-has no guard of its own; see below.
+MLX's `vision` capability and its refusal come from one resolver, so they
+cannot disagree. Three arms stay open, so handle the refusal regardless:
 
-Audio is not one of the open arms. The MLX branch never appends an `audio`
-capability — the towers are stripped at load — so gating alone keeps a client
-off it, and audio sent to an MLX model anyway is a plain 400 rather than a
-broken promise. gguf is where audio is served.
+- A vision-capable MLX model refuses an image on a non-user turn: mlx-vlm
+  would relocate it to the last user turn without saying so. gguf accepts it.
+- An explicit `capabilities` list in the model's config (`heylook.toml`, or a
+  `model.heylook.toml` beside the weights) is an **override** honoured
+  verbatim on either provider.
+- gguf has no guard of its own. It advertises `vision` only when the model has
+  an mmproj projector (a declared modality alone advertises nothing; `audio`
+  needs the projector and the modality), then forwards the block to
+  `llama-server`. A 400 from llama-server is normalized into the same refusal.
+  If it accepts the block and ignores it, nothing refuses: a 200 describing an
+  image the model never used, decided by the model's packaging.
 
-The refusal reaches you as a **400 non-streaming**, or, because the guard
-fires at the first token when streaming, as an in-band `error` event typed
-`invalid_request_error` (both branches live in the Messages route). Gate to
-decide what to offer; handle both shapes to decide
-what actually happened.
+### Image cost
 
-**Only MLX has a capability guard.** A gguf entry gets `vision` from an
-`mmproj_path` or a declared modality, and the gguf provider forwards
-`request.messages` to `llama-server` rather than checking them. The outcome
-splits on what that subprocess does. A 400 from it is normalized into the
-same refusal the MLX guard raises and arrives in the two shapes above, so
-that branch needs no extra client handling. If it accepts the block and
-ignores it, nothing refuses: a 200 describing an image the model never used.
-Which branch you land on is decided by the model's GGUF/mmproj packaging
-rather than by heylook, so test it against the build you are targeting.
+```http
+POST /v1/models/{id}/image-plan
+{"sizes": [[1920, 1080], [4032, 3024]]}
+```
 
-`GET /v1/capabilities` returns `server_version`, `optimizations`, Metal
-device info, `samplers.available` (the named-bundle roster), an `endpoints`
-map and `features`. Query once at integration time for the sampler names.
+Takes 1 to 16 `[width, height]` pairs, each side 1 to 16384: the size each
+image will be sent at. Returns `{model_id, engine, images: [{size, tokens,
+target}], source}`: the prompt tokens each image adds and the size the engine
+resizes it to (`target` is null on gguf, where llama.cpp does not say). The
+numbers come from the engine itself: the loaded MLX model's processor, or
+llama-server's token counter. Planning never loads a model, so a model that is
+not resident is a **409**; a model served without images is a 400.
+
+### Loading
+
+`POST /v1/models/{id}/load[?warm=true]` loads a model ahead of the first
+request. Unknown or disabled id is a 400; busy (every loaded model generating)
+is a 503 with `Retry-After`; any real load failure is a 500, the same split
+`/v1/messages` makes. `warm=true` also runs a 1-token generation to pay
+the Metal kernel JIT, behind the global generation gate; a failed warm is still
+a 200 with `warmed: false` and `warm_error`, and the model is loaded either
+way.
+
+One model is resident by default (LRU eviction), and one engine family at a
+time: loading an MLX model evicts resident gguf models and the reverse.
+
+`GET /v1/capabilities` returns `server_version`, `optimizations`, Metal device
+info, an `endpoints` map and `features`.

@@ -19,12 +19,13 @@ second backend.
 | `generationConfig.temperature` | `temperature` |
 | `generationConfig.topP` / `topK` | `top_p` / `top_k` |
 | `generationConfig.seed` | `seed` |
-| `generationConfig.stopSequences` | no equivalent; stop tokens are resolved from the model |
-| `generationConfig.responseSchema` | no equivalent; prompt for the shape |
-| `generationConfig.thinkingConfig` | `thinking` plus `reasoning_effort` |
+| `generationConfig.stopSequences` | `stop_sequences` (matched on reply text only, not thinking) |
+| `generationConfig.responseMimeType` + `responseSchema` | `response_format: {"type": "json_schema", "json_schema": {"schema": ...}}` (not on harmony or diffusion models) |
+| `generationConfig.thinkingConfig` | `thinking` (bool, or `{"type", "budget_tokens"}` on models with `thinking_budget`) plus `reasoning_effort` in the model's own vocabulary |
 | `candidates[].content.parts[].text` | a `text` output block |
 | `candidates[].finishReason` | `stop_reason` (`end_turn` / `max_tokens` / `stop_sequence`) |
-| `usageMetadata.promptTokenCount` | `usage.input_tokens` |
+| `usageMetadata.promptTokenCount` | `usage.input_tokens + usage.cache_read_input_tokens` (`input_tokens` alone is only what this request processed) |
+| `usageMetadata.cachedContentTokenCount` | `usage.cache_read_input_tokens` |
 | `usageMetadata.candidatesTokenCount` | `usage.output_tokens` |
 | streaming chunk `candidates[].content.parts[].text` | `content_block_delta` → `delta.text` |
 
@@ -64,10 +65,11 @@ one candidate whose parts you join. heylook returns typed blocks where
 `thinking` and `text` are distinct. Joining everything puts the model's
 reasoning into your product's output.
 
-**There is no `responseSchema`.** Gemini's structured-output constraint has
-no heylook equivalent. Ask for the format in the prompt and parse
-defensively. (heylook had `logprobs` for confidence signals until 1.79.74;
-they were removed and now answer 422.)
+**Structured output is per model.** `response_format` constrains the reply
+to a schema, but it is a 400 on harmony and masked-diffusion models, so a
+provider layer that assumes Gemini's `responseSchema` always works needs a
+fallback: ask for the format in the prompt and parse defensively. There are
+no `logprobs` (removed, 422).
 
 **Latency has a different first-request shape.** Gemini is a warm hosted
 endpoint. heylook loads nothing at startup and keeps one model resident by
@@ -75,9 +77,9 @@ default, so the first request to a model pays its load, and alternating
 between two models can reload on every call. Worse than slow: the load runs
 before the response begins, so a cold load puts nothing on the connection and
 a non-streaming client cannot tell it from a hang. Pre-warm with `POST
-/v1/models/{id}/load` (moved off `/v1/admin` in 1.79.48), add `?warm=true`
-only for startup or a model switch — it takes the generation gate — and batch
-work by model.
+/v1/models/{id}/load`, add `?warm=true` only for startup or a model switch
+(it takes the generation gate), and batch work by model. Switching between an
+MLX and a gguf model also evicts the other family.
 
 **Backpressure is real and normal.** Gemini answers 429 under quota.
 heylook answers 503 with `Retry-After` because it serialises generation for
@@ -85,7 +87,7 @@ a single user. Treat it as a queue, not a quota — retry rather than degrade.
 
 ## Provider-abstraction seams this implies
 
-If the app's provider interface was shaped around Gemini, four seams usually
+If the app's provider interface was shaped around Gemini, five seams usually
 need to exist before heylook fits cleanly:
 
 1. **Model discovery** — a call that lists models and their capabilities,
@@ -109,6 +111,6 @@ they exist against hosted providers too, just less often.
 Gemini accepts large `inlineData` and does its own downscaling.
 `/v1/messages` does not resize at all, so a payload that was fine for Gemini
 arrives at a local vision tower at full resolution and is paid for in vision
-tokens and prefill. Resize in the shared path before the provider split, and
-send `vision_tokens` to heylook to cap the budget directly. Recipes are in
-`client_recipes.md`.
+tokens and prefill. Resize in the shared path before the provider split.
+`/v1/models/{id}/image-plan` reports what a size costs the loaded model and
+the size its engine resizes to. Recipes are in `client_recipes.md`.

@@ -1,5 +1,16 @@
 # changelog
 
+## 1.70.0
+
+### changed
+- **`heylook-provider` 0.18.0 -> 0.19.0: re-verified against heylookitsanllm 2.0.178 (was 2.0.28).** The change list came from a heylook session that read the server's code and exported schema at 2.0.177, then shipped two fixes as 2.0.178. Each item was checked against the heylook source before landing. This pass read code and schema only; no request ran against a live server.
+  - **Wrong, now fixed.** `stop_sequences` is honoured (2.0.151), not ignored. `thinking` also takes Anthropic's object with `budget_tokens`. `reasoning_effort` is each model's own template vocabulary, read from `engine.thinking.depth.values`, and an unoffered value is a 400 before any stream opens, not a 500. There is no default model: no `model` is a 400. There is no inference key (`HEYLOOK_API_KEY` was removed in 2.0.127). `X-Request-ID` is echoed on the busy 503 too. `sampler`, `vision_tokens`, `show_special_tokens: true`, `tools` and `tool_choice` are 422s; the skill recommended `vision_tokens` as the cost lever. `stream_options` is ignored. Top-level `context_length` moved into the `engine` object; `provider` is only `mlx` or `gguf`. `usage.input_tokens` is what this request processed, beside `cache_read_input_tokens`. `performance` lost `kv_cache_bytes` and `draft_acceptance` and gained `cache` and `speculative`. gguf advertises `vision` only with a projector. The config file is `heylook.toml`.
+  - **Added.** `response_format`; `POST /v1/models/{id}/image-plan` and the frontend's way of using it; the `engine` object on `/v1/models`; the `ping` keepalive; the `heylook_progress` payload; the 422s for misspelt fields (`enable_thinking`, `max_new_tokens`, `system_prompt`, `chat_template_kwargs`) and the fact that any other unknown field is silently dropped; the Host check's 403; no CORS; continuation of a trailing assistant message; one engine family resident at a time.
+  - **`wire_reference.md` states current behaviour only.** Its per-version history moved to `older_servers.md`, which gains every boundary from 2.0.30 to 2.0.178.
+  - **`probe.py`.** It drops the sampler roster (removed from `/v1/capabilities` in 2.0.30) and no longer reads `HEYLOOK_API_KEY`; `--api-key` stays, for a proxy in front. A 403 now names the Host check and `allowed_hosts`, and a 401 no longer tells you to check a server key that does not exist. The matrix shows each model's context length and depth vocabulary. Five tests red first; the pin for a row with a malformed `engine` was born green and reddened by indexing the row directly.
+  - **`client_recipes.md`.** The API-key plumbing and `vision_tokens` are gone. Added: the image-plan pattern, load-with-warm on a model switch, holding image bytes until send, and the `stop_sequence` read.
+  - Root README: the heylook row no longer says the OpenAI route is served.
+
 ## 1.69.0
 
 ### added

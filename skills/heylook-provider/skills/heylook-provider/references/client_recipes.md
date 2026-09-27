@@ -15,7 +15,9 @@ case: `uv run pytest skills/heylook-provider/tests/`. Nothing runs it
 automatically — the repo has no CI and `skill-maintain test` carries no
 pytest dependency by design — so it is a check you can re-run, not a gate
 that will notice drift on its own. The `sharp` recipe was not executed; its
-settings are transcribed from heylook's own frontend.
+settings are transcribed from heylook's own frontend. Nor were the image-plan
+and model-switch snippets, nor the `stop_sequence` read added to the Python
+client after that run; they follow heylook's route code and frontend.
 
 That split is not bookkeeping. The Pillow recipe shipped with a bug the note
 predicted: `keep_png` read `.format` after `exif_transpose`, which returns a
@@ -37,6 +39,7 @@ class Result:
     text: str = ""
     thinking: str = ""
     stop_reason: str | None = None
+    stop_sequence: str | None = None
     usage: dict = field(default_factory=dict)
     performance: dict = field(default_factory=dict)
 
@@ -47,7 +50,6 @@ def stream_message(
     messages: list[dict],
     *,
     system: str | None = None,
-    api_key: str | None = None,
     on_text=None,
     **sampling,
 ) -> Result:
@@ -69,9 +71,6 @@ def stream_message(
         # `r.headers` if a later cancel 404s unexpectedly.
         "X-Request-ID": str(uuid.uuid4()),
     }
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
     out = Result()
     with httpx.Client(timeout=httpx.Timeout(None, connect=10.0)) as client:
         with client.stream("POST", f"{base}/v1/messages", json=body, headers=headers) as r:
@@ -101,6 +100,7 @@ def stream_message(
 
                 elif event == "message_delta":
                     out.stop_reason = data["delta"].get("stop_reason")
+                    out.stop_sequence = data["delta"].get("stop_sequence")
                     out.usage = data.get("usage", {})
 
                 elif event == "message_stop":
@@ -111,6 +111,9 @@ def stream_message(
                 elif event == "error":
                     err = data["error"]
                     raise RuntimeError(f"{err.get('type')}: {err.get('message')}")
+
+                # Anything else -- `ping` every 5s of silence, `heylook_progress`
+                # during prefill, an event type added later -- falls through.
 
     return out
 
@@ -212,7 +215,6 @@ export async function streamMessage(
   base: string,
   body: Record<string, unknown>,
   onText?: (chunk: string) => void,
-  apiKey?: string,
 ): Promise<StreamResult> {
   const res = await fetch(`${base}/v1/messages`, {
     method: "POST",
@@ -224,7 +226,6 @@ export async function streamMessage(
       // randomUUID() satisfies [A-Za-z0-9._:-]{1,128}; the response's
       // X-Request-ID header carries whichever id was actually tracked.
       "X-Request-ID": crypto.randomUUID(),
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
     body: JSON.stringify({ ...body, stream: true }),
   });
@@ -286,6 +287,7 @@ export async function streamMessage(
         } else if (event === "error") {
           throw new Error(`${payload.error.type}: ${payload.error.message}`);
         }
+        // ping, heylook_progress and unknown event types are ignored.
       }
     }
   } finally {
@@ -317,8 +319,7 @@ const body = {
       },
     ],
   }],
-  max_tokens: 1024,
-  vision_tokens: 1024,                  // cap visual budget directly
+  // No max_tokens: absent lets the model's own configured floor decide.
 };
 ```
 
@@ -407,7 +408,51 @@ when there is no orientation tag to apply, so the read has to happen first.
 
 **How much resolution to send is a model question, not a transport one.**
 Dynamic-resolution towers consume whatever they are given and charge for it
-in vision tokens and prefill; fixed-input towers discard the surplus.
-2048px is a default that keeps screenshot text legible while taking a phone
-photo down by roughly an order of magnitude. Raise it only if fine detail is
-the point, and prefer `vision_tokens` when the goal is capping cost.
+in prompt tokens and prefill; fixed-input towers discard the surplus. 2048px
+is a default that keeps screenshot text legible while taking a phone photo
+down by roughly an order of magnitude. To see what a size actually costs the
+model, ask the engine (next section) rather than guessing.
+
+Hold the image **bytes** and base64-encode only when building the request.
+heylook's frontend measured three simultaneous base64 copies of every image
+when it encoded early.
+
+## Image cost: `/v1/models/{id}/image-plan`
+
+The server does not resize, but it will tell you what an image costs a loaded
+model and what size the engine will resize it to. heylook's own frontend uses
+it this way:
+
+1. Apply the client-side cap above.
+2. Ask once for **both** sizes, the staged one and the original, in one call.
+3. Show the cost as disclosure next to the image, never as a gate on sending.
+4. Offer "fit to model": resize the **original** to the returned `target`, so
+   the image is resampled once rather than twice.
+5. Drop a result that arrives after the image or the model changed.
+
+```python
+def image_plan(base: str, model: str, sizes: list[tuple[int, int]]) -> list[dict] | None:
+    """Rows of {size, tokens, target}; None when the model is not resident
+    (409: planning never loads a model) -- treat that as "cost unknown"."""
+    r = httpx.post(f"{base}/v1/models/{model}/image-plan",
+                   json={"sizes": [list(s) for s in sizes]}, timeout=30)
+    if r.status_code == 409:
+        return None
+    r.raise_for_status()
+    return r.json()["images"]    # target is null on gguf
+```
+
+## Model switch
+
+Load the model before the first request to it, so the load is a labelled wait
+instead of a silent one inside a generation:
+
+```python
+r = httpx.post(f"{base}/v1/models/{model}/load", params={"warm": "true"},
+               headers={"X-Request-ID": str(uuid.uuid4())}, timeout=None)
+# 400 unknown id, 503 busy (retry on Retry-After), 500 broken model.
+# 200 with warmed: false is still loaded.
+```
+
+`warm=true` pays the Metal kernel JIT with a 1-token generation behind the
+generation gate: do it on startup and on a model switch, never per request.
