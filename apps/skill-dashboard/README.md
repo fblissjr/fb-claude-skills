@@ -1,4 +1,4 @@
-last updated: 2026-09-21
+last updated: 2026-10-01
 
 # skill-dashboard
 
@@ -81,8 +81,9 @@ node apps/skill-dashboard/mcp-app/dist/index.cjs
 - Body size (line count, warn >500)
 - Description quality (WHAT verb + WHEN trigger presence)
 
-### per-plugin (3 checks)
+### per-plugin
 - Manifest fields (name, version, description, author, repository)
+- Description length (plugin.json description at most 500 characters; Cowork's marketplace sync drops a plugin over it)
 - Marketplace listing (in root marketplace.json)
 - README exists
 

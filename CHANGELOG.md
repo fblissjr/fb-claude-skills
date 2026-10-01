@@ -1,5 +1,10 @@
 # changelog
 
+## 1.73.0
+
+### added
+- **`skill-dashboard` 1.5.0 -> 1.6.0: the dashboard checks the `plugin.json` description length.** Its TypeScript port of the plugin checks gains `description length`, the same 500-character Cowork limit `skill-maintain test` gained in 1.72.3, shown as a Description column in the plugin table. A new test, `tools/skill-maintainer/tests/test_dashboard_plugin_agreement.py`, runs both engines over plugins at 500 and 501 characters and asserts they agree; moving the TypeScript limit to 501 turns it red.
+
 ## 1.72.3
 
 ### fixed

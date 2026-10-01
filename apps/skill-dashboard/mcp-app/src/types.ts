@@ -20,6 +20,7 @@ export interface PluginResult {
   name: string;
   checks: {
     manifestFields: CheckResult;
+    descriptionLength: CheckResult;
     marketplaceListing: CheckResult;
     readmeExists: CheckResult;
   };

@@ -63,6 +63,10 @@ const PLUGIN_REQUIRED_FIELDS = [
   "repository",
 ];
 
+// Cowork's marketplace sync drops a plugin whose plugin.json description is
+// longer than this. Mirrors PLUGIN_DESCRIPTION_MAX in skill_maintainer.tests.
+const PLUGIN_DESCRIPTION_MAX = 500;
+
 // Allowed top-level fields in SKILL.md frontmatter (Agent Skills spec)
 const ALLOWED_FIELDS = new Set([
   "name",
@@ -515,6 +519,11 @@ export function checkPlugins(root: string): PluginResult[] {
             passed: false,
             detail: `cannot read: ${e instanceof Error ? e.message : String(e)}`,
           },
+          descriptionLength: {
+            name: "description length",
+            passed: false,
+            detail: "skipped (no manifest)",
+          },
           marketplaceListing: {
             name: "marketplace listing",
             passed: false,
@@ -541,6 +550,16 @@ export function checkPlugins(root: string): PluginResult[] {
         missing.length > 0 ? `missing: ${missing.join(", ")}` : "",
     };
 
+    const desc = typeof manifest.description === "string" ? manifest.description : "";
+    const descOk = desc.length <= PLUGIN_DESCRIPTION_MAX;
+    const descLengthCheck: CheckResult = {
+      name: "description length",
+      passed: descOk,
+      detail: descOk
+        ? `${desc.length} chars`
+        : `${desc.length} chars > ${PLUGIN_DESCRIPTION_MAX}, dropped by Cowork's marketplace sync`,
+    };
+
     // 2. Marketplace listing
     const inMarketplace = marketplaceNames.includes(name);
     const marketplaceCheck: CheckResult = {
@@ -562,6 +581,7 @@ export function checkPlugins(root: string): PluginResult[] {
       name,
       checks: {
         manifestFields: manifestCheck,
+        descriptionLength: descLengthCheck,
         marketplaceListing: marketplaceCheck,
         readmeExists: readmeCheck,
       },

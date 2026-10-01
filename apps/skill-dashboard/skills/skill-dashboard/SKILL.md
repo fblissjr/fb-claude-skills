@@ -15,7 +15,7 @@ Render the fb-claude-skills quality dashboard: every skill and plugin under the 
 <tools>
 Two MCP tools from the dashboard's server (`apps/skill-dashboard/mcp-app/`):
 
-- `skill-quality-check({ filter? })`: runs every check and renders the dashboard. `filter` is a skill-name substring. Checks: per skill, spec compliance, description quality (a WHAT verb and a WHEN trigger), token budget and body size; per plugin, manifest fields, marketplace listing and README; repo hygiene (gitignore rules, ambient hooks, state files, duplicate names, `best_practices.md` provenance, version alignment).
+- `skill-quality-check({ filter? })`: runs every check and renders the dashboard. `filter` is a skill-name substring. Checks: per skill, spec compliance, description quality (a WHAT verb and a WHEN trigger), token budget and body size; per plugin, manifest fields, description length (500 characters, the Cowork limit), marketplace listing and README; repo hygiene (gitignore rules, ambient hooks, state files, duplicate names, `best_practices.md` provenance, version alignment).
 - `skill-measure({ skillName })`: per-file token breakdown for one skill (characters, estimated tokens, share of total). Use it when the user asks why a skill is heavy or where its tokens go.
 
 The token-budget pass/fail uses the same certainty band as `skill-maintain test`; the bar colours mark the thresholds in the tool's returned `meta`, which are display bands, not the gate.

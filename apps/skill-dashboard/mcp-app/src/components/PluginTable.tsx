@@ -13,6 +13,7 @@ export function PluginTable({ plugins }: Props) {
           <tr>
             <th>Plugin</th>
             <th>Manifest</th>
+            <th>Description</th>
             <th>Marketplace</th>
             <th>README</th>
           </tr>
@@ -25,6 +26,12 @@ export function PluginTable({ plugins }: Props) {
                 <StatusDot
                   passed={plugin.checks.manifestFields.passed}
                   title={plugin.checks.manifestFields.detail}
+                />
+              </td>
+              <td className="cell-status">
+                <StatusDot
+                  passed={plugin.checks.descriptionLength.passed}
+                  title={plugin.checks.descriptionLength.detail}
                 />
               </td>
               <td className="cell-status">
