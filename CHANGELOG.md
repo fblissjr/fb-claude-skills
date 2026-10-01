@@ -1,5 +1,13 @@
 # changelog
 
+## 1.72.3
+
+### fixed
+- **`dev-conventions` 0.20.0 -> 0.20.1: the plugin reaches Cowork again.** Cowork's marketplace sync drops a plugin whose `plugin.json` description is longer than 500 characters, and syncs the rest without it. dev-conventions was at 589 and was skipped with "Plugin description must be at most 500 characters". The description is trimmed below the limit and says the same things. `claude plugin validate --strict` had passed the old one, so nothing here caught it.
+
+### added
+- **`skill-maintain test` gates the `plugin.json` description length (`skill-maintain` CLI 0.43.0 -> 0.44.0).** A new per-plugin check, `description length`, fails above `PLUGIN_DESCRIPTION_MAX` in `tools/skill-maintainer/src/skill_maintainer/tests.py`, the limit Cowork enforces. Before the trim it failed on dev-conventions and nothing else. The skill-dashboard app runs its own TypeScript port of the plugin checks and does not have this one yet.
+
 ## 1.72.2
 
 ### fixed

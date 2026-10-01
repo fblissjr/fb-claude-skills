@@ -30,7 +30,7 @@
     {
       "name": "dev-conventions",
       "source": "./skills/dev-conventions",
-      "version": "0.20.0"
+      "version": "0.20.1"
     },
     {
       "name": "skill-maintainer",

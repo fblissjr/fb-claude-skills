@@ -41,6 +41,10 @@ from skill_maintainer.shared import (
 
 PLUGIN_REQUIRED_FIELDS = ("name", "version", "description", "author", "repository")
 
+# Cowork's marketplace sync drops a plugin whose plugin.json description is
+# longer than this; `claude plugin validate --strict` does not enforce it.
+PLUGIN_DESCRIPTION_MAX = 500
+
 # High-frequency hook events that should not have broad (unmatched) triggers
 HIGH_FREQ_EVENTS = {"PreToolUse", "PostToolUse"}
 
@@ -205,6 +209,14 @@ def test_plugins(root: Path) -> list[Result]:
             "plugin", name, "manifest fields",
             len(missing) == 0,
             f"missing: {', '.join(missing)}" if missing else "",
+        ))
+
+        desc_len = len(manifest.get("description") or "")
+        results.append(Result(
+            "plugin", name, "description length",
+            desc_len <= PLUGIN_DESCRIPTION_MAX,
+            f"{desc_len} chars" if desc_len <= PLUGIN_DESCRIPTION_MAX
+            else f"{desc_len} chars > {PLUGIN_DESCRIPTION_MAX}, dropped by Cowork's marketplace sync",
         ))
 
         # 2. Marketplace listing (only if marketplace.json exists)
