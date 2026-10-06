@@ -1,5 +1,10 @@
 # changelog
 
+## 1.74.0
+
+### added
+- **`plan-page` 1.0.1: a port of the upstream `html-plan` plugin, renamed, with dark mode fixed.** The plugin comes from `anthropics/claude-plugins-community` at its 1.0.0 (commit `f60f045`), with its author and MIT license kept in `plugin.json`. It writes an implementation plan as one interactive HTML page. The one content change is in `skills/plan-page/skills/plan-page/runtime/htmlplan.css`. Upstream set the page colors on `html` only, and the claude.ai artifact page sets fixed light colors on `body`, so a plan in dark mode kept a light page under dark cards and showed dark text on dark surfaces. `body` now sets the same two tokens. An explicit theme choice (`data-theme`) also sets `color-scheme`, so scrollbars and native controls follow the page. The fix was offered upstream as pull request 2406 and closed by a bot, because that repo is a read-only mirror; the port can be retired when upstream carries the fix. It is named `plan-page` here so that it does not clash with `html-plan@claude-community`; the runtime files keep their upstream names. Both plugins answer the same requests for a plan, so with both installed, disable one or call the one you want by name.
+
 ## 1.73.0
 
 ### added

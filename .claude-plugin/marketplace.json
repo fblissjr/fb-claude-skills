@@ -106,6 +106,11 @@
       "name": "heylook-provider",
       "source": "./skills/heylook-provider",
       "version": "0.21.2"
+    },
+    {
+      "name": "plan-page",
+      "source": "./skills/plan-page",
+      "version": "1.0.1"
     }
   ],
   "renames": {

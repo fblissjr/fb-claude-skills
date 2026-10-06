@@ -1,4 +1,4 @@
-last updated: 2026-09-27
+last updated: 2026-10-06
 
 # fb-claude-skills
 
@@ -71,6 +71,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [heylook-provider](skills/heylook-provider/) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes one Anthropic Messages-conformant `/v1/messages` (the OpenAI-compatible route is gone), so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. |
+| [plan-page](skills/plan-page/) | Skill + Scripts | Write an implementation plan as one interactive HTML page: a tree of claims, each proved by a mockup, state machine, call stack, schema or code, with the decisions you have to make placed on the claim they change. A port of the `html-plan` plugin in [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/main/html-plan), renamed and kept here for one fix: a published plan follows the viewer's dark theme. Needs `node` to pack the page. |
 
 ### privacy & pre-share safety
 
@@ -120,6 +121,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 /plugin install grilling@fb-claude-skills
 /plugin install improvement-loops@fb-claude-skills
 /plugin install heylook-provider@fb-claude-skills
+/plugin install plan-page@fb-claude-skills
 ```
 
 Or from the terminal:
@@ -221,6 +223,7 @@ Once installed, invoke as namespaced slash commands:
 /postmortem:control-audit        # Census + live-fire audit of hooks, validators, reminders
 /gemini                          # Hand a perceptual task to Gemini; answer lands in a run directory
 /heylook-provider:heylook-provider  # Wire an app to heylook: the wire contract and capability discovery
+/plan-page:plan-page             # Write a plan as one interactive HTML page of claims and decisions
 /dangling-refs:retire            # Remove a unit without leaving references behind
 
 

@@ -1,0 +1,11 @@
+{
+  "name": "plan-page",
+  "version": "1.0.1",
+  "description": "Write an implementation plan as one interactive HTML page: a tree of claims, each proved by a mockup, state machine, call stack, schema or code, with the decisions you need to make placed where they matter. Use /plan-page <what to build>.",
+  "author": {
+    "name": "Thariq Shihipar"
+  },
+  "repository": "https://github.com/fblissjr/fb-claude-skills",
+  "license": "MIT",
+  "keywords": ["plan", "planning", "rfc", "design", "html", "mockup", "review"]
+}

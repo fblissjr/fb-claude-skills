@@ -83,6 +83,13 @@
     "mcp_servers": 0,
     "per_call_emitters": 0
   },
+  "plan-page": {
+    "always_monitors": 0,
+    "emitting_hooks": 0,
+    "listing_chars": 398,
+    "mcp_servers": 0,
+    "per_call_emitters": 0
+  },
   "plugin-toolkit": {
     "always_monitors": 0,
     "emitting_hooks": 0,
