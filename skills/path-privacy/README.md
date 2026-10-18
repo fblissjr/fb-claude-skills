@@ -2,7 +2,7 @@
 
 <!-- path-privacy: skip-file -->
 
-last updated: 2026-10-17
+last updated: 2026-10-18
 
 Keeps personal identifiers out of committed artifacts in **Google Antigravity** (`agy` CLI v1.4.0+ and Antigravity App v2.24.0+) and **Claude Code**.
 
@@ -16,25 +16,25 @@ The plugin fixes what it safely can in place and blocks the rest. It does not lo
 
 | Where | Behaviour |
 |---|---|
-| **PreToolUse**, `write_to_file` / `replace_file_content` / `multi_replace_file_content` (and `Write` / `Edit`) | An absolute or `~`/`$HOME` spelling of a path **inside** the repo is rewritten to repo-relative before the write lands (`overwrite` on Antigravity / `updatedInput` on Claude Code, with no permission escalation), plus one line of context saying so. A path **outside** the repo, or the full name, blocks the call (`{"decision": "deny"}`). Conversation artifacts (`artifactDirectoryPath` / `/.gemini/antigravity*/brain/`) and gitignored files are exempted |
+| **PreToolUse**, `write_to_file` / `replace_file_content` / `multi_replace_file_content` (and `Write` / `Edit`) | An absolute or `~`/`$HOME` spelling of a path **inside** the repo is rewritten to repo-relative before the write lands (`overwrite` on Antigravity / `updatedInput` on Claude Code, with no permission escalation), plus one line of context saying so. A path **outside** the repo, or the full name, blocks the call (`{"decision": "deny"}` on Antigravity / `exit 2` on Claude Code). Conversation artifacts (`artifactDirectoryPath` / `/.gemini/antigravity*/brain/`) and gitignored files are exempted |
 | **PreToolUse**, `run_command` (and `Bash`) | A `git`/`gh` command containing the full name is blocked; home-directory prefixes are masked first, so a home path that spells the name does not count. Commit, tag and PR message text (heredoc bodies included) and new branch names are scanned for external paths |
 | **git `pre-commit`** | Staged files are scanned whole for external paths. **Added** lines are scanned for the full name, so a name already in history does not block unrelated commits |
 | **git `commit-msg`** | Message and current branch name, for both. A `Signed-off-by:` trailer from `git commit -s` is allowed |
-| **SessionStart** | Refreshes this repo's frozen hook wrappers when the template changes. Emits `{}` (silent) in a repo whose gate is installed and current; says once per repo when the gate is missing |
+| **SessionStart** | Refreshes this repo's frozen hook wrappers when the template changes. Emits `{}` (Antigravity) or nothing (Claude Code) in a repo whose gate is installed and current; says once per repo when the gate is missing |
 
 Every block message ends with the one rule no hook can enforce: the correction is routine, and commit messages, branch names and changelog entries do not mention it.
 
-### Examples in Antigravity App & CLI (`agy`)
+### Examples in Antigravity & Claude Code
 
-1. **In-Repo Absolute Path Auto-Rewrite (`write_to_file` / `replace_file_content` / `multi_replace_file_content`)**:
+1. **In-Repo Absolute Path Auto-Rewrite (`write_to_file` / `replace_file_content` / `multi_replace_file_content` & `Write` / `Edit`)**:
    - The agent tries to write `/Users/<your-name>/<repo>/src/index.ts` or `~/<repo>/src/index.ts` into `README.md`.
-   - `path-privacy-pre-tool-use.sh` intercepts the tool call and returns `{"decision": "allow", "overwrite": {...}}`, rewriting the path to `src/index.ts` before the file is written.
-2. **External or Unbracketed Path Block (`deny`)**:
+   - `path-privacy-pre-tool-use.sh` intercepts the tool call and returns `{"decision": "allow", "overwrite": {...}}` in Antigravity or `hookSpecificOutput.updatedInput` in Claude Code, rewriting the path to `src/index.ts` before the file is written.
+2. **External or Unbracketed Path Block (`deny` / `exit 2`)**:
    - The agent tries to write `/Users/<your-name>/other-repo/foo.py`, `~/code/secret-project`, or an unbracketed `/home/user/xyz` into a tracked file.
-   - `path-privacy-pre-tool-use.sh` returns `{"decision": "deny", "reason": "..."}` with the exact file and line number, instructing the agent to use a repo-relative path, `<HOME>/...`, `/Users/<user>/...`, or a generic description.
-3. **Commit / PR Message & Branch Guard (`run_command`)**:
+   - `path-privacy-pre-tool-use.sh` blocks the call with the exact file and line number, instructing the agent to use a repo-relative path, `<HOME>/...`, `/Users/<user>/...`, or a generic description.
+3. **Commit / PR Message & Branch Guard (`run_command` & `Bash`)**:
    - The agent runs `git commit -m "Ported from ~/other-repo"` or `git checkout -b fix/Users/jsmith/bug`, or includes your `git config user.name` full name in a `gh pr create --body ...` command.
-   - `path-privacy-pre-tool-use.sh` blocks the `run_command` call before `git` or `gh` executes.
+   - `path-privacy-pre-tool-use.sh` blocks the shell call before `git` or `gh` executes.
 
 ### What counts as a leak
 
@@ -57,7 +57,7 @@ Full rules: [skills/path-privacy/references/patterns.md](skills/path-privacy/ref
 
 ## Install
 
-### 1. Install the Plugin in Antigravity CLI (`agy`) & App
+### 1A. Install in Antigravity CLI (`agy`) & App
 
 Plugins installed under `~/.gemini/config/plugins/` are active in both **Antigravity CLI (`agy`)** and **Antigravity App (`v2.24.0+`)**.
 
@@ -65,7 +65,7 @@ Plugins installed under `~/.gemini/config/plugins/` are active in both **Antigra
 # Install directly from GitHub (no manual git clone needed)
 agy plugin install https://github.com/fblissjr/fb-gemini-plugins/tree/main/skills/path-privacy
 
-# Or install from a local checkout of fb-gemini-plugins
+# Or install from a local checkout
 agy plugin install ./skills/path-privacy
 
 # Validate the plugin manifest, skill, and hooks
@@ -74,12 +74,23 @@ agy plugin validate ./skills/path-privacy --strict
 
 In the `agy` interactive TUI, you can also run `/plugin`, switch to **Discover**, and select **+ Install from local directory...**.
 
-### 2. Install Per-Repo Git Hooks (`pre-commit` & `commit-msg`)
-
-The `PreToolUse` and `SessionStart` hooks run automatically in every git workspace once the plugin is installed. To also gate commits made outside Antigravity, install the git hooks in your repository:
+### 1B. Install in Claude Code
 
 ```bash
-# From inside the repo you want to protect:
+# From the fb-claude-skills marketplace
+/plugin marketplace add fblissjr/fb-claude-skills
+/plugin install path-privacy@fb-claude-skills
+
+# Or load directly from a local checkout
+claude --plugin-dir ./skills/path-privacy
+```
+
+### 2. Install Per-Repo Git Hooks (`pre-commit` & `commit-msg`)
+
+The `PreToolUse` and `SessionStart` hooks run automatically in every git workspace once the plugin is installed in Antigravity or Claude Code. To also gate commits made outside the agent, install the git hooks in your repository (or invoke `/path-privacy:path-privacy` in Claude Code / `/path-privacy` in Antigravity):
+
+```bash
+# From inside the repo you want to protect (works from either install root or checkout):
 bash ~/.gemini/config/plugins/path-privacy/skills/path-privacy/scripts/install-git-hooks.sh
 
 # Or target another repo with -C:
