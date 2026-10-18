@@ -2,7 +2,7 @@
 
 <!-- path-privacy: skip-file -->
 
-last updated: 2026-09-24
+last updated: 2026-10-17
 
 The scanner (`scripts/find-external-paths.sh`) finds candidate paths with one
 PCRE2 pattern, then decides per candidate whether it is a leak. The name guard
@@ -52,13 +52,11 @@ In order; the first rule that applies decides.
 
 ## Placeholder users
 
-Compared case-insensitively. Kept in step with the whole-tree audit's list in
-`tools/skill-maintainer/src/skill_maintainer/tests.py`:
+Compared case-insensitively (only explicit bracketed/variable placeholders and OS/CI system accounts are allowed; unbracketed names like `user`, `dev`, or `alice` are blocked so LLM-sanitized paths carrying real external directory names are caught):
 
 ```
-username user <username> <user> me you name <name> somebody $user ${user} $$user
-someone someuser foo bar baz test tester example alice bob carol jane john jamie
-dev developer youruser yourname shared linuxbrew travis runner vagrant ubuntu ec2-user
+<username> <user> <name> $user ${user} $$user
+shared linuxbrew travis runner vagrant ubuntu ec2-user
 ```
 
 ## Full-name pattern
@@ -92,7 +90,7 @@ when one of its first 30 lines has `path-privacy: skip-file` as its leading
 content: at most three spaces of indent, then an optional `#`, `//`, `--`, `;`
 or `<!--`, then the token. Free text may follow (`# path-privacy: skip-file --
 regex source`). One definition, `scripts/_skip_marker.sh`, serves every shell
-consumer; the Python audit keeps a copy, and a test asserts the two agree.
+consumer.
 
 Not a marker, each because it was once a working bypass:
 
@@ -101,9 +99,6 @@ Not a marker, each because it was once a working bypass:
 - four or more spaces of indent (a markdown code block)
 - anything inside a fenced code block; a fence closes only with the same
   character in a run at least as long, with nothing after it
-
-`skill-maintain test` additionally asserts that changelogs, skill docs and
-plugin READMEs are never exempt, whatever the pattern allows.
 
 ## Skip globs
 

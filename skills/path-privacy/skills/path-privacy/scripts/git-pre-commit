@@ -16,15 +16,15 @@ if [ -n "${PATH_PRIVACY_SCRIPT_DIR:-}" ]; then
   SCANNER="$PATH_PRIVACY_SCRIPT_DIR/find-external-paths.sh"
 fi
 
-if [ ! -x "$SCANNER" ]; then
-  echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
+if [ ! -r "$SCANNER" ]; then
+  echo "path-privacy: scanner not found or not readable: $SCANNER" >&2
   # Fail CLOSED, matching the installed wrapper. This used to exit 0 "by design",
   # which quietly defeated the wrapper's guarantee one level down: the wrapper
-  # carefully selects an executable entry script, that script finds its own
+  # carefully selects an entry script, that script finds its own
   # delegate missing, and the commit sails through with no gate and no error.
   # A silent bypass on a privacy gate is unrecoverable; a block is loud and fixable.
   echo "  The leak gate is NOT running, so this commit is blocked rather than" >&2
-  echo "  allowed through unchecked. Reinstall with /path-privacy:path-privacy." >&2
+  echo "  allowed through unchecked. Reinstall with install-git-hooks.sh." >&2
   exit 1
 fi
 
@@ -32,13 +32,13 @@ fi
 . "$(dirname "$SCANNER")/_name_guard.sh" 2>/dev/null
 if ! command -v pp_name_regex >/dev/null 2>&1 || ! command -v pp_is_license_file >/dev/null 2>&1; then
   echo "path-privacy: _name_guard.sh missing or unusable beside the scanner." >&2
-  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with /path-privacy:path-privacy." >&2
+  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with install-git-hooks.sh." >&2
   exit 1
 fi
 
 FAILED=0
 
-if ! "$SCANNER" --staged; then
+if ! bash "$SCANNER" --staged; then
   FAILED=1
 fi
 
@@ -50,10 +50,11 @@ fi
 # LICENSE files are skipped: copyright lines are managed by hand.
 if NAME_RE=$(pp_name_regex .); then
   NAME_HITS=$(
-    git diff --cached -U0 --no-color --no-ext-diff --diff-filter=ACMR 2>/dev/null \
+    (git diff --cached -U0 --no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/ --diff-filter=ACMR 2>/dev/null \
+      || GIT_CONFIG_GLOBAL=/dev/null git diff --cached -U0 --no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/ --diff-filter=ACMR 2>/dev/null) \
       | PP_NAME_RE="$NAME_RE" LC_ALL=C awk '
           BEGIN { re = ENVIRON["PP_NAME_RE"] }
-          /^\+\+\+ / { f = substr($0, 7); if (f ~ /^b\//) f = substr(f, 3); next }
+          /^\+\+\+ b\// { f = substr($0, 7); next }
           /^@@ / {
             h = $0; sub(/^@@ -[0-9,]+ \+/, "", h); sub(/[, ].*$/, "", h); ln = h + 0; next
           }
@@ -77,7 +78,7 @@ if NAME_RE=$(pp_name_regex .); then
 fi
 
 if [ $FAILED -eq 1 ]; then
-  echo ""
+  echo "" >&2
   echo "path-privacy: commit blocked by pre-commit hook." >&2
   echo "Replace the path with a repo-relative or generic reference, then re-stage." >&2
   echo "The correction is routine: commit messages, branch names and changelog entries do not mention it." >&2

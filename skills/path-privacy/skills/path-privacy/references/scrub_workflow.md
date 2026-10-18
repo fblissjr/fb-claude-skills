@@ -2,7 +2,7 @@
 
 <!-- path-privacy: skip-file -->
 
-last updated: 2026-09-24
+last updated: 2026-10-17
 
 How to remove leaks discreetly. The privacy guarantee fails the moment the activity is advertised, so all of the following assume "do this quietly".
 

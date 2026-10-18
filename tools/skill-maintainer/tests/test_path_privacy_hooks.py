@@ -502,12 +502,19 @@ def test_mangled_home_path_is_a_leak(tmp_path):
                  home=home) == 1
 
 
-@pytest.mark.parametrize("text", ["/Users/dev/x", "/Users/alice/proj", "/home/runner/work/x",
+@pytest.mark.parametrize("text", ["/Users/<user>/x", "/Users/$USER/proj", "/home/runner/work/x",
                                   "/Users/Shared/data"])
 def test_documentation_and_system_accounts_are_placeholders(tmp_path, text):
-    # Claim: the scanner accepts the same stand-in and system account names
-    # the whole-tree audit does, so docs and fixtures stop tripping the gate.
+    # Claim: explicit angle-bracket/variable placeholders and non-human OS/CI
+    # system accounts are accepted without tripping the gate.
     assert _scan(tmp_path, text) == 0
+
+
+@pytest.mark.parametrize("text", ["/Users/dev/x", "/Users/alice/proj", "/home/user/secret-proj"])
+def test_unbracketed_generic_user_paths_still_leak(tmp_path, text):
+    # Claim: unbracketed generic usernames are blocked so LLM-sanitized paths
+    # that still carry a real external project subdirectory are caught.
+    assert _scan(tmp_path, text) == 1
 
 
 @pytest.mark.parametrize("mode", ["text", "file"])

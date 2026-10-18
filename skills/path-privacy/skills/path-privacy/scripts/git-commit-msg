@@ -21,15 +21,15 @@ if [ -n "${PATH_PRIVACY_SCRIPT_DIR:-}" ]; then
   SCANNER="$PATH_PRIVACY_SCRIPT_DIR/find-external-paths.sh"
 fi
 
-if [ ! -x "$SCANNER" ]; then
+if [ ! -r "$SCANNER" ]; then
   # Fail CLOSED, matching git-pre-commit and the installed wrapper. Exiting 0
   # here defeated the wrapper's guarantee one level down: the wrapper selects an
-  # executable entry script, that script finds its own delegate missing, and the
+  # entry script, that script finds its own delegate missing, and the
   # commit proceeds ungated with no error. A silent bypass on a privacy gate is
   # unrecoverable; a block is loud and fixable.
-  echo "path-privacy: scanner not found or not executable: $SCANNER" >&2
+  echo "path-privacy: scanner not found or not readable: $SCANNER" >&2
   echo "  The leak gate is NOT running, so this commit is blocked rather than" >&2
-  echo "  allowed through unchecked. Reinstall with /path-privacy:path-privacy." >&2
+  echo "  allowed through unchecked. Reinstall with install-git-hooks.sh." >&2
   exit 1
 fi
 
@@ -39,7 +39,7 @@ fi
 . "$(dirname "$SCANNER")/_name_guard.sh" 2>/dev/null
 if ! command -v pp_name_regex >/dev/null 2>&1 || ! command -v pp_name_lines >/dev/null 2>&1; then
   echo "path-privacy: _name_guard.sh missing or unusable beside the scanner." >&2
-  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with /path-privacy:path-privacy." >&2
+  echo "  The name gate is NOT running, so this commit is blocked. Reinstall with install-git-hooks.sh." >&2
   exit 1
 fi
 
@@ -50,15 +50,17 @@ FAILED=0
 MSG_BODY=$(grep -v '^#' "$MSG_FILE" 2>/dev/null || true)
 
 if [ -n "$MSG_BODY" ]; then
-  if ! "$SCANNER" --text "$MSG_BODY" --lax-boundary; then
+  if ! bash "$SCANNER" --text "$MSG_BODY" --lax-boundary; then
     echo "path-privacy: external path detected in commit message." >&2
     FAILED=1
   fi
 fi
 
-BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null \
+  || GIT_CONFIG_GLOBAL=/dev/null git symbolic-ref --short HEAD 2>/dev/null \
+  || echo "")
 if [ -n "$BRANCH" ]; then
-  if ! "$SCANNER" --text "$BRANCH" --lax-boundary --quiet; then
+  if ! bash "$SCANNER" --text "$BRANCH" --lax-boundary --quiet; then
     echo "path-privacy: external path detected in branch name: $BRANCH" >&2
     FAILED=1
   fi

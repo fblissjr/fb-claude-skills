@@ -60,9 +60,16 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # every staleness notice ever shown was false. A gate that cries wolf on every
 # release is a gate people stop reading, and then it misses the one release
 # where the logic really did change.
-WRAPPER_TEMPLATE_VERSION=2
+WRAPPER_TEMPLATE_VERSION=5
 
-PLUGIN_JSON="$SELF_DIR/../../../.claude-plugin/plugin.json"
+pp_git() {
+  git "$@" 2>/dev/null || GIT_CONFIG_GLOBAL=/dev/null git "$@" 2>/dev/null
+}
+
+PLUGIN_ROOT_DIR="$(cd "$SELF_DIR/../../.." 2>/dev/null && pwd || echo "$SELF_DIR/../../..")"
+PLUGIN_JSON="$PLUGIN_ROOT_DIR/plugin.json"
+[ -f "$PLUGIN_JSON" ] || PLUGIN_JSON="$PLUGIN_ROOT_DIR/.antigravity-plugin/plugin.json"
+[ -f "$PLUGIN_JSON" ] || PLUGIN_JSON="$PLUGIN_ROOT_DIR/.claude-plugin/plugin.json"
 WRAPPER_VERSION="t${WRAPPER_TEMPLATE_VERSION}"
 PLUGIN_VERSION=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN_JSON" 2>/dev/null | head -1)
 [ -z "$PLUGIN_VERSION" ] && PLUGIN_VERSION="unknown"
@@ -93,7 +100,7 @@ if [ -r "$HOOKS_DIR_LIB" ]; then
   . "$HOOKS_DIR_LIB"
 else
   pp_chains_to_repo_hooks() { return 1; }
-  pp_hooks_dir() { git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null; }
+  pp_hooks_dir() { pp_git -C "$1" rev-parse --path-format=absolute --git-path hooks; }
 fi
 
 # --- doctor ------------------------------------------------------------------
@@ -102,6 +109,90 @@ fi
 # SessionStart directive keeps asserting the rule either way, so an ungated repo
 # looks exactly like a gated one from inside a session.
 DOCTOR_RC=0
+
+pp_read_root_version() {
+  local root="$1" pj ver
+  for pj in "$root/plugin.json" "$root/.claude-plugin/plugin.json" "$root/.antigravity-plugin/plugin.json"; do
+    if [ -r "$pj" ]; then
+      ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$pj" 2>/dev/null | head -1)
+      if [ -n "$ver" ]; then
+        printf '%s' "$ver"
+        return 0
+      fi
+    fi
+  done
+  printf 'unknown'
+}
+
+pp_read_root_template() {
+  local root="$1" inst tver
+  inst="$root/skills/path-privacy/scripts/install-git-hooks.sh"
+  if [ -r "$inst" ]; then
+    tver=$(sed -n 's/^WRAPPER_TEMPLATE_VERSION=\(.*\)$/t\1/p' "$inst" 2>/dev/null | head -1)
+    if [ -n "$tver" ]; then
+      printf '%s' "$tver"
+      return 0
+    fi
+  fi
+  printf 'unknown'
+}
+
+doctor_harnesses() {
+  local agy_ver claude_ver d label pver tver status
+  local -a dirs=()
+
+  # 1. Check dual-manifest version parity inside this plugin checkout itself.
+  if [ -r "$PLUGIN_ROOT_DIR/plugin.json" ] && [ -r "$PLUGIN_ROOT_DIR/.claude-plugin/plugin.json" ]; then
+    agy_ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN_ROOT_DIR/plugin.json" 2>/dev/null | head -1)
+    claude_ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN_ROOT_DIR/.claude-plugin/plugin.json" 2>/dev/null | head -1)
+    if [ -n "$agy_ver" ] && [ -n "$claude_ver" ] && [ "$agy_ver" != "$claude_ver" ]; then
+      printf 'Dual-manifest mismatch in plugin root:\n  plugin.json (%s) != .claude-plugin/plugin.json (%s)\n\n' "$agy_ver" "$claude_ver"
+      DOCTOR_RC=1
+    fi
+  fi
+
+  # 2. Discover installed copies across Antigravity and Claude Code on this machine.
+  if [ -n "${HOME:-}" ]; then
+    for d in \
+      "$HOME/.gemini/config/plugins/path-privacy" \
+      "$HOME/.gemini/antigravity-cli/plugins/path-privacy"; do
+      [ -d "$d/skills/path-privacy/scripts" ] && dirs+=("$d")
+    done
+    for mp in "$HOME/.claude/plugins/cache"/*/path-privacy; do
+      [ -d "$mp" ] || continue
+      d=$(printf '%s\n' "$mp"/* 2>/dev/null | awk -F/ 'NF>1 {print $NF"\t"$0}' | sort -rV 2>/dev/null | head -1 | cut -f2-)
+      [ -n "$d" ] && [ -d "$d/skills/path-privacy/scripts" ] && dirs+=("$d")
+    done
+  fi
+
+  [ ${#dirs[@]} -eq 0 ] && return 0
+
+  echo "Harness installations:"
+  for d in "${dirs[@]}"; do
+    label="$d"
+    [ -n "${HOME:-}" ] && label="${label/#$HOME/~}"
+    pver=$(pp_read_root_version "$d")
+    tver=$(pp_read_root_template "$d")
+    status="current"
+    if [ "$tver" != "$WRAPPER_VERSION" ]; then
+      if pp_template_is_newer "$tver" "$WRAPPER_VERSION"; then
+        status="ahead of this checkout ($tver > $WRAPPER_VERSION)"
+      else
+        status="BEHIND template ($tver < $WRAPPER_VERSION) -- run: sync-peer.sh --install"
+        DOCTOR_RC=1
+      fi
+    elif [ "$pver" != "$PLUGIN_VERSION" ] && [ "$PLUGIN_VERSION" != "unknown" ]; then
+      if pp_version_is_newer "$pver" "$PLUGIN_VERSION"; then
+        status="ahead of this checkout ($pver > $PLUGIN_VERSION)"
+      else
+        status="BEHIND version ($pver < $PLUGIN_VERSION) -- run: sync-peer.sh --install"
+        DOCTOR_RC=1
+      fi
+    fi
+    printf '  %-54s ver=%-8s template=%-4s %s\n' "$label" "$pver" "$tver" "$status"
+  done
+  echo ""
+}
 
 doctor_repo() {
   local repo="$1"
@@ -143,7 +234,7 @@ doctor_repo() {
     fi
 
     scanner=$(sed -n 's/^PATH_PRIVACY_SCRIPT="\(.*\)"$/\1/p' "$f" | head -1)
-    if [ -n "$scanner" ] && [ -x "$scanner" ]; then
+    if [ -n "$scanner" ] && [ -r "$scanner" ]; then
       frozen="frozen-path ok"
     else
       # Not fatal on its own: every wrapper from 0.3.0 on re-resolves. Reported
@@ -173,6 +264,7 @@ doctor_repo() {
 if [ "$DOCTOR" -eq 1 ]; then
   echo "path-privacy doctor -- plugin $PLUGIN_VERSION, wrapper template $WRAPPER_VERSION"
   echo ""
+  doctor_harnesses
   if [ -n "$DOCTOR_ROOT" ]; then
     # -maxdepth first: GNU find warns when it follows other primaries. Prune the
     # heavy directories rather than descending them; a vendored dependency tree
@@ -194,7 +286,7 @@ if [ "$DOCTOR" -eq 1 ]; then
     fi
   else
     if [ -z "$TARGET_REPO" ]; then
-      TARGET_REPO=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+      TARGET_REPO=$(pp_git rev-parse --show-toplevel || echo "")
     fi
     if [ -z "$TARGET_REPO" ]; then
       echo "install-git-hooks: --doctor with no root must run inside a git repo." >&2
@@ -204,20 +296,20 @@ if [ "$DOCTOR" -eq 1 ]; then
   fi
   echo ""
   if [ "$DOCTOR_RC" -eq 0 ]; then
-    echo "All reported gates are current and fail closed."
+    echo "All reported gates and harness installations are current and fail closed."
   else
-    echo "Findings above. Fix with: install-git-hooks.sh -C <repo>"
+    echo "Findings above. Fix repo hooks with: install-git-hooks.sh -C <repo> (or sync harnesses with: sync-peer.sh --install)"
   fi
   exit "$DOCTOR_RC"
 fi
 # -----------------------------------------------------------------------------
 
 if [ -z "$TARGET_REPO" ]; then
-  TARGET_REPO=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  TARGET_REPO=$(pp_git rev-parse --show-toplevel || echo "")
 fi
 # `.git` is a FILE in worktrees and submodules, so -d rejected them with a
 # misleading "missing" message and no way to install.
-if [ -z "$TARGET_REPO" ] || ! git -C "$TARGET_REPO" rev-parse --git-dir >/dev/null 2>&1; then
+if [ -z "$TARGET_REPO" ] || ! pp_git -C "$TARGET_REPO" rev-parse --git-dir >/dev/null; then
   echo "install-git-hooks: not a git repo: $TARGET_REPO" >&2
   exit 2
 fi
@@ -242,7 +334,12 @@ fi
 # dispatcher is the exception: the install above already went to this repo's
 # own hooks dir, which the dispatcher runs.
 HOOKS_SCOPE=$(git -C "$TARGET_REPO" config --show-scope --get core.hooksPath 2>/dev/null | awk '{print $1}' || echo "")
-RAW_HOOKS_DIR=$(git -C "$TARGET_REPO" rev-parse --path-format=absolute --git-path hooks 2>/dev/null || echo "")
+if [ -z "$HOOKS_SCOPE" ] && [ -n "${HOME:-}" ] && [ -r "$HOME/.gitconfig" ]; then
+  if GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git config --no-includes --file "$HOME/.gitconfig" --get core.hooksPath >/dev/null 2>&1; then
+    HOOKS_SCOPE="global"
+  fi
+fi
+RAW_HOOKS_DIR=$(pp_git -C "$TARGET_REPO" rev-parse --path-format=absolute --git-path hooks || echo "")
 if [ -n "$HOOKS_SCOPE" ] && [ "$HOOKS_SCOPE" != "local" ] && [ "$HOOKS_SCOPE" != "worktree" ] \
    && ! pp_chains_to_repo_hooks "$RAW_HOOKS_DIR"; then
   echo "install-git-hooks: core.hooksPath is set in $HOOKS_SCOPE config -> $HOOKS_DIR" >&2
@@ -258,8 +355,8 @@ fi
 # path that fails closed on their machines.
 case "$HOOKS_DIR" in
   "$TARGET_REPO"/*)
-    if git -C "$TARGET_REPO" ls-files --error-unmatch "$HOOKS_DIR" >/dev/null 2>&1 \
-       || [ -n "$(git -C "$TARGET_REPO" ls-files -- "$HOOKS_DIR" 2>/dev/null)" ]; then
+    if pp_git -C "$TARGET_REPO" ls-files --error-unmatch "$HOOKS_DIR" >/dev/null \
+       || [ -n "$(pp_git -C "$TARGET_REPO" ls-files -- "$HOOKS_DIR")" ]; then
       echo "install-git-hooks: $HOOKS_DIR is inside the work tree and tracked by git." >&2
       echo "  The generated wrapper embeds a machine-specific absolute path; committing" >&2
       echo "  it would leak that path and break the hook for everyone else. Refusing." >&2
@@ -341,6 +438,10 @@ WRAPPER_VERSION="$WRAPPER_VERSION"
 $VERSION_COMPARE_SRC
 
 FROZEN_ROOT="\${PATH_PRIVACY_SCRIPT%/skills/path-privacy/scripts/*}"
+AGY_PLUGIN_DIR="\$HOME/.gemini/config/plugins/path-privacy"  # path-privacy: ignore
+AGY_CLI_PLUGIN_DIR="\$HOME/.gemini/antigravity-cli/plugins/path-privacy"  # path-privacy: ignore
+AGY_PLUGINS_ROOT="\$HOME/.gemini/config/plugins"  # path-privacy: ignore
+AGY_CLI_PLUGINS_ROOT="\$HOME/.gemini/antigravity-cli/plugins"  # path-privacy: ignore
 PLUGIN_CACHE="\$HOME/.claude/plugins/cache"  # path-privacy: ignore
 
 # Run the pre-existing hook first, if any.
@@ -348,72 +449,81 @@ if [ -x "\$LOCAL_HOOK" ]; then
   "\$LOCAL_HOOK" "\$@" || exit \$?
 fi
 
-# Highest version that is ACTUALLY EXECUTABLE, not merely highest. A newest copy
-# with the exec bit lost must not shadow a working older one and block every
-# commit. Sort by the VERSION component alone -- the 5th field from the right in
-# <ver>/skills/path-privacy/scripts/<name> -- because sort -rV over whole paths
-# compares the marketplace directory first, so cache/mp-z/0.0.1 beat
-# cache/mp-a/9.9.9. And sort -V rather than glob order, which is lexicographic
-# and would pick 0.1.9 over 0.1.10.
-newest_exec() {
-  printf '%s\\n' "\$@" \\
-    | awk -F/ 'NF>4 {print \$(NF-4)"\\t"\$0}' \\
-    | sort -rV | cut -f2- | {
-        while IFS= read -r c; do
-          if [ -x "\$c" ]; then printf '%s' "\$c"; break; fi
+# Select the highest-version READABLE candidate across both Antigravity and
+# Claude Code installations on this machine. When a repo is used with both
+# harnesses, one agent's installed cache may temporarily lag the other's;
+# scoring every candidate by (wrapper_template_version, plugin_semver, is_frozen)
+# ensures commits always execute the most up-to-date scanner and never warn
+# falsely when at least one harness on the machine matches WRAPPER_VERSION.
+score_candidate() {
+  local c="\$1" pref="\$2" root inst pj tnum pver
+  [ -r "\$c" ] || return 0
+  root="\${c%/skills/path-privacy/scripts/*}"
+  tnum=""
+  inst="\$root/skills/path-privacy/scripts/install-git-hooks.sh"
+  if [ -r "\$inst" ]; then
+    tnum=\$(sed -n 's/^WRAPPER_TEMPLATE_VERSION=\\([0-9][0-9]*\\)\$/\\1/p' "\$inst" 2>/dev/null | head -1)
+  fi
+  [ -z "\$tnum" ] && tnum=0
+  pver=""
+  for pj in "\$root/plugin.json" "\$root/.claude-plugin/plugin.json" "\$root/.antigravity-plugin/plugin.json"; do
+    if [ -r "\$pj" ]; then
+      pver=\$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\\([0-9.][0-9.]*\\)".*/\\1/p' "\$pj" 2>/dev/null | head -1)
+      [ -n "\$pver" ] && break
+    fi
+  done
+  [ -z "\$pver" ] && pver="0.0.0"
+  printf '%s.%s.%s\\t%s\\n' "\$tnum" "\$pver" "\$pref" "\$c"
+}
+
+best_cross_harness_exec() {
+  local c
+  {
+    # 1. Frozen install path (prefers local checkout on exact version tie: pref=2)
+    score_candidate "\$PATH_PRIVACY_SCRIPT" 2
+    # 2. If frozen path was inside a Claude marketplace cache, check sibling versions in that same marketplace (pref=1)
+    case "\$FROZEN_ROOT" in
+      "\$PLUGIN_CACHE"/*/path-privacy/*)
+        for c in "\${FROZEN_ROOT%/*}"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
+          score_candidate "\$c" 1
         done
-      }
+        ;;
+    esac
+    # 3. Antigravity global & CLI plugin directories (pref=1)
+    for c in \\
+      "\$AGY_PLUGIN_DIR/skills/path-privacy/scripts/\$SCRIPT_NAME" \\
+      "\$AGY_CLI_PLUGIN_DIR/skills/path-privacy/scripts/\$SCRIPT_NAME" \\
+      "\$AGY_PLUGINS_ROOT"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME" \\
+      "\$AGY_CLI_PLUGINS_ROOT"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
+      score_candidate "\$c" 1
+    done
+    # 4. Claude Code plugin cache across marketplaces (pref=0)
+    for c in "\$PLUGIN_CACHE"/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME"; do
+      score_candidate "\$c" 0
+    done
+  } | sort -rV 2>/dev/null | head -1 | cut -f2-
 }
 
 # The path above is frozen at install time; treat it as a HINT, not a pin.
-CAND=""
-case "\$FROZEN_ROOT" in
-  "\$PLUGIN_CACHE"/*/path-privacy/*)
-    # Marketplace install. The frozen path is version-stamped, so an update
-    # writes a SIBLING version dir and leaves this one intact until cleanup ~14
-    # days later. Re-resolving only when the frozen path is GONE therefore keeps
-    # running the superseded scanner for that entire window: the gate silently
-    # trails the installed plugin and self-corrects only as a side effect of
-    # garbage collection. So resolve to the newest version on every run.
-    #
-    # Scoped to this marketplace's own path-privacy directory, never across
-    # marketplaces: two marketplaces shipping a plugin of the same name are
-    # unrelated packages, and one's version number says nothing about the
-    # other's. Sibling VERSIONS are safe to prefer; sibling PUBLISHERS are not.
-    CAND="\$(newest_exec "\${FROZEN_ROOT%/*}"/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
-    ;;
-  *)
-    # Local checkout or --plugin-dir install. Nothing rotates it, so the frozen
-    # path stays authoritative while it works -- silently moving such a user to
-    # a cached marketplace copy would run code they did not install.
-    if [ -x "\$PATH_PRIVACY_SCRIPT" ]; then
-      CAND="\$PATH_PRIVACY_SCRIPT"
-    else
-      # Last-resort recovery, only once their own copy is gone. Searches the
-      # cache by version; never the frozen path's PARENT, which reached every
-      # neighbouring project on disk, so a broken checkout silently ran an
-      # unrelated adjacent project's scanner -- arbitrary sibling repo code, or
-      # on a shared machine another user's, executed as a commit gate. That glob
-      # also matched <plugin>.backup snapshots, which sort ABOVE the real one.
-      CAND="\$(newest_exec "\$PLUGIN_CACHE"/*/path-privacy/*/skills/path-privacy/scripts/"\$SCRIPT_NAME")"
-    fi
-    ;;
-esac
+CAND="\$(best_cross_harness_exec)"
+if [ -z "\$CAND" ] && [ -r "\$PATH_PRIVACY_SCRIPT" ]; then
+  CAND="\$PATH_PRIVACY_SCRIPT"
+fi
 [ -n "\$CAND" ] && PATH_PRIVACY_SCRIPT="\$CAND"
 
 # Fail CLOSED and loudly. This hook is a leak gate; if it cannot run, allowing
 # the commit silently is the worst outcome -- that is how a gate becomes
 # decorative without anyone noticing.
-if [ ! -x "\$PATH_PRIVACY_SCRIPT" ]; then
+if [ ! -r "\$PATH_PRIVACY_SCRIPT" ]; then
   echo "path-privacy: scanner not found -- the leak gate is NOT running." >&2
   echo "" >&2
-  echo "  Why now: this usually means the plugin was updated and the old cached" >&2
-  echo "  copy has since been cleaned up. It fires on the next commit after that," >&2
+  echo "  Why now: this usually means the plugin was updated or moved and the old" >&2
+  echo "  copy has since been removed. It fires on the next commit after that," >&2
   echo "  which is why it looks unrelated to what you are committing." >&2
   echo "" >&2
   echo "  Looked for: \$SCRIPT_NAME under" >&2
-  echo "    \${FROZEN_ROOT:-<install dir>}/ and \$PLUGIN_CACHE/*/path-privacy/*/" >&2
-  echo "  Reinstall:  /path-privacy:path-privacy   (or re-run install-git-hooks.sh)" >&2
+  echo "    \${FROZEN_ROOT:-<install dir>}/, \$AGY_PLUGINS_ROOT/*/, \$AGY_CLI_PLUGINS_ROOT/*/, and \$PLUGIN_CACHE/*/path-privacy/*/" >&2
+  echo "  Reinstall:  re-run install-git-hooks.sh" >&2
   if [ -f "\$LOCAL_HOOK" ]; then
     # This wrapper CHAINS your previous hook. Deleting it would silently drop
     # that hook too, so restore it rather than remove the wrapper.
@@ -446,11 +556,11 @@ if [ -n "\$RESOLVED_VERSION" ] && [ "\$RESOLVED_VERSION" != "\$WRAPPER_VERSION" 
     echo "  would regenerate this hook from the older plugin." >&2
   else
     echo "path-privacy: this \$HOOK_NAME hook (\$WRAPPER_VERSION) predates the plugin's wrapper template (\$RESOLVED_VERSION)." >&2
-    echo "  Open a Claude Code session in this repo and it refreshes itself; no command to run." >&2
+    echo "  Open an Antigravity or Claude Code session in this repo and it refreshes itself; no command to run." >&2
   fi
 fi
 
-"\$PATH_PRIVACY_SCRIPT" "\$@" || exit \$?
+bash "\$PATH_PRIVACY_SCRIPT" "\$@" || exit \$?
 exit 0
 EOF
   chmod +x "$hook"

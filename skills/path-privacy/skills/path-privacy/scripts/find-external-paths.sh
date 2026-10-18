@@ -74,12 +74,13 @@ ALLOW_SKIP_FILE=0
 # which is exactly what happened to this script's sibling.
 usage() { awk 'NR>2 { if (/^#/) print; else exit }' "$0"; }
 
+HAS_TEXT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -d|--directory)    DIRS+=("$2"); shift 2 ;;
     -f|--file)         FILES+=("$2"); shift 2 ;;
     --staged)          STAGED=1; shift ;;
-    --text)            TEXT="$2"; shift 2 ;;
+    --text)            TEXT="$2"; HAS_TEXT=1; shift 2 ;;
     --lax-boundary)    LAX=1; shift ;;
     --against-root)    ROOT="$2"; shift 2 ;;
     --config)          CONFIG_PATH="$2"; shift 2 ;;
@@ -91,7 +92,9 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$ROOT" ]; then
-  ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  ROOT=$(git rev-parse --show-toplevel 2>/dev/null \
+    || GIT_CONFIG_GLOBAL=/dev/null git rev-parse --show-toplevel 2>/dev/null \
+    || echo "")
 fi
 if [ -z "$ROOT" ]; then
   echo "find-external-paths: not inside a git repo and --against-root not given" >&2
@@ -105,8 +108,14 @@ fi
 
 if [ $STAGED -eq 1 ]; then
   while IFS= read -r f; do
-    [ -n "$f" ] && [ -f "$f" ] && FILES+=("$f")
-  done < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+    [ -z "$f" ] && continue
+    if [ -f "$f" ]; then
+      FILES+=("$f")
+    elif [ -f "$ROOT/$f" ]; then
+      FILES+=("$ROOT/$f")
+    fi
+  done < <(git -C "$ROOT" diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+    || GIT_CONFIG_GLOBAL=/dev/null git -C "$ROOT" diff --cached --name-only --diff-filter=ACM 2>/dev/null)
 fi
 
 # Default to scanning the cwd ONLY if no explicit target mode was selected.
@@ -114,7 +123,7 @@ fi
 # empty (e.g. `git commit` is forming, the staged set has no
 # matching-pattern paths) — in that case we want a clean exit, not a
 # whole-tree scan that surfaces unrelated unstaged leaks.
-if [ $STAGED -eq 0 ] && [ ${#DIRS[@]} -eq 0 ] && [ ${#FILES[@]} -eq 0 ] && [ -z "$TEXT" ]; then
+if [ $STAGED -eq 0 ] && [ ${#DIRS[@]} -eq 0 ] && [ ${#FILES[@]} -eq 0 ] && [ $HAS_TEXT -eq 0 ]; then
   DIRS=(".")
 fi
 
@@ -171,18 +180,13 @@ if [ -z "${PP_SKIP_MARKER_RE:-}" ] \
   pp_text_has_skip_marker() { cat >/dev/null 2>&1; return 1; }
 fi
 
-# Placeholder usernames: documentation and fixture stand-ins, plus system and
-# CI accounts that are never a person's home. Compared case-insensitively.
-#
-# Kept in step with `_PLACEHOLDER` in skill-maintainer's whole-tree audit
-# (tools/skill-maintainer/src/skill_maintainer/tests.py). The scanner used to
-# accept a much shorter list, so `/Users/dev/...` in a test fixture blocked a
-# write that the audit had no quarrel with; that was the largest false-positive
-# class among literal-user blocks measured on 2026-09-24.
+# Placeholder usernames: explicit angle-bracket or shell-variable stand-ins,
+# plus non-human OS and CI system accounts (`/Users/Shared`, `/home/linuxbrew`,
+# `/home/runner`, etc.). Unbracketed generic words (`user`, `dev`, `alice`,
+# `foo`) are intentionally NOT exempted so that LLM-sanitized paths carrying a
+# real external subdirectory (e.g. `/Users/user/real-private-repo`) are caught.
 PLACEHOLDER_USERS=(
-  username user '<username>' '<user>' me you name '<name>' somebody '$user'
-  '${user}' '$$user' someone someuser foo bar baz test tester example alice
-  bob carol jane john jamie dev developer youruser yourname
+  '<username>' '<user>' '<name>' '$user' '${user}' '$$user'
   shared linuxbrew travis runner vagrant ubuntu ec2-user
 )
 
@@ -348,7 +352,11 @@ resolve_path() {
       *)      out+=("$seg") ;;
     esac
   done
-  printf '/%s' "${out[@]}"
+  if [ ${#out[@]} -eq 0 ]; then
+    printf '/'
+  else
+    printf '/%s' "${out[@]}"
+  fi
 }
 
 emit_finding() {

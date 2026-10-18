@@ -25,10 +25,12 @@ pp_chains_to_repo_hooks() { # <hooks dir>
 
 pp_hooks_dir() { # <repo>
   local hooks common
-  hooks=$(git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null) || return 1
+  hooks=$(git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null \
+    || GIT_CONFIG_GLOBAL=/dev/null git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null) || return 1
   [ -n "$hooks" ] || return 1
   if pp_chains_to_repo_hooks "$hooks"; then
-    common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+    common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null \
+      || GIT_CONFIG_GLOBAL=/dev/null git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
     hooks="$common/hooks"
   fi
   printf '%s\n' "$hooks"

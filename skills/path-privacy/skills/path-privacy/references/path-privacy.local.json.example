@@ -8,12 +8,13 @@
   "_footgun_shell_variables": "Do NOT add entries matching the shell HOME variable (in either its bare or braced form) in a repo that contains shell scripts. The scrub is a blunt substring replace with no awareness of syntax, so it will rewrite working code: a variable reference inside a live script becomes a literal placeholder and the script breaks. Those forms are omitted below on purpose. The scanner still flags them; fix those by hand.",
 
   "suggestions": [
-    {"match": "/Users/USERNAME/code/PROJECT/",     "suggest": ""},
-    {"match": "/Users/USERNAME/code/OTHERREPO/",   "suggest": "<other-repo>/"},
-    {"match": "/Users/USERNAME/.claude/",          "suggest": "<claude-config>/"},
-    {"match": "/Users/USERNAME/Library/Caches/",   "suggest": "<cache>/"},
-    {"match": "/Users/USERNAME/",                  "suggest": "<home>/"},
-    {"match": "/home/USERNAME/CODE/PROJECT/",      "suggest": ""},
-    {"match": "/home/USERNAME/",                   "suggest": "<home>/"}
+    {"match": "/Users/<USERNAME>/code/PROJECT/",     "suggest": ""},
+    {"match": "/Users/<USERNAME>/code/OTHERREPO/",   "suggest": "<other-repo>/"},
+    {"match": "/Users/<USERNAME>/.gemini/",          "suggest": "<gemini-config>/"},
+    {"match": "/Users/<USERNAME>/.claude/",          "suggest": "<claude-config>/"},
+    {"match": "/Users/<USERNAME>/Library/Caches/",   "suggest": "<cache>/"},
+    {"match": "/Users/<USERNAME>/",                  "suggest": "<home>/"},
+    {"match": "/home/<USERNAME>/CODE/PROJECT/",      "suggest": ""},
+    {"match": "/home/<USERNAME>/",                   "suggest": "<home>/"}
   ]
 }

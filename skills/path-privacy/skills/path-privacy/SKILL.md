@@ -32,19 +32,20 @@ outside the repo root and says something about this machine. Leaks:
 - `~/development/SomeOtherRepo/foo.py`, `$HOME/code/secret-project` (a named
   directory under home: layout and project names)
 - `/Users/<your-name>/code/x`, `/home/<your-name>/code/x`
-- `-Users-<your-name>-code-proj` (the dash-joined form in Claude Code's
-  per-project and scratch directories)
+- `-Users-<your-name>-code-proj` (the dash-joined form in per-project and
+  scratch directories)
 - a generic location that still spells the username,
   `~/.claude/projects/-Users-<your-name>-...`
 
 Not leaks:
 
 - `scripts/foo.sh` (repo-relative)
-- `~/.claude/...`, `$HOME/.config/...`, `~/Library/...`, `~/AppData/...` (a
-  tool's config location, the same on every machine that has the tool)
+- `~/.gemini/...`, `~/.claude/...`, `$HOME/.config/...`, `~/Library/...`,
+  `~/AppData/...` (a tool's config location, the same on every machine that has
+  the tool)
 - `$HOME` alone, or followed by a variable (`$HOME/$dir`): shell code
-- `/Users/USERNAME/foo`, `/Users/dev/...`, `/home/runner/...`, `<HOME>/...`
-  (placeholders and system accounts; list in `references/patterns.md`)
+- `/Users/<user>/foo`, `/Users/$USER/...`, `/home/runner/...`, `<HOME>/...`
+  (explicit placeholders and system accounts; list in `references/patterns.md`)
 
 The full name is matched case-insensitively, middle names optional, joined by
 spaces, dots, dashes, underscores or nothing. The GitHub handle and the git
@@ -58,14 +59,13 @@ guards nothing.
 
 | Where | What happens |
 |---|---|
-| PreToolUse, Write/Edit | An absolute or `~`/`$HOME` spelling of a path INSIDE the repo is rewritten to repo-relative in place (`updatedInput`), with one line of context saying so. An external path or the full name blocks the call |
-| PreToolUse, Bash | A `git`/`gh` command carrying the full name is blocked; home-directory prefixes are masked first, so a home path that spells the name does not count. Commit, tag and PR message text (including heredoc bodies) and new branch names are scanned for external paths |
+| PreToolUse, `write_to_file` / `replace_file_content` / `multi_replace_file_content` (and `Write` / `Edit`) | An absolute or `~`/`$HOME` spelling of a path INSIDE the repo is rewritten to repo-relative in place (`overwrite` / `updatedInput`), with one line of context saying so. An external path or the full name blocks the call |
+| PreToolUse, `run_command` (and `Bash`) | A `git`/`gh` command carrying the full name is blocked; home-directory prefixes are masked first, so a home path that spells the name does not count. Commit, tag and PR message text (including heredoc bodies) and new branch names are scanned for external paths |
 | git pre-commit | Staged files are scanned whole for external paths; ADDED lines are scanned for the full name |
 | git commit-msg | The message and current branch name, for both |
-| SessionStart (startup) | Refreshes stale hook wrappers. Silent unless the gate is missing (said once per repo), stale or ahead |
+| SessionStart | Refreshes stale hook wrappers. Silent unless the gate is missing (said once per repo), stale or ahead |
 
-Gitignored files are not checked: they cannot reach a commit. The git hooks are
-per-repo and installed by hand; the PreToolUse hook runs in every repo.
+Gitignored files and conversation artifacts (`artifactDirectoryPath` / `/.gemini/antigravity*/brain/`) are exempted: they cannot reach a commit. The git hooks are per-repo and installed by hand; the PreToolUse hook runs in every repo.
 
 </enforcement>
 
@@ -85,8 +85,9 @@ message repeats this, because a block is when the correction happens.
 
 <modes>
 
-`<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}` for a marketplace install, or
-`skills/path-privacy` in a checkout of fb-claude-skills. Scripts live in
+`<plugin-root>` is `~/.gemini/config/plugins/path-privacy` for an installed
+Antigravity plugin, `skills/path-privacy` in a checkout of `fb-gemini-plugins`,
+or `${CLAUDE_PLUGIN_ROOT}` in Claude Code. Scripts live in
 `<plugin-root>/skills/path-privacy/scripts/`.
 
 | Mode | Command | Notes |
@@ -98,7 +99,8 @@ message repeats this, because a block is when the correction happens.
 | Find the full name | `git grep -n -i -E "$(bash -c '. <scripts>/_name_guard.sh; pp_name_regex .')" \| cut -d: -f1,2` | Existing occurrences as `file:line`; the `cut` keeps the name itself out of the output |
 | Scrub (preview / write) | `scrub-paths.sh -d .` then `--apply` | Needs `.path-privacy.local.json`; see `references/scrub_workflow.md` |
 | Install / uninstall git hooks | `install-git-hooks.sh` / `--uninstall` | Preserves an existing hook as `.local` and chains it |
-| Check this repo's gate | `install-git-hooks.sh --doctor [root]` | Read-only; version, fail-closed, installed-or-not, per repo |
+| Check this repo's gate | `install-git-hooks.sh --doctor [root]` | Read-only; version, fail-closed, installed-or-not, per repo, plus cross-harness cache alignment |
+| Align peer checkout & installed caches | `sync-peer.sh [--check \| --apply --peer <dir> \| --install]` | Verifies or syncs byte-identical dual-harness plugin trees across peer repos and `~/.gemini` / `~/.claude` caches |
 
 Findings print as `<file>:<lineno>: <matched-token>`, exit 1 on any finding.
 Name findings print `<file>:<lineno>` only; nothing in this plugin echoes the
@@ -119,7 +121,7 @@ name.
 - Neither opt-out covers the full name. Use a placeholder instead.
 - JSON and CSV have no file-level form (no comment syntax): use the per-line
   marker, or gitignore the file.
-- For an Edit, the marker must already be on disk; for a new file, it must be in
+- For an edit, the marker must already be on disk; for a new file, it must be in
   the content's first 30 lines.
 
 </opt_outs>
@@ -128,7 +130,7 @@ name.
 
 1. Read the finding: `<file>:<lineno>: <match>`.
 2. Replace the path with a repo-relative reference or a generic name ("another
-   project", `<HOME>/.claude/...`); replace the name with the GitHub handle or
+   project", `<HOME>/.gemini/...`); replace the name with the GitHub handle or
    `<author>`.
 3. Re-stage and re-commit with a vague message. Never `--no-verify`.
 
@@ -138,12 +140,12 @@ For leaks already in history, see `references/scrub_workflow.md`.
 
 <not_covered>
 
-- In-repo absolute paths written other than through Write/Edit (a shell
-  heredoc, a generated file) are not rewritten and not blocked at commit. This
-  repo's `skill-maintain test` whole-tree audit catches them.
+- In-repo absolute paths written other than through file write/edit tools (a
+  shell heredoc, a generated file) are not rewritten by `PreToolUse` and not
+  blocked at commit unless caught by a whole-tree audit.
 - The full name in reversed order ("Last, First"), as initials, or as a
   nickname. Not detectable with few enough false positives to block on.
-- NotebookEdit cells, and file content written by Bash, until commit time.
+- File content written by `run_command` / `Bash`, until commit time.
 - Secrets and tokens: use `scan-for-secrets`.
 - Git history rewrites: see `references/scrub_workflow.md`.
 

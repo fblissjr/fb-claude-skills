@@ -1,32 +1,56 @@
 #!/usr/bin/env bash
-# path-privacy SessionStart (matcher: startup). Keeps this repo's frozen git
-# hook wrappers current, and says something only when there is something to act
-# on. In a repo whose gate is installed and current it emits NOTHING.
+# path-privacy: skip-file
+# path-privacy SessionStart. Keeps this repo's frozen git hook wrappers
+# current, and says something only when there is something to act on.
+# In a repo whose gate is installed and current it emits NOTHING (or `{}` on
+# Antigravity).
 #
-# It used to inject a rule directive on every start, resume, clear and compact
-# in every git repo. The rule is enforced by the PreToolUse and git hooks, which
-# name the offending path when they fire, and the one part no hook can enforce
-# (a correction stays out of commit messages and the changelog) is carried on
-# every block message instead -- the moment it applies.
+# Dual-harness: auto-detects Antigravity (`workspacePaths` / `conversationId`
+# in stdin JSON) vs Claude Code (`cwd` in stdin JSON).
 
-CWD=$(jq -r '.cwd // ""' 2>/dev/null)
-
-if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
+PAYLOAD=$(cat)
+if ! command -v jq >/dev/null 2>&1; then
+  case "$PAYLOAD" in
+    *'"workspacePaths"'*|*'"conversationId"'*) printf '{}\n' ;;
+  esac
   exit 0
 fi
 
-# Only inject when inside a git working tree
-if ! git -C "$CWD" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+HARNESS="claude"
+if jq -e 'has("workspacePaths") or has("conversationId")' <<<"$PAYLOAD" >/dev/null 2>&1; then
+  HARNESS="antigravity"
+fi
+
+emit_empty() {
+  if [ "$HARNESS" = "antigravity" ]; then
+    printf '{}\n'
+  fi
   exit 0
+}
+
+CWD=$(jq -r '.workspacePaths[0] // .cwd // ""' <<<"$PAYLOAD" 2>/dev/null)
+
+if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
+  emit_empty
+fi
+
+pp_git() {
+  git "$@" 2>/dev/null || GIT_CONFIG_GLOBAL=/dev/null git "$@" 2>/dev/null
+}
+
+# Only inject when inside a git working tree
+if ! pp_git -C "$CWD" rev-parse --is-inside-work-tree >/dev/null; then
+  emit_empty
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd || echo "$SCRIPT_DIR/..")"
 CONTEXT=""
 
 # Shared with install-git-hooks.sh and every generated wrapper. Absent copy
 # means never claim "newer", which routes every mismatch to the stale branch --
 # the branch whose advice is idempotent.
-VERSION_COMPARE_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_version_compare.sh"
+VERSION_COMPARE_LIB="$PLUGIN_ROOT/skills/path-privacy/scripts/_version_compare.sh"
 if [ -r "$VERSION_COMPARE_LIB" ]; then
   # shellcheck source=/dev/null
   . "$VERSION_COMPARE_LIB"
@@ -37,107 +61,85 @@ fi
 
 # Where the gate lives, shared with the installer. Absent copy: the old plain
 # `--git-path hooks`, which misses a gate behind a chaining dispatcher.
-HOOKS_DIR_LIB="$SCRIPT_DIR/../skills/path-privacy/scripts/_hooks_dir.sh"
+HOOKS_DIR_LIB="$PLUGIN_ROOT/skills/path-privacy/scripts/_hooks_dir.sh"
 if [ -r "$HOOKS_DIR_LIB" ]; then
   # shellcheck source=/dev/null
   . "$HOOKS_DIR_LIB"
 else
-  pp_hooks_dir() { git -C "$1" rev-parse --path-format=absolute --git-path hooks 2>/dev/null; }
+  pp_hooks_dir() { pp_git -C "$1" rev-parse --path-format=absolute --git-path hooks; }
 fi
 
 # --- outdated-wrapper notice -------------------------------------------------
-# A plugin update refreshes the scanner the wrapper CALLS, but not the wrapper
-# itself -- its logic is baked in at install time. So a repo can quietly carry a
-# wrapper whose bugs were fixed several releases ago, with nothing to reveal it:
-# before 0.6.0 the generated file had no version marker at all, so old and new
-# were indistinguishable by inspection.
-#
-# This tells you once, per repo, in the repo where it matters.
-#
-# It also REFRESHES a stale wrapper in place, which reverses this hook's original
-# policy. That policy said rewriting a file in someone's .git/hooks at session
-# start was a surprise a privacy gate should never spring, citing four
-# repo-damaging bugs in the install path before 0.6.0. The reversal is deliberate
-# and the caveat is answered rather than withdrawn: the alternative was telling
-# every user to run a shell script in every repo on every template change, which
-# is work a hook already standing in the right place can do. What makes it safe
-# now is that ownership is exact -- only a file carrying our own byte-for-byte
-# stamp is ever touched, a wrapper AHEAD of the plugin is left alone, and the
-# refresh is verified by re-reading the stamp before it is reported as done.
-# A foreign or hand-edited hook is still never rewritten.
 HOOKS_DIR=$(pp_hooks_dir "$CWD" || echo "")
-# Compare against the WRAPPER TEMPLATE version the installer stamps ("t1"), not
-# the plugin version. They were the same value until unrelated plugin bumps
-# started marking every installed wrapper stale; see install-git-hooks.sh.
-INSTALLER="$SCRIPT_DIR/../skills/path-privacy/scripts/install-git-hooks.sh"
+INSTALLER="$PLUGIN_ROOT/skills/path-privacy/scripts/install-git-hooks.sh"
 CURRENT_VERSION=$(sed -n 's/^WRAPPER_TEMPLATE_VERSION=\(.*\)$/t\1/p' "$INSTALLER" 2>/dev/null | head -1)
 STALE_HOOKS=""
 AHEAD_HOOKS=""
 MISSING_HOOKS=""
 REFRESHED_HOOKS=""
+CANDIDATE_STALE=0
+PRE_VER=""
+MSG_VER=""
+
 if [ -n "$HOOKS_DIR" ] && [ -n "$CURRENT_VERSION" ]; then
+  # Pass 1: classify both hooks before running the installer so a stale hook
+  # never triggers an install that overwrites an AHEAD sibling hook or
+  # misreports missing/stale state.
   for h in pre-commit commit-msg; do
     f="$HOOKS_DIR/$h"
-    # From inside a session an ungated repo is indistinguishable from a gated
-    # one. That gap between feeling covered and being covered is this plugin's
-    # main failure mode, and this is the one place already running where it can
-    # be closed.
     if [ ! -f "$f" ] || ! grep -q 'path-privacy:wrapper' "$f" 2>/dev/null; then
       MISSING_HOOKS="${MISSING_HOOKS:+$MISSING_HOOKS, }$h"
       continue
     fi
     have=$(sed -n 's/^# path-privacy:wrapper-version //p' "$f" | head -1)
     [ -z "$have" ] && have="pre-0.6.0"
-    # Direction decides the remedy and they are opposites, so this cannot be a
-    # string comparison -- see _version_compare.sh for why "newer" is the claim
-    # that has to be earned. Non-semver stamps ("pre-0.6.0", the "unknown"
-    # written when plugin.json was unreadable at install time) are not newer,
-    # so they land in the stale branch and get the harmless advice.
+    if [ "$h" = "pre-commit" ]; then PRE_VER="$have"; else MSG_VER="$have"; fi
     if [ "$have" != "$CURRENT_VERSION" ]; then
-      # A stale wrapper is REFRESHED, not reported. Telling a user to go run a
-      # shell script is asking them to do work a hook already standing in the
-      # right place can do, and every repo would need it on every template
-      # change. The installer is re-run in place; only if that fails does this
-      # fall back to telling anyone.
-      #
-      # Safe because ownership is exact: we reached this branch only after
-      # confirming the file carries our own `path-privacy:wrapper` stamp, so a
-      # hand-written or foreign hook is never touched. `pp_template_is_newer`
-      # guards the other direction -- a wrapper AHEAD of the plugin is left
-      # alone, because regenerating it would install OLDER logic.
       if pp_template_is_newer "$have" "$CURRENT_VERSION"; then
         AHEAD_HOOKS="${AHEAD_HOOKS:+$AHEAD_HOOKS, }$h ($have)"
-      elif [ -x "$INSTALLER" ] && "$INSTALLER" -C "$CWD" >/dev/null 2>&1 \
-           && grep -q "^# path-privacy:wrapper-version $CURRENT_VERSION\$" "$f" 2>/dev/null; then
-        REFRESHED_HOOKS="${REFRESHED_HOOKS:+$REFRESHED_HOOKS, }$h ($have -> $CURRENT_VERSION)"
       else
-        STALE_HOOKS="${STALE_HOOKS:+$STALE_HOOKS, }$h ($have)"
+        CANDIDATE_STALE=1
       fi
     fi
   done
+
+  # Pass 2: if at least one hook is stale and neither is ahead or missing,
+  # attempt a single refresh of the repo's hooks.
+  if [ "$CANDIDATE_STALE" -eq 1 ]; then
+    REFRESH_OK=0
+    if [ -z "$AHEAD_HOOKS" ] && [ -z "$MISSING_HOOKS" ] && [ -r "$INSTALLER" ] \
+       && bash "$INSTALLER" -C "$CWD" >/dev/null 2>&1; then
+      REFRESH_OK=1
+    fi
+    for h in pre-commit commit-msg; do
+      if [ "$h" = "pre-commit" ]; then have="$PRE_VER"; else have="$MSG_VER"; fi
+      [ -z "$have" ] && continue
+      if [ "$have" != "$CURRENT_VERSION" ] && ! pp_template_is_newer "$have" "$CURRENT_VERSION"; then
+        f="$HOOKS_DIR/$h"
+        if [ "$REFRESH_OK" -eq 1 ] && grep -q "^# path-privacy:wrapper-version $CURRENT_VERSION\$" "$f" 2>/dev/null; then
+          REFRESHED_HOOKS="${REFRESHED_HOOKS:+$REFRESHED_HOOKS, }$h ($have -> $CURRENT_VERSION)"
+        else
+          STALE_HOOKS="${STALE_HOOKS:+$STALE_HOOKS, }$h ($have)"
+        fi
+      fi
+    done
+  fi
 fi
-# An ungated repo is reported ONCE per repo, not on every startup. The notice
-# used to fire on every session start in every such repo, which is wallpaper.
-# The marker lives in the git common dir, next to the hooks it is about; delete
-# it to see the notice again. It is also no longer true that "nothing is
-# enforcing" the rule in such a repo: the PreToolUse hook checks Claude's own
-# writes and commit messages everywhere. What an ungated repo lacks is a check
-# on commits made outside Claude.
+
 if [ -n "$MISSING_HOOKS" ]; then
-  COMMON_DIR=$(git -C "$CWD" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "")
+  COMMON_DIR=$(pp_git -C "$CWD" rev-parse --path-format=absolute --git-common-dir || echo "")
   NOTICE_MARK="${COMMON_DIR:+$COMMON_DIR/path-privacy-gate-notice}"
   if [ -n "$NOTICE_MARK" ] && [ ! -e "$NOTICE_MARK" ]; then
-    CONTEXT+="path-privacy: no commit gate in this repo (missing: $MISSING_HOOKS). Claude's edits and commit messages are still checked; commits made outside Claude are not. Installer: /path-privacy:path-privacy. This notice is shown once per repo."$'\n'
-    : > "$NOTICE_MARK" 2>/dev/null || true
+    if [ "$HARNESS" = "antigravity" ]; then
+      CONTEXT+="path-privacy: no commit gate in this repo (missing: $MISSING_HOOKS). Antigravity's edits and git/gh commands are still checked; commits made outside the agent are not. Run the path-privacy install-git-hooks.sh script to install it. This notice is shown once per repo."$'\n'
+    else
+      CONTEXT+="path-privacy: no commit gate in this repo (missing: $MISSING_HOOKS). Claude's edits and commit messages are still checked; commits made outside Claude are not. Installer: /path-privacy:path-privacy. This notice is shown once per repo."$'\n'
+    fi
+    ( : > "$NOTICE_MARK" ) 2>/dev/null || true
   fi
 fi
 if [ -n "$STALE_HOOKS" ]; then
   CONTEXT+="path-privacy: this repo's git hooks were generated by an older version of the plugin"
-  # Plain ASCII punctuation here on purpose. This line used $'\u2014', but
-  # \uXXXX needs bash 4.2+ and macOS ships bash 3.2, so the escape passed
-  # through unexpanded and the notice literally read "... of the plugin \u2014
-  # pre-commit (0.6.2)". Nothing downstream needs a dash, so the encoding
-  # question is removed rather than answered.
   CONTEXT+=": $STALE_HOOKS; current is $CURRENT_VERSION."$'\n'
   CONTEXT+="Their logic is frozen at install time, and an automatic refresh was attempted and FAILED."$'\n'
   CONTEXT+="Something is blocking the rewrite -- a read-only .git, a core.hooksPath pointing elsewhere,"$'\n'
@@ -148,25 +150,33 @@ if [ -n "$REFRESHED_HOOKS" ]; then
   CONTEXT+=" ($REFRESHED_HOOKS). No action needed."$'\n'
 fi
 if [ -n "$AHEAD_HOOKS" ]; then
-  CONTEXT+="path-privacy: this repo's git hooks are NEWER than the running plugin"
-  CONTEXT+=": $AHEAD_HOOKS; running plugin is $CURRENT_VERSION."$'\n'
-  CONTEXT+="The gate itself is fine -- it is the installed plugin that is behind."$'\n'
-  CONTEXT+="Do NOT re-run install-git-hooks.sh: it would regenerate the hooks from the"$'\n'
-  CONTEXT+="older plugin and downgrade them. Update the plugin instead"
-  CONTEXT+=$' ('"claude plugin update path-privacy)."$'\n'
-  CONTEXT+="Mention this to the user once, then carry on."$'\n'
+  HARNESS_LABEL="Claude Code"
+  [ "$HARNESS" = "antigravity" ] && HARNESS_LABEL="Antigravity"
+  CONTEXT+="path-privacy: this repo's git hooks ($AHEAD_HOOKS) are NEWER than the running $HARNESS_LABEL plugin ($CURRENT_VERSION)."$'\n'
+  CONTEXT+="The commit gate itself is fine -- this $HARNESS_LABEL plugin copy is behind the sibling harness that updated the hooks."$'\n'
+  CONTEXT+="Do NOT re-run install-git-hooks.sh from this older copy (it would downgrade the hooks)."$'\n'
+  CONTEXT+="To align both harnesses, run sync-peer.sh --install from the newer checkout (or update this plugin). Mention this to the user once, then carry on."$'\n'
 fi
 # -----------------------------------------------------------------------------
 
-[ -z "$CONTEXT" ] && exit 0
+[ -z "$CONTEXT" ] && emit_empty
 
-# Attribution, stated rather than inherited. `hook_additional_context` transcript
-# records carry only the EVENT name, so an injected block cannot otherwise be
-# traced back to the plugin that produced it. Same bracket form dev-conventions
-# emits, so the two are greppable together.
 JSON_CONTEXT=$(printf '[plugin:path-privacy]\n%s' "$CONTEXT" | jq -Rs '.')
 
-cat <<EOF
+if [ "$HARNESS" = "antigravity" ]; then
+  cat <<EOF
+{
+  "injectSteps": [
+    {
+      "systemMessage": {
+        "systemMessage": ${JSON_CONTEXT}
+      }
+    }
+  ]
+}
+EOF
+else
+  cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
@@ -174,5 +184,6 @@ cat <<EOF
   }
 }
 EOF
+fi
 
 exit 0

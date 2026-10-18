@@ -29,37 +29,57 @@
 # `grep -iE`; both are equivalent because the pattern is built lowercase.
 pp_name_regex() {
   local repo="${1:-.}" name w lw
-  name=$(git -C "$repo" config user.name 2>/dev/null) || return 1
-  [ -n "$name" ] || return 1
+  local -a cands=()
+  local c
 
-  local -a words=()
-  set -f
-  for w in $name; do words+=("$w"); done
-  set +f
+  c=$(git -C "$repo" config user.name 2>/dev/null || true)
+  [ -n "$c" ] && cands+=("$c")
+  c=$(git config --global user.name 2>/dev/null || true)
+  [ -n "$c" ] && cands+=("$c")
+  c=$(GIT_CONFIG_GLOBAL=/dev/null git -C "$repo" config --local user.name 2>/dev/null || true)
+  [ -n "$c" ] && cands+=("$c")
+  if [ -n "${HOME:-}" ] && [ -r "$HOME/.gitconfig" ]; then
+    c=$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git config --no-includes --file "$HOME/.gitconfig" user.name 2>/dev/null || true)
+    [ -n "$c" ] && cands+=("$c")
+  fi
 
-  # Drop generational suffixes from the end.
-  while [ ${#words[@]} -gt 2 ]; do
-    lw=$(printf '%s' "${words[${#words[@]}-1]}" | tr '[:upper:]' '[:lower:]')
-    case "$lw" in
-      jr|jr.|sr|sr.|ii|iii|iv) unset "words[${#words[@]}-1]" ;;
-      *) break ;;
-    esac
+  for name in "${cands[@]+"${cands[@]}"}"; do
+    [ -n "$name" ] || continue
+
+    local -a words=()
+    set -f
+    for w in $name; do words+=("$w"); done
+    set +f
+
+    # Drop generational suffixes from the end.
+    while [ ${#words[@]} -gt 2 ]; do
+      lw=$(printf '%s' "${words[${#words[@]}-1]}" | tr '[:upper:]' '[:lower:]')
+      case "$lw" in
+        jr|jr.|sr|sr.|ii|iii|iv) unset "words[${#words[@]}-1]" ;;
+        *) break ;;
+      esac
+    done
+    [ ${#words[@]} -ge 2 ] || continue
+
+    local first="${words[0]}" last="${words[${#words[@]}-1]}"
+    first="${first%.}"; last="${last%.}"
+    if [ ${#first} -lt 2 ] || [ ${#last} -lt 2 ]; then
+      continue
+    fi
+
+    local sep='[[:space:]._-]*' mid="" i
+    for (( i=1; i<${#words[@]}-1; i++ )); do
+      mid="${mid}$(_pp_ere_escape "${words[$i]%.}")\\.?${sep}"
+    done
+    [ -n "$mid" ] && mid="(${mid})?"
+
+    printf '(^|[^[:alpha:]])%s%s%s%s([^[:alpha:]]|$)' \
+      "$(_pp_ere_escape "$first")" "$sep" "$mid" "$(_pp_ere_escape "$last")" \
+      | tr '[:upper:]' '[:lower:]'
+    return 0
   done
-  [ ${#words[@]} -ge 2 ] || return 1
 
-  local first="${words[0]}" last="${words[${#words[@]}-1]}"
-  first="${first%.}"; last="${last%.}"
-  [ ${#first} -ge 2 ] && [ ${#last} -ge 2 ] || return 1
-
-  local sep='[[:space:]._-]*' mid="" i
-  for (( i=1; i<${#words[@]}-1; i++ )); do
-    mid="${mid}$(_pp_ere_escape "${words[$i]%.}")\\.?${sep}"
-  done
-  [ -n "$mid" ] && mid="(${mid})?"
-
-  printf '(^|[^[:alpha:]])%s%s%s%s([^[:alpha:]]|$)' \
-    "$(_pp_ere_escape "$first")" "$sep" "$mid" "$(_pp_ere_escape "$last")" \
-    | tr '[:upper:]' '[:lower:]'
+  return 1
 }
 
 _pp_ere_escape() {

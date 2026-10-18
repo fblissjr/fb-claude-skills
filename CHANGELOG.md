@@ -1,5 +1,13 @@
 # changelog
 
+## 1.75.0
+
+### changed
+- **`path-privacy` 0.19.0 -> 0.22.0 (wrapper template `t5`): unified dual-harness plugin tree and cross-harness version resolution.** `skills/path-privacy/` is now 100% byte-for-byte identical between `fb-claude-skills` and `fb-gemini-plugins`, carrying both Claude Code (`.claude-plugin/plugin.json`, `hooks/hooks.json`) and Antigravity (`plugin.json`, `hooks.json`) manifests at `0.22.0`.
+  - **Cross-harness git hook wrapper (`t5`).** Generated `.git/hooks/pre-commit` and `.git/hooks/commit-msg` wrappers score all readable candidate scripts across both `~/.claude/plugins/cache/...` and `~/.gemini/config/plugins/...` by `(wrapper_template_version, plugin_semver, is_frozen)` and run the newest installed copy on the machine, preventing template ping-pong when a repo is used with both agents.
+  - **Cross-harness drift check (`--doctor`, `SessionStart`, and `sync-peer.sh`).** `install-git-hooks.sh --doctor` checks dual-manifest parity and compares installed Claude Code and Antigravity plugin copies on disk; `sync-peer.sh` (`--check`, `--apply --peer <dir>`, `--install`) verifies and synchronizes peer checkouts and installed caches in one command.
+  - **Dual-harness `PreToolUse` and `SessionStart` hooks and sandbox-safe `git` fallback.** `path-privacy-pre-tool-use.sh` and `path-privacy-session-start.sh` auto-detect Claude Code vs Antigravity payloads; `_name_guard.sh` checks repo, global, and `--no-includes ~/.gitconfig` `user.name` values; unbracketed generic user paths are blocked while explicit `/Users/<user>/...` and `/Users/$USER/...` placeholders and system accounts (`/Users/Shared/...`, `/home/runner/...`) remain exempt.
+
 ## 1.74.0
 
 ### added
@@ -253,7 +261,7 @@ The Opus 5.5 pass across the whole repo. Each change below was checked against i
   - **Measured first.** Over 60 days of transcripts (2,905 files, 78 blocks), about half the blocks were false positives:
     - generic tool locations (`~/.claude/...`);
     - `$HOME` used as a shell variable;
-    - stand-in users such as `/Users/dev`.
+    - stand-in users such as `/Users/<user>`.
 
     Replaying every recovered block through the old and new scanners, 40 no longer fire and 31 still do. What still fires is named projects, folder layout, and deliberate probes.
   - **Fix instead of block.** An absolute path inside the repo, in any of its `~` or `$HOME` forms, is rewritten to repo-relative on Write and Edit through `updatedInput`, with no permission decision, so your permission prompt still applies, and one context line saying what changed. Pairing `updatedInput` with no decision is not in the upstream docs; it was confirmed against the 2.1.281 binary. If a later release drops it, the original input runs as before.
