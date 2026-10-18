@@ -1,4 +1,4 @@
-last updated: 2026-09-24
+last updated: 2026-10-18
 
 # fb-claude-skills
 
@@ -27,12 +27,15 @@ Other documents cite these by number. Remove an entry; never renumber.
 
 **1. Plugin content change triggers a version cascade:** `plugin.json`, the root
 `marketplace.json`, and a `CHANGELOG.md` entry. Add `tools/<plugin>/pyproject.toml`
-only when the marketplace `source` ships `tools/`. Plugin content is what `source`
-ships *and* changes an installed session: a SKILL.md body, a `references/` file a
-skill reads, a hook script. SKILL.md frontmatter, a plugin's own CLAUDE.md, and its
-`evals/` are not. Never add `metadata.version`, `metadata.author`, `metadata.last_verified` or
-`metadata.review_interval_days` to a SKILL.md. The root `pyproject.toml` has no
-version. Detail: [plugin-versioning.md](docs/internals/plugin-versioning.md).
+only when the marketplace `source` ships `tools/`. For `path-privacy` (which ships
+a unified dual-harness tree shared with `fb-gemini-plugins`), keep `.claude-plugin/plugin.json`
+and root `plugin.json` at the same version and run
+`bash skills/path-privacy/skills/path-privacy/scripts/sync-peer.sh --install --peer <peer-dir>`.
+Plugin content is what `source` ships *and* changes an installed session: a SKILL.md body,
+a `references/` file a skill reads, a hook script. SKILL.md frontmatter, a plugin's own
+CLAUDE.md, and its `evals/` are not. Never add `metadata.version`, `metadata.author`,
+`metadata.last_verified` or `metadata.review_interval_days` to a SKILL.md. The root
+`pyproject.toml` has no version. Detail: [plugin-versioning.md](docs/internals/plugin-versioning.md).
 
 **1b. One changelog, at the repo root.** A copy of anything earns its place only
 if something other than the check confirming it is a copy reads it. Otherwise
@@ -51,9 +54,12 @@ name never appears** (the GitHub handle and the GitHub noreply address are
 fine; the owner's personal email addresses never appear anywhere), including commit
 messages and branch names. The path-privacy PreToolUse hook rewrites in-repo
 absolute paths to repo-relative on Edit/Write and blocks external paths and the
-name; the git hooks hard-block both at commit. Never `--no-verify`. Generic tool
-locations (`~/.claude/...`, `$HOME/.config/...`) are not leaks; a named
-directory under home is. `skill-maintain test` catches in-repo absolute paths
+name; the git hooks (`ver=t5`) resolve the newest scanner across Claude Code and
+Antigravity installs and hard-block both at commit. Never `--no-verify`. Generic tool
+locations (`~/.claude/...`, `~/.gemini/...`, `$HOME/.config/...`), explicit placeholders
+(`/Users/<user>/...`, `/Users/$USER/...`), and system accounts (`/Users/Shared/...`,
+`/home/runner/...`) are not leaks; a named directory under home or an unbracketed
+generic user path is. `skill-maintain test` catches in-repo absolute paths
 written any other way.
 
 **3. `best_practices.md` has one copy:**
