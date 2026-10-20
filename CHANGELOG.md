@@ -1,5 +1,14 @@
 # changelog
 
+## 1.76.0
+
+### changed
+- **`heylook-provider` 0.21.2 -> 0.22.0: re-verified against heylook 2.0.204 (was 2.0.183).** The route set is unchanged (the same 54 operations, checked against the live OpenAPI document), and 2.0.191-2.0.204 touched only the frontend. Four API-visible changes from 2.0.184-2.0.189 were missing, and each was checked against the live server.
+  - **`params` is validated on write (2.0.184).** A conversation, notebook or preset with an unknown `params` key or a bad value is a 422 naming it, and a `null` is not stored. `routes.md` says so, and contrasts it with `overrides` on `generate`, which drops unknown keys silently. Live: an unknown key and `top_p: "high"` both answered 422, and a `null` was dropped on create.
+  - **MLX speculative decoding (2.0.187).** `wire_reference.md` now says MLX reports only `accepted` and `emitted` in `performance.speculative`, while `drafted`, `acceptance_rate` and `draft_share` are gguf only, and that a request with a penalty, structured output or a thinking budget runs undrafted. Live: `engine.speculative` names a drafter on MLX rows.
+  - **A failed gguf load quotes llama-server (2.0.189).** The 500 row says to show that text and never string-match it. Read from the changelog; no failing load was provoked.
+  - **`older_servers.md`** gains the boundaries for 2.0.184, 2.0.187 and 2.0.189. `verified_against` moves to 2.0.204.
+
 ## 1.75.0
 
 ### changed

@@ -335,7 +335,7 @@ Absent has two spellings: streaming omits the key, non-streaming returns
 | `thinking_duration_ms`, `content_duration_ms` | Time from the first emitted segment of each kind to its end, in both modes. `0` is a real value: under one millisecond, as when a short answer is released in one piece |
 | `peak_memory_gb` | MLX only: generation on gguf runs in a subprocess that does not report it |
 | `cache` | `{prompt_tokens, cached_tokens, processed_tokens, outcome, cause, reason}`; `outcome` is `reused`, `miss` or `ineligible` |
-| `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities |
+| `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities. MLX drafts too (a drafter folder beside the model), but reports only `accepted` and `emitted`: `drafted`, `acceptance_rate` and `draft_share` are gguf only. An MLX request with a penalty, structured output or a thinking budget runs undrafted and reports none |
 
 Time to first token is not returned in either mode. On a stream, time the
 first `content_block_delta` yourself; non-streaming it is unobservable.
@@ -350,7 +350,7 @@ Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 | 403 | Host check: the `Host` header is not an IP, `localhost`, one of the machine's own names, or an `allowed_hosts` entry in `heylook.toml` | names the fix |
 | 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}`, for a second `generate` and for any message write or conversation delete: restore the user's text and retry after the run ends |
 | 422 | Body failed validation: a refused field (table above), an out-of-range value, a media block with no payload | FastAPI validation detail |
-| 500 | Model exists but failed to load, or a gguf decode failed | message in `detail` |
+| 500 | Model exists but failed to load, or a gguf decode failed | message in `detail`; a gguf load failure quotes llama-server's own error after `llama-server said:`. Show it, never string-match it |
 | 503 | Backpressure: the queue is full, or every loaded model is generating so none can be evicted | `{"error":{"code":"model_overloaded"}}` with `Retry-After` and `X-RateLimit-*`. `error.message` names the blocking models; show it rather than a generic retry notice |
 
 400 means pick a different model or input; 500 means that model is broken. A

@@ -1,6 +1,6 @@
 # heylook-provider
 
-*Last updated: 2026-09-27*
+*Last updated: 2026-10-20*
 
 Integration knowledge for [heylook](https://github.com/fblissjr/heylookitsanllm)
 (`heylookitsanllm`), a local multimodal LLM server on Apple Silicon serving

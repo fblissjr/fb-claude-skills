@@ -198,3 +198,13 @@ the range spans.
   mean an unknown id.
 - **Before 2.0.49** MLX and gguf models could be resident together; from
   2.0.49 loading one engine family evicts the other.
+- **Before 2.0.189** a gguf load failure said only that llama-server exited,
+  with its output not captured, so there was no cause to show.
+
+## Stored params and speculative decoding
+
+- **Before 2.0.184** `params` on a conversation, notebook or preset accepted
+  any JSON object, so `top_p: "high"` was stored and then failed every
+  generation on that document. Validate client-side against those servers.
+- **Before 2.0.187** MLX had no drafter: `engine.speculative` held no drafter
+  there and `performance.speculative` came from gguf only.

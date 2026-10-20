@@ -81,6 +81,11 @@ chat page uses it.
   `{"error":{"code":"generation_in_progress"}}`. Metadata `PUT`s stay open.
 - **Unknown fields are ignored, not refused.** Unlike `/v1/messages`, this
   route has no 422 for retired fields.
+- **A stored `params` bag is validated on write, and a bad one is a 422.** This
+  covers conversations, notebooks and presets, create and update, with the same
+  key names and ranges as above. An unknown key or a bad value (`top_p: "high"`)
+  is a 422 naming it, and a `null` is not stored. It is the opposite of
+  `overrides` on `generate`, which drops unknown keys silently.
 - **Stored media comes back by reference.** Send base64 as usual; the stored
   block becomes `{"type": "image", "source": {"type": "url", "url":
   "/v1/conversations/{id}/media/{media_id}", "media_type", "media_id"}}`, and
