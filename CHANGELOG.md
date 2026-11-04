@@ -1,5 +1,10 @@
 # changelog
 
+## 1.77.1
+
+### fixed
+- **`heylook-provider` 0.23.0 -> 0.23.1: MLX speculative telemetry and thinking-budget drafting, verified against heylook 2.0.223.** `wire_reference.md` said MLX reports only `accepted` and `emitted` and that `draft_share` is gguf only; a live MLX MTP run reported `draft_share`, with `drafted` and `acceptance_rate` null. It also said an MLX request with a thinking budget runs undrafted; from heylook 2.0.223 it drafts (upstream mlx-vlm#2641), checked live with `budget_tokens: 64`. `older_servers.md` gains the 2.0.223 boundary.
+
 ## 1.77.0
 
 ### changed

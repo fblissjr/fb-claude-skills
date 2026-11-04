@@ -221,3 +221,5 @@ the range spans.
   generation on that document. Validate client-side against those servers.
 - **Before 2.0.187** MLX had no drafter: `engine.speculative` held no drafter
   there and `performance.speculative` came from gguf only.
+- **Before 2.0.223** an MLX request with a thinking budget ran undrafted;
+  from 2.0.223 it drafts and the budget still holds.

@@ -335,7 +335,7 @@ Absent has two spellings: streaming omits the key, non-streaming returns
 | `thinking_duration_ms`, `content_duration_ms` | Time from the first emitted segment of each kind to its end, in both modes. `0` is a real value: under one millisecond, as when a short answer is released in one piece |
 | `peak_memory_gb` | MLX only: generation on gguf runs in a subprocess that does not report it |
 | `cache` | `{prompt_tokens, cached_tokens, processed_tokens, outcome, cause, reason}`; `outcome` is `reused`, `miss` or `ineligible` |
-| `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities. MLX drafts too (a drafter folder beside the model), but reports only `accepted` and `emitted`: `drafted`, `acceptance_rate` and `draft_share` are gguf only. An MLX request with a penalty, structured output or a thinking budget runs undrafted and reports none |
+| `speculative` | When a drafter ran: `{drafted, accepted, emitted, acceptance_rate, draft_share}`; the two rates are different quantities. MLX drafts too (a drafter folder beside the model) and reports `accepted`, `emitted` and `draft_share`; `drafted` and `acceptance_rate` are null there, since only gguf knows the drafter's proposals. An MLX request with a penalty, logit bias or structured output runs undrafted and reports none; a thinking budget drafts (2.0.223) |
 
 Time to first token is not returned in either mode. On a stream, time the
 first `content_block_delta` yourself; non-streaming it is unobservable.
