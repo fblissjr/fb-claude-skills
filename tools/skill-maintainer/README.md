@@ -129,13 +129,12 @@ Nothing should go from green to red unless you intended it. Use `--verbose` to s
 /skill-maintainer:maintain
 ```
 
-Pulls upstream sources, checks for doc changes, runs the quality report, and proposes updates to `.skill-maintainer/best_practices.md`. Run this when you want to sync with upstream and review the maintenance checklist. Or run the phases individually:
+Pulls upstream sources, checks for doc changes, runs the quality report, audits controls and samples mutations. Or run the CLI phases individually:
 
 ```bash
 skill-maintain sources   # phase 1: pull tracked repos
 skill-maintain upstream  # phase 2: check upstream docs
 skill-maintain quality   # phase 3: validate all skills
-# final phase: Claude reviews results and proposes best_practices.md edits
 ```
 
 The review phase never auto-writes. Claude shows proposed changes and waits for approval.
@@ -352,9 +351,7 @@ To add a tracked source, add an entry to `tracked_repos` and clone or symlink th
 
 To add a watched upstream page, add its URL to `upstream_urls`. The page must appear in `llms-full.txt`.
 
-`upstream_urls` also claims that `best_practices.md` relies on the page: a fetched page no section cites is reported as fetched-but-unattributed, which is treated as a finding (usually a wrong citation). For a page you want to follow but the file doesn't cite, use `watch_only_urls` instead. Those pages are fetched, hashed, snapshotted and reported exactly like `upstream_urls`, but an uncited one is counted as `watch-only` rather than unattributed. If a section does cite one, it joins as an ordinary tracked page. A URL in both lists is a config error: `upstream` exits non-zero and the `best_practices provenance` arm fails, both naming the URL. The key is optional; absent means empty, and `init` doesn't write it.
-
-Best practices doc: `.skill-maintainer/best_practices.md` (proposed edits from `/maintain`, reviewed manually before applying).
+`watch_only_urls` pages are fetched, hashed, snapshotted and reported like `upstream_urls`, labelled watch-only. (The split existed for the retired `best_practices.md` provenance join.) A URL in both lists is a config error: `upstream` exits non-zero naming the URL. The key is optional; absent means empty, and `init` doesn't write it.
 
 ## state files
 
@@ -399,9 +396,6 @@ drift the version cascade surfaces, or an upstream page whose hash is already
 snapshotted. Both triggers are change-based, so the elapsed-time proxy was
 carrying no signal the repo did not already have.
 
-Unrelated despite the shared name: the `last_verified` inside
-`best_practices.md`'s per-section provenance comments. That is hash-triggered,
-still live, and read by the `best_practices provenance` arm of `test`.
 
 ### metadata.version (removed from SKILL.md)
 

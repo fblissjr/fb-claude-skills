@@ -2,6 +2,9 @@ last updated: 2026-09-24
 
 # best_practices.md: what it is for, and how it should be maintained
 
+**Retired 2026-11-04.** `best_practices.md`, its provenance join and the fetch-freshness arm were deleted. Nothing read the file while a skill was being written, and its harness half restated Claude Code's docs. The house rules moved to `.claude/rules/` (`skills.md`, `plugins.md`, `controls.md`). This record is history.
+
+
 Design record, filed 2026-08-07 when the owner asked whether the repo still
 treats `best_practices.md` as its north star and how drift in it gets caught.
 Every number below was derived that session; the commands are named so they can

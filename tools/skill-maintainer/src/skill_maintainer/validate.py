@@ -16,8 +16,9 @@ from skill_maintainer.shared import check_description_quality
 SKILL_MD_MAX_LINES = 500
 
 
-def check_best_practices(skill_path: Path) -> list[str]:
-    """Run additional best-practice checks beyond schema validation."""
+def check_skill_quality(skill_path: Path) -> list[str]:
+    """Quality warnings beyond schema validation: body length, description
+    quality, angle brackets, unreferenced reference files."""
     warnings = []
     skill_md = find_skill_md(skill_path)
 
@@ -78,7 +79,7 @@ def validate_single(
     as errors, so the skill must also pass the cross-vendor portability check.
     """
     errors = validate_cc(skill_path)
-    warnings = check_best_practices(skill_path)
+    warnings = check_skill_quality(skill_path)
 
     if strict:
         skill_md = find_skill_md(skill_path)

@@ -18,7 +18,6 @@ import httpx
 from skill_maintainer.config import (
     ConfigError,
     append_event,
-    best_practices_file,
     get_llms_full_url,
     get_watch_pages,
     hashes_file,
@@ -28,7 +27,6 @@ from skill_maintainer.config import (
     save_hashes,
     url_to_slug,
 )
-from skill_maintainer.provenance import format_report, join_provenance, parse_annotations
 
 
 def split_by_source(text: str) -> dict[str, str]:
@@ -246,24 +244,5 @@ def main(args=None):
 
     if changed and not parsed.no_log:
         _log_event(root, changed, watch_only_set)
-
-    # Provenance join. Runs against `new_hashes` (post-fetch), so it answers
-    # "has the page this section came from moved since the section was checked
-    # against it" rather than the calendar question a file-level date answers.
-    # Printed unconditionally: the counts are the scope statement, and a run
-    # that found nothing must be distinguishable from one that parsed nothing.
-    bp = best_practices_file(root)
-    if bp.exists():
-        watched_hashes = {u: new_hashes[u] for u in watch_pages if u in new_hashes}
-        result = join_provenance(
-            parse_annotations(bp.read_text(encoding="utf-8")),
-            watched_hashes,
-            repos=new_hashes.get("local_repos") or {},
-            watch_only=watch_only,
-        )
-        print()
-        print(format_report(result))
-    else:
-        print(f"\nProvenance join skipped: no {bp.name} at {bp.parent}")
 
     sys.exit(0)

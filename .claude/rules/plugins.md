@@ -49,3 +49,18 @@ A hook running a bundled script sets `args`, and names the interpreter as
 `command`: `"command": "bash", "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/x.sh"]`.
 Shell form hands the whole string to `sh -c`, so a plugin root containing a
 space breaks it. Full rationale: `docs/internals/plugin-patterns.md`.
+
+## Display fields live in one place
+
+A display field (`description`, `author`, `homepage`, `repository`, `license`,
+`keywords`) set on the marketplace entry overrides `plugin.json` in listings.
+Set each in one of the two, never both; the copy nobody edits is the one users
+see.
+
+## Prefer the repo's own files to an injected convention
+
+A convention written into a repo's always-loaded files (CLAUDE.md, AGENTS.md,
+`.claude/rules/`) reaches collaborators who never installed a plugin. A plugin
+hook that injects the same convention is a bootstrap whose success condition
+is silence once the repo writes it down; build one only for behavioural content
+a repo cannot state for itself.

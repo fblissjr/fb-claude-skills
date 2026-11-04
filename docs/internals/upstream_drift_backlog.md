@@ -2,6 +2,9 @@ last updated: 2026-09-27
 
 # Upstream drift backlog
 
+**Retired 2026-11-04** with `best_practices.md`, the file this backlog fed. History only.
+
+
 Upstream changes identified but **not** yet absorbed into
 `skills/skill-maintainer/references/best_practices.md`, kept so the remainder is
 visible instead of quietly lost. Anything that made the guidance *wrong* is

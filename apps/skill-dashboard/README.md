@@ -92,4 +92,3 @@ node apps/skill-dashboard/mcp-app/dist/index.cjs
 - No broad ambient hooks on high-frequency events
 - State files gitignored
 - No duplicate skill names
-- best_practices.md provenance join (annotation hashes vs tracked upstream)

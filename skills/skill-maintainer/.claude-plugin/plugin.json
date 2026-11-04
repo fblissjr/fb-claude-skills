@@ -1,7 +1,7 @@
 {
   "name": "skill-maintainer",
-  "version": "0.36.1",
-  "description": "The maintenance pass for a skills repo (/maintain: source pulls, upstream doc changes, quality, controls audit, best practices review) and version bumps across every file that carries one (/sync-versions). Ships best_practices.md, the repo's authoring rules. The checks themselves are the separate skill-maintain CLI.",
+  "version": "0.37.0",
+  "description": "The maintenance pass for a skills repo (/maintain: source pulls, upstream doc changes, quality, controls audit, mutation sample) and version bumps across every file that carries one (/sync-versions). The checks themselves are the separate skill-maintain CLI.",
   "author": {
     "name": "fblissjr"
   },

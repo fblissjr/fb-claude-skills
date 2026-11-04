@@ -65,7 +65,7 @@ class TestWhatVerbBreadth:
 
 
 class TestThirdPersonForms:
-    """best_practices.md requires third-person descriptions ("Runs X", not "Run
+    """The house rules (.claude/rules/skills.md) require third-person descriptions ("Runs X", not "Run
     X"), but the verb list held only some third-person forms, so a listed verb
     in the required person was flagged. Deleting this lets that false positive
     return for every verb whose -s form was never added by hand.

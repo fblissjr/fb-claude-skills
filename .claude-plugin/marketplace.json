@@ -25,7 +25,7 @@
     {
       "name": "skill-dashboard",
       "source": "./apps/skill-dashboard",
-      "version": "1.6.0"
+      "version": "1.7.0"
     },
     {
       "name": "dev-conventions",
@@ -35,7 +35,7 @@
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "version": "0.36.1"
+      "version": "0.37.0"
     },
     {
       "name": "json-query",

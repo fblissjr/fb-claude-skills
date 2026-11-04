@@ -49,8 +49,7 @@ where it runs.
 ## What the measurement decided
 
 The tier test these numbers produced is a **rule**, and it lives in
-`best_practices.md` under `always-loaded context`, together with the
-emission-not-invocation finding. This file keeps the evidence; that file states
+AGENTS.md invariant 1c, together with the emission-not-invocation finding. This file keeps the evidence; that file states
 what to do about it.
 
 Two facts that belong with the evidence rather than the rule:
@@ -147,8 +146,8 @@ Useful attachment types: `hook_success` (`hookName`, `command`, `stdout`,
 ## Skill listing is a real budget
 
 The mechanics — the allocation, the overflow behaviour, the per-entry cap, and
-the levers for staying inside it — are stated in `best_practices.md` under
-`distribution and budgets`. The measurements are here.
+the levers for staying inside it — are Claude Code's documentation (the
+skills page, on the skill listing's character budget). The measurements are here.
 
 **Measured 2026-08-13, by `/doctor`:** 26 listed entries, ~2,300 tokens. A 1%
 allocation gives ~2,000 at a 200k window and ~10,000 at 1M, so the set is

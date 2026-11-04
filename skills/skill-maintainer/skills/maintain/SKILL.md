@@ -3,14 +3,14 @@ name: maintain
 argument-hint: "[upstream|sources|quality|all]"
 description: >-
   Full maintenance pass for a skills repo: pull upstream docs, sync tracked source repos, run quality
-  checks, and review best practices for updates. Use when user says "maintain", "maintenance pass",
-  "check upstream", "pull sources", "review best practices", "run maintenance".
+  checks, audit controls and sample mutations. Use when user says "maintain", "maintenance pass",
+  "check upstream", "pull sources", "run maintenance".
   Invoke with /skill-maintainer:maintain.
 ---
 
 # Full Maintenance Pass
 
-Done means every phase has run or recorded why it skipped, and Phase 6 has either proposed `best_practices.md` changes or said it is current. Run the phases in order without stopping between them: put each phase's result in the same message as the next phase's first action. The one stop is Phase 6's approval before anything is written to `best_practices.md`.
+Done means every phase has run or recorded why it skipped. Run the phases in order without stopping between them: put each phase's result in the same message as the next phase's first action.
 
 ## Phase 1: Pull local sources
 
@@ -43,7 +43,7 @@ If no config file exists, skip and note "no config -- skip upstream check".
 When many cited pages moved, read their diffs in parallel: one subagent per
 group of pages, each returning the changed rules with the page, the section
 heading and the sentence quoted. Pages are independent, and the diffs are
-long. Before Phase 6 uses a reported change, open the snapshot and find the
+long. Before acting on a reported change, open the snapshot and find the
 quoted sentence; a report is a claim until the page confirms it. With only a
 few pages moved, read the diffs here.
 
@@ -105,23 +105,8 @@ Whole-suite mutation stays `postmortem:test-audit`'s job; this phase targets
 recently-changed subjects because that is where drift concentrates, at a
 cost small enough to run every pass.
 
-## Phase 6: Review and propose updates
-
-After the preceding phases:
-
-1. Read `references/best_practices.md` (bundled with this plugin) or `.skill-maintainer/best_practices.md` (if present in the repo)
-2. Review change details from Phases 1-5
-3. Determine whether `best_practices.md` needs updates based on:
-   - New or changed upstream doc pages (Phase 2) that affect skill authoring rules
-   - New patterns or conventions from pulled repo changes (Phase 1)
-   - Quality report findings that suggest missing or outdated checklist items (Phase 3)
-   - Controls-audit findings from Phase 4 (empty guarded-by slots, header rot) that warrant a control-authoring rule
-4. If updates needed: list each proposed change with rationale. Wait for user approval before writing.
-5. If no updates needed: report "best_practices.md is current -- no changes needed"
-
 ## Rules
 
-- Never auto-write to `best_practices.md` -- always show proposed changes and wait for approval
 - Run all phases even if one reports no changes; "run" honors a phase's own skip conditions (Phases 1, 2, 4, and 5 define theirs -- in particular, Phase 4's default on a routine pass is skip-and-note, never an unrequested live-fire)
 - If a phase fails, report the error and continue with remaining phases
-- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, controls-audit outcome (run or skipped, and why), mutation sample (mutations-run over arms-in-frame, or the skip note), best practices edits (if any)
+- After finishing, summarize: repos pulled, upstream pages checked, quality issues found, controls-audit outcome (run or skipped, and why), mutation sample (mutations-run over arms-in-frame, or the skip note)

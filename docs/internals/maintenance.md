@@ -15,8 +15,6 @@ Mechanisms and commands that keep this repo's content current. Most run on deman
 | Unbumped content changes | Pre-commit git hook | On commit (warning only) |
 | CLAUDE.md / AGENTS.md size creep | Pre-commit git hook | On commit (warning only) |
 | `claude plugin validate . --strict` | Pre-commit git hook | On commit, only when `marketplace.json` is staged; skipped if the `claude` CLI is absent |
-| best_practices.md section provenance — a cited upstream page moving past the hash its section was verified against (`best_practices provenance`) | `skill-maintain test`, and printed by `skill-maintain upstream` after every fetch | On demand |
-| Staleness of the hash state the join trusts (`upstream hash state fresh`) | `skill-maintain test` | On demand |
 
 The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git** — must be re-applied on fresh clones. See [gotchas.md](gotchas.md) for setup.
 
@@ -30,7 +28,6 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | Upstream Claude Code doc change detection (per-page snapshots, line/char deltas). Pages come from `upstream_urls` in `.skill-maintainer/config.json`, plus `watch_only_urls`: pages followed on every refresh that `best_practices.md` need not cite, so an uncited one is not reported unattributed. A URL in both lists is a named config error | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
-| Mirror `.skill-maintainer/best_practices.md` → bundled reference (fallback if hook didn't fire) | `a direct copy (the PostToolUse hook normally handles it)` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / AGENTS.md / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
 | Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`; listed as Phase 4 of `/skill-maintainer:maintain` so the cadence has an owner |

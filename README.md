@@ -57,7 +57,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [skill-maintainer](skills/skill-maintainer/) | Skills | `/maintain`: the maintenance pass (source pulls, upstream detection with per-page snapshots, quality, controls audit, mutation sample, best practices review), and `/sync-versions`. Ships `best_practices.md`, the one copy of this repo's authoring rules. The checks are the `skill-maintain` CLI below |
+| [skill-maintainer](skills/skill-maintainer/) | Skills | `/maintain`: the maintenance pass (source pulls, upstream detection with per-page snapshots, quality, controls audit, mutation sample), and `/sync-versions`. The checks are the `skill-maintain` CLI below; this repo's authoring rules are its `.claude/rules/` |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, version alignment |
 
 ### cross-model bridges

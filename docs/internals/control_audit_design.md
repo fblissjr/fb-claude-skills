@@ -184,7 +184,7 @@ fragmentation reason as decision 3 below.
   reading, after 4,000 differential-fuzz bodies found nothing.
 - The security-guidance hook disabled by env var — the "control that had
   to be turned off" census class.
-- The `best_practices` control-authoring checklist — the measuring stick
+- The control-authoring checklist (now `.claude/rules/controls.md`) — the measuring stick
   for headers; shipped 2026-08-03, so every control older than that is
   expected to fail the header check on first census. First-run output will
   be dominated by that backlog; the report should bucket it as "predates

@@ -9,7 +9,6 @@ import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 
 import orjson
@@ -18,18 +17,9 @@ from skills_ref.parser import find_skill_md, parse_frontmatter
 from skill_maintainer import always_on
 from skill_maintainer.cc_schema import validate_cc as validate
 
-from skill_maintainer.config import (
-    ConfigError,
-    best_practices_file,
-    get_watch_pages,
-    load_fetch_date,
-    load_hashes,
-)
-from skill_maintainer.provenance import join_provenance, parse_annotations
 from skill_maintainer.shared import (
     REATTACH_CHARS_PER_TOKEN_DENSE,
     REATTACH_CHARS_PER_TOKEN_SPARSE,
-    STALE_DAYS,
     TOKEN_BUDGET_REATTACH,
     _skipped,
     check_description_quality,
@@ -1214,107 +1204,9 @@ def test_repo_hygiene(root: Path) -> list[Result]:
         f"duplicates: {', '.join(sorted(dupes))}" if dupes else "",
     ))
 
-    # 5. best_practices.md provenance.
-    #
-    # This REPLACES a `last updated within 30 days` arm on the file's first
-    # line. That arm established only that someone edited the file: on
-    # 2026-08-07 it read four days old and green while twelve of fourteen
-    # section annotations sat at 2026-04-19 and every cited page had moved
-    # twice. Editing a file is not checking it.
-    #
-    # Two arms, because one of them alone lies. The join answers "has a cited
-    # page moved since its section was verified" -- but it reads STORED hashes,
-    # so it reports a comfortable zero when nobody has fetched in months. The
-    # second arm dates the state the first one trusts. Hash says what to
-    # conclude; date says when to go look.
-    bp_path = best_practices_file(root)
-    if bp_path.exists():
-        state = load_hashes(root)
-        # Scope to the CONFIGURED pages, not everything ever stored. A URL
-        # removed from `upstream_urls` keeps its last hash in state forever --
-        # nothing prunes it -- so passing raw state lets a dropped page's
-        # sections report `current` against something no run will ever fetch
-        # again. `upstream.py` scopes to `watch_pages`; this must agree with it.
-        # Both read `get_watch_pages`, so the page set is `upstream_urls` plus
-        # `watch_only_urls` in both places, and an overlap fails both.
-        try:
-            tracked_urls, watch_only_urls = get_watch_pages(root)
-        except ConfigError as e:
-            # No exception boundary around this function: a raise here would
-            # take out every other repo arm. A failing row names the URL.
-            join, config_error = None, str(e)
-        else:
-            config_error = None
-            watched = {
-                u: h for u in tracked_urls + watch_only_urls if (h := state.get(u))
-            }
-            join = join_provenance(
-                parse_annotations(bp_path.read_text(encoding="utf-8")),
-                watched,
-                repos=state.get("local_repos") or {},
-                watch_only=watch_only_urls,
-            )
-        if join is None:
-            results.append(Result(
-                "repo", "", "best_practices provenance",
-                False,
-                f"config error -- {config_error}",
-            ))
-        # A floor, because `not join.moved` alone is green when NOTHING parsed.
-        # Reformat the annotation comments, or break the regex, and the arm
-        # reports PASS with `0 harness annotations` -- exactly the failure
-        # JoinResult's own docstring names, in the arm that consumes it.
-        elif not join.harness_sections:
-            results.append(Result(
-                "repo", "", "best_practices provenance",
-                False,
-                "0 harness annotations parsed -- the file has them, so the parser "
-                "or the annotation format broke",
-            ))
-        else:
-            # All five buckets, per JoinResult's contract. `unattributed` was
-            # omitted here at first, which hid the bucket with the highest
-            # measured real-defect rate (5 of 6) from the routine board.
-            # `watch-only` is scope, not a finding: it says what was excluded.
-            scope = (
-                f"{join.harness_sections} harness annotations: "
-                f"{len(join.current)} current, {len(join.unbound)} unbound, "
-                f"{len(join.untracked)} untracked source, "
-                f"{len(join.unattributed)} unattributed, "
-                f"{len(join.watch_only)} watch-only"
-            )
-            results.append(Result(
-                "repo", "", "best_practices provenance",
-                not join.moved,
-                scope if not join.moved
-                else f"{len(join.moved)} moved: "
-                     + ", ".join(f"{f.section} ({f.source.rsplit('/', 1)[-1]})" for f in join.moved),
-            ))
-
-        # Dates the FETCH, not `upstream_hashes.json`'s mtime. `sources.py`
-        # rewrites that file on every git-pull-only run, so it reported
-        # `fetched 0d ago` after a run that touched no documentation page.
-        fetched = load_fetch_date(root)
-        if fetched is None:
-            results.append(Result(
-                "repo", "", "upstream fetch fresh",
-                False,
-                "no recorded fetch -- run `skill-maintain upstream`; the provenance "
-                "join is comparing against hashes of unknown age",
-            ))
-        else:
-            age = (date.today() - fetched).days
-            results.append(Result(
-                "repo", "", "upstream fetch fresh",
-                age <= STALE_DAYS,
-                f"fetched {age}d ago" if age <= STALE_DAYS
-                else f"fetched {age}d ago > {STALE_DAYS}d -- run `skill-maintain upstream`",
-            ))
-
-    # There was a sixth arm here asserting the two best_practices.md copies were
-    # identical. Retired 2026-08-13 with the second copy: `best_practices_file`
-    # now falls back to the bundled reference, so there is one file and nothing
-    # to compare. A check whose subject no longer exists is not a passing check.
+    # Arms 5 and 6 (best_practices.md provenance and upstream fetch freshness)
+    # were retired with best_practices.md: the freshness arm existed only to
+    # date the hashes the provenance join read.
 
     return results
 

@@ -5,9 +5,10 @@ loaded, when, and at what cost. It is deliberately short and deliberately
 stable.
 
 What it is not: the practice. Field rules, harness constraints, thresholds, and
-the frontmatter reference live in `skill-maintainer`'s `best_practices.md`,
-which moves on a faster clock and is rechecked against sources. When the two
-disagree, the sourced document wins and this one gets corrected.
+the frontmatter reference are Claude Code's documentation; this repo's own rules
+for writing skills, plugins and checks are in `.claude/rules/`. Both move on a
+faster clock. When one of them and this file disagree, the practice wins and
+this one gets corrected.
 
 The architecture worldview this retrieval model serves, agent topology, model
 tiering, harness coupling, state substrate, moved to
@@ -70,8 +71,8 @@ budget. Moving material out of context often just moves the cost onto a person.
 Neither budget is minimised on its own; they are traded. Spending context to
 remove friction is often right, and so is the reverse. Which way a given
 instruction goes is a rule rather than a principle, and the rule lives in
-`best_practices.md`, which carries the per-instruction test and the boundary it
-draws around retrieval.
+`.claude/rules/skills.md` ("Writing an instruction"), which carries the
+per-instruction test and the boundary it draws around retrieval.
 
 ## progressive disclosure
 
@@ -126,10 +127,12 @@ hooks, frontmatter, tool filters, and budgets are claims about a system someone
 else ships and changes without asking.
 
 So a practice carries the event that reopens it rather than a calendar, and it
-carries what would settle it. `best_practices.md` is where that is implemented:
-each section declares the evidence class naming its reopening event, states what
-enforces it, and cites the source it was last checked against. Those are the
-rules. This is why they exist.
+carries what would settle it. Claims about the harness are not copied into this
+repo: they are read where Claude Code publishes them, so they cannot go stale
+here. What the repo keeps is its own rules (`.claude/rules/`), which a model
+release or an audit finding reopens and a with-and-without comparison settles,
+and its checks, each naming the condition that retires it (`controls.md`).
+Those are the rules. This is why they exist.
 
 Retrieval quality cannot be fully automated. Whether a skill fired at the right
 moment, whether the loaded context helped, whether the answer was right: these

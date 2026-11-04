@@ -1,5 +1,13 @@
 # changelog
 
+## 1.78.0
+
+### removed
+- **`best_practices.md` is retired (`skill-maintainer` 0.36.1 -> 0.37.0, `skill-maintain` CLI 0.44.1 -> 0.45.0, `skill-dashboard` 1.6.0 -> 1.7.0).** Nothing read the file while a skill was being written: its only reader was `/maintain`'s review phase, the phase that maintained the file itself, and `validate`'s `check_best_practices` never opened it. Its platform half restated Claude Code's docs, so keeping it current needed the provenance join, the fetch-freshness arm and a review of every moved page (34 sections after the 2026-11-04 refresh). A dry run with the file deleted in a scratch worktree showed what depended on it: `skill-maintain test` went from 261 passed / 1 failed to 260 / 0, and the tool tests from 349 passed to 346 passed / 3 skipped.
+  - **The house rules moved to `.claude/rules/`**, which Claude Code loads when a matching file is read: `skills.md` gains "Writing an instruction", "Where verification runs", "Descriptions" and "Skill folder"; `plugins.md` gains display fields in one place and preferring the repo's own files to an injected convention; the new `controls.md` (hooks, tools, tests) holds the control-authoring rules and "one claim in several places". Platform facts are Claude Code's documentation, which `skill-maintain upstream` still fetches.
+  - **Removed with it:** `/maintain` Phase 6 and its approval stop; the CLI's `provenance.py`, the `best_practices provenance` and `upstream fetch fresh` arms of `test`, the join printed by `upstream`, and `config.best_practices_file`; `test_provenance_join.py`, `test_repo_hygiene_provenance.py` and the provenance tests in `test_watch_only_urls.py`; the dashboard's TypeScript port of the join and its freshness arm. `validate`'s `check_best_practices` is renamed `check_skill_quality`, which is what it does.
+  - AGENTS.md invariant 3 is marked retired. `VISION.md`, the READMEs, `docs/README.md` and the live `docs/internals/` pages point at `.claude/rules/`; the two design records about the file carry a retirement note.
+
 ## 1.77.2
 
 ### fixed

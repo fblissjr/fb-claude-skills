@@ -51,10 +51,6 @@ export function reattachVerdict(skillChars: number): "over" | "under" | "unverif
   return "unverified";
 }
 
-// Age at which the cached upstream hash state counts as stale. Sole consumer
-// is the upstream arm; the per-skill review rule that shared it was retired.
-const STALE_DAYS = 30;
-
 const PLUGIN_REQUIRED_FIELDS = [
   "name",
   "version",
@@ -281,22 +277,6 @@ export function findSkillPath(root: string, skillName: string): string | null {
   const dirs = discoverSkills(root);
   const match = dirs.find((d) => path.basename(d) === skillName);
   return match ? path.join(match, "SKILL.md") : null;
-}
-
-// ============================================================================
-// Dates
-// ============================================================================
-
-function daysSince(dateStr: string): number | null {
-  try {
-    const d = new Date(dateStr + "T00:00:00Z");
-    if (isNaN(d.getTime())) return null;
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  } catch {
-    return null;
-  }
 }
 
 // ============================================================================
@@ -592,162 +572,6 @@ export function checkPlugins(root: string): PluginResult[] {
 }
 
 // ============================================================================
-// best_practices.md provenance join (ported from skill_maintainer.provenance)
-// ============================================================================
-//
-// Replaces a `last updated within STALE_DAYS` check on best_practices.md's
-// first line, which established only that someone had edited the file, not
-// that anyone had checked it against its source. See provenance.py in
-// tools/skill-maintainer for the incident that motivated the replacement.
-
-interface Annotation {
-  section: string;
-  evidenceClass: string;
-  source: string | null;
-  verifiedHash: string | null;
-  lastVerified: string | null;
-}
-
-interface Finding {
-  section: string;
-  source: string;
-  verifiedHash: string | null;
-  currentHash: string | null;
-  lastVerified: string | null;
-}
-
-interface JoinResult {
-  moved: Finding[];
-  current: Finding[];
-  unbound: Finding[];
-  untracked: Finding[];
-  unattributed: string[];
-}
-
-const HEADING_RE = /^#{2,3}\s+(.*?)\s*$/gm;
-// `s` (dotAll) so a comment wrapped across lines still matches -- matched
-// against a whole section span (see parseAnnotations), not a single line.
-const ANNOTATION_RE = /<!--\s*(class:.*?)\s*-->/gs;
-
-function parseFields(blob: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const part of blob.split("|")) {
-    const idx = part.indexOf(":");
-    if (idx === -1) continue;
-    out[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
-  }
-  return out;
-}
-
-function parseAnnotations(text: string): Annotation[] {
-  const spans: [string, string][] = [];
-  let prevEnd = 0;
-  let prevSection = "";
-  HEADING_RE.lastIndex = 0;
-  let h: RegExpExecArray | null;
-  while ((h = HEADING_RE.exec(text)) !== null) {
-    spans.push([prevSection, text.slice(prevEnd, h.index)]);
-    prevSection = h[1];
-    prevEnd = HEADING_RE.lastIndex;
-  }
-  spans.push([prevSection, text.slice(prevEnd)]);
-
-  const annotations: Annotation[] = [];
-  for (const [section, chunk] of spans) {
-    ANNOTATION_RE.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = ANNOTATION_RE.exec(chunk)) !== null) {
-      const fields = parseFields(m[1]);
-      annotations.push({
-        section,
-        evidenceClass: fields["class"] ?? "",
-        source: fields["source"] ?? null,
-        verifiedHash: fields["verified_hash"] ?? null,
-        lastVerified: fields["last_verified"] ?? null,
-      });
-    }
-  }
-  return annotations;
-}
-
-function joinProvenance(
-  annotations: Annotation[],
-  tracked: Record<string, string>,
-  repos: Record<string, string>,
-): JoinResult {
-  const trackedPages: Record<string, string> = {};
-  for (const [u, hash] of Object.entries(tracked)) {
-    if (u.startsWith("http://") || u.startsWith("https://")) trackedPages[u] = hash;
-  }
-
-  const result: JoinResult = {
-    moved: [],
-    current: [],
-    unbound: [],
-    untracked: [],
-    unattributed: [],
-  };
-  const cited = new Set<string>();
-
-  for (const ann of annotations) {
-    if (ann.evidenceClass !== "harness" || !ann.source) continue;
-
-    let current: string;
-    let prefixMatch: boolean;
-    if (ann.source in trackedPages) {
-      current = trackedPages[ann.source];
-      prefixMatch = false;
-    } else if (ann.source in repos) {
-      current = repos[ann.source];
-      prefixMatch = true;
-    } else {
-      result.untracked.push({
-        section: ann.section,
-        source: ann.source,
-        verifiedHash: ann.verifiedHash,
-        currentHash: null,
-        lastVerified: ann.lastVerified,
-      });
-      continue;
-    }
-
-    cited.add(ann.source);
-    const finding: Finding = {
-      section: ann.section,
-      source: ann.source,
-      verifiedHash: ann.verifiedHash,
-      currentHash: current,
-      lastVerified: ann.lastVerified,
-    };
-    // Falsy, not just non-null: an annotation with a present-but-blank
-    // verified_hash must not read as verified via a vacuous prefix match.
-    if (!ann.verifiedHash) {
-      result.unbound.push(finding);
-      continue;
-    }
-    const matches = prefixMatch
-      ? current.startsWith(ann.verifiedHash)
-      : current === ann.verifiedHash;
-    (matches ? result.current : result.moved).push(finding);
-  }
-
-  result.unattributed = Object.keys(trackedPages)
-    .filter((u) => !cited.has(u))
-    .sort();
-  return result;
-}
-
-function loadHashState(root: string): Record<string, unknown> {
-  const p = path.join(root, ".skill-maintainer", "state", "upstream_hashes.json");
-  if (!fs.existsSync(p)) return {};
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8"));
-  } catch {
-    return {};
-  }
-}
-
-// ============================================================================
 // Repo hygiene
 // ============================================================================
 
@@ -843,58 +667,8 @@ export function checkRepoHygiene(root: string): RepoCheckResult[] {
         : "",
   });
 
-  // 5. best_practices.md provenance. Two arms, because a hash-only join lies
-  // on its own: it reads STORED hashes, so it reports a comfortable zero when
-  // nobody has fetched in months. The join says what to conclude; the date
-  // says when to go look.
-  const bpPath = path.join(root, ".skill-maintainer", "best_practices.md");
-  if (fs.existsSync(bpPath)) {
-    const content = fs.readFileSync(bpPath, "utf-8");
-    const state = loadHashState(root);
-    const tracked: Record<string, string> = {};
-    for (const [u, hash] of Object.entries(state)) {
-      if (typeof hash === "string") tracked[u] = hash;
-    }
-    const repos: Record<string, string> =
-      typeof state.local_repos === "object" && state.local_repos !== null
-        ? (state.local_repos as Record<string, string>)
-        : {};
-    const join = joinProvenance(parseAnnotations(content), tracked, repos);
-    const harnessSections =
-      join.moved.length + join.current.length + join.unbound.length + join.untracked.length;
-    const scope =
-      `${harnessSections} harness annotations: ${join.current.length} current, ` +
-      `${join.unbound.length} unbound, ${join.untracked.length} untracked source`;
-    results.push({
-      check: "best_practices provenance",
-      passed: join.moved.length === 0,
-      detail:
-        join.moved.length === 0
-          ? scope
-          : `${join.moved.length} moved: ` +
-            join.moved.map((f) => `${f.section} (${f.source.split("/").pop()})`).join(", "),
-    });
-
-    const hashesPath = path.join(root, ".skill-maintainer", "state", "upstream_hashes.json");
-    if (fs.existsSync(hashesPath)) {
-      const mtimeStr = fs.statSync(hashesPath).mtime.toISOString().slice(0, 10);
-      const age = daysSince(mtimeStr) ?? Number.MAX_SAFE_INTEGER;
-      results.push({
-        check: "upstream hash state fresh",
-        passed: age <= STALE_DAYS,
-        detail:
-          age <= STALE_DAYS
-            ? `fetched ${age}d ago`
-            : `fetched ${age}d ago > ${STALE_DAYS}d -- run \`skill-maintain upstream\``,
-      });
-    } else {
-      results.push({
-        check: "upstream hash state fresh",
-        passed: false,
-        detail: "no upstream_hashes.json -- the provenance join has nothing to compare against",
-      });
-    }
-  }
+  // 5. (retired 2026-11-04 with best_practices.md: the provenance join and
+  //    the upstream hash freshness arm that dated it.)
 
   // 6. Version alignment across plugin.json, marketplace.json, pyproject.toml,
   //    and any authored package.json.

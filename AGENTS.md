@@ -62,9 +62,10 @@ locations (`~/.claude/...`, `~/.gemini/...`, `$HOME/.config/...`), explicit plac
 generic user path is. `skill-maintain test` catches in-repo absolute paths
 written any other way.
 
-**3. `best_practices.md` has one copy:**
-`skills/skill-maintainer/references/best_practices.md`, which `/maintain` reads
-here and in every install. Editing it triggers invariant 1.
+**3. Retired 2026-11-04.** `best_practices.md` was deleted: nothing read it
+while a skill was being written. This repo's own rules for writing skills,
+plugins and checks are `.claude/rules/skills.md`, `plugins.md` and
+`controls.md`; how the platform behaves is Claude Code's documentation.
 
 ## Session end
 

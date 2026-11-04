@@ -10,7 +10,7 @@ During `/maintain` Phase 1 (after pulling sources), scan recent commits to key r
 - `coderef/skills`: description rewrites, frontmatter pattern evolution, new skill structures
 - `coderef/claude-plugins-official`: plugin manifest changes, new hook patterns, agent conventions
 
-Approach: `git log --oneline --since="last maintain date"` + `git diff` on SKILL.md and plugin.json files. Surface commit messages and diffs that touch skill descriptions, frontmatter fields, or validation logic. Feed to Claude in Phase 4 as evidence for best_practices.md updates.
+Approach: `git log --oneline --since="last maintain date"` + `git diff` on SKILL.md and plugin.json files. Surface commit messages and diffs that touch skill descriptions, frontmatter fields, or validation logic. Feed to Claude as evidence for updates to the `.claude/rules/` house rules.
 
 Also consider: scanning merged PRs and issue discussions (via `gh pr list --state merged`) for rationale behind changes. Accepted PRs are a signal of what the ecosystem considers good practice.
 
