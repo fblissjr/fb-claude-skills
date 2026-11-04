@@ -1,8 +1,8 @@
 ---
 name: heylook-provider
-description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint (its OpenAI-compatible route was removed in 1.79.66). Use when adding heylook as a provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling an in-flight request, when using its conversation store or presets, when sending images or audio to a local model, or when porting an OpenAI-SDK client off the removed route. Carries what an Anthropic SDK habit gets wrong here - runtime discovery of install-local model ids, capability gating, client-side image resize, and its differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
+description: Wire an application to heylook (heylookitsanllm), a local multimodal LLM server on Apple Silicon serving MLX and gguf models over one Anthropic Messages-conformant /v1/messages endpoint. Use when adding heylook as a provider alongside Gemini, OpenAI or Anthropic, when a heylook request answers 400/403/404/422/503, when parsing its SSE stream, when cancelling a request or ending its thinking early, when computing embeddings, when using its conversation store or presets, when sending images or audio to a local model, or when porting an OpenAI-SDK client off its removed OpenAI route. Carries what an Anthropic SDK habit gets wrong here - runtime discovery of install-local model ids, capability gating, client-side image resize, and its differences from Anthropic's spec. Not for calling Gemini as a tool (that is gemini-bridge), and not for working inside the heylook server codebase itself.
 metadata:
-  verified_against: "heylookitsanllm 2.0.204"
+  verified_against: "heylookitsanllm 2.0.221"
 ---
 
 # heylook as an inference provider
@@ -38,7 +38,7 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/probe.py --base http://localhost:8000 --need
 
 Exit 2: no served model has every required capability (an empty roster counts). Exit 1: it could not read the server; the message says unreachable, refused, or not heylook's shape. Discovery is never gated, so a 401 is something in front of heylook, and a 403 is heylook's Host check (see `<operations>`).
 
-**Gate features on `capabilities`, not `modalities`.** `capabilities` is what the server will serve; `modalities` is what the checkpoint author declared (MLX strips audio towers at load). Finer controls come from each row's `engine` object: context length, the thinking switch and depth vocabulary, which request fields the engine reads (hide a control whose field is not in `engine.decoding.request_fields`). Most of it is facts, `{value, provenance, source}`, read at `.value`; `engine.thinking` is a plain object. Shape: `references/wire_reference.md` (Discovery endpoints).
+**Gate features on `capabilities`, not `modalities`.** A chat selector filters on `chat`: embedding models list `embedding` and their input modalities, no `chat`, and generation sent to one is a 400; they are served on `POST /v1/embeddings` (`references/embeddings.md`). `capabilities` is what the server will serve; `modalities` is what the checkpoint author declared (MLX strips audio towers at load). Finer controls come from each row's `engine` object: context length, the thinking switch and depth vocabulary, which request fields the engine reads (hide a control whose field is not in `engine.decoding.request_fields`). Most of it is facts, `{value, provenance, source}`, read at `.value`; `engine.thinking` is a plain object. Shape: `references/wire_reference.md` (Discovery endpoints).
 
 On MLX, the advertised `vision` capability and the refusal come from one resolver. Keep handling the refusal anyway, because three arms stay open:
 
@@ -96,6 +96,7 @@ After a stream's headers flush the status is already 200, so a late refusal arri
 - **One model is resident by default (LRU), and one engine family at a time**: switching between MLX and gguf evicts the other. Batch work by model.
 - **Inference has no API key.** An admin token gates admin routes only; an integration needs neither. **The Host check** answers 403 to a `Host` that is not an IP, `localhost`, the machine's own name or an `allowed_hosts` entry in `heylook.toml`: a LAN client using a DNS name hits it. **There is no CORS**: a browser app is same-origin or proxies.
 - **Send a fresh `X-Request-ID` on every request**: a new UUID each time. A reused id cancels every request sharing it. It is echoed on every response and is the cancel handle: `DELETE /v1/requests/{request_id}`. Without it, the server's id is one you never learn on the non-streaming path.
+- **End thinking early with the same id**: `POST /v1/requests/{request_id}/reasoning-end` closes the open thinking block at the next token and the run goes on to its answer. Offer it where `thinking_budget` is advertised; a 200 means signalled, not closed, so watch the stream for the block change.
 - **Cancel non-streaming calls explicitly.** A stream is cancelled by hanging up; a non-streaming request keeps holding the GPU after the client leaves. A cancelled run returns what it produced with `stop_reason: "max_tokens"`, indistinguishable from budget exhaustion, so track your own cancels. Detail: `references/wire_reference.md`.
 - **Telemetry is always on and never guaranteed.** A run with no tokens carries only its two durations; `performance` and every field in it are optional: present is a real measurement, absent means this mode could not measure it. The throughput denominator is `generation_duration_ms` (excludes queue wait and load). Time to first token is never returned: time the first delta yourself.
 </operations>
@@ -106,6 +107,7 @@ After a stream's headers flush the status is already 200, so a late refusal arri
 | `references/wire_reference.md` | Every `/v1/messages` field, block, stream event, error, and the `/v1/models` row | Writing or debugging a request |
 | `references/older_servers.md` | Every version boundary, by topic | The server predates `metadata.verified_against`, or the client must support a range |
 | `references/openai_wire.md` | Porting off the removed `/v1/chat/completions` | An OpenAI-SDK client points at heylook, or that route answers 404 |
+| `references/embeddings.md` | `POST /v1/embeddings`: request, discovery, limits, errors | Embedding text, images, audio or video |
 | `references/routes.md` | Every route by audience; the conversation store | A route beyond inference, or server-side history |
 | `references/gemini_migration.md` | Field-by-field Gemini mapping and structural mismatches | Adding heylook beside a Gemini integration |
 | `references/client_recipes.md` | Streaming clients in Python and TypeScript; image resize and image-plan | Writing the client |

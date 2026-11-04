@@ -1,5 +1,15 @@
 # changelog
 
+## 1.77.0
+
+### changed
+- **`heylook-provider` 0.22.0 -> 0.23.0: re-verified against heylook 2.0.221 (was 2.0.204).** The live OpenAPI document lists 58 operations, four more than 2.0.204; `routes.md` now covers all of them, checked by diffing its tables against the live schema. Each change below was checked against a running 2.0.221 server unless noted.
+  - **Embeddings (`references/embeddings.md`, new).** `POST /v1/embeddings` came back in a 2.0.204 commit that did not bump the version and the skill never covered it. The new reference covers discovery through `engine.embedding`, the item and block shape, the response, the limits and the error table. Live: a two-item request at `dimensions: 256` returned two unit vectors in index order, an unknown model answered 404, and an extra field (`temperature`) answered 422. That strictness is the reverse of `/v1/messages`.
+  - **Chat selectors filter on `chat`.** Embedding rows list `embedding` and their input modalities, with no `chat`, and `/v1/messages` to one is a 400. Live: both confirmed. `SKILL.md` and `wire_reference.md` say so, and the 400 row gains the case.
+  - **Ending thinking early (2.0.215).** `POST /v1/requests/{id}/reasoning-end` and the conversation route `.../generate/reasoning-end`. Live on a small MLX Qwen3.5 model: a signal at the twentieth thinking delta answered `{"signalled": 1}`, the thinking block closed and a text block followed, and the same id answered 404 after the run ended and 422 when malformed. The gguf arm was read from source and not run. A 200 means signalled, not closed.
+  - **`engine.template.caps` (2.0.216)** and `GET /v1/admin/config/logs` (2.0.216) are documented. The `/v1/models` shape gains the `steering` and `embedding` slots.
+  - **`older_servers.md`** gains the 2.0.204, 2.0.215 and 2.0.216 boundaries and notes that the 2.0.40 removal of the old embeddings route is not the same operation. `verified_against` moves to 2.0.221.
+
 ## 1.76.0
 
 ### changed

@@ -152,6 +152,11 @@ the range spans.
 - **Before 2.0.163** rows had no `sampler_sources`.
 - `engine.thinking.depth.off` arrived in 2.0.159; the schema's own
   description of `engine.thinking` omitted it until 2.0.179.
+- **Before 2.0.204** there were no embedding models and no `embedding`
+  capability or `engine.embedding` slot. The route came back in a commit that
+  did not bump the version past 2.0.204, so treat 2.0.205 as the first build
+  that is sure to have it, or probe for `engine.embedding`.
+- **Before 2.0.216** `engine.template` had no `caps`.
 
 ## Access
 
@@ -167,6 +172,9 @@ the range spans.
 
 - **1.79.66** removed `/v1/chat/completions` and
   `/v1/batch/chat/completions` (see `openai_wire.md`).
+- **2.0.40** removed `/v1/hidden_states*` and the old mean-pooling
+  `/v1/embeddings`; the current `/v1/embeddings` (`embeddings.md`) is a
+  different operation that arrived with 2.0.204 (see Capability gating).
 
 ## Cancellation and request ids
 
@@ -184,6 +192,11 @@ the range spans.
   the `generation_in_progress` envelope.
 - **Before 2.0.138** the busy 503 and 4xx responses carried no
   `X-Request-ID` echo (2.0.141 completed the rest).
+- **Before 2.0.215** there was no way to end thinking early: neither
+  `POST /v1/requests/{id}/reasoning-end` nor the conversation route existed
+  (absent from those servers' `/openapi.json`). Cap thinking up front with
+  `thinking.budget_tokens` instead.
+- **Before 2.0.216** there was no `GET /v1/admin/config/logs`.
 
 ## Model load and residency
 

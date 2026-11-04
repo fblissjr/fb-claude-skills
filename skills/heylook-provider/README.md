@@ -74,7 +74,7 @@ route grouped by who calls it, with the conversation store's differences from
 boundary for servers older than the verified one, porting off the removed
 OpenAI route, Gemini migration, and client code run against a live server:
 streaming, a cancellable non-streaming call, the conversation store, preset
-expansion, thinking controls)
+expansion, thinking controls; and the `POST /v1/embeddings` operation)
 and a stdlib `probe.py` that prints a capability matrix from a live server,
 with each model's context length and thinking-depth vocabulary.
 The body states current behaviour only, so it stays under the size at which

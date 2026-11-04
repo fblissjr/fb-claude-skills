@@ -346,7 +346,7 @@ Aggregates are at `GET /v1/performance/profile/{1h|6h|24h|7d}`.
 | Code | Condition | Body |
 |---|---|---|
 | 400 | No `model`, or an unknown or disabled one | reason plus available ids in `detail` |
-| 400 | The model refuses the input: images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` on an MLX harmony model, a trailing assistant turn with media the template cannot continue, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
+| 400 | The model refuses the input: generation sent to an embedding model, images to a text-only model, audio to any MLX model, an image on a non-user turn on MLX, an undecodable image, a local file path on MLX, a prompt over the context window, an unoffered `reasoning_effort`, `budget_tokens` on an MLX harmony model, a trailing assistant turn with media the template cannot continue, `response_format` where it is refused (non-streaming; on a stream, see In-band errors) | message in `detail` |
 | 403 | Host check: the `Host` header is not an IP, `localhost`, one of the machine's own names, or an `allowed_hosts` entry in `heylook.toml` | names the fix |
 | 409 | A conversation-store write while that conversation is generating | `{"error":{"code":"generation_in_progress"}}`, for a second `generate` and for any message write or conversation delete: restore the user's text and retry after the run ends |
 | 422 | Body failed validation: a refused field (table above), an out-of-range value, a media block with no payload | FastAPI validation detail |
@@ -410,6 +410,31 @@ DELETE.
 **Cancellation is cooperative**: an abort flag checked between tokens, then a
 normal unwind. A partial run against a conversation persists what it produced.
 
+### Ending thinking early
+
+```http
+POST /v1/requests/{request_id}/reasoning-end
+```
+
+Closes the run's open thinking block at the next token boundary; the run is
+not stopped. The stream closes its `thinking` block, opens a `text` block and
+ends as it would have. Same id rules as DELETE (every request sharing the id
+is signalled):
+
+| Response | Meaning |
+|---|---|
+| `200 {"signalled": N, "request_id": "..."}` | N in-flight generations were signalled. **Signalled, not closed** |
+| `404` | Nothing is running under that id; usually too late |
+| `422` | Malformed id |
+
+It works where the engine can close the model's thinking format, which is
+what `thinking_budget` advertises: offer the control there and only while a
+`thinking` block is open. On a run with thinking off, or once the reply has
+started, it is still a 200: MLX ignores it and gguf leaves it to
+llama-server. It does not extend `max_tokens`; the answer gets what the
+thought left. A conversation generate uses
+`POST /v1/conversations/{id}/generate/reasoning-end` (`routes.md`).
+
 **There is no cancellation stop value.** A cancelled run returns what it
 generated with `stop_reason: "max_tokens"`, unless the engine had already
 reported `stop_sequence`. It is indistinguishable from budget exhaustion:
@@ -439,7 +464,9 @@ reported `stop_sequence`. It is indistinguishable from budget exhaustion:
                     "budget": { "enforced", "reason" }, "template": "..." },
       "image":    { "...": "image geometry" },
       "speculative": { "drafter", "type", "in_force" },
-      "decoding": { "mode": { "value": "autoregressive" }, "request_fields": { "value": null } }
+      "decoding": { "mode": { "value": "autoregressive" }, "request_fields": { "value": null } },
+      "steering": null,
+      "embedding": null
     } } ] }
 ```
 
@@ -447,6 +474,10 @@ reported `stop_sequence`. It is indistinguishable from budget exhaustion:
 author's description. Gate on the former. The capabilities are `chat`,
 `vision`, `audio` (gguf only), `thinking` (a switch detected in the template in
 force), `reasoning_effort` (a detected depth control) and `thinking_budget`.
+An embedding model's row lists `embedding` plus its input modalities (`text`,
+`image`, `audio`, `video`) and no `chat`; its `engine.embedding` is the object
+`embeddings.md` describes, null on every chat model. Filter a chat selector on
+`chat`.
 
 The `engine` object has one shape on every engine and answers for unloaded
 models too. `runtime`, `context`, `settings`, `cache`, `decoding` and
@@ -464,6 +495,9 @@ plain objects, read directly (`client_recipes.md`, Thinking control, gives the
 - `engine.decoding.request_fields.value`: the request fields this engine path
   reads; null means every sampler field. Hide a control whose field is not
   listed.
+- `engine.template.caps`: llama-server's report of what the template accepts
+  (`chat_template_caps`), a fact whose `.value` is a name-to-bool map on a
+  loaded gguf model; `unknown` (null) while unloaded, `not_applicable` on MLX.
 
 `thinking_default` is what thinking resolves to when the request says nothing;
 label a "model default" control with it. `sampler_defaults` is what every

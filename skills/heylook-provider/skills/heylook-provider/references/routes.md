@@ -22,6 +22,8 @@ tables below cover every operation it lists.
 | `POST /v1/models/{id}/load[?warm=true]` | Pay a model load up front |
 | `POST /v1/models/{id}/image-plan` | Tokens and resize target per image size; resident models only (409 otherwise) |
 | `DELETE /v1/requests/{request_id}` | Cancel by `X-Request-ID` |
+| `POST /v1/requests/{request_id}/reasoning-end` | Close the open thinking block early, by `X-Request-ID` (`wire_reference.md`) |
+| `POST /v1/embeddings` | One vector per input item, embedding models only (`embeddings.md`) |
 
 ## Conversation store
 
@@ -39,6 +41,7 @@ chat page uses it.
 | `PUT/DELETE /v1/conversations/{id}/messages/{msg_id}` | Edit or delete one message |
 | `POST /v1/conversations/{id}/generate` | Generate into the conversation |
 | `DELETE /v1/conversations/{id}/generate` | Stop the active generation; the partial persists. 404 when none is active |
+| `POST /v1/conversations/{id}/generate/reasoning-end` | Close the active generation's open thinking block; `{"status": "ending_reasoning", "conversation_id"}`, 404 when none is active |
 | `POST /v1/conversations/{id}/prompt` | The exact prompt string generate would feed the model; persists nothing |
 | `GET /v1/conversations/{id}/media/{media_id}` | A stored image or audio blob |
 
@@ -139,6 +142,7 @@ so absent fields still fall to the server cascade.
 | `POST /v1/admin/models/{id}/reload` | Unload, then load and warm, as one operation |
 | `GET/PUT/DELETE /v1/admin/models/{id}/chat-template` | Read, override or reset the chat template in force |
 | `GET/PUT /v1/admin/config`, `DELETE /v1/admin/config/{key}` | Server operational settings |
+| `GET /v1/admin/config/logs?stream={events\|metrics}&limit=` | Recent observability JSONL records, newest first (`limit` 1-500) |
 | `POST /v1/admin/reload` | Re-read config and clear loaded models without a restart |
 
 ## Maintenance and observability
