@@ -2,12 +2,9 @@ last updated: 2026-11-04
 
 # skill-maintainer
 
-Maintenance for a skills repo. `/maintain` runs the maintenance pass:
-- pull tracked sources and upstream docs;
-- check quality;
-- audit controls and sample mutations on recently changed subjects.
-
-`/sync-versions` bumps a plugin's version everywhere it lives. The checks themselves are the `skill-maintain` CLI in this repo's `tools/skill-maintainer/`, which the plugin does not ship.
+`/sync-versions` bumps a plugin's version everywhere it lives. (`/maintain`, the
+orchestrated maintenance pass, was retired 2026-11-04; its CLI steps still run
+on their own.) The checks themselves are the `skill-maintain` CLI in this repo's `tools/skill-maintainer/`, which the plugin does not ship.
 
 ## installation
 
@@ -29,22 +26,18 @@ claude --plugin-dir /path/to/fb-claude-skills/skills/skill-maintainer
 
 | Skill | Invocation | What it does |
 |-------|------------|--------------|
-| `maintain` | `/skill-maintainer:maintain` | Full maintenance pass: source pulls, upstream checks, quality report, controls audit, mutation sample |
 | `sync-versions` | `/skill-maintainer:sync-versions <plugin> <ver>` | Bump a plugin's version across `plugin.json`, `marketplace.json`, and `pyproject.toml` where one ships. A major bump waits for your confirmation |
 
 ## usage examples
 
 ```
-# full maintenance pass (sources + upstream + quality + controls + mutation sample)
-/skill-maintainer:maintain
-
 # bump path-privacy's version everywhere it lives
 /skill-maintainer:sync-versions path-privacy 0.7.4
 ```
 
 ## relationship to the CLI package
 
-The `skill-maintain` CLI (`tools/skill-maintainer/`) holds the checks: `validate`, `test`, `quality`, `upstream`, `sources`, `lint` and `init`. Install it with `uv tool install ./tools/skill-maintainer` from a clone of this repo. `/maintain` uses it when it is on the PATH and falls back to equivalent manual checks when it is not.
+The `skill-maintain` CLI (`tools/skill-maintainer/`) holds the checks: `validate`, `test`, `quality`, `upstream`, `sources`, `lint` and `init`. Install it with `uv tool install ./tools/skill-maintainer` from a clone of this repo.
 
 ## authoring rules
 

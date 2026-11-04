@@ -46,8 +46,6 @@ tracked git repos           upstream, sources, quality ──►     state/upstr
  paths)
 ```
 
-The `/maintain` slash command orchestrates the pipeline in sequence: `sources → upstream → quality → review`.
-
 Skill and plugin discovery skip `_deprecated` directories along with the usual `__pycache__`, `.backup`, `node_modules`, `.git`, `coderef`, `.venv`, and `internal`. `_deprecated` holds units kept for reference but no longer published; excluding it keeps them out of quality reports, token budgets, and version checks.
 
 ## what runs automatically
@@ -93,7 +91,7 @@ skill-maintain test
 # after making changes -- nothing should go green to red
 skill-maintain test --verbose
 
-# full maintenance pass (or use /maintain in Claude Code)
+# refresh tracked repos and docs snapshots, then the quality report
 skill-maintain sources
 skill-maintain upstream
 skill-maintain quality
@@ -125,23 +123,16 @@ Nothing should go from green to red unless you intended it. Use `--verbose` to s
 
 ### periodic maintenance
 
-```
-/skill-maintainer:maintain
-```
-
-Pulls upstream sources, checks for doc changes, runs the quality report, audits controls and samples mutations. Or run the CLI phases individually:
+There is no orchestrating skill (`/maintain` was retired 2026-11-04). Run the
+pieces when you want them:
 
 ```bash
-skill-maintain sources   # phase 1: pull tracked repos
-skill-maintain upstream  # phase 2: check upstream docs
-skill-maintain quality   # phase 3: validate all skills
+skill-maintain sources   # pull tracked repos
+skill-maintain upstream  # refresh the docs snapshots and report what moved
+skill-maintain quality   # validate all skills
 ```
 
-The review phase never auto-writes. Claude shows proposed changes and waits for approval.
-
-**Where:** `/skill-maintainer:maintain` (plugin skill, replaces legacy `.claude/commands/maintain.md`)
-
-### applying best practices to another repo
+### running the checks on another repo
 
 Two options depending on whether you want a permanent install or a one-off check.
 
@@ -283,7 +274,7 @@ Run `--write` after a trim to lock the saving in, or to raise a ceiling on purpo
 
 Fetches `https://code.claude.com/docs/llms-full.txt`, splits by `Source: <url>` delimiters into per-page sections, hashes each watched page, and reports changes.
 
-Watched pages are configured in `.skill-maintainer/config.json` under `upstream_urls`, plus any `watch_only_urls` (see [configuration](#configuration)). Defaults cover: skills, plugins, plugins-reference, discover-plugins, plugin-marketplaces, hooks-guide, hooks, sub-agents, memory. Watch-only pages are labelled `(watch-only)` in the report.
+Watched pages are configured in `.skill-maintainer/config.json` under `upstream_urls` (see [configuration](#configuration)). Defaults cover: skills, the plugins overview, create, manifest, components, CLI and marketplace pages, discover-plugins, hooks-guide, hooks, sub-agents, memory.
 
 ```bash
 skill-maintain upstream
@@ -334,10 +325,7 @@ Per-repo config lives at `.skill-maintainer/config.json`. Created by `skill-main
 {
   "upstream_urls": [
     "https://code.claude.com/docs/en/skills",
-    "https://code.claude.com/docs/en/plugins"
-  ],
-  "watch_only_urls": [
-    "https://code.claude.com/docs/en/workflows"
+    "https://code.claude.com/docs/en/plugins/overview"
   ],
   "tracked_repos": [
     "coderef/agentskills",
@@ -351,7 +339,7 @@ To add a tracked source, add an entry to `tracked_repos` and clone or symlink th
 
 To add a watched upstream page, add its URL to `upstream_urls`. The page must appear in `llms-full.txt`.
 
-`watch_only_urls` pages are fetched, hashed, snapshotted and reported like `upstream_urls`, labelled watch-only. (The split existed for the retired `best_practices.md` provenance join.) A URL in both lists is a config error: `upstream` exits non-zero naming the URL. The key is optional; absent means empty, and `init` doesn't write it.
+`watch_only_urls`, a second list kept for the retired `best_practices.md` provenance join, was merged into `upstream_urls`; a config that still has it is refused by name.
 
 ## state files
 
@@ -362,7 +350,7 @@ Both state files live at `.skill-maintainer/state/`. They are gitignored and aut
 ```json
 {
   "https://code.claude.com/docs/en/skills": "7fdcca7ff9e64a8c",
-  "https://code.claude.com/docs/en/plugins": "6f472f023ede34f8",
+  "https://code.claude.com/docs/en/plugins/overview": "6f472f023ede34f8",
   "local_repos": {
     "coderef/agentskills": "abc123def456...",
     "coderef/mcp/modelcontextprotocol": "789012ghi345..."

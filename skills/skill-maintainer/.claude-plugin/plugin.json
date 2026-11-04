@@ -1,7 +1,7 @@
 {
   "name": "skill-maintainer",
-  "version": "0.37.0",
-  "description": "The maintenance pass for a skills repo (/maintain: source pulls, upstream doc changes, quality, controls audit, mutation sample) and version bumps across every file that carries one (/sync-versions). The checks themselves are the separate skill-maintain CLI.",
+  "version": "0.38.0",
+  "description": "Version bumps across every file that carries a plugin's version: plugin.json, the marketplace entry and a shipped pyproject.toml (/sync-versions). The checks themselves are the separate skill-maintain CLI.",
   "author": {
     "name": "fblissjr"
   },

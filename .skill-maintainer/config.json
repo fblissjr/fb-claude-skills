@@ -1,9 +1,14 @@
 {
   "upstream_urls": [
     "https://code.claude.com/docs/en/skills",
-    "https://code.claude.com/docs/en/plugins",
-    "https://code.claude.com/docs/en/plugins-reference",
-    "https://code.claude.com/docs/en/plugin-marketplaces",
+    "https://code.claude.com/docs/en/plugins/overview",
+    "https://code.claude.com/docs/en/plugins/create",
+    "https://code.claude.com/docs/en/plugins/manifest-reference",
+    "https://code.claude.com/docs/en/plugins/components",
+    "https://code.claude.com/docs/en/plugins/cli-reference",
+    "https://code.claude.com/docs/en/plugins/marketplace-reference",
+    "https://code.claude.com/docs/en/plugins/create-marketplace",
+    "https://code.claude.com/docs/en/plugins/host-marketplace",
     "https://code.claude.com/docs/en/hooks-guide",
     "https://code.claude.com/docs/en/hooks",
     "https://code.claude.com/docs/en/sub-agents",
@@ -19,9 +24,7 @@
     "https://code.claude.com/docs/en/tools-reference",
     "https://code.claude.com/docs/en/context-window",
     "https://code.claude.com/docs/en/model-config",
-    "https://code.claude.com/docs/en/output-styles"
-  ],
-  "watch_only_urls": [
+    "https://code.claude.com/docs/en/output-styles",
     "https://code.claude.com/docs/en/artifacts",
     "https://code.claude.com/docs/en/channels",
     "https://code.claude.com/docs/en/channels-reference",

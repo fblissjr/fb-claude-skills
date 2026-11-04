@@ -4,7 +4,7 @@ Items for future development. Not prioritized -- just captured.
 
 ## git log pattern mining
 
-During `/maintain` Phase 1 (after pulling sources), scan recent commits to key repos for patterns relevant to skill authoring:
+After `skill-maintain sources` pulls the tracked repos, scan recent commits to key repos for patterns relevant to skill authoring:
 
 - `coderef/agentskills`: spec changes, new validation rules, description conventions
 - `coderef/skills`: description rewrites, frontmatter pattern evolution, new skill structures

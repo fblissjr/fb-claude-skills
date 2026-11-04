@@ -1,5 +1,15 @@
 # changelog
 
+## 1.79.0
+
+### removed
+- **`/skill-maintainer:maintain` is retired (`skill-maintainer` 0.37.0 -> 0.38.0, `skill-maintain` CLI 0.45.0 -> 0.46.0).** The owner never ran it. A dry run with the skill deleted in a scratch worktree showed nothing depending on it: `skill-maintain test` 257 passed / 0 failed (four fewer checks, the skill's own), the tool tests passed with only the dashboard-agreement tests skipping for an unbuilt bundle, and `claude plugin validate --strict` passed. The plugin now carries `/sync-versions` alone.
+  - **The CLI steps it ran stay.** Each has a use of its own: `upstream` keeps the docs snapshots that `cc_schema.py`, `plugin-patterns.md` and the gemini-bridge design read; `quality`, `lint` and `init` are standalone; `sources` pulls the reference checkouts. Its controls-audit and mutation-sample phases had no other runner: `/postmortem:control-audit` and `/postmortem:test-audit` cover them on demand.
+  - **`watch_only_urls` is merged into `upstream_urls`.** The split existed for the provenance join retired in 1.78.0; afterwards the two lists differed only by a label. `.skill-maintainer/config.json` lists every page in `upstream_urls`, and a config still carrying `watch_only_urls` is refused by name (`ConfigError`, `upstream` exits 2 before fetching) rather than half-read. `test_watch_only_urls.py` is replaced by `test_upstream_urls.py`.
+
+### fixed
+- **Three tracked plugin pages had silently stopped updating.** Upstream split its plugin docs into `docs/en/plugins/...` subpages, so `plugins`, `plugins-reference` and `plugin-marketplaces` no longer appear in `llms-full.txt`. `upstream` printed `NOT FOUND` for them and the snapshots stayed at 2026-09-24. They are replaced in `.skill-maintainer/config.json` and in `DEFAULT_UPSTREAM_URLS` (what `init` writes for a new repo) by `plugins/overview`, `create`, `manifest-reference`, `components`, `cli-reference`, `marketplace-reference`, `create-marketplace` and `host-marketplace`. Live: 37 watched, 37 found.
+
 ## 1.78.0
 
 ### removed

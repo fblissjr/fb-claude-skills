@@ -19,7 +19,7 @@ from skill_maintainer.config import (
     ConfigError,
     append_event,
     get_llms_full_url,
-    get_watch_pages,
+    get_upstream_urls,
     hashes_file,
     load_hashes,
     record_fetch,
@@ -96,7 +96,7 @@ def compute_delta(old: str | None, new: str) -> dict:
     }
 
 
-def _log_event(root: Path, changed: list[dict], watch_only: set[str]) -> None:
+def _log_event(root: Path, changed: list[dict]) -> None:
     append_event(root, {
         "type": "upstream_check",
         "date": date.today().isoformat(),
@@ -107,7 +107,6 @@ def _log_event(root: Path, changed: list[dict], watch_only: set[str]) -> None:
                 "lines_added": c["delta"]["lines_added"],
                 "lines_removed": c["delta"]["lines_removed"],
                 "chars_delta": c["delta"]["chars_delta"],
-                **({"watch_only": True} if c["url"] in watch_only else {}),
             }
             for c in changed
         ],
@@ -140,11 +139,7 @@ def main(args=None):
 
     root = parsed.dir
 
-    # Determine which pages to watch. `watch_only_urls` are fetched, hashed,
-    # snapshotted and reported exactly like `upstream_urls`; the only
-    # difference is downstream, in the provenance join, where an uncited one is
-    # not a finding. A --url-file replaces both lists.
-    watch_only: list[str] = []
+    # Determine which pages to watch. A --url-file replaces upstream_urls.
     if parsed.url_file and parsed.url_file.exists():
         watch_pages = [
             line.strip() for line in parsed.url_file.read_text().splitlines()
@@ -152,16 +147,13 @@ def main(args=None):
         ]
     else:
         try:
-            tracked_urls, watch_only = get_watch_pages(root)
+            watch_pages = get_upstream_urls(root)
         except ConfigError as e:
             print(f"Config error: {e}", file=sys.stderr)
             sys.exit(2)
-        watch_pages = tracked_urls + watch_only
-    watch_only_set = set(watch_only)
 
     def label(url: str) -> str:
-        short = url.replace("https://code.claude.com/docs/en/", "")
-        return f"{short} (watch-only)" if url in watch_only_set else short
+        return url.replace("https://code.claude.com/docs/en/", "")
 
     llms_url = get_llms_full_url(root)
 
@@ -187,9 +179,7 @@ def main(args=None):
         if content is None:
             print(f"  NOT FOUND in llms-full.txt: {label(url)}", file=sys.stderr)
             # Drop any stale hash rather than carry it forward: a page that
-            # can no longer be fetched must stop being reported "current" by
-            # the provenance join below, and removing it here is what makes
-            # it fall into that join's `untracked` bucket instead.
+            # can no longer be fetched must not keep reading as unchanged.
             new_hashes.pop(url, None)
             continue
 
@@ -213,8 +203,7 @@ def main(args=None):
     # Report
     watched = len(watch_pages)
     found = sum(1 for u in watch_pages if u in sections)
-    watch_note = f" ({len(watch_only)} watch-only)" if watch_only else ""
-    print(f"\nWatched: {watched} pages{watch_note}, Found: {found}, Changed: {len(changed)}")
+    print(f"\nWatched: {watched} pages, Found: {found}, Changed: {len(changed)}")
     print()
 
     if changed:
@@ -243,6 +232,6 @@ def main(args=None):
         record_fetch(root)
 
     if changed and not parsed.no_log:
-        _log_event(root, changed, watch_only_set)
+        _log_event(root, changed)
 
     sys.exit(0)

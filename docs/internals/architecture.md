@@ -120,7 +120,7 @@ because an underpowered zero decides nothing.
 
 Each iteration of the compound system generates signal -- what gets created, what gets discarded, what succeeds, what fails. That signal feeds the next cycle. Coding agents are getting better because this loop exists.
 
-In this repo: pipeline creates skill, agent uses skill, human reviews, pipeline refines skill. The maintenance system (`/maintain`, quality checks, upstream detection) implements this loop explicitly.
+In this repo: pipeline creates skill, agent uses skill, human reviews, pipeline refines skill. The maintenance tooling (quality checks, upstream detection) implements part of this loop; the human review step has no orchestrating skill since `/maintain` was retired.
 
 Build the feedback mechanism where users already spend their days. Adoption of new systems is hard. Signal that requires switching tools gets ignored.
 

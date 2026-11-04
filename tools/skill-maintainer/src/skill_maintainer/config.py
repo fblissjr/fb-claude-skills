@@ -11,10 +11,15 @@ STATE_DIR = "state"
 
 DEFAULT_UPSTREAM_URLS = [
     "https://code.claude.com/docs/en/skills",
-    "https://code.claude.com/docs/en/plugins",
-    "https://code.claude.com/docs/en/plugins-reference",
+    "https://code.claude.com/docs/en/plugins/overview",
+    "https://code.claude.com/docs/en/plugins/create",
+    "https://code.claude.com/docs/en/plugins/manifest-reference",
+    "https://code.claude.com/docs/en/plugins/components",
+    "https://code.claude.com/docs/en/plugins/cli-reference",
     "https://code.claude.com/docs/en/discover-plugins",
-    "https://code.claude.com/docs/en/plugin-marketplaces",
+    "https://code.claude.com/docs/en/plugins/marketplace-reference",
+    "https://code.claude.com/docs/en/plugins/create-marketplace",
+    "https://code.claude.com/docs/en/plugins/host-marketplace",
     "https://code.claude.com/docs/en/hooks-guide",
     "https://code.claude.com/docs/en/hooks",
     "https://code.claude.com/docs/en/sub-agents",
@@ -107,35 +112,19 @@ class ConfigError(ValueError):
 
 
 def get_upstream_urls(root: Path) -> list[str]:
+    """The docs pages `skill-maintain upstream` fetches, hashes and snapshots.
+
+    `watch_only_urls` was merged into this list on 2026-11-04, when the
+    provenance join that told the two apart was retired. A config still
+    carrying it is refused by name rather than half-read.
+    """
     cfg = load_config(root)
-    return cfg.get("upstream_urls", DEFAULT_UPSTREAM_URLS)
-
-
-def get_watch_only_urls(root: Path) -> list[str]:
-    """Pages fetched and reported every run that no section need cite.
-
-    Absent key means empty: `init` does not write it.
-    """
-    return load_config(root).get("watch_only_urls", [])
-
-
-def get_watch_pages(root: Path) -> tuple[list[str], list[str]]:
-    """`(upstream_urls, watch_only_urls)`, refusing a URL listed in both.
-
-    The two lists make different claims -- `upstream_urls` says the rules file
-    relies on the page, `watch_only_urls` says only that the owner reads it --
-    so a URL in both is ambiguous intent. Deduplicating would silently pick one
-    reading; raising names the URL and lets the owner pick.
-    """
-    tracked = get_upstream_urls(root)
-    watch_only = get_watch_only_urls(root)
-    overlap = [u for u in watch_only if u in set(tracked)]
-    if overlap:
+    if "watch_only_urls" in cfg:
         raise ConfigError(
-            "in both upstream_urls and watch_only_urls (keep each URL in one list): "
-            + ", ".join(overlap)
+            "watch_only_urls was merged into upstream_urls: move its entries "
+            "into upstream_urls and delete the key"
         )
-    return tracked, watch_only
+    return cfg.get("upstream_urls", DEFAULT_UPSTREAM_URLS)
 
 
 def get_llms_full_url(root: Path) -> str:

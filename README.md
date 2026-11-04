@@ -57,7 +57,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 | Plugin | Type | Description |
 |--------|------|-------------|
 | [plugin-toolkit](skills/plugin-toolkit/) | Skills + Agents | Analyze, polish, and manage Claude Code plugins |
-| [skill-maintainer](skills/skill-maintainer/) | Skills | `/maintain`: the maintenance pass (source pulls, upstream detection with per-page snapshots, quality, controls audit, mutation sample), and `/sync-versions`. The checks are the `skill-maintain` CLI below; this repo's authoring rules are its `.claude/rules/` |
+| [skill-maintainer](skills/skill-maintainer/) | Skills | `/sync-versions`: bump a plugin's version everywhere it lives. The checks are the `skill-maintain` CLI below; this repo's authoring rules are its `.claude/rules/` |
 | [skill-dashboard](apps/skill-dashboard/) | MCP App | Interactive quality dashboard: checks, token budgets, version alignment |
 
 ### cross-model bridges
@@ -227,7 +227,6 @@ Once installed, invoke as namespaced slash commands:
 /dangling-refs:retire            # Remove a unit without leaving references behind
 
 
-/skill-maintainer:maintain             # Full maintenance pass
 /skill-maintainer:sync-versions path-privacy 0.7.4  # Bump version across all sources
 ```
 
@@ -289,7 +288,7 @@ The server's `main.ts` supports both transports: `--stdio` for local, HTTP for r
 
 Two interfaces: a **plugin** for interactive use in Claude Code, and a **CLI package** for CI/headless automation.
 
-**Plugin**: install via the marketplace (see above), then use `/skill-maintainer:maintain` and `/skill-maintainer:sync-versions`.
+**Plugin**: install via the marketplace (see above), then use `/skill-maintainer:sync-versions`.
 
 **CLI**: available after `uv sync --all-packages` in this repo, or git-installable into other repos:
 
@@ -310,7 +309,7 @@ uv run skill-maintain sources           # pull tracked repos, detect changes
 uv run skill-maintain lint              # wiki sanity: orphans, count drift, broken links
 ```
 
-The `/skill-maintainer:maintain` skill orchestrates the full pipeline: `sources -> upstream -> quality -> review`. See [skill-maintainer CLI README](tools/skill-maintainer/README.md) for the full CLI reference and data flow diagram.
+See the [skill-maintainer CLI README](tools/skill-maintainer/README.md) for the full CLI reference.
 
 ## documentation
 

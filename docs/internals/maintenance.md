@@ -23,14 +23,13 @@ The pre-commit hook lives at `.git/hooks/pre-commit` and is **not tracked by git
 | What | Command |
 |------|---------|
 | Red/green test suite | `skill-maintain test` |
-| Full maintenance pass (pulls sources, checks upstream, runs quality, proposes best-practices updates) | `/skill-maintainer:maintain` |
 | Quick quality / budget | `skill-maintain quality` |
-| Upstream Claude Code doc change detection (per-page snapshots, line/char deltas). Pages come from `upstream_urls` in `.skill-maintainer/config.json`, plus `watch_only_urls`: pages followed on every refresh that `best_practices.md` need not cite, so an uncited one is not reported unattributed. A URL in both lists is a named config error | `skill-maintain upstream` |
+| Upstream Claude Code doc change detection (per-page snapshots, line/char deltas). Pages come from `upstream_urls` in `.skill-maintainer/config.json` | `skill-maintain upstream` |
 | Pull tracked source repos, detect changes | `skill-maintain sources` |
 | Bump version across plugin.json + marketplace.json + plugin pyproject.toml | `/skill-maintainer:sync-versions <plugin> <ver>` |
 | Wiki sanity (orphans in `docs/analysis/`, count drift in READMEs / AGENTS.md / CLAUDE.md) | `skill-maintain lint` |
 | Per-project dependency vulnerability scan | `/dev-conventions:dep-audit` |
-| Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`; listed as Phase 4 of `/skill-maintainer:maintain` so the cadence has an owner |
+| Controls audit: census + live-fire over everything check-shaped outside the test suite (hooks, validators, reminders) | `/postmortem:control-audit`, on demand |
 
 ## Lower-level CLI
 
@@ -183,6 +182,10 @@ currently have a general one.
 *Annotation 2026-08-04, later the same day: landed as Phase 6 of
 `/skill-maintainer:maintain` in plugin 0.20.0, per the release-time
 obligation below. The section stands as the design record.*
+
+*Retired 2026-11-04 with `/maintain` itself, which the owner never ran. The
+mutation sample has no runner now; `/postmortem:test-audit` covers spot
+mutation on demand.*
 
 Filed 2026-08-04, the day the owner asked "how do we know" of a fully green
 board. The gap it names: red-first at birth proves an oracle CAN fail on the

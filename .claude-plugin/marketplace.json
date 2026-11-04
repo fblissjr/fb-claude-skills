@@ -35,7 +35,7 @@
     {
       "name": "skill-maintainer",
       "source": "./skills/skill-maintainer",
-      "version": "0.37.0"
+      "version": "0.38.0"
     },
     {
       "name": "json-query",
