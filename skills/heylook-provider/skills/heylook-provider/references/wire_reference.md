@@ -324,7 +324,9 @@ builder serves both modes, so the rule is one line:
 > name says. Absent means this mode or engine could not measure it.
 
 Absent has two spellings: streaming omits the key, non-streaming returns
-`null`. Test for `None` if you want one branch for both.
+`null`. Test for `None` if you want one branch for both. That omission covers
+`performance`'s own keys: inside `cache` and `speculative` a field that does
+not apply is `null` in both modes.
 
 | Field | Meaning |
 |---|---|

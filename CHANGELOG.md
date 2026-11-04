@@ -1,5 +1,12 @@
 # changelog
 
+## 1.77.2
+
+### fixed
+- **`heylook-provider` 0.23.1 -> 0.23.2 (heylook 2.0.224).** The conversation reasoning-end route now answers `{"signalled": 1, "conversation_id"}`, the request route's shape, and `routes.md` says so. `wire_reference.md` says the streamed "omitted, never null" rule covers `performance`'s own keys, while nested `cache` and `speculative` carry `null` for a field that does not apply (seen live on MLX).
+- **`skill-maintain` CLI 0.44.0 -> 0.44.1: the token-budget hint names a command that works.** `claude plugin details <plugin>` finds only an installed plugin; the hint now says `claude --plugin-dir <plugin-dir> plugin details <plugin>`, which measures the tree in this repo.
+- **AGENTS.md: `skill-maintain validate` needs `--all`.** Without an argument it prints usage and exits 1.
+
 ## 1.77.1
 
 ### fixed

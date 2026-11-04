@@ -41,7 +41,7 @@ chat page uses it.
 | `PUT/DELETE /v1/conversations/{id}/messages/{msg_id}` | Edit or delete one message |
 | `POST /v1/conversations/{id}/generate` | Generate into the conversation |
 | `DELETE /v1/conversations/{id}/generate` | Stop the active generation; the partial persists. 404 when none is active |
-| `POST /v1/conversations/{id}/generate/reasoning-end` | Close the active generation's open thinking block; `{"status": "ending_reasoning", "conversation_id"}`, 404 when none is active |
+| `POST /v1/conversations/{id}/generate/reasoning-end` | Close the active generation's open thinking block; `{"signalled": 1, "conversation_id"}`, 404 when none is active |
 | `POST /v1/conversations/{id}/prompt` | The exact prompt string generate would feed the model; persists nothing |
 | `GET /v1/conversations/{id}/media/{media_id}` | A stored image or audio blob |
 

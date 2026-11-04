@@ -11,7 +11,7 @@ plugin table, install: [README.md](README.md). Every other doc:
 
 ```bash
 uv sync --all-packages                          # setup from a fresh clone
-uv run skill-maintain validate                  # SKILL.md frontmatter, Claude Code schema
+uv run skill-maintain validate --all            # SKILL.md frontmatter, Claude Code schema
 uv run skill-maintain test                      # repo gates: token budget, hygiene, path audit
 claude plugin validate <plugin-dir> --strict    # per plugin, not only the marketplace root
 claude plugin eval <plugin-dir>                 # behaviour, with and without the plugin; suites and run notes: evals/README.md

@@ -80,7 +80,7 @@ def budget_scope_line(results: list[Result]) -> str | None:
     line = f"token budget: {under} certainly under, {len(unverified)} unverified, {len(over)} over"
     if unverified:
         names = ", ".join(r.name for r in unverified)
-        line += f" -- unverified ({names}): measure with `claude plugin details <plugin>`"
+        line += f" -- unverified ({names}): measure with `claude --plugin-dir <plugin-dir> plugin details <plugin>`"
     return line
 
 
@@ -132,7 +132,7 @@ def test_skills(root: Path) -> list[Result]:
         elif verdict == "unverified":
             detail = (
                 f"~{low:,}-{high:,} straddles {TOKEN_BUDGET_REATTACH:,}: unverified, not gated; "
-                f"measure with `claude plugin details <plugin>` {refs}"
+                f"measure with `claude --plugin-dir <plugin-dir> plugin details <plugin>` {refs}"
             )
         else:
             detail = f"{skill_tokens:,} {refs}"

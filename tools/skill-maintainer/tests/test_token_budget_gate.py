@@ -111,7 +111,7 @@ def test_band_passes_as_unverified_and_names_the_measurement():
         result = _budget_result(root, "dense")
         assert result.passed, f"an unverified skill must not fail the board; detail {result.detail!r}"
         assert "unverified" in result.detail, result.detail
-        assert "claude plugin details" in result.detail, (
+        assert "claude --plugin-dir <plugin-dir> plugin details" in result.detail, (
             f"an unverified verdict must name the measurement that settles it; got {result.detail!r}"
         )
 
@@ -185,7 +185,7 @@ def test_scope_line_counts_every_verdict():
         assert "1 unverified" in line, line
         assert "1 over" in line, line
         assert "dense" in line, f"the unverified skill should be named; got {line!r}"
-        assert "claude plugin details" in line, line
+        assert "claude --plugin-dir <plugin-dir> plugin details" in line, line
 
 
 def test_scope_line_is_absent_without_budget_results():
