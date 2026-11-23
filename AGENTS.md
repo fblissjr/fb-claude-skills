@@ -1,4 +1,4 @@
-last updated: 2026-10-18
+last updated: 2026-11-23
 
 # fb-claude-skills
 
@@ -31,6 +31,9 @@ only when the marketplace `source` ships `tools/`. For `path-privacy` (which shi
 a unified dual-harness tree shared with `fb-gemini-plugins`), keep `.claude-plugin/plugin.json`
 and root `plugin.json` at the same version and run
 `bash skills/path-privacy/skills/path-privacy/scripts/sync-peer.sh --install --peer <peer-dir>`.
+A plugin whose marketplace `source` is another repo (`heylook-provider`, a `git-subdir`
+of `fb-gemini-plugins`) is versioned there: its `plugin.json` version wins, so the entry
+here carries no `version`, and the cascade here is the entry and a `CHANGELOG.md` line.
 Plugin content is what `source` ships *and* changes an installed session: a SKILL.md body,
 a `references/` file a skill reads, a hook script. SKILL.md frontmatter, a plugin's own
 CLAUDE.md, and its `evals/` are not. Never add `metadata.version`, `metadata.author`,

@@ -1,4 +1,4 @@
-last updated: 2026-09-24
+last updated: 2026-11-23
 
 # skill-maintainer (CLI package)
 
@@ -261,7 +261,7 @@ Holds each plugin's always-on surface to a ceiling in `.skill-maintainer/always_
 - `mcp_servers`: distinct server names in `.mcp.json` and plugin.json `mcpServers`. Each one's tool names and instructions load every session; the instructions come from the running server, so they are not measured
 - `per_call_emitters`: handlers on `PostToolUse`, `PostToolUseFailure` and `PostToolBatch`, whose `additionalContext` enters context on every matching tool call. Separate from `emitting_hooks` because the cost scales with tool calls, not sessions
 
-This is a proxy, not a cost report. `claude plugin details <name>` is the real count; it reads the installed copy, so it can't gate a commit. The `always-on ratchet` arm of `test` fails when a metric exceeds its ceiling, when a marketplace plugin has no ceiling or its entry lacks one for a metric (a baseline older than the metric; `--write` records it), when the baseline names a plugin that's gone, and when the baseline is missing or unreadable.
+This is a proxy, not a cost report. `claude plugin details <name>` is the real count; it reads the installed copy, so it can't gate a commit. The `always-on ratchet` arm of `test` fails when a metric exceeds its ceiling, when a marketplace plugin has no ceiling or its entry lacks one for a metric (a baseline older than the metric; `--write` records it), when the baseline names a plugin that's gone or no longer has a local source (moved to a `git-subdir` or `github` source, which has no working-tree copy to measure), and when the baseline is missing or unreadable.
 
 ```bash
 skill-maintain ratchet           # table: each metric, its ceiling, headroom; exits 1 if the arm would fail

@@ -104,8 +104,11 @@
     },
     {
       "name": "heylook-provider",
-      "source": "./skills/heylook-provider",
-      "version": "0.23.2"
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/fblissjr/fb-gemini-plugins.git",
+        "path": "skills/heylook-provider"
+      }
     },
     {
       "name": "plan-page",

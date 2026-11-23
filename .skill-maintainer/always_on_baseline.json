@@ -41,13 +41,6 @@
     "mcp_servers": 0,
     "per_call_emitters": 0
   },
-  "heylook-provider": {
-    "always_monitors": 0,
-    "emitting_hooks": 0,
-    "listing_chars": 897,
-    "mcp_servers": 0,
-    "per_call_emitters": 0
-  },
   "improvement-loops": {
     "always_monitors": 0,
     "emitting_hooks": 0,
@@ -135,7 +128,7 @@
   "skill-maintainer": {
     "always_monitors": 0,
     "emitting_hooks": 0,
-    "listing_chars": 637,
+    "listing_chars": 322,
     "mcp_servers": 0,
     "per_call_emitters": 0
   },

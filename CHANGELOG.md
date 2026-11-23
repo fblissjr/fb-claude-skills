@@ -1,5 +1,17 @@
 # changelog
 
+## 1.80.0
+
+### changed
+- **`heylook-provider` now installs from `fb-gemini-plugins` (was 0.23.2 here; that repo's `plugin.json` is at 0.25.4).** The gemini repo had become the source of truth and had moved past this copy. The marketplace entry is now a `git-subdir` source (`https://github.com/fblissjr/fb-gemini-plugins.git`, path `skills/heylook-provider`) with no `sha` pin, so it follows that repo's default branch, and `skills/heylook-provider/` is deleted here. The entry carries no `version`: Claude Code takes it from the plugin's `plugin.json` first, so a copy here could only drift. Live: a scratch marketplace holding this entry installed into a throwaway config dir, and the cached tree matched the gemini tree apart from Claude Code's `.in_use` marker; the gemini copy passes `claude plugin validate --strict`.
+  - **What stops being checked here.** `skill-maintain test`'s version alignment and the always-on ratchet skip object sources, so the plugin's validation, its tests (`skills/heylook-provider/tests/` went with the directory) and its always-on cost belong to the gemini repo.
+  - **A release reaches installs once it is on GitHub.** The gemini repo's `origin` is a self-hosted server; the marketplace fetches from the `github` remote.
+  - AGENTS.md invariant 1 says how a plugin sourced from another repo is versioned; the README row links to the gemini repo.
+- **Always-on baseline rewritten (`skill-maintain ratchet --write`).** `heylook-provider` is dropped, and `skill-maintainer`'s `listing_chars` ceiling is tightened to its current value, which the `/maintain` retirement in 1.79.0 left unrecorded.
+
+### fixed
+- **`skill-maintain` CLI 0.46.0 -> 0.46.1: the ratchet no longer says a moved plugin is missing from marketplace.json.** A baseline entry that nothing measures was reported as "not in marketplace.json", including a plugin listed there with an external source. The message now says marketplace.json does not list it with a local source. Pinned by `test_stale_entry_for_a_plugin_moved_to_an_external_source_does_not_say_unlisted`.
+
 ## 1.79.0
 
 ### removed

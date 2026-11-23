@@ -361,8 +361,10 @@ def findings(current: dict, baseline: dict) -> list[tuple[str, str]]:
                 )))
     for plugin in sorted(set(baseline) - set(current)):
         out.append((plugin, (
-            f"{BASELINE_PATH} names '{plugin}', which is not in marketplace.json "
-            "-- drop it with `skill-maintain ratchet --write`"
+            # Gone from marketplace.json, or moved to an object source (git-subdir,
+            # github) that has no working-tree copy here: either way nothing measures it.
+            f"{BASELINE_PATH} names '{plugin}', which marketplace.json does not list "
+            "with a local source -- drop it with `skill-maintain ratchet --write`"
         )))
     return out
 

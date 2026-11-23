@@ -1,4 +1,4 @@
-last updated: 2026-10-06
+last updated: 2026-11-23
 
 # fb-claude-skills
 
@@ -70,7 +70,7 @@ Grouped by purpose: development conventions & authoring, decomposition & model r
 
 | Plugin | Type | Description |
 |--------|------|-------------|
-| [heylook-provider](skills/heylook-provider/) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes one Anthropic Messages-conformant `/v1/messages` (the OpenAI-compatible route is gone), so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. |
+| [heylook-provider](https://github.com/fblissjr/fb-gemini-plugins/tree/main/skills/heylook-provider) | Skill + Script | Wire an application to [heylook](https://github.com/fblissjr/heylookitsanllm), a local multimodal server on Apple Silicon serving MLX and gguf. It exposes one Anthropic Messages-conformant `/v1/messages` (the OpenAI-compatible route is gone), so an SDK habit mostly transfers — what does not is everything following from the server being local and single-user: model ids are install-local so discovery is a constraint rather than a nicety, capabilities vary per model, the client resizes images because that wire has no resize params, an absent sampler field means the server cascade decides, and a busy server answers 503 with `Retry-After` as a queue rather than a quota. A stdlib `probe.py` resolves the roster and exits non-zero when a required capability is unserved. Knowledge only; it calls nothing on your behalf. Its source of truth is [fb-gemini-plugins](https://github.com/fblissjr/fb-gemini-plugins), which this marketplace installs from directly (`git-subdir`), so a release there reaches it without a copy here. |
 | [plan-page](skills/plan-page/) | Skill + Scripts | Write an implementation plan as one interactive HTML page: a tree of claims, each proved by a mockup, state machine, call stack, schema or code, with the decisions you have to make placed on the claim they change. A port of the `html-plan` plugin in [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/main/html-plan), renamed and kept here for one fix: a published plan follows the viewer's dark theme. Needs `node` to pack the page. |
 
 ### privacy & pre-share safety

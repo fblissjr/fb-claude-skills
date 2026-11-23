@@ -382,6 +382,27 @@ def test_arm_fails_on_plugin_missing_from_baseline_and_on_stale_entry(tmp_path):
     assert "gone" in by_name and "marketplace" in by_name["gone"].detail
 
 
+def test_stale_entry_for_a_plugin_moved_to_an_external_source_does_not_say_unlisted(tmp_path):
+    """A plugin whose source moved to another repo is still in marketplace.json;
+    its leftover ceiling is stale because nothing here is measured, and the
+    message says that rather than claiming the plugin is unlisted."""
+    # Breaks if deleted: the message for a git-subdir move (heylook-provider,
+    # 1.80.0) could go back to "not in marketplace.json", sending the reader to
+    # look for an entry that is right there.
+    _one_plugin_repo(tmp_path)
+    mp = tmp_path / ".claude-plugin" / "marketplace.json"
+    data = orjson.loads(mp.read_bytes())
+    data["plugins"].append({"name": "beta", "source": {
+        "source": "git-subdir", "url": "https://example.invalid/r.git", "path": "p"}})
+    mp.write_bytes(orjson.dumps(data))
+    _baseline(tmp_path, {"alpha": _ceil(10), "beta": _ceil(5)})
+    rows = _rows(check_always_on_ratchet(tmp_path))
+    by_name = {r.name: r for r in rows if not r.passed}
+    assert set(by_name) == {"beta"}, by_name
+    assert "not in marketplace.json" not in by_name["beta"].detail
+    assert "local source" in by_name["beta"].detail
+
+
 @pytest.mark.parametrize("content", [None, b"{not json", b'{"alpha": {"listing_chars": "ten"}}'])
 def test_arm_fails_on_missing_or_unparseable_baseline(tmp_path, content):
     """No readable baseline is a failure, never a green."""
